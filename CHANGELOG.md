@@ -21,13 +21,43 @@
 - `MCP_BASE_URL` environment variable — configurable OAuth callback base URL for Kubernetes / reverse proxy deployments (defaults to `http://localhost:{HOST_PORT}`)
 - Kubernetes deployment guide in `examples/configuration.md` (Ingress, env vars, multi-user OAuth setup)
 
+- **Payload assertion test suite** (`tests/test_tool_payloads.py`) — 34 unit tests verifying the exact HTTP request (URL, body, params, headers) sent by every tool, including branch coverage for `create_ml_project` (binary/interval/nominal)
+- **Integration test suite** (`tests/test_integration.py`) — 8 end-to-end workflow tests against a real Viya instance covering CAS discovery, data upload, file service, SAS code execution, batch jobs, reports, ML projects, and scoring
+- **Test runner script** (`run_tests.sh`) — Accepts credentials via CLI args or `.env`; supports `--integration` and `--integration-only` modes
+- **Gemini CLI configuration** — `examples/gemini-settings.json` with recommended `timeout` setting, Gemini CLI section in `examples/configuration.md`, and Gemini CLI snippets in README
+
 ### Changed
 - `src/sas_mcp_server/config.py` — Added SSL verification bypass via httpx monkey-patch when `SSL_VERIFY=false`
 - `src/sas_mcp_server/viya_utils.py` — Respects `SSL_VERIFY` setting for Viya API calls
 - `examples/configuration.md` — Added Python registration script instructions and `SSL_VERIFY` to environment variables table
+- **Bumped `fastmcp` from `>=2.13.0.2` to `>=3.0.0,<4.0.0`** (major version). v3 made several APIs async and renamed some module paths. The migration in this repo touches:
+  - `OAuthProxy(upstream_client_secret=None, ...)` — `""` is no longer accepted.
+  - `Context.set_state` / `Context.get_state` are now `async def` (carried from PR #9).
+  - `from fastmcp.utilities.logging import get_logger` — top-level `fastmcp.utilities` is no longer re-exported.
+  - `from fastmcp.prompts import Message` — module path flattened.
+  - `from fastmcp.tools import ToolResult` — module path flattened.
+- **`OAuthProxy(valid_scopes=["openid"])`** — required so containerized deployments accept tokens issued only with `openid` (carried from PR #9; fixes OAuth2 under Podman/Docker).
+- **SSL monkey-patch in `config.py` is now idempotent** — guarded by `_sas_mcp_ssl_patched` so reloading the module doesn't stack wrappers around `httpx.AsyncClient.__init__`.
 
 ### Fixed
+- `upload_data` — Rewrote to use the CAS Management REST API (`POST /casManagement/servers/{server}/caslibs/{caslib}/tables` with `multipart/form-data`) instead of a SAS DATA step workaround; handles 409 (table already exists) gracefully
+- `_make_client` — Removed default `Content-Type: application/json` header that conflicted with multipart form-data uploads
+- `create_ml_project` — Fixed request body to match the MLPA API spec: `predictionType` → `targetLevel`, moved `targetVariable` inside `analyticsProjectAttributes`, added required `type`, `pipelineBuildMethod`, and `settings` fields, added `targetEventLevel` for binary/nominal classification
+- `get_castable_data` — Rewrote to use the dataTables/rowSets APIs instead of the non-existent `/casManagement/.../rows` endpoint: fetches column metadata via `GET /dataTables/dataSources/.../columns` (with full pagination), then row data via `GET /rowSets/tables/.../rows`; returns structured `{columns, rows}` with named fields; default row limit increased from 20 to 100
+- `get_report_image` — Fixed Content-Type to use `application/vnd.sas.report.images.job.request+json` (SAS media type) instead of `application/json`; switched from `json=` to `content=` to prevent httpx from overriding the Content-Type header
+- `get_job_log` — Rewrote to fetch log from the Files service (via the job's `results` map) instead of the non-existent `/jobExecution/jobs/{id}/log` endpoint; returns error message when job fails before producing a log
+- `run_ml_project` — Rewrote from `POST ?action=start` to correct `GET` (with ETag) → `PUT ?action=retrainProject` pattern with full project body, `If-Match`, `Accept-Language` headers, and `content=` instead of `json=` to preserve Content-Type
+- `submit_batch_job` — Added `arguments: {"_contextName": ...}` to route jobs to the correct compute context
 - `pyproject.toml` — Corrected `authors` field to PEP 621 format (`[{name = "..."}]`) fixing Docker build error
 - `.dockerignore` — Added `!README.md` exception so `uv build` can find the readme during container builds
 - `.env.sample` — Corrected `CONTEXT_NAME` to `COMPUTE_CONTEXT_NAME` to match the actual env var read by config
 - `examples/configuration.md` — Corrected `CONTEXT_NAME` to `COMPUTE_CONTEXT_NAME` in environment variables table
+- **HTTP auth middleware** correctly `await`s `Context.set_state` / `get_state` under v3's async state API (PR #9).
+
+### Tests
+- Updated `test_prompts.py` to use the public `mcp.get_prompt()` / `mcp.list_prompts()` API; v3 removed the private `_prompt_manager` attribute the prior tests reached into.
+- Updated `test_mcp_server.py` to `await` mocked `Context.get_state`, since v3 makes the method async.
+- Switched `test_config.py` from `del sys.modules + import` to `importlib.reload()`. The old pattern created orphan config modules that polluted `httpx.AsyncClient.__init__` and broke later integration tests with empty-message `ConnectError`s.
+- `conftest.py` now calls `load_dotenv()` at module top so `SSL_VERIFY` (and friends) are read from `.env` before any `sas_mcp_server` module is first imported; the `viya_token` fixture also gets an explicit `timeout=60.0` on the password-grant request.
+- `test_integration.py` pinned to a session-scoped asyncio loop (`@pytest.mark.asyncio(loop_scope="session")`) so the session-scoped `integration_mcp_server` fixture and per-test `Client` share one loop.
+- `test_cas_discovery_workflow` now targets `Public.HMEQ` directly (skips if not loaded) instead of picking `caslibs[0]`/`tables[0]`, which was brittle on Viyas with many tables or unloaded source tables.
