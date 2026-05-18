@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # Copyright © 2025, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+
+# Apply SSL patch before any other imports
+from . import patch_httpx
+
 """
 Starter MCP Server for SAS Viya, utilizing the SAS Viya OAuth flow for authentication.
 Handles session management, job submission, and result retrieval using httpx.
@@ -19,7 +23,7 @@ from .tools import register_tools
 from .prompts import register_prompts
 
 # Load environment variables before accessing them
-load_dotenv()
+load_dotenv(override=True)
 
 
 class AuthenticationError(FastMCPError):
