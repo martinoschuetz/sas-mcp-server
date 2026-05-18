@@ -87,7 +87,8 @@ def test_config_default_values(monkeypatch):
     monkeypatch.delenv("MCP_SIGNING_KEY", raising=False)
     monkeypatch.delenv("COMPUTE_CONTEXT_NAME", raising=False)
     
-    import sas_mcp_server.config as config_module
+    with patch('dotenv.load_dotenv'):
+        import sas_mcp_server.config as config_module
     
     assert config_module.CLIENT_ID == "sas-mcp"
     assert config_module.HOST_PORT == 8134
