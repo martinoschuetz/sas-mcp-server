@@ -5,16 +5,16 @@ import asyncio
 import httpx
 import ssl
 from cachetools import TTLCache
-from fastmcp import utilities
-from .config import VIYA_ENDPOINT, CONTEXT_NAME
+from fastmcp.utilities.logging import get_logger
+from .config import VIYA_ENDPOINT, CONTEXT_NAME, SSL_VERIFY
 
-logger = utilities.logging.get_logger(__name__)
+logger = get_logger(__name__)
 
 # Caching for performance
 # Cache data selection lists for 60 seconds, max 100 different filter combinations
 data_selection_cache = TTLCache(maxsize=100, ttl=60)
 
-# Create a permissive SSL context that we can use globally
+# Create a permissive SSL context that we can use globally if SSL_VERIFY is disabled
 _permissive_ssl_context = ssl.create_default_context()
 _permissive_ssl_context.check_hostname = False
 _permissive_ssl_context.verify_mode = ssl.CERT_NONE
@@ -93,10 +93,11 @@ def _make_client(token):
         token = f"Bearer {token}"
     headers = {"Authorization": token, "Content-Type": "application/json"}
     
-    # Explicitly use the permissive SSL context if SSL_VERIFY is disabled
-    from .patch_httpx import SSL_VERIFY
-    verify_param = _permissive_ssl_context if not SSL_VERIFY else True
-    
+    # Use permissive context if SSL_VERIFY is False
+    verify_param = SSL_VERIFY
+    if not SSL_VERIFY:
+        verify_param = _permissive_ssl_context
+
     return httpx.AsyncClient(headers=headers, verify=verify_param, timeout=300.0)
 
 
