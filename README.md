@@ -1,12 +1,22 @@
 # SAS MCP Server
 
-A Model Context Protocol (MCP) server for executing SAS code on SAS Viya environments.
+A Model Context Protocol (MCP) server for executing SAS code, training AutoML projects, scoring models and so much more for SAS Viya environments.
 
 ## Features
 
-- Execute SAS code on SAS Viya compute contexts
+- 20+ Tools spanning the Analytics Life Cycle across SAS Viya
+- Prompt Templates for improving your SAS Code
 - OAuth2 authentication with PKCE flow
 - HTTP-based MCP server compatible with MCP clients
+
+## Articles & Videos
+
+Here you can find getting articles on how to use and integrate the SAS MCP Server in different tools and what to build with it:
+
+- [Connecting GitHub Copilot to SAS Viya with the SAS MCP Server](https://communities.sas.com/t5/SAS-Communities-Library/Connecting-GitHub-Copilot-to-SAS-Viya-with-the-SAS-MCP-Server/ta-p/987191)
+- [Putting the SAS MCP Server to Work in GitHub Copilot](https://communities.sas.com/t5/SAS-Communities-Library/Putting-the-SAS-MCP-Server-to-Work-in-GitHub-Copilot/ta-p/987193)
+- [Connecting Claude Code CLI to SAS Viya with the SAS MCP Server](https://communities.sas.com/t5/SAS-Communities-Library/Connecting-Claude-Code-CLI-to-SAS-Viya-with-the-SAS-MCP-Server/ta-p/988775)
+- [Putting the SAS MCP Server to Work in Claude Code CLI](https://communities.sas.com/t5/SAS-Communities-Library/Putting-the-SAS-MCP-Server-to-Work-in-Claude-Code-CLI/ta-p/988922)
 
 ## Getting Started
 ### Prerequisites
