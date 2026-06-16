@@ -22,8 +22,9 @@ from .viya_client import (
     logger,
     make_client,
     post_json,
+    return_items,
 )
-from .viya_utils import run_one_snippet
+from .viya_utils import get_cached_session, reset_cached_session, run_one_snippet
 
 
 def register_tools(
@@ -54,6 +55,23 @@ def register_tools(
         async with make_client(token) as client:
             yield client
 
+    @asynccontextmanager
+    async def compute_tool_session(
+        name: str, ctx: Context, context_name: str
+    ) -> AsyncIterator[tuple[httpx.AsyncClient, str]]:
+        """Like :func:`viya_session` but also resolves the cached compute session.
+
+        Yields ``(client, session_id)`` where *session_id* is the reusable
+        per-user compute session for *context_name* — created on first use and
+        reused (not torn down) on later calls. Use ``reset_compute_session`` to
+        discard it.
+        """
+        logger.info("--- TOOL USED: %s ---", name)
+        token = await get_token(ctx)
+        async with make_client(token) as client:
+            session_id = await get_cached_session(client, context_name, token)
+            yield client, session_id
+
     # ------------------------------------------------------------------
     # Original tool
     # ------------------------------------------------------------------
@@ -63,6 +81,11 @@ def register_tools(
         """
         Executes the provided SAS code in the Viya environment and returns information about the completed Job.
         This will create a job definition for the SAS code, execute it, and then retrieve the results.
+
+        The code runs in a reusable compute session that is kept warm and shared
+        across calls (per user), so SAS state — WORK tables, macro variables, and
+        assigned librefs — persists between successive ``execute_sas_code`` calls.
+        Call ``reset_compute_session`` to discard that state and start fresh.
 
         Args:
             sas_code (str): the SAS code snippet to be executed using the Viya Job Execution API Service
@@ -88,12 +111,19 @@ def register_tools(
         """List available CAS servers on the Viya environment."""
         async with viya_session("list_cas_servers", ctx) as client:
             items, _ = await get_paged_items("/casManagement/servers", client)
-            return [{"name": s.get("name"), "id": s.get("id"),
-                     "description": s.get("description", "")} for s in items]
+            return [
+                {
+                    "name": s.get("name"),
+                    "id": s.get("id"),
+                    "description": s.get("description", ""),
+                }
+                for s in items
+            ]
 
     @mcp.tool()
-    async def list_caslibs(server_id: str, ctx: Context,
-                           limit: int = 50) -> list[dict[str, Any]]:
+    async def list_caslibs(
+        server_id: str, ctx: Context, limit: int = 50
+    ) -> list[dict[str, Any]]:
         """List CAS libraries (caslibs) available on a CAS server.
 
         Args:
@@ -102,13 +132,21 @@ def register_tools(
         """
         async with viya_session("list_caslibs", ctx) as client:
             items, _ = await get_paged_items(
-                f"/casManagement/servers/{server_id}/caslibs", client, limit=limit)
-            return [{"name": c.get("name"), "type": c.get("type", ""),
-                     "description": c.get("description", "")} for c in items]
+                f"/casManagement/servers/{server_id}/caslibs", client, limit=limit
+            )
+            return [
+                {
+                    "name": c.get("name"),
+                    "type": c.get("type", ""),
+                    "description": c.get("description", ""),
+                }
+                for c in items
+            ]
 
     @mcp.tool()
-    async def list_castables(server_id: str, caslib_name: str, ctx: Context,
-                             limit: int = 50) -> list[dict[str, Any]]:
+    async def list_castables(
+        server_id: str, caslib_name: str, ctx: Context, limit: int = 50
+    ) -> list[dict[str, Any]]:
         """List tables in a CAS library.
 
         Args:
@@ -119,14 +157,22 @@ def register_tools(
         async with viya_session("list_castables", ctx) as client:
             items, _ = await get_paged_items(
                 f"/casManagement/servers/{server_id}/caslibs/{caslib_name}/tables",
-                client, limit=limit)
-            return [{"name": t.get("name"),
-                     "rowCount": t.get("rowCount"),
-                     "columnCount": t.get("columnCount")} for t in items]
+                client,
+                limit=limit,
+            )
+            return [
+                {
+                    "name": t.get("name"),
+                    "rowCount": t.get("rowCount"),
+                    "columnCount": t.get("columnCount"),
+                }
+                for t in items
+            ]
 
     @mcp.tool()
-    async def list_source_tables(server_id: str, caslib_name: str, ctx: Context,
-                                 limit: int = 50) -> list[dict[str, Any]]:
+    async def list_source_tables(
+        server_id: str, caslib_name: str, ctx: Context, limit: int = 50
+    ) -> list[dict[str, Any]]:
         """List source tables that are NOT yet loaded into memory in a CAS library.
 
         These are the candidates for ``promote_table_to_memory`` — tables that
@@ -140,15 +186,24 @@ def register_tools(
         async with viya_session("list_source_tables", ctx) as client:
             items, _ = await get_paged_items(
                 f"/casManagement/servers/{server_id}/caslibs/{caslib_name}/tables",
-                client, limit=limit, extra_params={"state": "unloaded"})
-            return [{"name": t.get("name"),
-                     "sourceTableName": t.get("sourceTableName"),
-                     "scope": t.get("scope"),
-                     "state": t.get("state", "unloaded")} for t in items]
+                client,
+                limit=limit,
+                extra_params={"state": "unloaded"},
+            )
+            return [
+                {
+                    "name": t.get("name"),
+                    "sourceTableName": t.get("sourceTableName"),
+                    "scope": t.get("scope"),
+                    "state": t.get("state", "unloaded"),
+                }
+                for t in items
+            ]
 
     @mcp.tool()
-    async def get_castable_info(server_id: str, caslib_name: str,
-                                table_name: str, ctx: Context) -> dict[str, Any]:
+    async def get_castable_info(
+        server_id: str, caslib_name: str, table_name: str, ctx: Context
+    ) -> dict[str, Any]:
         """Get metadata for a CAS table (row count, column count, size, etc.).
 
         Args:
@@ -159,12 +214,17 @@ def register_tools(
         async with viya_session("get_castable_info", ctx) as client:
             return await get_json(
                 f"/casManagement/servers/{server_id}/caslibs/{caslib_name}/tables/{table_name}",
-                client)
+                client,
+            )
 
     @mcp.tool()
-    async def get_castable_columns(server_id: str, caslib_name: str,
-                                   table_name: str, ctx: Context,
-                                   limit: int = 200) -> list[dict[str, Any]]:
+    async def get_castable_columns(
+        server_id: str,
+        caslib_name: str,
+        table_name: str,
+        ctx: Context,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
         """Get column metadata for a CAS table (names, types, labels, formats).
 
         Args:
@@ -176,16 +236,29 @@ def register_tools(
         async with viya_session("get_castable_columns", ctx) as client:
             items, _ = await get_paged_items(
                 f"/casManagement/servers/{server_id}/caslibs/{caslib_name}/tables/{table_name}/columns",
-                client, limit=limit)
-            return [{"name": c.get("name"), "type": c.get("type"),
-                     "rawLength": c.get("rawLength"),
-                     "label": c.get("label", ""),
-                     "format": c.get("format", "")} for c in items]
+                client,
+                limit=limit,
+            )
+            return [
+                {
+                    "name": c.get("name"),
+                    "type": c.get("type"),
+                    "rawLength": c.get("rawLength"),
+                    "label": c.get("label", ""),
+                    "format": c.get("format", ""),
+                }
+                for c in items
+            ]
 
     @mcp.tool()
-    async def get_castable_data(server_id: str, caslib_name: str,
-                                table_name: str, ctx: Context,
-                                limit: int = 100, start: int = 0) -> dict[str, Any]:
+    async def get_castable_data(
+        server_id: str,
+        caslib_name: str,
+        table_name: str,
+        ctx: Context,
+        limit: int = 100,
+        start: int = 0,
+    ) -> dict[str, Any]:
         """Fetch rows from a CAS table with column names.
 
         Args:
@@ -210,8 +283,13 @@ def register_tools(
                 col_resp.raise_for_status()
                 col_data = col_resp.json()
                 for item in col_data.get("items", []):
-                    columns.append({"name": item.get("name"), "type": item.get("type"),
-                                    "index": item.get("index")})
+                    columns.append(
+                        {
+                            "name": item.get("name"),
+                            "type": item.get("type"),
+                            "index": item.get("index"),
+                        }
+                    )
                 total = col_data.get("count", 0)
                 col_start += col_limit
                 if col_start >= total:
@@ -244,8 +322,9 @@ def register_tools(
     # ------------------------------------------------------------------
 
     @mcp.tool()
-    async def upload_data(server_id: str, caslib_name: str, table_name: str,
-                          csv_data: str, ctx: Context) -> dict[str, Any]:
+    async def upload_data(
+        server_id: str, caslib_name: str, table_name: str, csv_data: str, ctx: Context
+    ) -> dict[str, Any]:
         """Upload CSV data into a CAS table.
 
         Args:
@@ -286,8 +365,9 @@ def register_tools(
             }
 
     @mcp.tool()
-    async def promote_table_to_memory(server_id: str, caslib_name: str,
-                                      table_name: str, ctx: Context) -> dict[str, Any]:
+    async def promote_table_to_memory(
+        server_id: str, caslib_name: str, table_name: str, ctx: Context
+    ) -> dict[str, Any]:
         """Load a source table into CAS memory at global scope (visible to all sessions).
 
         Loads the table from its caslib data source and promotes it to global
@@ -300,9 +380,7 @@ def register_tools(
             caslib_name: Caslib containing the table.
             table_name: Table to load and promote.
         """
-        table_path = (
-            f"/casManagement/servers/{server_id}/caslibs/{caslib_name}/tables/{table_name}"
-        )
+        table_path = f"/casManagement/servers/{server_id}/caslibs/{caslib_name}/tables/{table_name}"
         async with viya_session("promote_table_to_memory", ctx) as client:
             # Idempotency: skip if the table is already loaded in global scope.
             try:
@@ -342,8 +420,9 @@ def register_tools(
             }
 
     @mcp.tool()
-    async def list_files(ctx: Context, limit: int = 50,
-                         filter_name: str | None = None) -> list[dict[str, Any]]:
+    async def list_files(
+        ctx: Context, limit: int = 50, filter_name: str | None = None
+    ) -> list[dict[str, Any]]:
         """List files in the Viya Files Service.
 
         Args:
@@ -352,15 +431,23 @@ def register_tools(
         """
         filters = f"contains(name,'{filter_name}')" if filter_name else None
         async with viya_session("list_files", ctx) as client:
-            items, _ = await get_paged_items("/files/files", client,
-                                             limit=limit, filters=filters)
-            return [{"id": f.get("id"), "name": f.get("name"),
-                     "contentType": f.get("contentType", ""),
-                     "size": f.get("size")} for f in items]
+            items, _ = await get_paged_items(
+                "/files/files", client, limit=limit, filters=filters
+            )
+            return [
+                {
+                    "id": f.get("id"),
+                    "name": f.get("name"),
+                    "contentType": f.get("contentType", ""),
+                    "size": f.get("size"),
+                }
+                for f in items
+            ]
 
     @mcp.tool()
-    async def upload_file(file_name: str, content: str, ctx: Context,
-                          content_type: str = "text/plain") -> dict[str, Any]:
+    async def upload_file(
+        file_name: str, content: str, ctx: Context, content_type: str = "text/plain"
+    ) -> dict[str, Any]:
         """Upload a file to the Viya Files Service.
 
         Args:
@@ -372,9 +459,12 @@ def register_tools(
             resp = await client.post(
                 f"{VIYA_ENDPOINT}/files/files",
                 content=content.encode("utf-8"),
-                headers={"Content-Type": content_type,
-                         "Content-Disposition": f'attachment; filename="{file_name}"',
-                         "Accept": "application/json"})
+                headers={
+                    "Content-Type": content_type,
+                    "Content-Disposition": f'attachment; filename="{file_name}"',
+                    "Accept": "application/json",
+                },
+            )
             resp.raise_for_status()
             return resp.json()
 
@@ -395,8 +485,9 @@ def register_tools(
     # ------------------------------------------------------------------
 
     @mcp.tool()
-    async def list_reports(ctx: Context, limit: int = 50,
-                           filter_name: str | None = None) -> list[dict[str, Any]]:
+    async def list_reports(
+        ctx: Context, limit: int = 50, filter_name: str | None = None
+    ) -> list[dict[str, Any]]:
         """List Visual Analytics reports.
 
         Args:
@@ -405,11 +496,18 @@ def register_tools(
         """
         filters = f"contains(name,'{filter_name}')" if filter_name else None
         async with viya_session("list_reports", ctx) as client:
-            items, _ = await get_paged_items("/reports/reports", client,
-                                             limit=limit, filters=filters)
-            return [{"id": r.get("id"), "name": r.get("name"),
-                     "description": r.get("description", ""),
-                     "createdBy": r.get("createdBy", "")} for r in items]
+            items, _ = await get_paged_items(
+                "/reports/reports", client, limit=limit, filters=filters
+            )
+            return [
+                {
+                    "id": r.get("id"),
+                    "name": r.get("name"),
+                    "description": r.get("description", ""),
+                    "createdBy": r.get("createdBy", ""),
+                }
+                for r in items
+            ]
 
     @mcp.tool()
     async def get_report(report_id: str, ctx: Context) -> dict[str, Any]:
@@ -422,9 +520,9 @@ def register_tools(
             return await get_json(f"/reports/reports/{report_id}", client)
 
     @mcp.tool()
-    async def get_report_image(report_id: str, ctx: Context,
-                               image_type: str = "png",
-                               section_index: int = 0) -> dict[str, Any]:
+    async def get_report_image(
+        report_id: str, ctx: Context, image_type: str = "png", section_index: int = 0
+    ) -> dict[str, Any]:
         """Render a Visual Analytics report section as an image.
 
         Args:
@@ -457,8 +555,9 @@ def register_tools(
     # ------------------------------------------------------------------
 
     @mcp.tool()
-    async def submit_batch_job(sas_code: str, ctx: Context,
-                               job_name: str | None = None) -> dict[str, Any]:
+    async def submit_batch_job(
+        sas_code: str, ctx: Context, job_name: str | None = None
+    ) -> dict[str, Any]:
         """Submit a SAS job for asynchronous execution via the Job Execution service.
 
         Args:
@@ -496,11 +595,16 @@ def register_tools(
             limit: Maximum jobs to return (default 20).
         """
         async with viya_session("list_jobs", ctx) as client:
-            items, _ = await get_paged_items("/jobExecution/jobs", client,
-                                             limit=limit)
-            return [{"id": j.get("id"), "name": j.get("name", ""),
-                     "state": j.get("state", ""),
-                     "creationTimeStamp": j.get("creationTimeStamp", "")} for j in items]
+            items, _ = await get_paged_items("/jobExecution/jobs", client, limit=limit)
+            return [
+                {
+                    "id": j.get("id"),
+                    "name": j.get("name", ""),
+                    "state": j.get("state", ""),
+                    "creationTimeStamp": j.get("creationTimeStamp", ""),
+                }
+                for j in items
+            ]
 
     @mcp.tool()
     async def cancel_job(job_id: str, ctx: Context) -> str:
@@ -559,19 +663,31 @@ def register_tools(
         """
         async with viya_session("list_ml_projects", ctx) as client:
             items, _ = await get_paged_items(
-                "/mlPipelineAutomation/projects", client, limit=limit)
-            return [{"id": p.get("id"), "name": p.get("name", ""),
-                     "state": p.get("state", ""),
-                     "description": p.get("description", "")} for p in items]
+                "/mlPipelineAutomation/projects", client, limit=limit
+            )
+            return [
+                {
+                    "id": p.get("id"),
+                    "name": p.get("name", ""),
+                    "state": p.get("state", ""),
+                    "description": p.get("description", ""),
+                }
+                for p in items
+            ]
 
     @mcp.tool()
-    async def create_ml_project(project_name: str, caslib_name: str, table_name: str,
-                                target_variable: str, ctx: Context,
-                                server_id: str = "cas-shared-default",
-                                description: str = "",
-                                prediction_type: str = "binary",
-                                target_event_level: str = "1",
-                                auto_run: bool = True) -> dict[str, Any]:
+    async def create_ml_project(
+        project_name: str,
+        caslib_name: str,
+        table_name: str,
+        target_variable: str,
+        ctx: Context,
+        server_id: str = "cas-shared-default",
+        description: str = "",
+        prediction_type: str = "binary",
+        target_event_level: str = "1",
+        auto_run: bool = True,
+    ) -> dict[str, Any]:
         """Create a new AutoML pipeline automation project from a CAS table.
 
         The training table must already be loaded into CAS memory at **global**
@@ -591,17 +707,15 @@ def register_tools(
             target_event_level: Target event level for binary/nominal classification (default '1').
             auto_run: Whether to automatically run pipelines after creation (default True).
         """
-        table_path = (
-            f"/casManagement/servers/{server_id}/caslibs/{caslib_name}/tables/{table_name}"
-        )
-        data_table_uri = (
-            f"/dataTables/dataSources/cas~fs~{server_id}~fs~{caslib_name}/tables/{table_name}"
-        )
+        table_path = f"/casManagement/servers/{server_id}/caslibs/{caslib_name}/tables/{table_name}"
+        data_table_uri = f"/dataTables/dataSources/cas~fs~{server_id}~fs~{caslib_name}/tables/{table_name}"
         analytics_attrs: dict[str, Any] = {
             "targetVariable": target_variable,
             "targetLevel": prediction_type,
             "partitionEnabled": True,
-            "classSelectionStatistic": "ks" if prediction_type in ("binary", "nominal") else "ase",
+            "classSelectionStatistic": (
+                "ks" if prediction_type in ("binary", "nominal") else "ase"
+            ),
         }
         if prediction_type in ("binary", "nominal"):
             analytics_attrs["targetEventLevel"] = target_event_level
@@ -682,35 +796,54 @@ def register_tools(
             return resp.json()
 
     @mcp.tool()
-    async def list_registered_models(ctx: Context, limit: int = 50) -> list[dict[str, Any]]:
+    async def list_registered_models(
+        ctx: Context, limit: int = 50
+    ) -> list[dict[str, Any]]:
         """List models in the Model Repository.
 
         Args:
             limit: Maximum models to return (default 50).
         """
         async with viya_session("list_registered_models", ctx) as client:
-            items, _ = await get_paged_items("/modelRepository/models", client,
-                                             limit=limit)
-            return [{"id": m.get("id"), "name": m.get("name", ""),
-                     "description": m.get("description", ""),
-                     "modelVersionName": m.get("modelVersionName", "")} for m in items]
+            items, _ = await get_paged_items(
+                "/modelRepository/models", client, limit=limit
+            )
+            return [
+                {
+                    "id": m.get("id"),
+                    "name": m.get("name", ""),
+                    "description": m.get("description", ""),
+                    "modelVersionName": m.get("modelVersionName", ""),
+                }
+                for m in items
+            ]
 
     @mcp.tool()
-    async def list_models_and_decisions(ctx: Context, limit: int = 50) -> list[dict[str, Any]]:
+    async def list_models_and_decisions(
+        ctx: Context, limit: int = 50
+    ) -> list[dict[str, Any]]:
         """List published scoring models and decisions (MAS modules).
 
         Args:
             limit: Maximum modules to return (default 50).
         """
         async with viya_session("list_models_and_decisions", ctx) as client:
-            items, _ = await get_paged_items("/microanalyticScore/modules", client,
-                                             limit=limit)
-            return [{"id": m.get("id"), "name": m.get("name", ""),
-                     "description": m.get("description", "")} for m in items]
+            items, _ = await get_paged_items(
+                "/microanalyticScore/modules", client, limit=limit
+            )
+            return [
+                {
+                    "id": m.get("id"),
+                    "name": m.get("name", ""),
+                    "description": m.get("description", ""),
+                }
+                for m in items
+            ]
 
     @mcp.tool()
-    async def score_data(module_id: str, step_id: str, input_data: dict,
-                         ctx: Context) -> dict[str, Any]:
+    async def score_data(
+        module_id: str, step_id: str, input_data: dict, ctx: Context
+    ) -> dict[str, Any]:
         """Score data against a published model or decision (MAS module).
 
         Args:
@@ -721,5 +854,160 @@ def register_tools(
         body = {"inputs": [{"name": k, "value": v} for k, v in input_data.items()]}
         async with viya_session("score_data", ctx) as client:
             return await post_json(
-                f"/microanalyticScore/modules/{module_id}/steps/{step_id}", client,
-                body=body)
+                f"/microanalyticScore/modules/{module_id}/steps/{step_id}",
+                client,
+                body=body,
+            )
+
+    # ------------------------------------------------------------------
+    # Tier 6 — Compute Contexts & Code Execution
+    # ------------------------------------------------------------------
+
+    @mcp.tool()
+    async def list_compute_contexts(
+        ctx: Context, limit: int = 50, start: int = 0, filter_name: str | None = None
+    ) -> list[dict[str, Any]]:
+        """List available compute contexts on the Viya environment."""
+        async with viya_session("list_compute_contexts", ctx) as client:
+            filters = f"contains(name,'{filter_name}')" if filter_name else None
+            items, _ = await get_paged_items(
+                "/compute/contexts", client, limit=limit, start=start, filters=filters
+            )
+            return return_items(items, ["name", "description"])
+
+    @mcp.tool()
+    async def list_compute_libraries(
+        compute_context_name: str,
+        ctx: Context,
+        limit: int = 50,
+        start: int = 0,
+        filter_name: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List the SAS libraries (librefs) assigned in a compute context.
+
+        Runs in the reusable per-user compute session for the context, so it
+        also sees libraries created by prior ``execute_sas_code`` calls.
+
+        Args:
+            compute_context_name: Name of the compute context (see list_compute_contexts).
+            limit: Maximum number of libraries to return (default 50).
+            start: Offset of the first library to return (default 0).
+            filter_name: Optional name filter (substring match).
+        """
+        async with compute_tool_session(
+            "list_compute_libraries", ctx, compute_context_name
+        ) as (client, session_id):
+            filters = f"contains(name,'{filter_name}')" if filter_name else None
+            items, _ = await get_paged_items(
+                f"/compute/sessions/{session_id}/data",
+                client,
+                limit=limit,
+                start=start,
+                filters=filters,
+            )
+            return return_items(items, ["name", "description"])
+
+    @mcp.tool()
+    async def list_compute_tables(
+        compute_context_name: str,
+        library_name: str,
+        ctx: Context,
+        limit: int = 50,
+        start: int = 0,
+        filter_name: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List the tables in a SAS library within a compute context.
+
+        These are SAS/Compute tables (e.g. WORK or an assigned libref), distinct
+        from in-memory CAS tables (see list_castables). Runs in the reusable
+        per-user compute session for the context.
+
+        Args:
+            compute_context_name: Name of the compute context (see list_compute_contexts).
+            library_name: Name of the SAS library/libref (e.g. 'WORK', 'SASHELP').
+            limit: Maximum number of tables to return (default 50).
+            start: Offset of the first table to return (default 0).
+            filter_name: Optional name filter (substring match).
+        """
+        async with compute_tool_session(
+            "list_compute_tables", ctx, compute_context_name
+        ) as (client, session_id):
+            filters = f"contains(name,'{filter_name}')" if filter_name else None
+            items, _ = await get_paged_items(
+                f"/compute/sessions/{session_id}/data/{library_name}",
+                client,
+                limit=limit,
+                start=start,
+                filters=filters,
+            )
+            return return_items(items, ["name", "description"])
+
+    @mcp.tool()
+    async def list_compute_columns(
+        compute_context_name: str,
+        library_name: str,
+        table_name: str,
+        ctx: Context,
+        limit: int = 50,
+        start: int = 0,
+        filter_name: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List the columns of a table in a SAS library within a compute context.
+
+        Runs in the reusable per-user compute session for the context.
+
+        Args:
+            compute_context_name: Name of the compute context (see list_compute_contexts).
+            library_name: Name of the SAS library/libref (e.g. 'WORK', 'SASHELP').
+            table_name: Name of the table within the library.
+            limit: Maximum number of columns to return (default 50).
+            start: Offset of the first column to return (default 0).
+            filter_name: Optional name filter (substring match).
+        """
+        async with compute_tool_session(
+            "list_compute_columns", ctx, compute_context_name
+        ) as (client, session_id):
+            filters = f"contains(name,'{filter_name}')" if filter_name else None
+            items, _ = await get_paged_items(
+                f"/compute/sessions/{session_id}/data/{library_name}/{table_name}/columns",
+                client,
+                limit=limit,
+                start=start,
+                filters=filters,
+            )
+            return return_items(items, ["id", "name", "label", "type", "length"])
+
+    @mcp.tool()
+    async def reset_compute_session(
+        ctx: Context, compute_context_name: str | None = None
+    ) -> dict[str, str]:
+        """Reset (delete) the cached compute session for a compute context.
+
+        The server keeps one reusable SAS compute session per user and compute
+        context so repeat calls skip the slow session spin-up; SAS state (WORK
+        tables, macro variables, assigned librefs) therefore persists across
+        ``execute_sas_code`` and ``list_compute_*`` calls. Call this to discard
+        that state — the next compute tool call transparently creates a fresh
+        session.
+
+        Args:
+            compute_context_name: Compute context whose session to reset.
+                Defaults to the server's configured execution context (the one
+                ``execute_sas_code`` uses).
+        """
+        context_name = compute_context_name or CONTEXT_NAME
+        logger.info("--- TOOL USED: reset_compute_session ---")
+        token = await get_token(ctx)
+        async with make_client(token) as client:
+            sid = await reset_cached_session(client, context_name, token)
+        if sid is None:
+            return {
+                "status": "no_active_session",
+                "compute_context": context_name,
+                "message": "No cached compute session to reset for this context.",
+            }
+        return {
+            "status": "reset",
+            "compute_context": context_name,
+            "deleted_session": sid,
+        }
