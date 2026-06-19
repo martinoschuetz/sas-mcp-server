@@ -26,6 +26,7 @@ from .viya_client import (
 )
 from .viya_utils import get_cached_session, reset_cached_session, run_one_snippet
 
+import base64
 
 def register_tools(
     mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]
@@ -549,6 +550,44 @@ def register_tools(
             )
             resp.raise_for_status()
             return resp.json()
+
+    @mcp.tool()
+    async def export_report_package(report_id: str, ctx: Context, reportObjects: list[str]):
+        """Exports a package for the report or report objects in compressed (zip) format.
+        The returned content contains the report source files, plus the results of data
+        queries and image rendering, constituting all that is needed for remote viewing
+        of the report.
+
+        Args:
+            report_id: ID of the report.
+            reportObjects: Optional list of report object IDs to include in the package.
+        """
+        async with viya_session("export_report_package", ctx) as client:
+            body = {
+                "reportObjects": reportObjects
+            }
+            resp = await client.get(
+                f"{VIYA_ENDPOINT}/visualAnalytics/getExportedReportPackage/{report_id}/package",
+                content=json.dumps(body).encode(),
+                headers={
+                    "Accept": "application/zip, application/json, application/vnd.sas.error+json, application/json"
+                },
+            )
+            resp.raise_for_status()
+
+            # Handle both zip and JSON responses based on content-type
+            content_type = resp.headers.get("content-type", "").lower()
+            if "application/zip" in content_type:
+                # Return zip file as base64-encoded string
+                return {
+                    "status": "success",
+                    "content_type": "application/zip",
+                    "data": base64.b64encode(resp.content).decode("utf-8"),
+                    "size_bytes": len(resp.content),
+                }
+            else:
+                # Return JSON response (error or success)
+                return resp.json()
 
     # ------------------------------------------------------------------
     # Tier 4 — Batch Jobs & Async Execution
