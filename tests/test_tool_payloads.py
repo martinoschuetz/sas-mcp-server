@@ -35,6 +35,7 @@ EXPECTED_TOOLS = [
     "list_reports",
     "get_report",
     "get_report_image",
+    "export_report",
     "submit_batch_job",
     "get_job_status",
     "list_jobs",
@@ -465,6 +466,151 @@ async def test_get_report_image_request(mcp_server_with_mock_client):
         headers["Content-Type"] == "application/vnd.sas.report.images.job.request+json"
     )
     assert headers["Accept"] == "application/vnd.sas.report.images.job+json"
+
+
+def _binary_export_response(content: bytes, content_type: str):
+    resp = _make_mock_response()
+    resp.content = content
+    resp.headers = {"content-type": content_type}
+    return resp
+
+
+async def test_export_report_package_request(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _binary_export_response(
+        b"PK\x03\x04zip-bytes", "application/zip"
+    )
+    async with Client(mcp) as client:
+        await client.call_tool(
+            "export_report",
+            {
+                "report_id": "abc123",
+                "export_format": "package",
+                "report_objects": ["ve123", "ve456"],
+            },
+        )
+
+    url = mock_client.get.call_args[0][0]
+    assert url.endswith("/visualAnalytics/reports/abc123/package")
+    params = mock_client.get.call_args[1]["params"]
+    assert params["reportObjects"] == "ve123,ve456"
+    assert mock_client.get.call_args[1]["headers"]["Accept"] == "application/zip"
+
+
+async def test_export_report_pdf_passes_options(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _binary_export_response(
+        b"%PDF-1.7", "application/pdf"
+    )
+    async with Client(mcp) as client:
+        await client.call_tool(
+            "export_report",
+            {
+                "report_id": "rep1",
+                "export_format": "pdf",
+                "options": {"orientation": "landscape"},
+            },
+        )
+
+    url = mock_client.get.call_args[0][0]
+    assert url.endswith("/visualAnalytics/reports/rep1/pdf")
+    params = mock_client.get.call_args[1]["params"]
+    assert params["orientation"] == "landscape"
+    assert mock_client.get.call_args[1]["headers"]["Accept"] == "application/pdf"
+
+
+async def test_export_report_png_requires_size_param(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _binary_export_response(b"\x89PNG\r\n", "image/png")
+    async with Client(mcp) as client:
+        await client.call_tool(
+            "export_report",
+            {
+                "report_id": "rep1",
+                "export_format": "png",
+                "report_objects": ["ve1"],
+                "image_size": "800px,600px",
+            },
+        )
+
+    url = mock_client.get.call_args[0][0]
+    assert url.endswith("/visualAnalytics/reports/rep1/png")
+    params = mock_client.get.call_args[1]["params"]
+    assert params["reportObject"] == "ve1"
+    assert params["size"] == "800px,600px"
+
+
+async def test_export_report_csv_returns_text(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    csv_resp = _make_mock_response(text="a,b\n1,2\n")
+    csv_resp.headers = {"content-type": "text/csv"}
+    mock_client.get.return_value = csv_resp
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "export_report",
+            {"report_id": "rep1", "export_format": "csv", "report_objects": ["ve1"]},
+        )
+
+    url = mock_client.get.call_args[0][0]
+    assert url.endswith("/visualAnalytics/reports/rep1/csv")
+    assert mock_client.get.call_args[1]["params"]["reportObject"] == "ve1"
+    assert "a,b" in result.content[0].text
+
+
+async def test_export_report_csv_requires_object(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "export_report", {"report_id": "rep1", "export_format": "csv"}
+        )
+
+    assert result.data["status"] == "invalid_request"
+    mock_client.get.assert_not_called()
+
+
+async def test_export_report_data_rejects_multiple_objects(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "export_report",
+            {
+                "report_id": "rep1",
+                "export_format": "xlsx",
+                "report_objects": ["ve1", "ve2"],
+            },
+        )
+
+    assert result.data["status"] == "invalid_request"
+    mock_client.get.assert_not_called()
+
+
+async def test_export_report_http_error_is_structured(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    err_resp = _make_mock_response(status_code=500)
+    err_resp.content = b""
+    err_resp.text = ""
+    err_resp.headers = {"content-type": "text/plain"}
+    mock_client.get.return_value = err_resp
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "export_report",
+            {"report_id": "rep1", "export_format": "csv", "report_objects": ["ve1"]},
+        )
+
+    assert result.data["status"] == "export_failed"
+    assert result.data["http_status"] == 500
+
+
+async def test_export_report_unsupported_format(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "export_report", {"report_id": "rep1", "export_format": "docx"}
+        )
+
+    assert result.data["status"] == "unsupported_format"
+    assert "package" in result.data["supported"]
+    mock_client.get.assert_not_called()
 
 
 # -----------------------------------------------------------------------

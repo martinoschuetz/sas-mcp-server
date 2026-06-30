@@ -469,6 +469,24 @@ async def test_report_workflow(integration_mcp_server):
         except Exception:
             pass
 
+        # export_report: the report summary is the safest universal export
+        # (text, no report objects required), and the package export exercises
+        # the binary/embedded-file path.
+        summary = await client.call_tool("export_report", {
+            "report_id": report_id,
+            "export_format": "summary",
+        })
+        assert summary.content
+
+        try:
+            package = await client.call_tool("export_report", {
+                "report_id": report_id,
+                "export_format": "package",
+            })
+            assert package.content
+        except Exception:
+            pass
+
 
 # -----------------------------------------------------------------------
 # ML Project Workflow
@@ -936,6 +954,7 @@ TOOL_COVERAGE = {
     "list_reports": "test_report_workflow",
     "get_report": "test_report_workflow",
     "get_report_image": "test_report_workflow",
+    "export_report": "test_report_workflow",
     "submit_batch_job": "test_batch_job_workflow",
     "get_job_status": "test_batch_job_workflow",
     "list_jobs": "test_batch_job_workflow",

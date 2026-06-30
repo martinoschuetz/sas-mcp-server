@@ -6,7 +6,6 @@ Shared tool registration for both HTTP and stdio MCP servers.
 All tools are registered via ``register_tools(mcp, get_token)``.
 """
 
-import base64
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -16,6 +15,8 @@ from typing import Any
 
 import httpx
 from fastmcp import Context, FastMCP
+
+from sas_mcp_server.helpers import report_export_helpers
 
 from .config import CONTEXT_NAME, SSL_VERIFY, VIYA_ENDPOINT
 from .env import env_bool
@@ -264,6 +265,7 @@ async def _post_cas_upload(
     }
 
 
+# --- export_report: Visual Analytics export-format registry -------------------
 def register_tools(
     mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]
 ) -> None:
@@ -830,43 +832,57 @@ def register_tools(
             return resp.json()
 
     @mcp.tool()
-    async def export_report_package(report_id: str, ctx: Context, reportObjects: list[str]):
-        """Exports a package for the report or report objects in compressed (zip) format.
-        The returned content contains the report source files, plus the results of data
-        queries and image rendering, constituting all that is needed for remote viewing
-        of the report.
+    async def export_report(
+        report_id: str,
+        export_format: str,
+        ctx: Context,
+        report_objects: list[str] | None = None,
+        image_size: str | None = None,
+        options: dict[str, Any] | None = None,
+    ):
+        """Export a Visual Analytics report (or specific report objects) in any
+        format the VA service exposes, via its synchronous export endpoints.
+
+        Formats (``export_format``):
+          * ``package`` — full report bundle as a ``.zip`` (source files, query
+            results, and rendered content); whole report or selected objects.
+          * ``pdf`` — rendered PDF; whole report or selected objects. Pass
+            rendering overrides (e.g. ``orientation``, ``paperSize``, ``margin``,
+            ``includeCoverPage``) via ``options``.
+          * ``png`` / ``svg`` — image of the report or a single object;
+            ``image_size`` is required, e.g. ``"1200px,800px"``.
+          * ``csv`` / ``tsv`` / ``xlsx`` — the data behind a single report
+            object; exactly one object label is required.
+          * ``summary`` — the report's text summary.
 
         Args:
             report_id: ID of the report.
-            reportObjects: Optional list of report object IDs to include in the package.
-        """
-        async with viya_session("export_report_package", ctx) as client:
-            body = {
-                "reportObjects": reportObjects
-            }
-            resp = await client.request(
-                "GET",
-                f"{VIYA_ENDPOINT}/visualAnalytics/getExportedReportPackage/{report_id}/package",
-                content=json.dumps(body).encode(),
-                headers={
-                    "Accept": "application/zip, application/json, application/vnd.sas.error+json, application/json"
-                },
-            )
-            resp.raise_for_status()
+            export_format: One of package, pdf, png, svg, csv, tsv, xlsx, summary.
+            report_objects: Report object labels to export. ``package``/``pdf``
+                accept several; image and data formats accept exactly one;
+                ``summary`` accepts none. Omit to export the whole report where
+                the format allows it.
+            image_size: Required for ``png``/``svg``; format ``"<w>px,<h>px"``.
+            options: Optional ``pdf`` rendering overrides, passed through as query
+                parameters (e.g. ``{"orientation": "landscape"}``).
 
-            # Handle both zip and JSON responses based on content-type
-            content_type = resp.headers.get("content-type", "").lower()
-            if "application/zip" in content_type:
-                # Return zip file as base64-encoded string
-                return {
-                    "status": "success",
-                    "content_type": "application/zip",
-                    "data": base64.b64encode(resp.content).decode("utf-8"),
-                    "size_bytes": len(resp.content),
-                }
-            else:
-                # Return JSON response (error or success)
-                return resp.json()
+        Returns text inline for text formats, image content for ``png``, and an
+        embedded binary file (carrying the right MIME type) for ``package`` /
+        ``pdf`` / ``xlsx``. Binary results larger than ``MAX_EXPORT_INLINE_BYTES``
+        are refused with guidance rather than streamed through the model context.
+        """
+        req = report_export_helpers.ReportExportRequest(
+            report_id=report_id,
+            export_format=export_format,
+            report_objects=report_objects,
+            image_size=image_size,
+            options=options,
+        )
+        error = report_export_helpers.validate_export_request(req)
+        if error is not None:
+            return error
+        async with viya_session("export_report", ctx) as client:
+            return await report_export_helpers.execute_export(req, client)
 
     # ------------------------------------------------------------------
     # Tier 4 — Batch Jobs & Async Execution
