@@ -70,7 +70,7 @@ class ReportExportRequest:
 
     report_id: str
     export_format: str
-    report_objects: list[str] = field(default_factory=list)
+    report_objects: list[str] | None = field(default_factory=list)
     image_size: str | None = None
     options: dict[str, Any] | None = None
 
