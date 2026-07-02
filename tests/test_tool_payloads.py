@@ -8,24 +8,58 @@ Each test calls a tool through the MCP protocol and verifies the exact HTTP
 request that would be sent to Viya — URL path, method, body structure, query
 params, and headers.  These tests use a mock httpx client (no network calls).
 """
-import json
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from fastmcp import Client
-from conftest import _make_mock_response
 
+import json
+from unittest.mock import MagicMock, patch
+
+import httpx
+from fastmcp import Client
+
+from conftest import _make_mock_response
 
 EXPECTED_TOOLS = [
     "execute_sas_code",
-    "list_cas_servers", "list_caslibs", "list_castables",
-    "get_castable_info", "get_castable_columns", "get_castable_data",
-    "upload_data", "promote_table_to_memory",
-    "list_files", "upload_file", "download_file",
-    "list_reports", "get_report", "get_report_image",
-    "submit_batch_job", "get_job_status", "list_jobs",
-    "cancel_job", "get_job_log",
-    "list_ml_projects", "create_ml_project", "run_ml_project",
-    "list_registered_models", "list_models_and_decisions", "score_data",
+    "list_cas_servers",
+    "list_caslibs",
+    "list_castables",
+    "list_source_tables",
+    "get_castable_info",
+    "get_castable_columns",
+    "get_castable_data",
+    "upload_data",
+    "upload_inline_data",
+    "promote_table_to_memory",
+    "list_files",
+    "upload_file",
+    "download_file",
+    "list_reports",
+    "get_report",
+    "get_report_image",
+    "submit_batch_job",
+    "get_job_status",
+    "list_jobs",
+    "cancel_job",
+    "get_job_log",
+    "list_ml_projects",
+    "create_ml_project",
+    "run_ml_project",
+    "list_registered_models",
+    "list_models_and_decisions",
+    "score_data",
+    "list_compute_contexts",
+    "list_compute_libraries",
+    "list_compute_tables",
+    "list_compute_columns",
+    "reset_compute_session",
+    "catalog_search",
+    "catalog_search_helper",
+    "catalog_find_instance",
+    "catalog_list_agents",
+    "catalog_run_agent",
+    "catalog_get_agent_history",
+    "catalog_run_adhoc_analysis",
+    "catalog_get_adhoc_analysis",
+    "catalog_download_table_profile",
 ]
 
 
@@ -52,14 +86,17 @@ async def test_tool_schemas(mcp_server_with_mock_client):
         create_ml = tool_map["create_ml_project"]
         props = create_ml.inputSchema["properties"]
         assert "project_name" in props
-        assert "data_table_uri" in props
+        assert "caslib_name" in props
+        assert "table_name" in props
+        assert "server_id" in props
         assert "target_variable" in props
         assert "prediction_type" in props
         assert "target_event_level" in props
         assert "auto_run" in props
         required = create_ml.inputSchema.get("required", [])
         assert "project_name" in required
-        assert "data_table_uri" in required
+        assert "caslib_name" in required
+        assert "table_name" in required
         assert "target_variable" in required
 
         score = tool_map["score_data"]
@@ -105,9 +142,10 @@ async def test_list_caslibs_request(mcp_server_with_mock_client):
 async def test_list_castables_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
     async with Client(mcp) as client:
-        await client.call_tool("list_castables", {
-            "server_id": "cas1", "caslib_name": "Public", "limit": 10
-        })
+        await client.call_tool(
+            "list_castables",
+            {"server_id": "cas1", "caslib_name": "Public", "limit": 10},
+        )
 
     url = mock_client.get.call_args[0][0]
     assert "/casManagement/servers/cas1/caslibs/Public/tables" in url
@@ -115,12 +153,28 @@ async def test_list_castables_request(mcp_server_with_mock_client):
     assert params["limit"] == 10
 
 
+async def test_list_source_tables_request(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        await client.call_tool(
+            "list_source_tables",
+            {"server_id": "cas1", "caslib_name": "Public", "limit": 10},
+        )
+
+    url = mock_client.get.call_args[0][0]
+    assert "/casManagement/servers/cas1/caslibs/Public/tables" in url
+    params = mock_client.get.call_args[1]["params"]
+    assert params["state"] == "unloaded"
+    assert params["limit"] == 10
+
+
 async def test_get_castable_info_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
     async with Client(mcp) as client:
-        await client.call_tool("get_castable_info", {
-            "server_id": "cas1", "caslib_name": "Public", "table_name": "HMEQ"
-        })
+        await client.call_tool(
+            "get_castable_info",
+            {"server_id": "cas1", "caslib_name": "Public", "table_name": "HMEQ"},
+        )
 
     url = mock_client.get.call_args[0][0]
     assert "/casManagement/servers/cas1/caslibs/Public/tables/HMEQ" in url
@@ -131,10 +185,15 @@ async def test_get_castable_info_request(mcp_server_with_mock_client):
 async def test_get_castable_columns_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
     async with Client(mcp) as client:
-        await client.call_tool("get_castable_columns", {
-            "server_id": "cas1", "caslib_name": "Public",
-            "table_name": "HMEQ", "limit": 100
-        })
+        await client.call_tool(
+            "get_castable_columns",
+            {
+                "server_id": "cas1",
+                "caslib_name": "Public",
+                "table_name": "HMEQ",
+                "limit": 100,
+            },
+        )
 
     url = mock_client.get.call_args[0][0]
     assert "/casManagement/servers/cas1/caslibs/Public/tables/HMEQ/columns" in url
@@ -145,17 +204,21 @@ async def test_get_castable_columns_request(mcp_server_with_mock_client):
 async def test_get_castable_data_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
 
-    col_resp = _make_mock_response({
-        "items": [
-            {"name": "x", "type": "double", "index": 0},
-            {"name": "y", "type": "double", "index": 1},
-        ],
-        "count": 2,
-    })
-    row_resp = _make_mock_response({
-        "items": [{"cells": ["1", "2"]}, {"cells": ["3", "4"]}],
-        "count": 2,
-    })
+    col_resp = _make_mock_response(
+        {
+            "items": [
+                {"name": "x", "type": "double", "index": 0},
+                {"name": "y", "type": "double", "index": 1},
+            ],
+            "count": 2,
+        }
+    )
+    row_resp = _make_mock_response(
+        {
+            "items": [{"cells": ["1", "2"]}, {"cells": ["3", "4"]}],
+            "count": 2,
+        }
+    )
 
     original_get = mock_client.get.return_value
 
@@ -169,10 +232,16 @@ async def test_get_castable_data_request(mcp_server_with_mock_client):
     mock_client.get.side_effect = route_get
 
     async with Client(mcp) as client:
-        result = await client.call_tool("get_castable_data", {
-            "server_id": "cas1", "caslib_name": "Public",
-            "table_name": "HMEQ", "limit": 5, "start": 10
-        })
+        result = await client.call_tool(
+            "get_castable_data",
+            {
+                "server_id": "cas1",
+                "caslib_name": "Public",
+                "table_name": "HMEQ",
+                "limit": 5,
+                "start": 10,
+            },
+        )
 
     mock_client.get.side_effect = None
     mock_client.get.return_value = original_get
@@ -181,7 +250,10 @@ async def test_get_castable_data_request(mcp_server_with_mock_client):
     col_call = next(c for c in calls if "/dataTables/dataSources/" in c[0][0])
     row_call = next(c for c in calls if "/rowSets/tables/" in c[0][0])
 
-    assert "/dataTables/dataSources/cas~fs~cas1~fs~Public/tables/HMEQ/columns" in col_call[0][0]
+    assert (
+        "/dataTables/dataSources/cas~fs~cas1~fs~Public/tables/HMEQ/columns"
+        in col_call[0][0]
+    )
     assert col_call[1]["params"]["limit"] == 100
 
     assert "/rowSets/tables/cas~fs~cas1~fs~Public~fs~HMEQ/rows" in row_call[0][0]
@@ -196,20 +268,29 @@ async def test_get_castable_data_request(mcp_server_with_mock_client):
 # -----------------------------------------------------------------------
 
 
-async def test_upload_data_request(mcp_server_with_mock_client):
+async def test_upload_inline_data_request(mcp_server_with_mock_client):
+    """upload_inline_data builds the same CAS multipart upload from an inline string."""
     mcp, mock_client = mcp_server_with_mock_client
-    mock_client.post.return_value.json = MagicMock(return_value={
-        "name": "MY_TABLE",
-        "rowCount": 2,
-        "columnCount": 2,
-        "caslibName": "Public",
-        "scope": "global",
-    })
+    mock_client.post.return_value = _make_mock_response(
+        {
+            "name": "MY_TABLE",
+            "rowCount": 2,
+            "columnCount": 2,
+            "caslibName": "Public",
+            "scope": "global",
+        },
+        status_code=200,
+    )
     async with Client(mcp) as client:
-        result = await client.call_tool("upload_data", {
-            "server_id": "cas1", "caslib_name": "Public",
-            "table_name": "MY_TABLE", "csv_data": "a,b\n1,2\n3,4"
-        })
+        result = await client.call_tool(
+            "upload_inline_data",
+            {
+                "server_id": "cas1",
+                "caslib_name": "Public",
+                "table_name": "MY_TABLE",
+                "data": "a,b\n1,2\n3,4",
+            },
+        )
 
     url = mock_client.post.call_args[0][0]
     assert "/casManagement/servers/cas1/caslibs/Public/tables" in url
@@ -222,20 +303,59 @@ async def test_upload_data_request(mcp_server_with_mock_client):
     assert file_tuple[0] == "data.csv"
     assert file_tuple[2] == "text/csv"
     assert result.data["status"] == "success"
+    assert result.data["source"] == "inline"
     assert result.data["rows_uploaded"] == 2
 
 
-async def test_promote_table_to_memory_request(mcp_server_with_mock_client):
+async def test_upload_inline_data_tsv_and_binary_guard(mcp_server_with_mock_client):
+    """upload_inline_data tsv -> tab delimiter; binary formats are refused (use upload_data)."""
     mcp, mock_client = mcp_server_with_mock_client
+    mock_client.post.return_value = _make_mock_response(
+        {"name": "T", "rowCount": 1, "columnCount": 2}, status_code=200
+    )
     async with Client(mcp) as client:
-        await client.call_tool("promote_table_to_memory", {
-            "server_id": "cas1", "caslib_name": "Public", "table_name": "MY_TABLE"
-        })
+        tsv = await client.call_tool(
+            "upload_inline_data",
+            {"server_id": "cas1", "caslib_name": "Public", "table_name": "T",
+             "data": "a\tb\n1\t2", "data_format": "tsv"},
+        )
+        binary = await client.call_tool(
+            "upload_inline_data",
+            {"server_id": "cas1", "caslib_name": "Public", "table_name": "T",
+             "data": "x", "data_format": "xlsx"},
+        )
+    assert tsv.data["data_format"] == "tsv"
+    assert mock_client.post.call_args[1]["data"]["delimiter"] == "\t"
+    assert binary.data["status"] == "text_only"
 
-    url = mock_client.post.call_args[0][0]
-    assert "/casManagement/servers/cas1/caslibs/Public/tables/MY_TABLE" in url
-    body = mock_client.post.call_args[1]["json"]
-    assert body == {"scope": "global"}
+
+async def test_promote_table_to_memory_request(mcp_server_with_mock_client):
+    """Unloaded table: idempotency GET, then PUT state=loaded&scope=global."""
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"name": "MY_TABLE", "state": "unloaded"}
+    )
+    put_state = _make_mock_response(status_code=200)
+    put_state.text = "loaded"
+    mock_client.put.return_value = put_state
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "promote_table_to_memory",
+            {"server_id": "cas1", "caslib_name": "Public", "table_name": "MY_TABLE"},
+        )
+
+    get_url = mock_client.get.call_args[0][0]
+    assert "/casManagement/servers/cas1/caslibs/Public/tables/MY_TABLE" in get_url
+    put_url = mock_client.put.call_args[0][0]
+    assert put_url.endswith(
+        "/casManagement/servers/cas1/caslibs/Public/tables/MY_TABLE/state"
+    )
+    assert mock_client.put.call_args[1]["params"] == {
+        "value": "loaded",
+        "scope": "global",
+    }
+    assert result.data["status"] == "promoted"
+    assert result.data["scope"] == "global"
 
 
 async def test_list_files_request(mcp_server_with_mock_client):
@@ -261,11 +381,14 @@ async def test_list_files_with_filter_request(mcp_server_with_mock_client):
 async def test_upload_file_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
     async with Client(mcp) as client:
-        await client.call_tool("upload_file", {
-            "file_name": "test.sas",
-            "content": "data test; run;",
-            "content_type": "application/x-sas"
-        })
+        await client.call_tool(
+            "upload_file",
+            {
+                "file_name": "test.sas",
+                "content": "data test; run;",
+                "content_type": "application/x-sas",
+            },
+        )
 
     url = mock_client.post.call_args[0][0]
     assert url.endswith("/files/files")
@@ -280,7 +403,7 @@ async def test_download_file_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
     mock_client.get.return_value.text = "file content here"
     async with Client(mcp) as client:
-        result = await client.call_tool("download_file", {"file_id": "abc-123"})
+        await client.call_tool("download_file", {"file_id": "abc-123"})
 
     url = mock_client.get.call_args[0][0]
     assert "/files/files/abc-123/content" in url
@@ -323,9 +446,9 @@ async def test_get_report_request(mcp_server_with_mock_client):
 async def test_get_report_image_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
     async with Client(mcp) as client:
-        await client.call_tool("get_report_image", {
-            "report_id": "rpt-456", "section_index": 2
-        })
+        await client.call_tool(
+            "get_report_image", {"report_id": "rpt-456", "section_index": 2}
+        )
 
     url = mock_client.post.call_args[0][0]
     assert "/reportImages/jobs" in url
@@ -338,7 +461,9 @@ async def test_get_report_image_request(mcp_server_with_mock_client):
     assert body["size"] == "800x600"
     assert body["renderLimit"] == 1
     headers = kwargs["headers"]
-    assert headers["Content-Type"] == "application/vnd.sas.report.images.job.request+json"
+    assert (
+        headers["Content-Type"] == "application/vnd.sas.report.images.job.request+json"
+    )
     assert headers["Accept"] == "application/vnd.sas.report.images.job+json"
 
 
@@ -350,10 +475,10 @@ async def test_get_report_image_request(mcp_server_with_mock_client):
 async def test_submit_batch_job_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
     async with Client(mcp) as client:
-        await client.call_tool("submit_batch_job", {
-            "sas_code": "data test; x=1; run;",
-            "job_name": "my-test-job"
-        })
+        await client.call_tool(
+            "submit_batch_job",
+            {"sas_code": "data test; x=1; run;", "job_name": "my-test-job"},
+        )
 
     url = mock_client.post.call_args[0][0]
     assert "/jobExecution/jobs" in url
@@ -367,9 +492,7 @@ async def test_submit_batch_job_request(mcp_server_with_mock_client):
 async def test_submit_batch_job_default_name(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
     async with Client(mcp) as client:
-        await client.call_tool("submit_batch_job", {
-            "sas_code": "data test; run;"
-        })
+        await client.call_tool("submit_batch_job", {"sas_code": "data test; run;"})
 
     body = mock_client.post.call_args[1]["json"]
     assert body["name"] == "mcp-batch-job"
@@ -407,13 +530,15 @@ async def test_cancel_job_request(mcp_server_with_mock_client):
 async def test_get_job_log_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
 
-    job_resp = _make_mock_response({
-        "state": "completed",
-        "results": {
-            "COMPUTE_JOB": "ABC123",
-            "ABC123.log.txt": "/files/files/log-file-id",
-        },
-    })
+    job_resp = _make_mock_response(
+        {
+            "state": "completed",
+            "results": {
+                "COMPUTE_JOB": "ABC123",
+                "ABC123.log.txt": "/files/files/log-file-id",
+            },
+        }
+    )
     log_content_resp = _make_mock_response()
     log_content_resp.text = "NOTE: The data set has 1 observation"
 
@@ -429,13 +554,17 @@ async def test_get_job_log_request(mcp_server_with_mock_client):
     mock_client.get.side_effect = route_get
 
     async with Client(mcp) as client:
-        result = await client.call_tool("get_job_log", {"job_id": "job-789"})
+        await client.call_tool("get_job_log", {"job_id": "job-789"})
 
     mock_client.get.side_effect = None
     mock_client.get.return_value = original_get
 
     calls = mock_client.get.call_args_list
-    job_call = next(c for c in calls if "/jobExecution/jobs/job-789" in c[0][0] and "/content" not in c[0][0])
+    job_call = next(
+        c
+        for c in calls
+        if "/jobExecution/jobs/job-789" in c[0][0] and "/content" not in c[0][0]
+    )
     assert "/jobExecution/jobs/job-789" in job_call[0][0]
 
     log_call = next(c for c in calls if "/files/files/log-file-id/content" in c[0][0])
@@ -460,15 +589,22 @@ async def test_list_ml_projects_request(mcp_server_with_mock_client):
 
 async def test_create_ml_project_binary_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"state": "loaded", "scope": "global"}
+    )
     async with Client(mcp) as client:
-        await client.call_tool("create_ml_project", {
-            "project_name": "Fraud Detection",
-            "data_table_uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/HMEQ",
-            "target_variable": "BAD",
-            "description": "Binary classification project",
-            "prediction_type": "binary",
-            "target_event_level": "1",
-        })
+        await client.call_tool(
+            "create_ml_project",
+            {
+                "project_name": "Fraud Detection",
+                "caslib_name": "Public",
+                "table_name": "HMEQ",
+                "target_variable": "BAD",
+                "description": "Binary classification project",
+                "prediction_type": "binary",
+                "target_event_level": "1",
+            },
+        )
 
     url = mock_client.post.call_args[0][0]
     assert "/mlPipelineAutomation/projects" in url
@@ -499,13 +635,20 @@ async def test_create_ml_project_binary_request(mcp_server_with_mock_client):
 
 async def test_create_ml_project_interval_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"state": "loaded", "scope": "global"}
+    )
     async with Client(mcp) as client:
-        await client.call_tool("create_ml_project", {
-            "project_name": "Price Prediction",
-            "data_table_uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/CARS",
-            "target_variable": "MSRP",
-            "prediction_type": "interval",
-        })
+        await client.call_tool(
+            "create_ml_project",
+            {
+                "project_name": "Price Prediction",
+                "caslib_name": "Public",
+                "table_name": "CARS",
+                "target_variable": "MSRP",
+                "prediction_type": "interval",
+            },
+        )
 
     body = mock_client.post.call_args[1]["json"]
     attrs = body["analyticsProjectAttributes"]
@@ -516,14 +659,21 @@ async def test_create_ml_project_interval_request(mcp_server_with_mock_client):
 
 async def test_create_ml_project_nominal_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"state": "loaded", "scope": "global"}
+    )
     async with Client(mcp) as client:
-        await client.call_tool("create_ml_project", {
-            "project_name": "Multi Class",
-            "data_table_uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/IRIS",
-            "target_variable": "Species",
-            "prediction_type": "nominal",
-            "target_event_level": "setosa",
-        })
+        await client.call_tool(
+            "create_ml_project",
+            {
+                "project_name": "Multi Class",
+                "caslib_name": "Public",
+                "table_name": "IRIS",
+                "target_variable": "Species",
+                "prediction_type": "nominal",
+                "target_event_level": "setosa",
+            },
+        )
 
     body = mock_client.post.call_args[1]["json"]
     attrs = body["analyticsProjectAttributes"]
@@ -534,22 +684,100 @@ async def test_create_ml_project_nominal_request(mcp_server_with_mock_client):
 
 async def test_create_ml_project_auto_run_false(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"state": "loaded", "scope": "global"}
+    )
     async with Client(mcp) as client:
-        await client.call_tool("create_ml_project", {
-            "project_name": "No Auto Run",
-            "data_table_uri": "/dataTables/dataSources/x/tables/T",
-            "target_variable": "Y",
-            "auto_run": False,
-        })
+        await client.call_tool(
+            "create_ml_project",
+            {
+                "project_name": "No Auto Run",
+                "caslib_name": "Public",
+                "table_name": "T",
+                "target_variable": "Y",
+                "auto_run": False,
+            },
+        )
 
     body = mock_client.post.call_args[1]["json"]
     assert body["settings"]["autoRun"] is False
 
 
+async def test_create_ml_project_default_server_in_uri(mcp_server_with_mock_client):
+    """server_id defaults to cas-shared-default and is woven into the data-table URI."""
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"state": "loaded", "scope": "global"}
+    )
+    async with Client(mcp) as client:
+        await client.call_tool(
+            "create_ml_project",
+            {
+                "project_name": "Defaults",
+                "caslib_name": "Public",
+                "table_name": "HMEQ",
+                "target_variable": "BAD",
+            },
+        )
+    body = mock_client.post.call_args[1]["json"]
+    assert body["dataTableUri"] == (
+        "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/HMEQ"
+    )
+
+
+async def test_create_ml_project_rejects_non_global_table(mcp_server_with_mock_client):
+    """Pre-flight: an unloaded/session-scoped table is rejected without a POST."""
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"state": "unloaded", "scope": None}
+    )
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "create_ml_project",
+            {
+                "project_name": "Bad",
+                "caslib_name": "Public",
+                "table_name": "NOT_LOADED",
+                "target_variable": "Y",
+            },
+        )
+    assert result.data["status"] == "table_not_global"
+    mock_client.post.assert_not_called()
+
+
+async def test_create_ml_project_table_not_found(mcp_server_with_mock_client):
+    """Pre-flight: a missing table returns a not_found status, no POST."""
+    mcp, mock_client = mcp_server_with_mock_client
+    resp = _make_mock_response(status_code=404)
+    resp.raise_for_status = MagicMock(
+        side_effect=httpx.HTTPStatusError(
+            "missing", request=MagicMock(), response=MagicMock(status_code=404)
+        )
+    )
+    mock_client.get.return_value = resp
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "create_ml_project",
+            {
+                "project_name": "Bad",
+                "caslib_name": "Public",
+                "table_name": "GHOST",
+                "target_variable": "Y",
+            },
+        )
+    assert result.data["status"] == "table_not_found"
+    mock_client.post.assert_not_called()
+
+
 async def test_run_ml_project_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
-    mock_client.get.return_value.headers = {"etag": '"test-etag"', "Content-Type": "application/json"}
-    mock_client.get.return_value.json = MagicMock(return_value={"id": "proj-123", "name": "Test"})
+    mock_client.get.return_value.headers = {
+        "etag": '"test-etag"',
+        "Content-Type": "application/json",
+    }
+    mock_client.get.return_value.json = MagicMock(
+        return_value={"id": "proj-123", "name": "Test"}
+    )
     async with Client(mcp) as client:
         await client.call_tool("run_ml_project", {"project_id": "proj-123"})
 
@@ -587,11 +815,14 @@ async def test_list_models_and_decisions_request(mcp_server_with_mock_client):
 async def test_score_data_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
     async with Client(mcp) as client:
-        await client.call_tool("score_data", {
-            "module_id": "mod-1",
-            "step_id": "score",
-            "input_data": {"age": 35, "income": 50000}
-        })
+        await client.call_tool(
+            "score_data",
+            {
+                "module_id": "mod-1",
+                "step_id": "score",
+                "input_data": {"age": 35, "income": 50000},
+            },
+        )
 
     url = mock_client.post.call_args[0][0]
     assert "/microanalyticScore/modules/mod-1/steps/score" in url
@@ -612,10 +843,1062 @@ async def test_score_data_request(mcp_server_with_mock_client):
 async def test_execute_sas_code_request(mcp_server_with_mock_client):
     mcp, _ = mcp_server_with_mock_client
     with patch("sas_mcp_server.tools.run_one_snippet") as mock_run:
-        mock_run.return_value = ("1", "completed", "LOG", "LISTING")
+        mock_run.return_value = {
+            "snippet_id": "1",
+            "state": "completed",
+            "log": "LOG",
+            "listing": "LISTING",
+        }
         async with Client(mcp) as client:
-            result = await client.call_tool("execute_sas_code", {
-                "sas_code": "data test; x=1; run;"
-            })
+            result = await client.call_tool(
+                "execute_sas_code", {"sas_code": "data test; x=1; run;"}
+            )
 
         mock_run.assert_called_once_with("data test; x=1; run;", "1", "test-token")
+        assert result.data == {
+            "snippet_id": "1",
+            "state": "completed",
+            "log": "LOG",
+            "listing": "LISTING",
+        }
+
+
+# -----------------------------------------------------------------------
+# Error / edge-path coverage
+# -----------------------------------------------------------------------
+
+
+async def test_upload_data_conflict_returns_structured_error(
+    mcp_server_with_mock_client,
+):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.post.return_value = _make_mock_response(status_code=409)
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "upload_inline_data",
+            {
+                "server_id": "cas1",
+                "caslib_name": "Public",
+                "table_name": "MY_TABLE",
+                "data": "a,b\n1,2",
+            },
+        )
+    assert result.data["status"] == "table_already_exists"
+    assert result.data["table_name"] == "MY_TABLE"
+    assert result.data["caslib"] == "Public"
+
+
+async def test_upload_data_from_file_path(mcp_server_with_mock_client, tmp_path):
+    """file_path: the server reads the bytes off disk; nothing inline."""
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.post.return_value = _make_mock_response(
+        {
+            "name": "MY_TABLE",
+            "rowCount": 2,
+            "columnCount": 2,
+            "caslibName": "Public",
+            "scope": "global",
+        },
+        status_code=200,
+    )
+    csv_file = tmp_path / "data.csv"
+    csv_file.write_bytes(b"a,b\n1,2\n3,4")  # exact bytes, no platform newline rewrite
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "upload_data",
+            {
+                "server_id": "cas1",
+                "caslib_name": "Public",
+                "table_name": "MY_TABLE",
+                "file_path": str(csv_file),
+            },
+        )
+    # Same CAS multipart upload, with the file's bytes read server-side.
+    kwargs = mock_client.post.call_args[1]
+    assert kwargs["data"]["tableName"] == "MY_TABLE"
+    assert kwargs["files"]["file"][1] == b"a,b\n1,2\n3,4"
+    assert result.data["status"] == "success"
+    assert result.data["source"] == "file_path"
+    assert result.data["rows_uploaded"] == 2
+
+
+async def test_upload_data_file_path_not_found(mcp_server_with_mock_client):
+    """A missing file returns a structured error and never calls Viya."""
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "upload_data",
+            {
+                "server_id": "cas1",
+                "caslib_name": "Public",
+                "table_name": "MY_TABLE",
+                "file_path": "/no/such/file.csv",
+            },
+        )
+    assert result.data["status"] == "file_not_found"
+    mock_client.post.assert_not_called()
+
+
+async def test_upload_data_requires_exactly_one_source(mcp_server_with_mock_client):
+    """Zero or multiple sources is rejected before any Viya call."""
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        none = await client.call_tool(
+            "upload_data",
+            {"server_id": "cas1", "caslib_name": "Public", "table_name": "T"},
+        )
+        both = await client.call_tool(
+            "upload_data",
+            {
+                "server_id": "cas1",
+                "caslib_name": "Public",
+                "table_name": "T",
+                "file_path": "/tmp/x.csv",
+                "url": "https://example.com/x.csv",
+            },
+        )
+    assert none.data["status"] == "invalid_source"
+    assert both.data["status"] == "invalid_source"
+    assert set(both.data["provided"]) == {"file_path", "url"}
+    mock_client.post.assert_not_called()
+
+
+async def test_upload_data_tsv_uses_tab_delimiter(mcp_server_with_mock_client, tmp_path):
+    """A .tsv file is uploaded as CSV with a tab delimiter (format auto-detected)."""
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.post.return_value = _make_mock_response(
+        {"name": "T", "rowCount": 2, "columnCount": 2}, status_code=200
+    )
+    f = tmp_path / "data.tsv"
+    f.write_bytes(b"a\tb\n1\t2\n3\t4")
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "upload_data",
+            {"server_id": "cas1", "caslib_name": "Public", "table_name": "T",
+             "file_path": str(f)},
+        )
+    data = mock_client.post.call_args[1]["data"]
+    assert data["format"] == "csv"
+    assert data["delimiter"] == "\t"
+    assert mock_client.post.call_args[1]["files"]["file"][0] == "data.tsv"
+    assert result.data["data_format"] == "tsv"
+
+
+async def test_upload_data_excel_binary_with_sheet(mcp_server_with_mock_client, tmp_path):
+    """Excel: format override, sheetName passed, sent as octet-stream binary."""
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.post.return_value = _make_mock_response(
+        {"name": "T", "rowCount": 5, "columnCount": 3}, status_code=200
+    )
+    f = tmp_path / "applicants.xlsx"
+    f.write_bytes(b"PK\x03\x04 fake xlsx bytes")
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "upload_data",
+            {"server_id": "cas1", "caslib_name": "Public", "table_name": "T",
+             "file_path": str(f), "data_format": "excel", "sheet_name": "Sheet1"},
+        )
+    kwargs = mock_client.post.call_args[1]
+    assert kwargs["data"]["format"] == "xlsx"
+    assert kwargs["data"]["sheetName"] == "Sheet1"
+    assert kwargs["data"]["containsHeaderRow"] == "true"
+    assert kwargs["files"]["file"][2] == "application/octet-stream"
+    assert result.data["data_format"] == "xlsx"
+
+
+async def test_upload_data_unknown_format(mcp_server_with_mock_client):
+    """A URL with no usable extension and no data_format is rejected up front."""
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "upload_data",
+            {"server_id": "cas1", "caslib_name": "Public", "table_name": "T",
+             "url": "https://example.com/download?id=42"},
+        )
+    assert result.data["status"] == "unknown_format"
+    mock_client.post.assert_not_called()
+
+
+async def test_upload_data_parquet_rejected_up_front(mcp_server_with_mock_client):
+    """parquet isn't an uploadTable format — fail fast with guidance, no Viya call."""
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "upload_data",
+            {"server_id": "cas1", "caslib_name": "Public", "table_name": "T",
+             "url": "https://example.com/data.parquet"},
+        )
+    assert result.data["status"] == "format_not_supported"
+    assert result.data["data_format"] == "parquet"
+    assert "path-based caslib" in result.data["message"]
+    mock_client.post.assert_not_called()
+
+
+async def test_promote_table_already_global_is_noop(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"state": "loaded", "scope": "global"}
+    )
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "promote_table_to_memory",
+            {
+                "server_id": "cas1",
+                "caslib_name": "Public",
+                "table_name": "MY_TABLE",
+            },
+        )
+    assert result.data["status"] == "already_global"
+    assert result.data["table"] == "Public.MY_TABLE"
+    mock_client.put.assert_not_called()
+
+
+async def test_promote_table_not_found(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    resp = _make_mock_response(status_code=404)
+    resp.raise_for_status = MagicMock(
+        side_effect=httpx.HTTPStatusError(
+            "missing", request=MagicMock(), response=MagicMock(status_code=404)
+        )
+    )
+    mock_client.get.return_value = resp
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "promote_table_to_memory",
+            {
+                "server_id": "cas1",
+                "caslib_name": "Public",
+                "table_name": "GHOST",
+            },
+        )
+    assert result.data["status"] == "not_found"
+    mock_client.put.assert_not_called()
+
+
+async def test_get_job_log_no_log_uri_returns_state(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"state": "completed", "results": {}}
+    )
+    async with Client(mcp) as client:
+        result = await client.call_tool("get_job_log", {"job_id": "j1"})
+    assert result.data == "No log available. Job state: completed"
+
+
+async def test_get_job_log_error_dict_returns_message(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {
+            "state": "failed",
+            "results": {},
+            "error": {"message": "boom"},
+        }
+    )
+    async with Client(mcp) as client:
+        result = await client.call_tool("get_job_log", {"job_id": "j1"})
+    assert result.data == "Job failed: boom"
+
+
+async def test_get_job_log_dot_log_fallback(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    job_resp = _make_mock_response(
+        {
+            "state": "completed",
+            "results": {"run.log": "/files/files/LOGID"},
+        }
+    )
+    content_resp = _make_mock_response()
+    content_resp.text = "LOG CONTENT"
+    original_get = mock_client.get.return_value
+
+    def route_get(url, **kwargs):
+        if "/jobExecution/jobs/j1" in url and "/content" not in url:
+            return job_resp
+        if "/files/files/LOGID/content" in url:
+            return content_resp
+        return original_get
+
+    mock_client.get.side_effect = route_get
+    async with Client(mcp) as client:
+        result = await client.call_tool("get_job_log", {"job_id": "j1"})
+    mock_client.get.side_effect = None
+    mock_client.get.return_value = original_get
+    assert result.data == "LOG CONTENT"
+
+
+async def test_run_ml_project_204_returns_running(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    get_resp = _make_mock_response({"id": "p1"})
+    get_resp.headers = {"etag": '"e"', "Content-Type": "application/json"}
+    mock_client.get.return_value = get_resp
+    mock_client.put.return_value = _make_mock_response(status_code=204)
+    async with Client(mcp) as client:
+        result = await client.call_tool("run_ml_project", {"project_id": "p1"})
+    assert result.data == {"status": "running", "projectId": "p1"}
+
+
+# -----------------------------------------------------------------------
+# Compute Contexts & Libraries
+# -----------------------------------------------------------------------
+
+
+async def test_list_compute_contexts_request(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        await client.call_tool("list_compute_contexts", {})
+
+    url = mock_client.get.call_args[0][0]
+    assert url.endswith("/compute/contexts")
+    params = mock_client.get.call_args[1]["params"]
+    assert "start" in params
+    assert "limit" in params
+
+
+async def test_list_compute_libraries_request(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    context_resp = _make_mock_response({"items": [{"id": "test-context-id"}]})
+    libs_resp = _make_mock_response({"items": [], "count": 0})
+    original_get = mock_client.get.return_value
+
+    def route_get(url, **kwargs):
+        if url.endswith("/compute/contexts"):
+            return context_resp
+        if "/compute/sessions/test-session-id/data" in url:
+            return libs_resp
+        return original_get
+
+    mock_client.get.side_effect = route_get
+    mock_client.post.return_value = _make_mock_response(
+        {"id": "test-session-id"}, status_code=201
+    )
+
+    async with Client(mcp) as client:
+        await client.call_tool(
+            "list_compute_libraries",
+            {"compute_context_name": "Test Context", "limit": 25, "start": 5},
+        )
+
+    mock_client.get.side_effect = None
+    mock_client.get.return_value = original_get
+
+    calls = mock_client.get.call_args_list
+    context_call = next(
+        call for call in calls if call[0][0].endswith("/compute/contexts")
+    )
+    libs_call = next(
+        call for call in calls if "/compute/sessions/test-session-id/data" in call[0][0]
+    )
+
+    assert context_call[0][0].endswith("/compute/contexts")
+    assert context_call[1]["params"]["name"] == "Test Context"
+
+    post_url = mock_client.post.call_args[0][0]
+    assert "/compute/contexts/test-context-id/sessions" in post_url
+    assert mock_client.post.call_args[1]["json"]["name"] == "sas-mcp-shared"
+
+    assert "/compute/sessions/test-session-id/data" in libs_call[0][0]
+    assert libs_call[1]["params"] == {"start": 5, "limit": 25}
+
+    # The session is cached for reuse, not torn down after the call.
+    mock_client.delete.assert_not_called()
+
+
+async def test_list_compute_tables_request(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    context_resp = _make_mock_response({"items": [{"id": "test-context-id"}]})
+    tables_resp = _make_mock_response({"items": [], "count": 0})
+    original_get = mock_client.get.return_value
+
+    def route_get(url, **kwargs):
+        if url.endswith("/compute/contexts"):
+            return context_resp
+        if "/compute/sessions/test-session-id/data/Public" in url:
+            return tables_resp
+        return original_get
+
+    mock_client.get.side_effect = route_get
+    mock_client.post.return_value = _make_mock_response(
+        {"id": "test-session-id"}, status_code=201
+    )
+
+    async with Client(mcp) as client:
+        await client.call_tool(
+            "list_compute_tables",
+            {
+                "compute_context_name": "Test Context",
+                "library_name": "Public",
+                "limit": 10,
+                "start": 2,
+            },
+        )
+
+    mock_client.get.side_effect = None
+    mock_client.get.return_value = original_get
+
+    calls = mock_client.get.call_args_list
+    context_call = next(
+        call for call in calls if call[0][0].endswith("/compute/contexts")
+    )
+    tables_call = next(
+        call
+        for call in calls
+        if "/compute/sessions/test-session-id/data/Public" in call[0][0]
+    )
+
+    assert context_call[0][0].endswith("/compute/contexts")
+    assert context_call[1]["params"]["name"] == "Test Context"
+
+    post_url = mock_client.post.call_args[0][0]
+    assert "/compute/contexts/test-context-id/sessions" in post_url
+    assert mock_client.post.call_args[1]["json"]["name"] == "sas-mcp-shared"
+
+    assert "/compute/sessions/test-session-id/data/Public" in tables_call[0][0]
+    assert tables_call[1]["params"] == {"start": 2, "limit": 10}
+
+    # The session is cached for reuse, not torn down after the call.
+    mock_client.delete.assert_not_called()
+
+
+async def test_list_compute_columns_request(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    context_resp = _make_mock_response({"items": [{"id": "test-context-id"}]})
+    columns_resp = _make_mock_response({"items": [], "count": 0})
+    original_get = mock_client.get.return_value
+
+    def route_get(url, **kwargs):
+        if url.endswith("/compute/contexts"):
+            return context_resp
+        if "/compute/sessions/test-session-id/data/Public/MY_TABLE/columns" in url:
+            return columns_resp
+        return original_get
+
+    mock_client.get.side_effect = route_get
+    mock_client.post.return_value = _make_mock_response(
+        {"id": "test-session-id"}, status_code=201
+    )
+
+    async with Client(mcp) as client:
+        await client.call_tool(
+            "list_compute_columns",
+            {
+                "compute_context_name": "Test Context",
+                "library_name": "Public",
+                "table_name": "MY_TABLE",
+                "limit": 50,
+                "start": 0,
+            },
+        )
+
+    mock_client.get.side_effect = None
+    mock_client.get.return_value = original_get
+
+    calls = mock_client.get.call_args_list
+    context_call = next(
+        call for call in calls if call[0][0].endswith("/compute/contexts")
+    )
+    columns_call = next(
+        call
+        for call in calls
+        if "/compute/sessions/test-session-id/data/Public/MY_TABLE/columns"
+        in call[0][0]
+    )
+
+    assert context_call[0][0].endswith("/compute/contexts")
+    assert context_call[1]["params"]["name"] == "Test Context"
+
+    post_url = mock_client.post.call_args[0][0]
+    assert "/compute/contexts/test-context-id/sessions" in post_url
+    assert mock_client.post.call_args[1]["json"]["name"] == "sas-mcp-shared"
+
+    assert (
+        "/compute/sessions/test-session-id/data/Public/MY_TABLE/columns"
+        in columns_call[0][0]
+    )
+    assert columns_call[1]["params"] == {"start": 0, "limit": 50}
+
+    # The session is cached for reuse, not torn down after the call.
+    mock_client.delete.assert_not_called()
+
+
+async def test_compute_session_is_reused_across_calls(mcp_server_with_mock_client):
+    """Two compute tool calls reuse one session: created once, then validated."""
+    mcp, mock_client = mcp_server_with_mock_client
+    context_resp = _make_mock_response({"items": [{"id": "test-context-id"}]})
+    data_resp = _make_mock_response({"items": [], "count": 0})
+    state_resp = _make_mock_response(status_code=200)
+
+    def route_get(url, **kwargs):
+        if url.endswith("/compute/contexts"):
+            return context_resp
+        if "/compute/sessions/test-session-id/state" in url:
+            return state_resp
+        if "/compute/sessions/test-session-id/data" in url:
+            return data_resp
+        return mock_client.get.return_value
+
+    mock_client.get.side_effect = route_get
+    mock_client.post.return_value = _make_mock_response(
+        {"id": "test-session-id"}, status_code=201
+    )
+
+    async with Client(mcp) as client:
+        await client.call_tool(
+            "list_compute_libraries", {"compute_context_name": "Test Context"}
+        )
+        await client.call_tool(
+            "list_compute_libraries", {"compute_context_name": "Test Context"}
+        )
+
+    mock_client.get.side_effect = None
+
+    # Session created exactly once despite two calls.
+    session_posts = [
+        c for c in mock_client.post.call_args_list if "/sessions" in c[0][0]
+    ]
+    assert len(session_posts) == 1
+    # Second call validated the cached session via its /state endpoint.
+    assert any(
+        "/compute/sessions/test-session-id/state" in c[0][0]
+        for c in mock_client.get.call_args_list
+    )
+    mock_client.delete.assert_not_called()
+
+
+async def test_reset_compute_session_request(mcp_server_with_mock_client):
+    """reset_compute_session deletes the cached session and reports it."""
+    mcp, mock_client = mcp_server_with_mock_client
+    context_resp = _make_mock_response({"items": [{"id": "test-context-id"}]})
+    data_resp = _make_mock_response({"items": [], "count": 0})
+
+    def route_get(url, **kwargs):
+        if url.endswith("/compute/contexts"):
+            return context_resp
+        if "/compute/sessions/test-session-id/data" in url:
+            return data_resp
+        return mock_client.get.return_value
+
+    mock_client.get.side_effect = route_get
+    mock_client.post.return_value = _make_mock_response(
+        {"id": "test-session-id"}, status_code=201
+    )
+
+    async with Client(mcp) as client:
+        # Populate the cache (creates the session), then reset it.
+        await client.call_tool(
+            "list_compute_libraries", {"compute_context_name": "Test Context"}
+        )
+        result = await client.call_tool(
+            "reset_compute_session", {"compute_context_name": "Test Context"}
+        )
+
+    mock_client.get.side_effect = None
+
+    delete_url = mock_client.delete.call_args[0][0]
+    assert "/compute/sessions/test-session-id" in delete_url
+    assert result.data["status"] == "reset"
+    assert result.data["deleted_session"] == "test-session-id"
+
+
+async def test_reset_compute_session_no_active_session(mcp_server_with_mock_client):
+    """Resetting when nothing is cached reports no_active_session, no delete."""
+    mcp, mock_client = mcp_server_with_mock_client
+
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "reset_compute_session", {"compute_context_name": "Test Context"}
+        )
+
+    assert result.data["status"] == "no_active_session"
+    mock_client.delete.assert_not_called()
+
+
+# -----------------------------------------------------------------------
+# Information Catalog (Tier 7)
+# -----------------------------------------------------------------------
+
+
+async def test_catalog_search_request(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {
+            "count": 1,
+            "start": 0,
+            "limit": 20,
+            "items": [
+                {
+                    "id": "i1",
+                    "type": "casTable",
+                    "typeLabel": "CAS Table",
+                    "name": "HMEQ",
+                    "label": "HMEQ",
+                    "score": 1.0,
+                    "attributes": {"library": "Public", "rowCount": 5960},
+                    "links": [
+                        {"rel": "resource", "href": "/dataTables/x/tables/HMEQ"}
+                    ],
+                }
+            ],
+        }
+    )
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool("catalog_search", {"query": "HMEQ", "limit": 20})
+        ).data
+
+    url = mock_client.get.call_args[0][0]
+    params = mock_client.get.call_args[1]["params"]
+    assert url.endswith("/catalog/search")
+    assert params["q"] == "HMEQ"
+    assert params["indices"] == "catalog"
+    assert result["items"][0]["id"] == "i1"
+    assert result["items"][0]["resource_uri"] == "/dataTables/x/tables/HMEQ"
+    # Enriched attributes are passed through.
+    assert result["items"][0]["attributes"] == {"library": "Public", "rowCount": 5960}
+
+
+async def test_catalog_search_helper_lists_facets(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"items": [{"name": "AssetType", "type": "text", "indices": ["catalog"]}]}
+    )
+    async with Client(mcp) as client:
+        result = (await client.call_tool("catalog_search_helper", {})).data
+
+    assert mock_client.get.call_args[0][0].endswith("/catalog/search/facets")
+    assert result["facets"][0]["name"] == "AssetType"
+
+
+async def test_catalog_search_helper_suggests_values(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"items": ["Report", "CAS Table"]}
+    )
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool("catalog_search_helper", {"facet": "AssetType"})
+        ).data
+
+    url = mock_client.get.call_args[0][0]
+    params = mock_client.get.call_args[1]["params"]
+    assert url.endswith("/catalog/search/suggestions")
+    assert params["facet"] == "AssetType"
+    assert result["values"] == ["Report", "CAS Table"]
+
+
+async def test_catalog_list_agents_request(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {
+            "items": [
+                {
+                    "id": "a1",
+                    "name": "TableBot",
+                    "agentType": "DiscoveryAgent",
+                    "provider": "TABLE-BOT",
+                }
+            ]
+        }
+    )
+    async with Client(mcp) as client:
+        result = (await client.call_tool("catalog_list_agents", {"limit": 10})).data
+
+    assert mock_client.get.call_args[0][0].endswith("/catalog/bots")
+    assert result[0]["id"] == "a1"
+    assert result[0]["agentType"] == "DiscoveryAgent"
+
+
+async def test_catalog_run_agent_request(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.put.return_value = _make_mock_response(status_code=202, text="running")
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool("catalog_run_agent", {"agent_id": "a1"})
+        ).data
+
+    url = mock_client.put.call_args[0][0]
+    params = mock_client.put.call_args[1]["params"]
+    assert "/catalog/bots/a1/state" in url
+    assert params["value"] == "running"
+    assert result["status"] == "running"
+    assert result["agent_id"] == "a1"
+
+
+async def test_catalog_get_agent_history_request(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"items": [{"id": "r1", "status": "completed", "nAdded": 5, "nUpdated": 2}]}
+    )
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool("catalog_get_agent_history", {"agent_id": "a1"})
+        ).data
+
+    assert "/catalog/bots/a1/history" in mock_client.get.call_args[0][0]
+    assert result[0]["status"] == "completed"
+    assert result[0]["nAdded"] == 5
+
+
+async def test_catalog_run_adhoc_analysis_request(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.post.return_value = _make_mock_response(
+        {"id": "job1", "status": "running", "name": "probe"}, status_code=201
+    )
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool(
+                "catalog_run_adhoc_analysis",
+                {
+                    "resource_uri": "/dataTables/x/tables/HMEQ",
+                    "resource_type": "CASTable",
+                    "name": "probe",
+                },
+            )
+        ).data
+
+    url = mock_client.post.call_args[0][0]
+    body = mock_client.post.call_args[1]["json"]
+    assert url.endswith("/catalog/bots/adhocAnalysisJobs")
+    assert body["provider"] == "TABLE-BOT"
+    assert body["resources"][0]["uri"] == "/dataTables/x/tables/HMEQ"
+    assert body["resources"][0]["type"] == "CASTable"
+    # NLP enrichment params are on by default — they populate informationPrivacy,
+    # nlpTerms, nlpTags, mostImportantFields.
+    assert body["jobParameters"] == {
+        "identifyLanguage": "1",
+        "analyzeSentiment": "1",
+        "getNLPSemanticID": "1",
+    }
+    assert result["id"] == "job1"
+    assert result["status"] == "running"
+
+
+async def test_catalog_run_adhoc_analysis_infers_cas_type(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.post.return_value = _make_mock_response(
+        {"id": "job2", "status": "running", "name": "probe"}, status_code=201
+    )
+    async with Client(mcp) as client:
+        await client.call_tool(
+            "catalog_run_adhoc_analysis",
+            {
+                "resource_uri": (
+                    "/dataTables/dataSources/cas~fs~cas-shared-default~fs~"
+                    "PUBLIC/tables/HMEQ"
+                ),
+                "name": "probe",
+            },
+        )
+
+    body = mock_client.post.call_args[1]["json"]
+    # No resource_type passed — inferred from the cas~fs~ URI.
+    assert body["resources"][0]["type"] == "CASMEMTable"
+
+
+async def test_catalog_run_adhoc_analysis_missing_type(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool(
+                "catalog_run_adhoc_analysis",
+                {"resource_uri": "/files/files/abc123", "name": "probe"},
+            )
+        ).data
+
+    assert result["status"] == "missing_resource_type"
+    mock_client.post.assert_not_called()
+
+
+async def test_catalog_find_instance_ok(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {
+            "items": [
+                {
+                    "id": "inst1",
+                    "name": "HMEQ",
+                    "type": "casTable",
+                    "resourceId": "/dataTables/x/tables/HMEQ",
+                    "attributes": {
+                        "analysisTimeStamp": "2026-06-19T00:00:00Z",
+                        "informationPrivacy": "candidate",
+                    },
+                }
+            ]
+        }
+    )
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool(
+                "catalog_find_instance",
+                {"resource_uri": "/dataTables/x/tables/HMEQ"},
+            )
+        ).data
+
+    url = mock_client.get.call_args[0][0]
+    params = mock_client.get.call_args[1]["params"]
+    assert url.endswith("/catalog/instances")
+    assert params["filter"] == 'eq(resourceId,"/dataTables/x/tables/HMEQ")'
+    assert result["status"] == "ok"
+    assert result["instance_id"] == "inst1"
+    assert result["profiled"] is True
+
+
+async def test_catalog_find_instance_not_found(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response({"items": []})
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool(
+                "catalog_find_instance", {"resource_uri": "/dataTables/x/tables/NOPE"}
+            )
+        ).data
+
+    assert result["status"] == "not_found"
+
+
+async def test_catalog_get_adhoc_analysis_request(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"id": "job1", "status": "completed", "name": "probe", "resources": []}
+    )
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool("catalog_get_adhoc_analysis", {"job_id": "job1"})
+        ).data
+
+    assert mock_client.get.call_args[0][0].endswith(
+        "/catalog/bots/adhocAnalysisJobs/job1"
+    )
+    assert result["status"] == "completed"
+    # No resource on the job → no instance cross-check, profile not confirmed ready.
+    assert result["profile_ready"] is False
+
+
+async def test_catalog_get_adhoc_analysis_profile_ready(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    # First GET returns the job (terminal, with a resource); second GET resolves
+    # the instance and shows the profile has landed on the asset.
+    mock_client.get.side_effect = [
+        _make_mock_response(
+            {
+                "id": "job1",
+                "status": "completed",
+                "name": "probe",
+                "resources": [{"uri": "/dataTables/x/tables/HMEQ"}],
+            }
+        ),
+        _make_mock_response(
+            {
+                "items": [
+                    {
+                        "id": "inst1",
+                        "attributes": {
+                            "analysisTimeStamp": "2026-06-19T00:00:00Z",
+                            "informationPrivacy": "candidate",
+                        },
+                    }
+                ]
+            }
+        ),
+    ]
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool("catalog_get_adhoc_analysis", {"job_id": "job1"})
+        ).data
+
+    assert result["status"] == "completed"
+    assert result["profile_ready"] is True
+    assert result["instance_id"] == "inst1"
+    assert result["information_privacy"] == "candidate"
+
+
+async def test_catalog_get_adhoc_analysis_not_found(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    resp = _make_mock_response(status_code=404)
+    resp.raise_for_status = MagicMock(
+        side_effect=httpx.HTTPStatusError(
+            "404", request=MagicMock(), response=MagicMock(status_code=404)
+        )
+    )
+    mock_client.get.return_value = resp
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool("catalog_get_adhoc_analysis", {"job_id": "gone"})
+        ).data
+
+    assert result["status"] == "not_found"
+    assert result["id"] == "gone"
+
+
+async def test_catalog_download_table_profile_not_profiled(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response(
+        {"attributes": {}, "resourceId": "/dataTables/x/tables/RAW", "type": "CASTable"}
+    )
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool(
+                "catalog_download_table_profile", {"instance_id": "t1"}
+            )
+        ).data
+
+    assert result["status"] == "not_profiled"
+    assert result["resource_uri"] == "/dataTables/x/tables/RAW"
+    assert result["resource_type"] == "CASTable"
+    # Only the instance was fetched — no CSV download for an unprofiled table.
+    mock_client.get.assert_called_once()
+
+
+async def test_catalog_download_table_profile_ok(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    instance_resp = _make_mock_response(
+        {
+            "attributes": {"analysisTimeStamp": "2026-06-15T00:00:00Z"},
+            "resourceId": "/dataTables/x/tables/HMEQ",
+            "type": "CASTable",
+        }
+    )
+    csv_resp = _make_mock_response(text="Name,Type\nBAD,Num\n")
+    original_get = mock_client.get.return_value
+
+    def route_get(url, **kwargs):
+        # The CSV download hits the collection endpoint (.../catalog/instances);
+        # the instance lookup hits .../catalog/instances/{id}.
+        if url.rstrip("/").endswith("/catalog/instances"):
+            return csv_resp
+        if "/catalog/instances/" in url:
+            return instance_resp
+        return original_get
+
+    mock_client.get.side_effect = route_get
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool(
+                "catalog_download_table_profile",
+                {"instance_id": "t1", "level": "dataDictionaryAndProfile"},
+            )
+        ).data
+    mock_client.get.side_effect = None
+
+    csv_call = next(
+        c
+        for c in mock_client.get.call_args_list
+        if c[0][0].rstrip("/").endswith("/catalog/instances")
+    )
+    assert csv_call[1]["params"]["level"] == "dataDictionaryAndProfile"
+    assert "eq(id,'t1')" in csv_call[1]["params"]["filter"]
+    assert result["status"] == "ok"
+    assert "BAD" in result["csv"]
+
+
+async def test_catalog_download_table_profile_by_resource_uri(
+    mcp_server_with_mock_client,
+):
+    mcp, mock_client = mcp_server_with_mock_client
+    # The resourceId lookup returns a collection; the CSV download carries `level`.
+    lookup_resp = _make_mock_response(
+        {
+            "items": [
+                {
+                    "id": "inst1",
+                    "attributes": {"analysisTimeStamp": "2026-06-15T00:00:00Z"},
+                    "resourceId": "/dataTables/x/tables/HMEQ",
+                    "type": "casTable",
+                }
+            ]
+        }
+    )
+    csv_resp = _make_mock_response(text="Name,Type\nLOAN,Num\n")
+
+    def route_get(url, **kwargs):
+        if "level" in (kwargs.get("params") or {}):
+            return csv_resp
+        return lookup_resp
+
+    mock_client.get.side_effect = route_get
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool(
+                "catalog_download_table_profile",
+                {"resource_uri": "/dataTables/x/tables/HMEQ"},
+            )
+        ).data
+    mock_client.get.side_effect = None
+
+    # The asset was resolved by resourceId, then the CSV download filtered by id.
+    lookup_call = next(
+        c
+        for c in mock_client.get.call_args_list
+        if "resourceId" in (c[1].get("params") or {}).get("filter", "")
+    )
+    assert lookup_call[1]["params"]["filter"] == (
+        'eq(resourceId,"/dataTables/x/tables/HMEQ")'
+    )
+    csv_call = next(
+        c for c in mock_client.get.call_args_list if "level" in (c[1].get("params") or {})
+    )
+    assert "eq(id,'inst1')" in csv_call[1]["params"]["filter"]
+    assert result["status"] == "ok"
+    assert result["instance_id"] == "inst1"
+    assert "LOAN" in result["csv"]
+
+
+async def test_catalog_download_table_profile_uri_not_found(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    mock_client.get.return_value = _make_mock_response({"items": []})
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool(
+                "catalog_download_table_profile",
+                {"resource_uri": "/dataTables/x/tables/NOPE"},
+            )
+        ).data
+
+    assert result["status"] == "not_found"
+    assert result["resource_uri"] == "/dataTables/x/tables/NOPE"
+
+
+async def test_catalog_download_table_profile_missing_identifier(
+    mcp_server_with_mock_client,
+):
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool("catalog_download_table_profile", {})
+        ).data
+
+    assert result["status"] == "missing_identifier"
+    mock_client.get.assert_not_called()
+
+
+async def test_catalog_download_table_profile_invalid_level(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool(
+                "catalog_download_table_profile",
+                {"instance_id": "t1", "level": "bogus"},
+            )
+        ).data
+
+    assert result["status"] == "invalid_level"
+
+
+async def test_catalog_download_table_profile_not_found(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    resp = _make_mock_response(status_code=404)
+    resp.raise_for_status = MagicMock(
+        side_effect=httpx.HTTPStatusError(
+            "404", request=MagicMock(), response=MagicMock(status_code=404)
+        )
+    )
+    mock_client.get.return_value = resp
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool(
+                "catalog_download_table_profile", {"instance_id": "missing"}
+            )
+        ).data
+
+    assert result["status"] == "not_found"
+    assert result["instance_id"] == "missing"

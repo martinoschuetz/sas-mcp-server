@@ -1,8 +1,77 @@
 # Changelog
 
-## [Unreleased]
+## [1.3.0] - 2026-06-22
 
 ### Added
+- **SAS Information Catalog tools (9)** (#19) — `catalog_search`, `catalog_search_helper`, `catalog_find_instance`, `catalog_list_agents`, `catalog_run_agent`, `catalog_get_agent_history`, `catalog_run_adhoc_analysis`, `catalog_get_adhoc_analysis`, and `catalog_download_table_profile`. Metadata discovery and profiling across the whole Viya environment: search assets with the catalog grammar (free text + facets), resolve a search hit's catalog instance, submit and poll ad-hoc profiling jobs (with NLP enrichment for privacy/semantic tags), download a table's data dictionary + column profile as CSV, and list/run/inspect the discovery agents that populate the catalog. Brings the tool count to 41.
+- **`upload_inline_data` tool** — creates a *small* CAS table from inline csv/tsv text passed as a string (a lookup/mapping table the model builds on the fly, or a quick test table). This is the deliberate "data travels through the model context" path, split out from `upload_data` so the cost is explicit in the tool you pick. Brings the tool count to 42.
+
+### Changed — BREAKING
+- **`upload_data` is now reference-only and no longer takes `csv_data`.** It accepts the data by reference through exactly one of `file_path` (the server reads it off its own disk) or `url` (the server fetches it), so the payload is read **server-side** and never passes through the calling model's context. Inline text moved to the new `upload_inline_data` tool. `file_path` reads from the host the server runs on (in stdio mode, the user's machine) and can be disabled by operators with `ALLOW_LOCAL_FILE_UPLOAD=false`. Callers that passed `csv_data` should switch to `upload_inline_data` (for genuinely small tables) or write the data to a file/URL and use `upload_data`.
+
+### Changed
+- **`upload_data` accepts more formats.** Beyond CSV it ingests every format the casManagement `uploadTable` API accepts — **tsv (csv + tab delimiter), xls, xlsx (single sheet), sas7bdat, and sashdat**. The format is auto-detected from the `file_path`/`url` extension and can be overridden with `data_format`; `sheet_name` (Excel) and `contains_header_row` arguments tune the import. **parquet** is not accepted by that endpoint (confirmed against the API spec and a live `HTTP 400`) and is rejected up front with guidance to load it via a path-based caslib + `promote_table_to_memory` or convert it first.
+- `catalog_search` and `catalog_search_helper` use the shared `return_items` field projection for their result shaping (#19).
+
+### Fixed
+- **stdio token resolution is now expiry-aware (#20).** The resolver returned the first cached access token it found without checking expiry, so an expired SAS Viya CLI cache (`~/.sas`) could shadow a valid helper cache (`~/.sas-mcp-server`) and make every Viya call fail with 401. A token at or past its expiry (minus a 60s skew) is now skipped so resolution falls through to the next source; when a cache's access token is expired but it still holds a refresh token, it is exchanged for a fresh one using the client that minted it (`sas.cli` for the CLI cache, `vscode` for the helper cache), written back to that cache, and used. Refresh is best-effort — a wrong client, revoked token, or network error falls through cleanly to the next source or the device-code flow — and a missing/unparseable expiry is treated as not-expired, preserving prior behaviour.
+
+## [1.2.0] - 2026-06-15
+
+### Added
+- **Compute service discovery tools** — `list_compute_contexts`, `list_compute_libraries`, `list_compute_tables`, `list_compute_columns` — browse compute contexts and the SAS libraries/tables/columns visible inside a compute session. Brings the tool count to 32.
+- **`reset_compute_session` tool** — deletes the cached compute session for the caller and compute context, discarding its SAS state (WORK tables, macro variables, assigned librefs) so the next call starts from a fresh session. Defaults to the configured execution context.
+- **Reusable, per-user compute session cache** (`_ComputeSessionCache` in `viya_utils.py`) — one warm compute session is kept per authenticated user and compute context, so repeat calls skip the slow session spin-up. Keyed by the JWT `sub` claim (falling back to other identity claims, then a token hash) so multi-user HTTP deployments never share a session. Cached sessions are validated before reuse and transparently recreated if Viya has reaped them for inactivity.
+- **Compute session shutdown cleanup** — both server entry points register a FastMCP `lifespan` that deletes all cached compute sessions on shutdown (best effort), so warm sessions don't linger until Viya's idle reaper collects them.
+- **Integration coverage for every new tool** — `test_compute_discovery_workflow` and `test_compute_session_reuse_and_reset` (which proves reuse, deletion, and recreation end to end against a live Viya), wired into the `test_every_tool_has_integration_coverage` guard.
+- **`return_items` helper** (`viya_client.py`) — shared field-projection used by the compute discovery tools.
+
+### Changed — BREAKING
+- **`execute_sas_code` is now stateful across calls.** It runs in the reusable per-user compute session, so SAS WORK tables, macro variables, and assigned librefs persist between successive calls instead of being discarded with a per-call session. Call `reset_compute_session` to start from a clean session. (Previously every call created and tore down its own session.)
+
+### Changed
+- `get_context_id` and `create_session` now call `raise_for_status()`, so an auth/permission failure surfaces as a real `HTTPStatusError` instead of a misleading "compute context not found" or a `KeyError`.
+- `get_context_id` builds its query with httpx `params=` instead of string interpolation, so compute context names containing reserved characters (`&`, `+`, `#`) are encoded correctly.
+- The compute session lifecycle (resolve context → create → reuse/reset/teardown) is centralised in `_ComputeSessionCache`; `run_one_snippet` and the compute tools now share it, and `delete_session` was extracted as a reusable helper.
+
+## [1.1.0] - 2026-05-31
+
+### Changed — BREAKING
+- **`execute_sas_code` now returns a structured object instead of a 4-element array.** The tool returns a JSON object `{"snippet_id", "state", "log", "listing"}` (all strings) so MCP clients can address fields by name and the declared return type matches reality. Callers that parsed the previous positional `[snippet_id, state, log, listing]` array must switch to keyed access.
+- **`create_ml_project` arguments changed.** The single `data_table_uri` argument is replaced by `caslib_name` + `table_name` (plus optional `server_id`, default `cas-shared-default`); the tool now builds the data-table URI itself and pre-checks that the table is loaded in global scope, returning an actionable error when it isn't (instead of an opaque `mlPipelineAutomation` failure later).
+
+### Fixed
+- **`promote_table_to_memory` no longer always returns 404 (issue #10).** It previously wrapped a `casManagement` call that only acts on an already-in-memory table, so the common "load a table via `execute_sas_code`, then promote it in a later call" flow failed — the session-scoped table was already gone. It now loads the table from its caslib **source** and promotes it to global scope via the `updateTableState` API, and is idempotent (a no-op when the table is already loaded in global scope).
+
+### Added
+- **`list_source_tables` tool** — lists source tables not yet loaded into CAS memory (`state=unloaded`), so callers can discover what `promote_table_to_memory` can load. Brings the tool count to 27.
+- **Code-quality tooling and a CI gate.** `[tool.ruff]` and `[tool.pyright]` config in `pyproject.toml`; `pytest-cov` with a 90% coverage floor; a new `.github/workflows/ci.yml` runs ruff → pyright → unit tests on every PR and on `main` (previously CI only built Docker images — tests and lint were never gated). `run_tests.sh` now runs the ruff + pyright gates before pytest (skip with `--no-lint`).
+- **`src/sas_mcp_server/viya_client.py`** — generic Viya REST helpers (`get_json`, `get_paged_items`, `post_json`, `delete_resource`, `make_client`) plus the shared `logger`, extracted from `viya_utils.py` with public names.
+- **`src/sas_mcp_server/exceptions.py`** — shared `AuthenticationError` (previously defined identically in `mcp_server.py` and `stdio_server.py`) and a `ConfigError`.
+- **`src/sas_mcp_server/env.py`** — side-effect-free `env_bool` helper used by both `config.py` and `auth_login.py`, removing duplicated `SSL_VERIFY`/`ALLOW_RAW_BEARER` parsing.
+- **Tests for previously uncovered modules** — `tests/test_auth_login.py`, `tests/test_stdio_server.py`, `tests/test_env.py`, `tests/test_config_oauth.py`, real HTTP auth-middleware/health-route tests in `tests/test_mcp_server.py`, and tool error-path tests. Package coverage rose from ~58% to ~95%.
+- **Comprehensive live integration coverage** — every one of the 26 tools and 8 prompt templates is now exercised against a real SAS Viya, with `test_every_tool_has_integration_coverage` / `test_every_prompt_has_integration_coverage` guards that fail if a registered tool/prompt is ever added without an integration test. Added `cancel_job` and `run_ml_project` workflows and per-prompt rendering through the live-connected server.
+- **`.github/workflows/integration.yml`** — opt-in job (manual `workflow_dispatch` or the `run-integration` PR label) that runs the integration suite against Viya using repo secrets and publishes results onto the PR as a Check, a sticky comment, and a JUnit artifact — **without committing any result files** (`reports/` is git-ignored).
+- Full type annotations across the package, including parameterized return types on every tool.
+
+### Changed
+- All 26 tools now share a single `viya_session` async context manager for the log + token + client preamble that was previously copy-pasted into each tool.
+- `viya_utils.py` is now compute session/job orchestration only; `run_one_snippet` returns the structured dict described above.
+- `config.py` raises `ConfigError` (not a bare `Exception`) when `VIYA_ENDPOINT` is unset; logging is now lazy `%`-style throughout.
+
+### Removed
+- Dead helpers in `viya_utils.py` reachable only from tests: `_put_data`, `_get_text`, `_get_paged_lines`, `fetch_full_job_log`, `fetch_full_job_listing`, `fetch_full_session_log`.
+
+## [1.0.0] - 2026-05-12
+
+### Added
+- **GitHub Container Registry publishing** — `.github/workflows/publish-ghcr.yml` builds and pushes multi-arch (`linux/amd64`, `linux/arm64`) images to `ghcr.io/sassoftware/sas-mcp-server` on push to `main` (`:edge`, `:sha-<short>`), on `v*` tags (`:latest`, semver tags), and on `workflow_dispatch`. Images carry build provenance and SBOM attestations.
+- **PR-time Dockerfile build check** — `.github/workflows/docker-build.yml` builds the image (no push, single arch) on every PR that touches Dockerfile-relevant paths.
+- **OCI image labels** on the `Dockerfile` runner stage per SAS OSPO publishing guidelines: `maintainer`, `org.opencontainers.image.source`, `org.opencontainers.image.description`, `org.opencontainers.image.licenses`. Closes upstream issue #1.
+- **`sas-mcp-login`** — Built-in OAuth 2.0 Authorization Code + PKCE login helper for stdio mode, exposed as a `uv run sas-mcp-login` console-script. Uses the built-in `vscode` Viya OAuth client (available on Viya 2022.11+) so no admin client registration and no external CLI install are needed; writes a cached access token to `~/.sas-mcp-server/credentials.json`. Supports a two-step `--code <CODE>` variant for non-TTY shells.
+- **`ALLOW_RAW_BEARER`** env var — Additive HTTP auth mode. When `true`, the server accepts raw upstream Viya JWTs in the `Authorization: Bearer` header alongside the default OAuth2 PKCE flow. PKCE clients are unaffected; the new path only fires when the standard MCP JWT swap returns `None`. Useful for automation/CI clients that already hold a Viya token.
+- **`SAS_CLI_CONFIG`** env var — Override the parent directory for the `sas-viya` CLI credential cache used by stdio mode (default: `$HOME`).
+- Native OAuth 2.0 Device Authorization Grant (RFC 8628) as the last-resort fallback in stdio mode for Viyas whose admin has not enabled CSRF protection on `/SASLogon/oauth/device_authorization`.
 - **26 new MCP tools** across five tiers:
   - **Tier 1 — Data Discovery**: `list_cas_servers`, `list_caslibs`, `list_castables`, `get_castable_info`, `get_castable_columns`, `get_castable_data`
   - **Tier 2 — Data Operations & Files**: `upload_data`, `promote_table_to_memory`, `list_files`, `upload_file`, `download_file`
@@ -27,6 +96,12 @@
 - **Gemini CLI configuration** — `examples/gemini-settings.json` with recommended `timeout` setting, Gemini CLI section in `examples/configuration.md`, and Gemini CLI snippets in README
 
 ### Changed
+- **Stdio auth model overhauled.** Replaced password-grant authentication with a chain of OAuth 2.0 paths, tried in order: (1) token cached by `sas-viya auth loginCode` at `~/.sas/credentials.json` (or `$SAS_CLI_CONFIG/.sas/credentials.json`); (2) token cached by `sas-mcp-login` at `~/.sas-mcp-server/credentials.json`; (3) native device-code flow. The first hit wins. Password grant was deprecated by OAuth 2.1 and failed with `invalid_client` for OAuth clients registered as confidential.
+- `src/sas_mcp_server/config.py` — `viya_auth` is now a `PermissiveOAuthProxy` (subclass of `fastmcp.server.auth.OAuthProxy`) so that, when `ALLOW_RAW_BEARER=true`, raw upstream JWTs fall through to the configured `token_verifier` after the standard MCP JWT swap fails. Behaviour is unchanged when the flag is `false`.
+- `src/sas_mcp_server/stdio_server.py` — Rewritten around the new auth chain; removed `VIYA_USERNAME`/`VIYA_PASSWORD` reads.
+- `examples/configuration.md` — New "Authentication modes — at a glance" overview comparing all five paths; reworked "Authenticating for stdio mode" to cover both `sas-viya` CLI and `sas-mcp-login` paths; updated Gemini CLI section to drop password-grant references; added `ALLOW_RAW_BEARER` and `SAS_CLI_CONFIG` to the environment variables table.
+- `README.md` — Added a "Pull pre-built image" snippet with the published tag table; updated the deployment-mode comparison and "Option B: Stdio mode" instructions; new "Programmatic clients with a pre-existing Viya token" section documenting `ALLOW_RAW_BEARER`.
+- `examples/docker/setup.md` — Added a "Pulling the pre-built image" section with the tag-to-image-version mapping and a note about signed build provenance.
 - `src/sas_mcp_server/config.py` — Added SSL verification bypass via httpx monkey-patch when `SSL_VERIFY=false`
 - `src/sas_mcp_server/viya_utils.py` — Respects `SSL_VERIFY` setting for Viya API calls
 - `examples/configuration.md` — Added Python registration script instructions and `SSL_VERIFY` to environment variables table
@@ -38,6 +113,9 @@
   - `from fastmcp.tools import ToolResult` — module path flattened.
 - **`OAuthProxy(valid_scopes=["openid"])`** — required so containerized deployments accept tokens issued only with `openid` (carried from PR #9; fixes OAuth2 under Podman/Docker).
 - **SSL monkey-patch in `config.py` is now idempotent** — guarded by `_sas_mcp_ssl_patched` so reloading the module doesn't stack wrappers around `httpx.AsyncClient.__init__`.
+
+### Removed
+- **Password-grant stdio authentication.** `VIYA_USERNAME`/`VIYA_PASSWORD` are no longer read by the stdio server. They remain in `.env.sample` (with clearer wording) only because the integration test suite uses the legacy `sas.cli` password grant to acquire test tokens.
 
 ### Fixed
 - `upload_data` — Rewrote to use the CAS Management REST API (`POST /casManagement/servers/{server}/caslibs/{caslib}/tables` with `multipart/form-data`) instead of a SAS DATA step workaround; handles 409 (table already exists) gracefully
