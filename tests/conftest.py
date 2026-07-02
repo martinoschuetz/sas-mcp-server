@@ -5,9 +5,10 @@
 Pytest configuration and shared fixtures for SAS MCP Server tests.
 """
 import os
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import httpx
+import pytest
 from dotenv import load_dotenv
 
 # Load .env once, before any sas_mcp_server module is imported, so that
@@ -15,7 +16,23 @@ from dotenv import load_dotenv
 # developer's local environment rather than the bare OS env.
 load_dotenv()
 
-from fastmcp import FastMCP, Client
+from fastmcp import FastMCP  # noqa: E402  (must follow load_dotenv above)
+
+
+@pytest.fixture(autouse=True)
+def _clear_compute_session_cache():
+    """Isolate tests from the process-wide compute session cache and data selection cache.
+
+    The cache in ``viya_utils`` is module-level state that would otherwise leak
+    a session id (and per-key lock) from one test into the next.
+    """
+    from sas_mcp_server.viya_utils import clear_session_cache, data_selection_cache
+
+    clear_session_cache()
+    data_selection_cache.clear()
+    yield
+    clear_session_cache()
+    data_selection_cache.clear()
 
 
 @pytest.fixture
@@ -161,7 +178,6 @@ def mcp_server_with_mock_client():
     mock_client.__aexit__ = AsyncMock(return_value=False)
 
     paged_resp = _make_mock_response({"items": [], "count": 0})
-    json_resp = _make_mock_response({"id": "test-id"})
     post_resp = _make_mock_response({"id": "test-id"}, status_code=201)
     post_resp.content = b'{"id": "test-id"}'
     put_resp = _make_mock_response({"tableName": "test"}, status_code=201)
@@ -173,7 +189,7 @@ def mcp_server_with_mock_client():
     mock_client.put.return_value = put_resp
     mock_client.delete.return_value = delete_resp
 
-    with patch("sas_mcp_server.tools._make_client", return_value=mock_client):
+    with patch("sas_mcp_server.tools.make_client", return_value=mock_client):
         mcp = FastMCP("Payload Test Server")
 
         async def mock_get_token(ctx):
@@ -236,6 +252,8 @@ def integration_mcp_server(viya_token):
     async def real_get_token(ctx):
         return _token
 
+    from sas_mcp_server.prompts import register_prompts
     from sas_mcp_server.tools import register_tools
     register_tools(mcp, real_get_token)
+    register_prompts(mcp)
     return mcp
