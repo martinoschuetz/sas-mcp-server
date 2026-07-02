@@ -28,30 +28,36 @@ from .viya_client import (
     return_items,
 )
 from .viya_utils import (
-    get_cached_session,
-    reset_cached_session,
-    run_one_snippet,
-    list_data_selections,
-    get_data_selection,
-    update_data_selection,
-    delete_data_selection,
-    launch_data_selection,
     copy_data_selection,
     copy_data_selections,
-    list_iot_projects,
-    list_iot_analyses,
-    get_iot_analysis,
-    create_iot_analysis,
-    delete_iot_analysis,
-    run_iot_analysis,
     copy_iot_analyses,
-    get_iot_analysis_job,
-    list_iot_models,
-    get_iot_model,
+    create_and_run_analysis,
+    create_folder,
+    create_iot_analysis,
+    create_project,
+    delete_data_selection,
+    delete_folder,
+    delete_iot_analysis,
+    delete_project,
+    get_cached_session,
     get_cas_summary_statistics,
-    set_data_selection_date_range,
-    run_iot_analysis_and_wait,
+    get_data_selection,
+    get_iot_analysis,
+    get_iot_analysis_job,
+    get_iot_model,
+    launch_data_selection,
     launch_data_selection_and_wait,
+    list_data_selections,
+    list_folders_and_projects,
+    list_iot_analyses,
+    list_iot_models,
+    list_iot_projects,
+    reset_cached_session,
+    run_iot_analysis,
+    run_iot_analysis_and_wait,
+    run_one_snippet,
+    set_data_selection_date_range,
+    update_data_selection,
 )
 
 
@@ -1826,39 +1832,116 @@ def register_tools(
     # ------------------------------------------------------------------
 
     @mcp.tool()
-    async def list_data_selections_tool(ctx: Context, filter_query: str = None, 
-                                        start: int = 0, limit: int = 10) -> dict:
+    async def list_data_selections_tool(
+        ctx: Context,
+        filter_query: str = None,
+        start: int = 0,
+        limit: int = 10,
+        owner: str = None,
+        owner_display_name: str = None,
+        created_by: str = None,
+        name: str = None,
+        category: str = None,
+        creation_type: str = None,
+        attribute_filters: dict = None
+    ) -> dict:
         """
         Lists all available SAS Analytics for IoT data selections.
-        Returns a pruned list for improved performance.
+        Supports filtering by any attribute (e.g., owner, owner_display_name) on the retrieved collection.
 
         Args:
-            filter_query (str): Optional filter string (e.g., "eq(createdBy,'Martin Schuetz')")
+            filter_query (str): Optional service-side filter string (e.g., "eq(createdBy,'Martin Schuetz')")
             start (int): Offset to start listing from (default: 0)
             limit (int): Maximum number of items to return (default: 10)
+            owner (str): Optional case-insensitive substring filter for owner username (e.g., 'germsz')
+            owner_display_name (str): Optional case-insensitive substring filter for owner display name
+                                      (e.g., 'Schuetz, Martin')
+            created_by (str): Optional case-insensitive substring filter for creator name (e.g., 'Martin')
+            name (str): Optional case-insensitive substring filter for data selection name (e.g., 'Chiller')
+            category (str): Optional case-insensitive substring filter for category (e.g., 'SIMPLE')
+            creation_type (str): Optional case-insensitive substring filter for creation type
+                                 (e.g., 'DEFAULT')
+            attribute_filters (dict): Optional dictionary mapping any attribute name to target value
+                                      for dynamic filtering
         """
         logger.info(f"--- TOOL USED: list_data_selections (filter: {filter_query}) ---")
         token = await get_token(ctx)
-        raw_data = await list_data_selections(token, filter_query=filter_query, 
-                                              start=start, limit=limit)
-        
-        # Prune response for speed
-        items = raw_data.get("items", [])
+
+        # To support local filtering across the entire collection, fetch all items in batches
+        all_items = []
+        current_start = 0
+        fetch_limit = 100
+
+        while True:
+            raw_data = await list_data_selections(
+                token,
+                filter_query=filter_query,
+                start=current_start,
+                limit=fetch_limit
+            )
+            items = raw_data.get("items", [])
+            all_items.extend(items)
+            
+            total_count = raw_data.get("count", 0)
+            if len(items) < fetch_limit or len(all_items) >= total_count:
+                break
+            current_start += fetch_limit
+
+        # Apply client-side attribute filtering
+        filtered_items = all_items
+
+        def matches_filter(item_val, filter_val) -> bool:
+            if item_val is None:
+                return False
+            return str(filter_val).lower() in str(item_val).lower()
+
+        if owner:
+            filtered_items = [item for item in filtered_items if matches_filter(item.get("owner"), owner)]
+        if owner_display_name:
+            filtered_items = [
+                item for item in filtered_items
+                if matches_filter(item.get("ownerDisplayName"), owner_display_name)
+            ]
+        if created_by:
+            filtered_items = [item for item in filtered_items if matches_filter(item.get("createdBy"), created_by)]
+        if name:
+            filtered_items = [item for item in filtered_items if matches_filter(item.get("name"), name)]
+        if category:
+            filtered_items = [item for item in filtered_items if matches_filter(item.get("category"), category)]
+        if creation_type:
+            filtered_items = [
+                item for item in filtered_items
+                if matches_filter(item.get("creationType"), creation_type)
+            ]
+
+        if attribute_filters:
+            for attr, val in attribute_filters.items():
+                filtered_items = [item for item in filtered_items if matches_filter(item.get(attr), val)]
+
+        total_filtered_count = len(filtered_items)
+        paginated_items = filtered_items[start : start + limit]
+
+        # Prune response but include key attributes for transparency
         pruned_items = [
             {
                 "id": item.get("id"),
                 "name": item.get("name"),
                 "createdBy": item.get("createdBy"),
-                "creationTimeStamp": item.get("creationTimeStamp")
+                "creationTimeStamp": item.get("creationTimeStamp"),
+                "owner": item.get("owner"),
+                "ownerDisplayName": item.get("ownerDisplayName"),
+                "category": item.get("category"),
+                "creationType": item.get("creationType"),
+                "description": item.get("description"),
             }
-            for item in items
+            for item in paginated_items
         ]
-        
+
         return {
-            "count": raw_data.get("count"),
+            "count": total_filtered_count,
             "items": pruned_items,
-            "limit": raw_data.get("limit"),
-            "start": raw_data.get("start")
+            "limit": limit,
+            "start": start
         }
 
     @mcp.tool()
@@ -2114,3 +2197,2209 @@ def register_tools(
         logger.info(f"--- TOOL USED: get_iot_model_definition ({model_name}) ---")
         token = await get_token(ctx)
         return await get_iot_model(model_name, token)
+
+    @mcp.tool()
+    async def list_emerging_issue_runs_tool(
+        ctx: Context,
+        start: int = 0,
+        limit: int = 10,
+        name: str = None,
+        status: str = None,
+        created_by: str = None,
+        owner: str = None,
+        attribute_filters: dict = None
+    ) -> dict:
+        """
+        Lists all Emerging Issue analysis runs.
+        Supports filtering by any attribute (e.g., name, status, owner, createdBy) on the retrieved collection.
+
+        Args:
+            start (int): Offset to start listing from (default: 0)
+            limit (int): Maximum number of items to return (default: 10)
+            name (str): Optional case-insensitive substring filter for run name (e.g., 'Emerging')
+            status (str): Optional case-insensitive substring filter for run status (e.g., 'Completed')
+            created_by (str): Optional case-insensitive substring filter for creator name (e.g., 'germsz')
+            owner (str): Optional case-insensitive substring filter for owner username or display name
+            attribute_filters (dict): Optional dictionary mapping any attribute name to target value
+                                      for dynamic filtering
+        """
+        logger.info("--- TOOL USED: list_emerging_issue_runs ---")
+        token = await get_token(ctx)
+
+        # Fetch all items in batches
+        all_items = []
+        current_start = 0
+        fetch_limit = 100
+
+        while True:
+            raw_data = await list_iot_analyses(
+                token,
+                start=current_start,
+                limit=fetch_limit
+            )
+            items = raw_data.get("items", [])
+            all_items.extend(items)
+            
+            if len(items) < fetch_limit:
+                break
+            current_start += fetch_limit
+
+        # Filter by Emerging Issues model types
+        filtered_items = [
+            item for item in all_items
+            if "EI" in item.get("modelName", "").upper()
+            or "EMERGING" in item.get("modelName", "").upper()
+            or "EMERGING" in item.get("name", "").upper()
+        ]
+
+        def matches_filter(item_val, filter_val) -> bool:
+            if item_val is None:
+                return False
+            return str(filter_val).lower() in str(item_val).lower()
+
+        if name:
+            filtered_items = [item for item in filtered_items if matches_filter(item.get("name"), name)]
+        if status:
+            filtered_items = [item for item in filtered_items if matches_filter(item.get("status"), status)]
+        if created_by:
+            filtered_items = [item for item in filtered_items if matches_filter(item.get("createdBy"), created_by)]
+        if owner:
+            filtered_items = [
+                item for item in filtered_items
+                if matches_filter(item.get("currentOwner"), owner)
+                or matches_filter(item.get("currentOwnerDisplayName"), owner)
+            ]
+
+        if attribute_filters:
+            for attr, val in attribute_filters.items():
+                filtered_items = [item for item in filtered_items if matches_filter(item.get(attr), val)]
+
+        total_filtered_count = len(filtered_items)
+        paginated_items = filtered_items[start : start + limit]
+
+        pruned_items = [
+            {
+                "id": item.get("id"),
+                "name": item.get("name"),
+                "modelName": item.get("modelName"),
+                "status": item.get("status"),
+                "displayStatus": item.get("displayStatus"),
+                "lastRunDate": item.get("lastRunDate"),
+                "createdBy": item.get("createdBy"),
+                "currentOwner": item.get("currentOwner"),
+                "currentOwnerDisplayName": item.get("currentOwnerDisplayName"),
+                "dataSelectionId": item.get("dataSelectionId"),
+                "description": item.get("description"),
+            }
+            for item in paginated_items
+        ]
+
+        return {
+            "items": pruned_items,
+            "total": total_filtered_count,
+            "start": start,
+            "limit": limit
+        }
+
+    @mcp.tool()
+    async def list_alerts_for_run_tool(
+        analysis_id: str,
+        ctx: Context,
+        start: int = 0,
+        limit: int = 20,
+        alert_id: str = None,
+        alert_type: str = None,
+        model_cd: str = None,
+        cstmr_country_cd: str = None,
+        seasonal_flag: str = None,
+        display_status_cd: str = None,
+        attribute_filters: dict = None
+    ) -> dict:
+        """
+        Retrieves the list of alerts generated by a completed Emerging Issue analysis run.
+        Supports case-insensitive filtering on any alert attribute.
+
+        Args:
+            analysis_id (str): The unique ID of the Emerging Issue analysis/run.
+            start (int): Offset to start listing from (default: 0)
+            limit (int): Maximum number of items to return (default: 20)
+            alert_id (str): Optional case-insensitive filter for alert ID
+            alert_type (str): Optional case-insensitive filter for alert type (e.g., 'PRODUCTIONPERIOD')
+            model_cd (str): Optional case-insensitive filter for model code (e.g., 'Beta', 'Abyss')
+            cstmr_country_cd (str): Optional case-insensitive filter for customer country code (e.g., '840')
+            seasonal_flag (str): Optional case-insensitive filter for seasonal flag (e.g., 'N', 'Y')
+            display_status_cd (str): Optional case-insensitive filter for display status code (e.g., 'Active')
+            attribute_filters (dict): Optional dictionary of additional attribute-value filters
+        """
+        logger.info(f"--- TOOL USED: list_alerts_for_run ({analysis_id}) ---")
+        token = await get_token(ctx)
+
+        # 1. Retrieve the analysis definition to check its shortId
+        analysis = await get_iot_analysis(analysis_id, token)
+        short_id = analysis.get("shortId")
+        if not short_id:
+            short_id = analysis_id.split("-")[0]
+
+        model_name = analysis.get("modelName", "EIENTERPRISE_PRODUCT")
+        prefix = model_name.split("_")[0] if "_" in model_name else model_name
+
+        # 2. Query CAS server to find the exact alerts table name
+        cas_code = """
+        cas mySession;
+        caslib _all_ assign;
+        proc cas;
+          table.tableInfo / caslib="QASANLOUT";
+        quit;
+        """
+        
+        res = await run_one_snippet(cas_code, "find_alerts_table", token)
+        listing = res.get("listing", "")
+        
+        import re
+        table_pattern = rf"([A-Za-z0-9_]+_ALERTS_{short_id})"
+        matches = re.findall(table_pattern, listing, re.IGNORECASE)
+        
+        if matches:
+            matched_table = matches[0].upper()
+            logger.info(f"Dynamically discovered alerts table name: {matched_table}")
+        else:
+            matched_table = f"{prefix}_ALERTS_{short_id}".upper()
+            logger.warning(
+                "Could not discover alerts table name via tableInfo. "
+                f"Falling back to default: {matched_table}"
+            )
+
+        # 3. Export discovered table to JSON using SAS PROC JSON in a compute session
+        export_code = f"""
+        cas mySession;
+        caslib _all_ assign;
+        libname mycas cas caslib="QASANLOUT" sessref=mySession;
+
+        filename myjson temp;
+        proc json out=myjson pretty;
+          export mycas.{matched_table};
+        run;
+
+        data _null_;
+          infile myjson;
+          input;
+          put "JSON_OUT: " _infile_;
+        run;
+        """
+        
+        export_res = await run_one_snippet(export_code, "export_alerts", token)
+        export_log = export_res.get("log", "")
+        
+        # 4. Extract and parse JSON data
+        json_lines = []
+        for line in export_log.splitlines():
+            if line.startswith("JSON_OUT: "):
+                json_lines.append(line[len("JSON_OUT: "):])
+        
+        json_str = "\n".join(json_lines)
+        if not json_str.strip():
+            logger.error(f"No JSON output from PROC JSON. Check log: {export_log}")
+            return {
+                "items": [],
+                "total": 0,
+                "start": start,
+                "limit": limit,
+                "message": (
+                    f"No alerts found for run '{analysis_id}'. It might not "
+                    f"have generated any alerts or table '{matched_table}' is empty."
+                )
+            }
+
+        try:
+            parsed_data = json.loads(json_str)
+            alerts = []
+            for key, val in parsed_data.items():
+                if key.startswith("SASTableData"):
+                    alerts = val
+                    break
+        except Exception as e:
+            logger.exception("Failed to parse PROC JSON output from SAS log")
+            return {
+                "items": [],
+                "total": 0,
+                "start": start,
+                "limit": limit,
+                "error": f"Failed to parse alerts data from SAS log: {str(e)}"
+            }
+
+        # 5. Apply filtering on retrieved alerts
+        def matches_filter(item_val, filter_val) -> bool:
+            if item_val is None:
+                return False
+            return str(filter_val).lower() in str(item_val).lower()
+
+        filtered_alerts = alerts
+
+        if alert_id:
+            filtered_alerts = [a for a in filtered_alerts if matches_filter(a.get("alert_id"), alert_id)]
+        if alert_type:
+            filtered_alerts = [a for a in filtered_alerts if matches_filter(a.get("alert_type"), alert_type)]
+        if model_cd:
+            filtered_alerts = [a for a in filtered_alerts if matches_filter(a.get("model_cd"), model_cd)]
+        if cstmr_country_cd:
+            filtered_alerts = [
+                a for a in filtered_alerts
+                if matches_filter(a.get("cstmr_country_cd"), cstmr_country_cd)
+            ]
+        if seasonal_flag:
+            filtered_alerts = [a for a in filtered_alerts if matches_filter(a.get("seasonal_flag"), seasonal_flag)]
+        if display_status_cd:
+            filtered_alerts = [
+                a for a in filtered_alerts
+                if matches_filter(a.get("display_status_cd"), display_status_cd)
+            ]
+
+        if attribute_filters:
+            for attr, val in attribute_filters.items():
+                filtered_alerts = [a for a in filtered_alerts if matches_filter(a.get(attr), val)]
+
+        total_count = len(filtered_alerts)
+        paginated_alerts = filtered_alerts[start : start + limit]
+
+        return {
+            "items": paginated_alerts,
+            "total": total_count,
+            "start": start,
+            "limit": limit
+        }
+
+    @mcp.tool()
+    async def list_folders_and_projects_tool(folder_id: str = None, ctx: Context = None) -> dict:
+        """
+        Lists folders, projects, and other members within a parent folder.
+        If no folder_id is specified, lists root level folders and the user's home folder.
+
+        Args:
+            folder_id (str): Optional parent folder ID or URI.
+        """
+        logger.info(f"--- TOOL USED: list_folders_and_projects (folder_id={folder_id}) ---")
+        token = await get_token(ctx)
+        return await list_folders_and_projects(token, folder_id)
+
+    @mcp.tool()
+    async def create_folder_tool(
+        name: str,
+        parent_folder_id: str = "@myFolder",
+        description: str = None,
+        ctx: Context = None
+    ) -> dict:
+        """
+        Creates a new folder inside a parent folder.
+
+        Args:
+            name (str): Name of the new folder.
+            parent_folder_id (str): Parent folder ID or shortcut (defaults to '@myFolder').
+            description (str): Optional folder description.
+        """
+        logger.info(f"--- TOOL USED: create_folder (name={name}, parent={parent_folder_id}) ---")
+        token = await get_token(ctx)
+        return await create_folder(name, token, parent_folder_id, description)
+
+    @mcp.tool()
+    async def create_project_tool(
+        name: str,
+        folder_id: str = "@myFolder",
+        description: str = None,
+        ctx: Context = None
+    ) -> dict:
+        """
+        Creates a new IoT project under a folder.
+
+        Args:
+            name (str): Name of the project.
+            folder_id (str): Folder ID to place the project in (defaults to '@myFolder').
+            description (str): Optional project description.
+        """
+        logger.info(f"--- TOOL USED: create_project (name={name}, folder={folder_id}) ---")
+        token = await get_token(ctx)
+        return await create_project(name, token, folder_id, description)
+
+    @mcp.tool()
+    async def delete_folder_tool(folder_id: str, ctx: Context = None) -> str:
+        """
+        Deletes an existing folder by its ID or URI.
+
+        Args:
+            folder_id (str): The ID of the folder to delete.
+        """
+        logger.info(f"--- TOOL USED: delete_folder (folder_id={folder_id}) ---")
+        token = await get_token(ctx)
+        await delete_folder(folder_id, token)
+        return f"Folder {folder_id} deleted successfully."
+
+    @mcp.tool()
+    async def delete_project_tool(project_id: str, ctx: Context = None) -> str:
+        """
+        Deletes an existing IoT project by its ID.
+
+        Args:
+            project_id (str): The ID of the project to delete.
+        """
+        logger.info(f"--- TOOL USED: delete_project (project_id={project_id}) ---")
+        token = await get_token(ctx)
+        await delete_project(project_id, token)
+        return f"Project {project_id} deleted successfully."
+
+    @mcp.tool()
+    async def run_pareto_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "CLAIM.CLAIMCOST",
+        by_var: str = "CLAIM.EVENT_STATUS_CD",
+        report_var: str = "PRODUCT.MODEL_CD",
+        data_domain: str = "PRODUCT,CLAIM,LABOR",
+        usage_type: str = "mileage",
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = "",
+        repair_before_sold: bool = True,
+        failures: str = "all",
+        maturity_level: str = "",
+        min_sample_size: int = 0,
+        min_sample_size_type: str = "",
+        max_by_var: int = 20,
+        num_bars: int = 20,
+        calc_method: str = "ASIS",
+        exp_chart_type: str = "cumulative",
+        exp_measurement_type: int = 1,
+        exposure_type: str = "TIS",
+        find_first_fail_flag: bool = False,
+        show_immature_exposure: str = "N",
+        tis_point_of_view: str = "frombuild",
+        unique_value: bool = False,
+        usage_profile: bool = False,
+        user_title: str = "ANALYSISNAME",
+        user_subtitle: str = "CREATEDBY",
+        user_footnote: str = "CREATEDDATE",
+        value_var: str = "ACTUAL_VALUE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs a Pareto Analysis instance on product/claim data.
+        Exposes all standard variables and parameters for Pareto analysis.
+
+        Args:
+            name (str): Unique name for the Pareto analysis.
+            data_selection_id (str): ID of the launched data selection to analyze.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable (default: 'CLAIM.CLAIMCOST').
+            by_var (str): Group by variable (default: 'CLAIM.EVENT_STATUS_CD').
+            report_var (str): Report by variable (default: 'PRODUCT.MODEL_CD').
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,LABOR').
+            usage_type (str): Usage measurement type (default: 'mileage').
+            wrty_usage_max_mileage (int): Warranty max mileage (default: 100000).
+            wrty_usage_max_hours (int): Warranty max hours (default: 1000).
+            wrty_usage_max_km (str): Warranty max km.
+            repair_before_sold (bool): Exclude repairs before selling (default: True).
+            failures (str): Failure type filter (default: 'all').
+            maturity_level (str): Maturity level.
+            min_sample_size (int): Min sample size (default: 0).
+            min_sample_size_type (str): Min sample size type.
+            max_by_var (int): Max by variable count (default: 20).
+            num_bars (int): Number of bars to display (default: 20).
+            calc_method (str): Calculation method (default: 'ASIS').
+            exp_chart_type (str): Exposure chart type (default: 'cumulative').
+            exp_measurement_type (int): Exposure measurement type (default: 1).
+            exposure_type (str): Exposure type (default: 'TIS').
+            find_first_fail_flag (bool): Find first fail flag (default: False).
+            show_immature_exposure (str): Show immature exposure (default: 'N').
+            tis_point_of_view (str): TIS point of view (default: 'frombuild').
+            unique_value (bool): Force unique value (default: False).
+            usage_profile (bool): Usage profile flag (default: False).
+            user_title (str): Custom user title.
+            user_subtitle (str): Custom user subtitle.
+            user_footnote (str): Custom user footnote.
+            value_var (str): Value variable (default: 'ACTUAL_VALUE').
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_pareto_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "BYVAR": by_var,
+            "REPORTVAR": report_var,
+            "DATADOMAIN": data_domain,
+            "USAGETYPE": usage_type,
+            "WRTYUSAGEMAXMILEAGE": wrty_usage_max_mileage,
+            "WRTYUSAGEMAXHOURS": wrty_usage_max_hours,
+            "WRTYUSAGEMAXKM": wrty_usage_max_km,
+            "REPAIRBEFORESOLD": "TRUE" if repair_before_sold else "FALSE",
+            "FAILURES": failures,
+            "MATURITYLEVEL": maturity_level,
+            "MINSAMPLESIZE": min_sample_size,
+            "MINSAMPLESIZETYPE": min_sample_size_type,
+            "MAXBYVAR": max_by_var,
+            "NUMBARS": num_bars,
+            "CALCMETHOD": calc_method,
+            "EXPCHARTTYPE": exp_chart_type,
+            "EXPMEASUREMENTTYPE": exp_measurement_type,
+            "EXPOSURETYPE": exposure_type,
+            "FINDFIRSTFAILFLAG": "TRUE" if find_first_fail_flag else "FALSE",
+            "SHOWIMMATUREEXPOSURE": show_immature_exposure,
+            "TISPOINTOFVIEW": tis_point_of_view,
+            "UNIQUEVALUE": "TRUE" if unique_value else "FALSE",
+            "USAGEPROFILE": "TRUE" if usage_profile else "FALSE",
+            "USERTITLE": user_title,
+            "USERSUBTITLE": user_subtitle,
+            "USERFOOTNOTE": user_footnote,
+            "VALUEVAR": value_var,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="PARETO_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+
+    @mcp.tool()
+    async def run_trend_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "CLAIM.CLAIMCOST",
+        by_var: str = "",
+        report_var: str = "PRODUCT.PRODUCTION_MONTH",
+        data_domain: str = "PRODUCT,CLAIM,LABOR",
+        usage_type: str = "mileage",
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = "",
+        repair_before_sold: bool = True,
+        failures: str = "all",
+        maturity_level: str = "",
+        min_sample_size: int = 0,
+        min_sample_size_type: str = "",
+        max_by_var: int = 20,
+        calc_method: str = "ASIS",
+        exp_measurement_type: int = 1,
+        exposure_type: str = "TIS",
+        find_first_fail_flag: bool = False,
+        show_immature_exposure: str = "N",
+        tis_point_of_view: str = "frombuild",
+        unique_value: bool = True,
+        usage_profile: bool = False,
+        control_charts: bool = True,
+        control_limits_type: str = "SYSTEM",
+        display_grid: bool = False,
+        ucl: str = "",
+        lcl: str = "",
+        horiz_ref_value: bool = False,
+        horiz_ref_label: bool = False,
+        vert_ref_value: bool = False,
+        vert_ref_label: bool = False,
+        user_title: str = "ANALYSISNAME",
+        user_subtitle: str = "CREATEDBY",
+        user_footnote: str = "CREATEDDATE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs a Trend & Control Analysis instance on product/claim data.
+        Exposes all variables and parameters for Trend & Control analysis.
+
+        Args:
+            name (str): Unique name for the Trend analysis.
+            data_selection_id (str): ID of the launched data selection.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable (default: 'CLAIM.CLAIMCOST').
+            by_var (str): Group by variable.
+            report_var (str): Report by variable (default: 'PRODUCT.PRODUCTION_MONTH').
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,LABOR').
+            usage_type (str): Usage measurement type (default: 'mileage').
+            wrty_usage_max_mileage (int): Warranty max mileage (default: 100000).
+            wrty_usage_max_hours (int): Warranty max hours (default: 1000).
+            wrty_usage_max_km (str): Warranty max km.
+            repair_before_sold (bool): Exclude repairs before selling (default: True).
+            failures (str): Failure type filter (default: 'all').
+            maturity_level (str): Maturity level.
+            min_sample_size (int): Min sample size (default: 0).
+            min_sample_size_type (str): Min sample size type.
+            max_by_var (int): Max by variable count (default: 20).
+            calc_method (str): Calculation method (default: 'ASIS').
+            exp_measurement_type (int): Exposure measurement type (default: 1).
+            exposure_type (str): Exposure type (default: 'TIS').
+            find_first_fail_flag (bool): Find first fail flag (default: False).
+            show_immature_exposure (str): Show immature exposure (default: 'N').
+            tis_point_of_view (str): TIS point of view (default: 'frombuild').
+            unique_value (bool): Force unique value (default: True).
+            usage_profile (bool): Usage profile flag (default: False).
+            control_charts (bool): Display control charts (default: True).
+            control_limits_type (str): Control limits type (default: 'SYSTEM').
+            display_grid (bool): Display chart grid (default: False).
+            ucl (str): Upper control limit.
+            lcl (str): Lower control limit.
+            horiz_ref_value (bool): Horizontal reference value flag (default: False).
+            horiz_ref_label (bool): Horizontal reference label flag (default: False).
+            vert_ref_value (bool): Vertical reference value flag (default: False).
+            vert_ref_label (bool): Vertical reference label flag (default: False).
+            user_title (str): Custom user title.
+            user_subtitle (str): Custom user subtitle.
+            user_footnote (str): Custom user footnote.
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_trend_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "BYVAR": by_var,
+            "REPORTVAR": report_var,
+            "DATADOMAIN": data_domain,
+            "USAGETYPE": usage_type,
+            "WRTYUSAGEMAXMILEAGE": wrty_usage_max_mileage,
+            "WRTYUSAGEMAXHOURS": wrty_usage_max_hours,
+            "WRTYUSAGEMAXKM": wrty_usage_max_km,
+            "REPAIRBEFORESOLD": "TRUE" if repair_before_sold else "FALSE",
+            "FAILURES": failures,
+            "MATURITYLEVEL": maturity_level,
+            "MINSAMPLESIZE": min_sample_size,
+            "MINSAMPLESIZETYPE": min_sample_size_type,
+            "MAXBYVAR": max_by_var,
+            "CALCMETHOD": calc_method,
+            "EXPMEASUREMENTTYPE": exp_measurement_type,
+            "EXPOSURETYPE": exposure_type,
+            "FINDFIRSTFAILFLAG": "TRUE" if find_first_fail_flag else "FALSE",
+            "SHOWIMMATUREEXPOSURE": show_immature_exposure,
+            "TISPOINTOFVIEW": tis_point_of_view,
+            "UNIQUEVALUE": "TRUE" if unique_value else "FALSE",
+            "USAGEPROFILE": "TRUE" if usage_profile else "FALSE",
+            "CONTROLCHARTS": "TRUE" if control_charts else "FALSE",
+            "CONTROLLIMITSTYPE": control_limits_type,
+            "DISPLAYGRID": "TRUE" if display_grid else "FALSE",
+            "UCL": ucl,
+            "LCL": lcl,
+            "HORIZREFVALUE": "TRUE" if horiz_ref_value else "FALSE",
+            "HORIZREFLABEL": "TRUE" if horiz_ref_label else "FALSE",
+            "VERTREFVALUE": "TRUE" if vert_ref_value else "FALSE",
+            "VERTREFLABEL": "TRUE" if vert_ref_label else "FALSE",
+            "USERTITLE": user_title,
+            "USERSUBTITLE": user_subtitle,
+            "USERFOOTNOTE": user_footnote,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="TREND_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+
+    @mcp.tool()
+    async def run_trend_by_exposure_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "CLAIM.CLAIMCOST",
+        by_var: str = "",
+        report_var: str = "PRODUCT.PRODUCTION_MONTH",
+        data_domain: str = "PRODUCT,CLAIM,LABOR",
+        usage_type: str = "mileage",
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = "",
+        repair_before_sold: bool = True,
+        failures: str = "all",
+        maturity_level: str = "",
+        min_sample_size: int = 0,
+        min_sample_size_type: str = "",
+        max_by_var: int = 20,
+        calc_method: str = "ASIS",
+        exp_measurement_type: int = 1,
+        exposure_type: str = "TIS",
+        find_first_fail_flag: bool = False,
+        show_immature_exposure: str = "N",
+        tis_point_of_view: str = "frombuild",
+        unique_value: bool = True,
+        usage_profile: bool = False,
+        control_charts: bool = True,
+        control_limits_type: str = "SYSTEM",
+        display_grid: bool = False,
+        ucl: str = "",
+        lcl: str = "",
+        horiz_ref_value: bool = False,
+        horiz_ref_label: bool = False,
+        vert_ref_value: bool = False,
+        vert_ref_label: bool = False,
+        user_title: str = "ANALYSISNAME",
+        user_subtitle: str = "CREATEDBY",
+        user_footnote: str = "CREATEDDATE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs a Trend by Exposure Analysis instance on product/claim data.
+
+        Args:
+            name (str): Unique name for the Trend by Exposure analysis.
+            data_selection_id (str): ID of the launched data selection.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable (default: 'CLAIM.CLAIMCOST').
+            by_var (str): Group by variable.
+            report_var (str): Report by variable (default: 'PRODUCT.PRODUCTION_MONTH').
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,LABOR').
+            usage_type (str): Usage measurement type (default: 'mileage').
+            wrty_usage_max_mileage (int): Warranty max mileage (default: 100000).
+            wrty_usage_max_hours (int): Warranty max hours (default: 1000).
+            wrty_usage_max_km (str): Warranty max km.
+            repair_before_sold (bool): Exclude repairs before selling (default: True).
+            failures (str): Failure type filter (default: 'all').
+            maturity_level (str): Maturity level.
+            min_sample_size (int): Min sample size (default: 0).
+            min_sample_size_type (str): Min sample size type.
+            max_by_var (int): Max by variable count (default: 20).
+            calc_method (str): Calculation method (default: 'ASIS').
+            exp_measurement_type (int): Exposure measurement type (default: 1).
+            exposure_type (str): Exposure type (default: 'TIS').
+            find_first_fail_flag (bool): Find first fail flag (default: False).
+            show_immature_exposure (str): Show immature exposure (default: 'N').
+            tis_point_of_view (str): TIS point of view (default: 'frombuild').
+            unique_value (bool): Force unique value (default: True).
+            usage_profile (bool): Usage profile flag (default: False).
+            control_charts (bool): Display control charts (default: True).
+            control_limits_type (str): Control limits type (default: 'SYSTEM').
+            display_grid (bool): Display chart grid (default: False).
+            ucl (str): Upper control limit.
+            lcl (str): Lower control limit.
+            horiz_ref_value (bool): Horizontal reference value flag (default: False).
+            horiz_ref_label (bool): Horizontal reference label flag (default: False).
+            vert_ref_value (bool): Vertical reference value flag (default: False).
+            vert_ref_label (bool): Vertical reference label flag (default: False).
+            user_title (str): Custom user title.
+            user_subtitle (str): Custom user subtitle.
+            user_footnote (str): Custom user footnote.
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_trend_by_exposure_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "BYVAR": by_var,
+            "REPORTVAR": report_var,
+            "DATADOMAIN": data_domain,
+            "USAGETYPE": usage_type,
+            "WRTYUSAGEMAXMILEAGE": wrty_usage_max_mileage,
+            "WRTYUSAGEMAXHOURS": wrty_usage_max_hours,
+            "WRTYUSAGEMAXKM": wrty_usage_max_km,
+            "REPAIRBEFORESOLD": "TRUE" if repair_before_sold else "FALSE",
+            "FAILURES": failures,
+            "MATURITYLEVEL": maturity_level,
+            "MINSAMPLESIZE": min_sample_size,
+            "MINSAMPLESIZETYPE": min_sample_size_type,
+            "MAXBYVAR": max_by_var,
+            "CALCMETHOD": calc_method,
+            "EXPMEASUREMENTTYPE": exp_measurement_type,
+            "EXPOSURETYPE": exposure_type,
+            "FINDFIRSTFAILFLAG": "TRUE" if find_first_fail_flag else "FALSE",
+            "SHOWIMMATUREEXPOSURE": show_immature_exposure,
+            "TISPOINTOFVIEW": tis_point_of_view,
+            "UNIQUEVALUE": "TRUE" if unique_value else "FALSE",
+            "USAGEPROFILE": "TRUE" if usage_profile else "FALSE",
+            "CONTROLCHARTS": "TRUE" if control_charts else "FALSE",
+            "CONTROLLIMITSTYPE": control_limits_type,
+            "DISPLAYGRID": "TRUE" if display_grid else "FALSE",
+            "UCL": ucl,
+            "LCL": lcl,
+            "HORIZREFVALUE": "TRUE" if horiz_ref_value else "FALSE",
+            "HORIZREFLABEL": "TRUE" if horiz_ref_label else "FALSE",
+            "VERTREFVALUE": "TRUE" if vert_ref_value else "FALSE",
+            "VERTREFLABEL": "TRUE" if vert_ref_label else "FALSE",
+            "USERTITLE": user_title,
+            "USERSUBTITLE": user_subtitle,
+            "USERFOOTNOTE": user_footnote,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="TRENDEXP_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+
+    @mcp.tool()
+    async def run_detail_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "",
+        report_var: str = (
+            "PRODUCT.PRODUCTION_DATE,PRODUCT.INSERVICE_DATE,"
+            "PRODUCT.SELLING_DEALER_CD,CLAIM.USAGE,"
+            "CLAIM.PRIM_LABOR_CD,CLAIM.PRIM_REPL_PART_CD"
+        ),
+        data_domain: str = "PRODUCT,CLAIM,LABOR",
+        comment_vars: str = "",
+        min_num_comments: int = 25,
+        num_similar_comments: str = "5 10 25 50",
+        max_num_svd_dimensions: int = 50,
+        find_similar_comments: bool = False,
+        include_nc_products: bool = False,
+        language: str = "english",
+        run_on_transposed: str = "N",
+        usage_type: str = "",
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = "",
+        repair_before_sold: bool = True,
+        failures: str = "all",
+        maturity_level: str = "",
+        max_exp_val: str = "",
+        display_type: str = "CODE",
+        exp_measurement_type: int = 1,
+        exposure_type: str = "TIS",
+        find_first_fail_flag: bool = False,
+        show_immature_exposure: str = "N",
+        tis_point_of_view: str = "frombuild",
+        user_title: str = "ANALYSISNAME",
+        user_subtitle: str = "CREATEDBY",
+        user_footnote: str = "CREATEDDATE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs a Detail Analysis instance on product/claim data.
+        Exposes all variables and parameters for Detail analysis.
+
+        Args:
+            name (str): Unique name for the Detail analysis.
+            data_selection_id (str): ID of the launched data selection.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable.
+            report_var (str): Report by variables.
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,LABOR').
+            comment_vars (str): Comment variables.
+            min_num_comments (int): Min comments (default: 25).
+            num_similar_comments (str): Num similar comments (default: '5 10 25 50').
+            max_num_svd_dimensions (int): Max SVD dimensions (default: 50).
+            find_similar_comments (bool): Find similar comments (default: False).
+            include_nc_products (bool): Include non-conforming products (default: False).
+            language (str): Comment analysis language (default: 'english').
+            run_on_transposed (str): Run on transposed flag (default: 'N').
+            usage_type (str): Usage measurement type.
+            wrty_usage_max_mileage (int): Warranty max mileage (default: 100000).
+            wrty_usage_max_hours (int): Warranty max hours (default: 1000).
+            wrty_usage_max_km (str): Warranty max km.
+            repair_before_sold (bool): Exclude repairs before selling (default: True).
+            failures (str): Failure type filter (default: 'all').
+            maturity_level (str): Maturity level.
+            max_exp_val (str): Max exposure value.
+            display_type (str): Display type (default: 'CODE').
+            exp_measurement_type (int): Exposure measurement type (default: 1).
+            exposure_type (str): Exposure type (default: 'TIS').
+            find_first_fail_flag (bool): Find first fail flag (default: False).
+            show_immature_exposure (str): Show immature exposure (default: 'N').
+            tis_point_of_view (str): TIS point of view (default: 'frombuild').
+            user_title (str): Custom user title.
+            user_subtitle (str): Custom user subtitle.
+            user_footnote (str): Custom user footnote.
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_detail_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "REPORTVAR": report_var,
+            "DATADOMAIN": data_domain,
+            "COMMENTVARS": comment_vars,
+            "MINNUMCOMMENTS": min_num_comments,
+            "NUMSIMILARCOMMENTS": num_similar_comments,
+            "MAXNUMSVDDIMENSIONS": max_num_svd_dimensions,
+            "FINDSIMILARCOMMENTS": "TRUE" if find_similar_comments else "FALSE",
+            "INCLUDENCPRODUCTS": "TRUE" if include_nc_products else "FALSE",
+            "LANGUAGE": language,
+            "RUNONTRANSPOSED": run_on_transposed,
+            "USAGETYPE": usage_type,
+            "WRTYUSAGEMAXMILEAGE": wrty_usage_max_mileage,
+            "WRTYUSAGEMAXHOURS": wrty_usage_max_hours,
+            "WRTYUSAGEMAXKM": wrty_usage_max_km,
+            "REPAIRBEFORESOLD": "TRUE" if repair_before_sold else "FALSE",
+            "FAILURES": failures,
+            "MATURITYLEVEL": maturity_level,
+            "MAXEXPVAL": max_exp_val,
+            "DISPLAYTYPE": display_type,
+            "EXPMEASUREMENTTYPE": exp_measurement_type,
+            "EXPOSURETYPE": exposure_type,
+            "FINDFIRSTFAILFLAG": "TRUE" if find_first_fail_flag else "FALSE",
+            "SHOWIMMATUREEXPOSURE": show_immature_exposure,
+            "TISPOINTOFVIEW": tis_point_of_view,
+            "USERTITLE": user_title,
+            "USERSUBTITLE": user_subtitle,
+            "USERFOOTNOTE": user_footnote,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="DETAIL_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+    @mcp.tool()
+    async def run_statistical_driver_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "",
+        report_var: str = (
+            "PRODUCT.SELLING_DEALER_COUNTRY_CD,PRODUCT.CSTMR_COUNTRY_CD,"
+            "CLAIM.EVENT_TYPE_CD,CLAIM.EVENT_STATUS_CD"
+        ),
+        data_domain: str = "PRODUCT,CLAIM,LABOR",
+        alpha_level: float = 0.05,
+        max_report_level: int = 500,
+        area_of_opportunity_unit: int = 1,
+        display_grid: bool = False,
+        usage_type: str = "mileage",
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = "",
+        repair_before_sold: bool = True,
+        failures: str = "all",
+        maturity_level: str = "",
+        max_exp_val: str = "",
+        min_sample_size: int = 0,
+        min_sample_size_type: str = "",
+        exp_measurement_type: int = 1,
+        exposure_type: str = "TIS",
+        find_first_fail_flag: bool = False,
+        show_immature_exposure: str = "N",
+        tis_point_of_view: str = "frombuild",
+        user_title: str = "ANALYSISNAME",
+        user_subtitle: str = "CREATEDBY",
+        user_footnote: str = "CREATEDDATE",
+        display_type: str = "CODE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs a Statistical Drivers Analysis on product/claim data.
+
+        Args:
+            name (str): Unique name for the analysis.
+            data_selection_id (str): ID of the launched data selection.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable.
+            report_var (str): Report by variables.
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,LABOR').
+            alpha_level (float): Alpha significance level (default: 0.05).
+            max_report_level (int): Max report level (default: 500).
+            area_of_opportunity_unit (int): Area of opportunity unit (default: 1).
+            display_grid (bool): Display grid lines (default: False).
+            usage_type (str): Usage measurement type (default: 'mileage').
+            wrty_usage_max_mileage (int): Warranty max mileage (default: 100000).
+            wrty_usage_max_hours (int): Warranty max hours (default: 1000).
+            wrty_usage_max_km (str): Warranty max km.
+            repair_before_sold (bool): Exclude repairs before selling (default: True).
+            failures (str): Failure type filter (default: 'all').
+            maturity_level (str): Maturity level.
+            max_exp_val (str): Max exposure value.
+            min_sample_size (int): Min sample size (default: 0).
+            min_sample_size_type (str): Min sample size type.
+            exp_measurement_type (int): Exposure measurement type (default: 1).
+            exposure_type (str): Exposure type (default: 'TIS').
+            find_first_fail_flag (bool): Find first fail flag (default: False).
+            show_immature_exposure (str): Show immature exposure (default: 'N').
+            tis_point_of_view (str): TIS point of view (default: 'frombuild').
+            user_title (str): Custom user title.
+            user_subtitle (str): Custom user subtitle.
+            user_footnote (str): Custom user footnote.
+            display_type (str): Display type (default: 'CODE').
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_statistical_driver_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "REPORTVAR": report_var,
+            "DATADOMAIN": data_domain,
+            "ALPHALEVEL": alpha_level,
+            "MAXREPORTLEVEL": max_report_level,
+            "AREAOFOPPORTUNITYUNIT": area_of_opportunity_unit,
+            "DISPLAYGRID": "TRUE" if display_grid else "FALSE",
+            "USAGETYPE": usage_type,
+            "WRTYUSAGEMAXMILEAGE": wrty_usage_max_mileage,
+            "WRTYUSAGEMAXHOURS": wrty_usage_max_hours,
+            "WRTYUSAGEMAXKM": wrty_usage_max_km,
+            "REPAIRBEFORESOLD": "TRUE" if repair_before_sold else "FALSE",
+            "FAILURES": failures,
+            "MATURITYLEVEL": maturity_level,
+            "MAXEXPVAL": max_exp_val,
+            "MINSAMPLESIZE": min_sample_size,
+            "MINSAMPLESIZETYPE": min_sample_size_type,
+            "EXPMEASUREMENTTYPE": exp_measurement_type,
+            "EXPOSURETYPE": exposure_type,
+            "FINDFIRSTFAILFLAG": "TRUE" if find_first_fail_flag else "FALSE",
+            "SHOWIMMATUREEXPOSURE": show_immature_exposure,
+            "TISPOINTOFVIEW": tis_point_of_view,
+            "USERTITLE": user_title,
+            "USERSUBTITLE": user_subtitle,
+            "USERFOOTNOTE": user_footnote,
+            "DISPLAYTYPE": display_type,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="STATDRIVER_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+
+    @mcp.tool()
+    async def run_decision_tree_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "",
+        report_var: str = (
+            "PRODUCT.SELLING_DEALER_COUNTRY_CD,PRODUCT.CSTMR_COUNTRY_CD,"
+            "CLAIM.EVENT_TYPE_CD,CLAIM.EVENT_STATUS_CD"
+        ),
+        data_domain: str = "PRODUCT,CLAIM,LABOR",
+        max_branch: int = 2,
+        max_depth: int = 5,
+        leaf_size: float = 0.01,
+        alpha_level: float = 0.05,
+        min_num_obs: int = 10,
+        max_report_level: int = 100,
+        max_report_var: int = 25,
+        area_of_opportunity_unit: int = 1,
+        usage_type: str = "mileage",
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = "",
+        repair_before_sold: bool = True,
+        failures: str = "all",
+        maturity_level: str = "",
+        max_exp_val: str = "",
+        min_sample_size: int = 0,
+        min_sample_size_type: str = "",
+        exp_chart_type: str = "cumulative",
+        exp_measurement_type: int = 1,
+        exposure_type: str = "TIS",
+        find_first_fail_flag: bool = False,
+        show_immature_exposure: str = "N",
+        tis_point_of_view: str = "frombuild",
+        unique_value: bool = False,
+        usage_profile: bool = False,
+        user_title: str = "ANALYSISNAME",
+        user_subtitle: str = "CREATEDBY",
+        user_footnote: str = "CREATEDDATE",
+        display_type: str = "CODE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs a Decision Tree Analysis on product/claim data.
+
+        Args:
+            name (str): Unique name for the analysis.
+            data_selection_id (str): ID of the launched data selection.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable.
+            report_var (str): Report by variables.
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,LABOR').
+            max_branch (int): Maximum branches (default: 2).
+            max_depth (int): Maximum depth (default: 5).
+            leaf_size (float): Leaf size proportion (default: 0.01).
+            alpha_level (float): Alpha significance level (default: 0.05).
+            min_num_obs (int): Minimum observations in leaf (default: 10).
+            max_report_level (int): Maximum report level (default: 100).
+            max_report_var (int): Maximum report variables (default: 25).
+            area_of_opportunity_unit (int): Area of opportunity unit (default: 1).
+            usage_type (str): Usage measurement type (default: 'mileage').
+            wrty_usage_max_mileage (int): Warranty max mileage (default: 100000).
+            wrty_usage_max_hours (int): Warranty max hours (default: 1000).
+            wrty_usage_max_km (str): Warranty max km.
+            repair_before_sold (bool): Exclude repairs before selling (default: True).
+            failures (str): Failure type filter (default: 'all').
+            maturity_level (str): Maturity level.
+            max_exp_val (str): Max exposure value.
+            min_sample_size (int): Min sample size (default: 0).
+            min_sample_size_type (str): Min sample size type.
+            exp_chart_type (str): Exposure chart type (default: 'cumulative').
+            exp_measurement_type (int): Exposure measurement type (default: 1).
+            exposure_type (str): Exposure type (default: 'TIS').
+            find_first_fail_flag (bool): Find first fail flag (default: False).
+            show_immature_exposure (str): Show immature exposure (default: 'N').
+            tis_point_of_view (str): TIS point of view (default: 'frombuild').
+            unique_value (bool): Force unique value (default: False).
+            usage_profile (bool): Usage profile flag (default: False).
+            user_title (str): Custom user title.
+            user_subtitle (str): Custom user subtitle.
+            user_footnote (str): Custom user footnote.
+            display_type (str): Display type (default: 'CODE').
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_decision_tree_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "REPORTVAR": report_var,
+            "DATADOMAIN": data_domain,
+            "MAXBRANCH": max_branch,
+            "MAXDEPTH": max_depth,
+            "LEAFSIZE": leaf_size,
+            "ALPHALEVEL": alpha_level,
+            "MINNUMOBS": min_num_obs,
+            "MAXREPORTLEVEL": max_report_level,
+            "MAXREPORTVAR": max_report_var,
+            "AREAOFOPPORTUNITYUNIT": area_of_opportunity_unit,
+            "USAGETYPE": usage_type,
+            "WRTYUSAGEMAXMILEAGE": wrty_usage_max_mileage,
+            "WRTYUSAGEMAXHOURS": wrty_usage_max_hours,
+            "WRTYUSAGEMAXKM": wrty_usage_max_km,
+            "REPAIRBEFORESOLD": "TRUE" if repair_before_sold else "FALSE",
+            "FAILURES": failures,
+            "MATURITYLEVEL": maturity_level,
+            "MAXEXPVAL": max_exp_val,
+            "MINSAMPLESIZE": min_sample_size,
+            "MINSAMPLESIZETYPE": min_sample_size_type,
+            "EXPCHARTTYPE": exp_chart_type,
+            "EXPMEASUREMENTTYPE": exp_measurement_type,
+            "EXPOSURETYPE": exposure_type,
+            "FINDFIRSTFAILFLAG": "TRUE" if find_first_fail_flag else "FALSE",
+            "SHOWIMMATUREEXPOSURE": show_immature_exposure,
+            "TISPOINTOFVIEW": tis_point_of_view,
+            "UNIQUEVALUE": "TRUE" if unique_value else "FALSE",
+            "USAGEPROFILE": "TRUE" if usage_profile else "FALSE",
+            "USERTITLE": user_title,
+            "USERSUBTITLE": user_subtitle,
+            "USERFOOTNOTE": user_footnote,
+            "DISPLAYTYPE": display_type,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="MULTIVARIATE_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+
+    @mcp.tool()
+    async def run_event_forecasting_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "CLAIM.CLAIMCOUNT",
+        by_var: str = "",
+        data_domain: str = "PRODUCT,CLAIM,LABOR",
+        forecast_periods: int = 0,
+        forecast_interval: str = "MONTH",
+        forecast_model_type: str = "RepeatEvent",
+        forecast_model: str = "MCF",
+        confidence: float = 0.95,
+        wrty_time_length: int = 36,
+        fore_wrty_length: str = "",
+        fore_wrty_usage_mileage: str = "",
+        fore_wrty_usage_hours: str = "",
+        fore_wrty_usage_km: str = "",
+        pct_pts: str = "95",
+        sales_forecast_source: str = "",
+        sales_forecast_calc: str = "",
+        sales_forecast_alloc: str = "P",
+        sales_forecast_n: int = 0,
+        sales_forecast: str = "",
+        seas_interval: str = "days10",
+        seas_sle: float = 0.05,
+        seas_sls: float = 0.05,
+        seaseps: float = 1.0e-3,
+        seasfreqs: int = 24,
+        seasjmax: int = 15,
+        seasmintime: int = 0,
+        target_num_intervals: int = 1500,
+        seasonal_nhpp: bool = False,
+        include_model_eqn: bool = True,
+        apply_war_date: str = "Y",
+        apply_war_usage: str = "Y",
+        censor_date_source: str = "D",
+        censor_date: str = "",
+        usage_type: str = "mileage",
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = "",
+        exposure_type: str = "TIS",
+        max_by_var: int = 20,
+        max_interval_size: int = 10,
+        display_type: str = "CODE",
+        user_title: str = "ANALYSISNAME",
+        user_subtitle: str = "CREATEDBY",
+        user_footnote: str = "CREATEDDATE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs an Event Forecasting Analysis on product/claim data.
+
+        Args:
+            name (str): Unique name for the analysis.
+            data_selection_id (str): ID of the launched data selection.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable (default: 'CLAIM.CLAIMCOUNT').
+            by_var (str): Group by variable.
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,LABOR').
+            forecast_periods (int): Forecast periods count (default: 0).
+            forecast_interval (str): Forecast interval (default: 'MONTH').
+            forecast_model_type (str): Forecast model type (default: 'RepeatEvent').
+            forecast_model (str): Forecast model (default: 'MCF').
+            confidence (float): Confidence level (default: 0.95).
+            wrty_time_length (int): Warranty time length (default: 36).
+            fore_wrty_length (str): Forecast warranty length.
+            fore_wrty_usage_mileage (str): Forecast warranty max mileage.
+            fore_wrty_usage_hours (str): Forecast warranty max hours.
+            fore_wrty_usage_km (str): Forecast warranty max km.
+            pct_pts (str): Percentile points (default: '95').
+            sales_forecast_source (str): Sales forecast source.
+            sales_forecast_calc (str): Sales forecast calculation method.
+            sales_forecast_alloc (str): Sales forecast allocation (default: 'P').
+            sales_forecast_n (int): Sales forecast N value.
+            sales_forecast (str): Sales forecast.
+            seas_interval (str): Seasonal interval (default: 'days10').
+            seas_sle (float): Seasonal entry significance (default: 0.05).
+            seas_sls (float): Seasonal stay significance (default: 0.05).
+            seaseps (float): Seasonal convergence epsilon (default: 1.0e-3).
+            seasfreqs (int): Seasonal frequency (default: 24).
+            seasjmax (int): Seasonal JMax value (default: 15).
+            seasmintime (int): Seasonal minimum time.
+            target_num_intervals (int): Target intervals (default: 1500).
+            seasonal_nhpp (bool): Seasonal NHPP model flag (default: False).
+            include_model_eqn (bool): Include model equation flag (default: True).
+            apply_war_date (str): Apply warranty date flag (default: 'Y').
+            apply_war_usage (str): Apply warranty usage flag (default: 'Y').
+            censor_date_source (str): Censor date source (default: 'D').
+            censor_date (str): Censor date value.
+            usage_type (str): Usage measurement type (default: 'mileage').
+            wrty_usage_max_mileage (int): Warranty max mileage (default: 100000).
+            wrty_usage_max_hours (int): Warranty max hours (default: 1000).
+            wrty_usage_max_km (str): Warranty max km.
+            exposure_type (str): Exposure type (default: 'TIS').
+            max_by_var (int): Max by variable count (default: 20).
+            max_interval_size (int): Max interval size (default: 10).
+            display_type (str): Display type (default: 'CODE').
+            user_title (str): Custom user title.
+            user_subtitle (str): Custom user subtitle.
+            user_footnote (str): Custom user footnote.
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_event_forecasting_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "BYVAR": by_var,
+            "DATADOMAIN": data_domain,
+            "FORECASTPERIODS": forecast_periods,
+            "FORECAST_INTERVAL": forecast_interval,
+            "FORECASTMODELTYPE": forecast_model_type,
+            "FORECASTMODEL": forecast_model,
+            "CONFIDENCE": confidence,
+            "WRTYTIMELENGTH": wrty_time_length,
+            "FOREWRTYLENGTH": fore_wrty_length,
+            "FOREWRTYUSAGEMILEAGE": fore_wrty_usage_mileage,
+            "FOREWRTYUSAGEHOURS": fore_wrty_usage_hours,
+            "FOREWRTYUSAGEKM": fore_wrty_usage_km,
+            "PCTLPTS": pct_pts,
+            "SALESFORECASTSOURCE": sales_forecast_source,
+            "SALESFORECASTCALC": sales_forecast_calc,
+            "SALESFORECASTALLOC": sales_forecast_alloc,
+            "SALESFORECASTN": sales_forecast_n,
+            "SALESFORECAST": sales_forecast,
+            "SEAS_INTERVAL": seas_interval,
+            "SEAS_SLE": seas_sle,
+            "SEAS_SLS": seas_sls,
+            "SEASEPS": seaseps,
+            "SEASFREQS": seasfreqs,
+            "SEASJMAX": seasjmax,
+            "SEASMINTIME": seasmintime,
+            "TARGETNUMINTERVALS": target_num_intervals,
+            "SEASONALNHPP": "TRUE" if seasonal_nhpp else "FALSE",
+            "INCLUDEMODELEQN": "TRUE" if include_model_eqn else "FALSE",
+            "APPLYWARDATE": apply_war_date,
+            "APPLYWARUSAGE": apply_war_usage,
+            "CENSORDATESOURCE": censor_date_source,
+            "CENSORDATE": censor_date,
+            "USAGETYPE": usage_type,
+            "WRTYUSAGEMAXMILEAGE": wrty_usage_max_mileage,
+            "WRTYUSAGEMAXHOURS": wrty_usage_max_hours,
+            "WRTYUSAGEMAXKM": wrty_usage_max_km,
+            "EXPOSURETYPE": exposure_type,
+            "MAXBYVAR": max_by_var,
+            "MAXINTERVALSIZE": max_interval_size,
+            "DISPLAYTYPE": display_type,
+            "USERTITLE": user_title,
+            "USERSUBTITLE": user_subtitle,
+            "USERFOOTNOTE": user_footnote,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="FORECASTING_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+
+    @mcp.tool()
+    async def run_summary_tables_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "CLAIM.CLAIMCOUNT",
+        report_var: str = "PRODUCT.MODEL_CD,PRODUCT.PRODUCTION_YEAR",
+        data_domain: str = "PRODUCT,CLAIM,LABOR",
+        subtotals: bool = True,
+        use_exposure_type: bool = False,
+        exposure_type: str = "TIS",
+        tis_point_of_view: str = "frombuild",
+        calc_method: str = "ASIS",
+        exp_chart_type: str = "cumulative",
+        exp_measurement_type: int = 1,
+        find_exp_measurement: bool = True,
+        find_first_fail_flag: bool = False,
+        show_immature_exposure: str = "N",
+        unique_value: bool = True,
+        usage_profile: bool = False,
+        usage_bins_to_display: str = "500,1000,1500,2000",
+        tis_bins_to_display: str = "0,1,2,3,4,5,6",
+        bin_increment: int = 0,
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = "",
+        repair_before_sold: bool = True,
+        failures: str = "all",
+        maturity_level: str = "",
+        max_exp_val: str = "",
+        min_sample_size: int = 0,
+        min_sample_size_type: str = "",
+        claim_submit_lag: bool = True,
+        display_type: str = "CODE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs a Summary Tables (Crosstab) Analysis on product/claim data.
+
+        Args:
+            name (str): Unique name for the analysis.
+            data_selection_id (str): ID of the launched data selection.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable (default: 'CLAIM.CLAIMCOUNT').
+            report_var (str): Report by variables.
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,LABOR').
+            subtotals (bool): Display subtotals (default: True).
+            use_exposure_type (bool): Use exposure type (default: False).
+            exposure_type (str): Exposure type (default: 'TIS').
+            tis_point_of_view (str): TIS point of view (default: 'frombuild').
+            calc_method (str): Calculation method (default: 'ASIS').
+            exp_chart_type (str): Exposure chart type (default: 'cumulative').
+            exp_measurement_type (int): Exposure measurement type (default: 1).
+            find_exp_measurement (bool): Find exposure measurement (default: True).
+            find_first_fail_flag (bool): Find first fail flag (default: False).
+            show_immature_exposure (str): Show immature exposure (default: 'N').
+            unique_value (bool): Force unique value (default: True).
+            usage_profile (bool): Usage profile flag (default: False).
+            usage_bins_to_display (str): Bins to display for usage.
+            tis_bins_to_display (str): Bins to display for TIS.
+            bin_increment (int): Bin increment size (default: 0).
+            wrty_usage_max_mileage (int): Warranty max mileage (default: 100000).
+            wrty_usage_max_hours (int): Warranty max hours (default: 1000).
+            wrty_usage_max_km (str): Warranty max km.
+            repair_before_sold (bool): Exclude repairs before selling (default: True).
+            failures (str): Failure type filter (default: 'all').
+            maturity_level (str): Maturity level.
+            max_exp_val (str): Max exposure value.
+            min_sample_size (int): Min sample size (default: 0).
+            min_sample_size_type (str): Min sample size type.
+            claim_submit_lag (bool): Claim submit lag flag (default: True).
+            display_type (str): Display type (default: 'CODE').
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_summary_tables_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "REPORTVAR": report_var,
+            "DATADOMAIN": data_domain,
+            "SUBTOTALS": "TRUE" if subtotals else "FALSE",
+            "USEEXPOSURETYPE": "TRUE" if use_exposure_type else "FALSE",
+            "EXPOSURETYPE": exposure_type,
+            "TISPOINTOFVIEW": tis_point_of_view,
+            "CALCMETHOD": calc_method,
+            "EXPCHARTTYPE": exp_chart_type,
+            "EXPMEASUREMENTTYPE": exp_measurement_type,
+            "FINDEXPMEASUREMENT": "TRUE" if find_exp_measurement else "FALSE",
+            "FINDFIRSTFAILFLAG": "TRUE" if find_first_fail_flag else "FALSE",
+            "SHOWIMMATUREEXPOSURE": show_immature_exposure,
+            "UNIQUEVALUE": "TRUE" if unique_value else "FALSE",
+            "USAGEPROFILE": "TRUE" if usage_profile else "FALSE",
+            "USAGEBINSTODISPLAY": usage_bins_to_display,
+            "TISBINSTODISPLAY": tis_bins_to_display,
+            "BININCREMENT": bin_increment,
+            "WRTYUSAGEMAXMILEAGE": wrty_usage_max_mileage,
+            "WRTYUSAGEMAXHOURS": wrty_usage_max_hours,
+            "WRTYUSAGEMAXKM": wrty_usage_max_km,
+            "REPAIRBEFORESOLD": "TRUE" if repair_before_sold else "FALSE",
+            "FAILURES": failures,
+            "MATURITYLEVEL": maturity_level,
+            "MAXEXPVAL": max_exp_val,
+            "MINSAMPLESIZE": min_sample_size,
+            "MINSAMPLESIZETYPE": min_sample_size_type,
+            "CLAIMSUBMITLAG": "TRUE" if claim_submit_lag else "FALSE",
+            "DISPLAYTYPE": display_type,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="CROSSTAB_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+
+    @mcp.tool()
+    async def run_text_mining_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "CLAIM.TOTAL_EVENT_AMT",
+        report_var: str = "PRODUCT.MODEL_CD,CLAIM.EVENT_STATUS_CD",
+        text_var: str = "CLAIM.CSTMR_COMMENT",
+        data_domain: str = "PRODUCT,CLAIM,LABOR",
+        language: str = "Auto",
+        custom_category: bool = True,
+        num_topics: int = 10,
+        num_terms: int = 10,
+        repair_before_sold: bool = True,
+        failures: str = "all",
+        maturity_level: str = "",
+        max_exp_val: str = "",
+        display_type: str = "CODE",
+        user_title: str = "ANALYSISNAME",
+        user_subtitle: str = "CREATEDBY",
+        user_footnote: str = "CREATEDDATE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs a Text Mining Analysis on product/claim comment data.
+
+        Args:
+            name (str): Unique name for the analysis.
+            data_selection_id (str): ID of the launched data selection.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable (default: 'CLAIM.TOTAL_EVENT_AMT').
+            report_var (str): Report by variables.
+            text_var (str): Target text column containing comments (default: 'CLAIM.CSTMR_COMMENT').
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,LABOR').
+            language (str): Comment language (default: 'Auto').
+            custom_category (bool): Custom category analysis flag (default: True).
+            num_topics (int): Number of topics to discover (default: 10).
+            num_terms (int): Number of terms per topic to return (default: 10).
+            repair_before_sold (bool): Exclude repairs before selling (default: True).
+            failures (str): Failure type filter (default: 'all').
+            maturity_level (str): Maturity level.
+            max_exp_val (str): Max exposure value.
+            display_type (str): Display type (default: 'CODE').
+            user_title (str): Custom user title.
+            user_subtitle (str): Custom user subtitle.
+            user_footnote (str): Custom user footnote.
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_text_mining_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "REPORTVAR": report_var,
+            "TEXTVAR": text_var,
+            "DATADOMAIN": data_domain,
+            "LANGUAGE": language,
+            "CUSTOM_CATEGORY": "TRUE" if custom_category else "FALSE",
+            "NUMTOPICS": num_topics,
+            "NUMTERMS": num_terms,
+            "REPAIRBEFORESOLD": "TRUE" if repair_before_sold else "FALSE",
+            "FAILURES": failures,
+            "MATURITYLEVEL": maturity_level,
+            "MAXEXPVAL": max_exp_val,
+            "DISPLAYTYPE": display_type,
+            "USERTITLE": user_title,
+            "USERSUBTITLE": user_subtitle,
+            "USERFOOTNOTE": user_footnote,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="TEXTANALYSIS_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+
+    @mcp.tool()
+    async def run_exposure_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "CLAIM.CLAIMCOST",
+        by_var: str = "",
+        data_domain: str = "PRODUCT,CLAIM,LABOR",
+        exposure_type: str = "TIS",
+        tis_point_of_view: str = "frombuild",
+        calc_method: str = "ASIS",
+        exp_chart_type: str = "cumulative",
+        exp_measurement_type: int = 1,
+        find_exp_measurement: bool = True,
+        find_first_fail_flag: bool = False,
+        show_immature_exposure: str = "Y",
+        unique_value: bool = True,
+        usage_profile: bool = False,
+        usage_type: str = "mileage",
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = "",
+        repair_before_sold: bool = True,
+        failures: str = "all",
+        maturity_level: str = "",
+        max_exp_val: str = "",
+        min_sample_size: int = 0,
+        min_sample_size_type: str = "",
+        claim_submit_lag: bool = True,
+        display_type: str = "CODE",
+        display_grid: bool = False,
+        bin_increment: int = 0,
+        user_title: str = "ANALYSISNAME",
+        user_subtitle: str = "CREATEDBY",
+        user_footnote: str = "CREATEDDATE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs an Exposure Analysis on product/claim data.
+
+        Args:
+            name (str): Unique name for the analysis.
+            data_selection_id (str): ID of the launched data selection.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable (default: 'CLAIM.CLAIMCOST').
+            by_var (str): Group by variable.
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,LABOR').
+            exposure_type (str): Exposure type (default: 'TIS').
+            tis_point_of_view (str): TIS point of view (default: 'frombuild').
+            calc_method (str): Calculation method (default: 'ASIS').
+            exp_chart_type (str): Exposure chart type (default: 'cumulative').
+            exp_measurement_type (int): Exposure measurement type (default: 1).
+            find_exp_measurement (bool): Find exposure measurement (default: True).
+            find_first_fail_flag (bool): Find first fail flag (default: False).
+            show_immature_exposure (str): Show immature exposure (default: 'Y').
+            unique_value (bool): Force unique value (default: True).
+            usage_profile (bool): Usage profile flag (default: False).
+            usage_type (str): Usage measurement type (default: 'mileage').
+            wrty_usage_max_mileage (int): Warranty max mileage (default: 100000).
+            wrty_usage_max_hours (int): Warranty max hours (default: 1000).
+            wrty_usage_max_km (str): Warranty max km.
+            repair_before_sold (bool): Exclude repairs before selling (default: True).
+            failures (str): Failure type filter (default: 'all').
+            maturity_level (str): Maturity level.
+            max_exp_val (str): Max exposure value.
+            min_sample_size (int): Min sample size (default: 0).
+            min_sample_size_type (str): Min sample size type.
+            claim_submit_lag (bool): Claim submit lag flag (default: True).
+            display_type (str): Display type (default: 'CODE').
+            display_grid (bool): Display grid lines (default: False).
+            bin_increment (int): Bin increment size (default: 0).
+            user_title (str): Custom user title.
+            user_subtitle (str): Custom user subtitle.
+            user_footnote (str): Custom user footnote.
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_exposure_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "BYVAR": by_var,
+            "DATADOMAIN": data_domain,
+            "EXPOSURETYPE": exposure_type,
+            "TISPOINTOFVIEW": tis_point_of_view,
+            "CALCMETHOD": calc_method,
+            "EXPCHARTTYPE": exp_chart_type,
+            "EXPMEASUREMENTTYPE": exp_measurement_type,
+            "FINDEXPMEASUREMENT": "TRUE" if find_exp_measurement else "FALSE",
+            "FINDFIRSTFAILFLAG": "TRUE" if find_first_fail_flag else "FALSE",
+            "SHOWIMMATUREEXPOSURE": show_immature_exposure,
+            "UNIQUEVALUE": "TRUE" if unique_value else "FALSE",
+            "USAGEPROFILE": "TRUE" if usage_profile else "FALSE",
+            "USAGETYPE": usage_type,
+            "WRTYUSAGEMAXMILEAGE": wrty_usage_max_mileage,
+            "WRTYUSAGEMAXHOURS": wrty_usage_max_hours,
+            "WRTYUSAGEMAXKM": wrty_usage_max_km,
+            "REPAIRBEFORESOLD": "TRUE" if repair_before_sold else "FALSE",
+            "FAILURES": failures,
+            "MATURITYLEVEL": maturity_level,
+            "MAXEXPVAL": max_exp_val,
+            "MINSAMPLESIZE": min_sample_size,
+            "MINSAMPLESIZETYPE": min_sample_size_type,
+            "CLAIMSUBMITLAG": "TRUE" if claim_submit_lag else "FALSE",
+            "DISPLAYTYPE": display_type,
+            "DISPLAYGRID": "TRUE" if display_grid else "FALSE",
+            "BININCREMENT": bin_increment,
+            "USERTITLE": user_title,
+            "USERSUBTITLE": user_subtitle,
+            "USERFOOTNOTE": user_footnote,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="EXPOSURE_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+
+    @mcp.tool()
+    async def run_failure_relationships_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "PART.REPL_PART_AMT",
+        report_var: str = "PART.REPL_PART_CD",
+        data_domain: str = "PRODUCT,CLAIM,PART",
+        rv_dim_column: str = "PART.REPL_PART_CD",
+        threshold_slider_variable: str = "CONF",
+        xvar1: str = "iotIncr",
+        dmdb_max_lev: int = 100001,
+        chart_scaling_factor: int = 400,
+        node_tip: str = "CODE",
+        node_size: str = "UNIFORM",
+        bin_increment: int = 500,
+        rv_table_name_key: str = "PART.REPL_PART_CD",
+        rv_table_name_value: str = "PART.REPL_PART_CD",
+        rv_table_name: str = "PART.REPL_PART_CD",
+        exposure_type: str = "TIS",
+        find_first_fail_flag: bool = False,
+        link_tip: str = "DESC",
+        link_value_variable: str = "conf",
+        link_width: str = "UNIFORM",
+        link_width_variable: str = "count",
+        max_link_number: int = 2000,
+        max_link_width: int = 3,
+        max_node_number: int = 300,
+        min_items: int = 2,
+        nodesize_variable: str = "count",
+        min_conf_passoc: float = 1.0,
+        bin_length: int = 30,
+        onetrvruledsflag: int = 0,
+        pseudoliftincludeflag: str = "N",
+        sas_file: int = 1,
+        seq_proc_threshold: int = 301,
+        show_immature_exposure: str = "N",
+        threshold_slider_scale_type: str = "PERCENTILE",
+        assoc_table_threshold: int = 100,
+        trule_end_start_flag: str = "ALL",
+        uniform_link_width: int = 1,
+        rule_type: str = "TYPE4",
+        perform_repeat_repair: bool = False,
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = "",
+        repair_before_sold: bool = True,
+        failures: str = "all",
+        maturity_level: str = "",
+        max_exp_val: str = "",
+        max_inter_oc_time: int = 3,
+        min_conf_p: str = "",
+        min_lift: str = "",
+        min_cost: int = 15000,
+        no_rules_to_display: str = "",
+        yvar2: str = "CONF",
+        yvar1: str = "SUPPORT",
+        xvar2: str = "iotIncr",
+        rule_filter_criteria: str = "support",
+        tis_point_of_view: str = "frombuild",
+        apply_int_oc_time_incr: bool = False,
+        apply_rule_st_criteria: bool = True,
+        min_support_type: str = "percent",
+        rule_size: str = "1-1,1-2,2-1,2-2",
+        min_support_p: float = 0.01,
+        min_support_c: int = 1,
+        display_type: str = "CODE",
+        user_title: str = "ANALYSISNAME",
+        user_subtitle: str = "CREATEDBY",
+        user_footnote: str = "CREATEDDATE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs a Failure Relationships Analysis on product/claim/part data.
+
+        Args:
+            name (str): Unique name for the analysis.
+            data_selection_id (str): ID of the launched data selection.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable (default: 'PART.REPL_PART_AMT').
+            report_var (str): Report by variables.
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,PART').
+            rv_dim_column (str): RV dimension column.
+            threshold_slider_variable (str): Threshold slider variable.
+            xvar1 (str): X variable 1 (default: 'iotIncr').
+            dmdb_max_lev (int): DMDB maximum level (default: 100001).
+            chart_scaling_factor (int): Chart scaling factor (default: 400).
+            node_tip (str): Node tooltip display type (default: 'CODE').
+            node_size (str): Node sizing logic (default: 'UNIFORM').
+            bin_increment (int): Bin increment size (default: 500).
+            rv_table_name_key (str): RV table name key.
+            rv_table_name_value (str): RV table name value.
+            rv_table_name (str): RV table name.
+            exposure_type (str): Exposure type (default: 'TIS').
+            find_first_fail_flag (bool): Find first fail flag (default: False).
+            link_tip (str): Link tooltip type (default: 'DESC').
+            link_value_variable (str): Link value variable.
+            link_width (str): Link width (default: 'UNIFORM').
+            link_width_variable (str): Link width variable (default: 'count').
+            max_link_number (int): Maximum links (default: 2000).
+            max_link_width (int): Maximum link width (default: 3).
+            max_node_number (int): Maximum nodes (default: 300).
+            min_items (int): Minimum items in association rules (default: 2).
+            nodesize_variable (str): Node sizing variable (default: 'count').
+            min_conf_passoc (float): Minimum confidence passoc (default: 1.0).
+            bin_length (int): Bin length (default: 30).
+            onetrvruledsflag (int): One transaction rule dataset flag (default: 0).
+            pseudoliftincludeflag (str): Include pseudo lift flag (default: 'N').
+            sas_file (int): SAS file number (default: 1).
+            seq_proc_threshold (int): Sequence process threshold (default: 301).
+            show_immature_exposure (str): Show immature exposure (default: 'N').
+            threshold_slider_scale_type (str): Scale type (default: 'PERCENTILE').
+            assoc_table_threshold (int): Association table threshold (default: 100).
+            trule_end_start_flag (str): Rule start/end flag (default: 'ALL').
+            uniform_link_width (int): Uniform link width (default: 1).
+            rule_type (str): Association rule type (default: 'TYPE4').
+            perform_repeat_repair (bool): Perform repeat repair analysis (default: False).
+            wrty_usage_max_mileage (int): Warranty max mileage (default: 100000).
+            wrty_usage_max_hours (int): Warranty max hours (default: 1000).
+            wrty_usage_max_km (str): Warranty max km.
+            repair_before_sold (bool): Exclude repairs before selling (default: True).
+            failures (str): Failure type filter (default: 'all').
+            maturity_level (str): Maturity level.
+            max_exp_val (str): Max exposure value.
+            max_inter_oc_time (int): Maximum inter-event occurrence time.
+            min_conf_p (str): Minimum confidence percentage.
+            min_lift (str): Minimum lift.
+            min_cost (int): Minimum cost limit (default: 15000).
+            no_rules_to_display (str): Number of rules to display.
+            yvar2 (str): Y variable 2 (default: 'CONF').
+            yvar1 (str): Y variable 1 (default: 'SUPPORT').
+            xvar2 (str): X variable 2 (default: 'iotIncr').
+            rule_filter_criteria (str): Rule filtering criteria (default: 'support').
+            tis_point_of_view (str): TIS point of view (default: 'frombuild').
+            apply_int_oc_time_incr (bool): Apply interval time increment.
+            apply_rule_st_criteria (bool): Apply rule constraint criteria (default: True).
+            min_support_type (str): Minimum support type (default: 'percent').
+            rule_size (str): Rule size filter (default: '1-1,1-2,2-1,2-2').
+            min_support_p (float): Minimum support percentage (default: 0.01).
+            min_support_c (int): Minimum support count (default: 1).
+            display_type (str): Display type (default: 'CODE').
+            user_title (str): Custom user title.
+            user_subtitle (str): Custom user subtitle.
+            user_footnote (str): Custom user footnote.
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_failure_relationships_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "REPORTVAR": report_var,
+            "DATADOMAIN": data_domain,
+            "RVDIMCOLUMN": rv_dim_column,
+            "THRESHOLDSLIDERVARIABLE": threshold_slider_variable,
+            "XVAR1": xvar1,
+            "DMDBMAXLEV": dmdb_max_lev,
+            "CHARTSCALINGFACTOR": chart_scaling_factor,
+            "NODETIP": node_tip,
+            "NODESIZE": node_size,
+            "BININCREMENT": bin_increment,
+            "RVTABLEVALUE": rv_table_name_value,
+            "RVTABLENAMEKEY": rv_table_name_key,
+            "RVTABLENAMEVALUE": rv_table_name_value,
+            "RVTABLENAME": rv_table_name,
+            "EXPOSURETYPE": exposure_type,
+            "FINDFIRSTFAILFLAG": "TRUE" if find_first_fail_flag else "FALSE",
+            "LINKTIP": link_tip,
+            "LINKVALUEVARIABLE": link_value_variable,
+            "LINKWIDTH": link_width,
+            "LINKWIDTHVARIABLE": link_width_variable,
+            "MAXLINKNUMBER": max_link_number,
+            "MAXLINKWIDTH": max_link_width,
+            "MAXNODENUMBER": max_node_number,
+            "MINITEMS": min_items,
+            "NODESIZEVARIABLE": nodesize_variable,
+            "MINCONFPASSOC": min_conf_passoc,
+            "BINLENGTH": bin_length,
+            "ONETRVRULEDSFLAG": onetrvruledsflag,
+            "PSEUDOLIFTINCLUDEFLAG": pseudoliftincludeflag,
+            "SASFILE": sas_file,
+            "SEQPROCTHRESHOLD": seq_proc_threshold,
+            "SHOWIMMATUREEXPOSURE": show_immature_exposure,
+            "THRESHOLDSLIDERSCALETYPE": threshold_slider_scale_type,
+            "ASSOCTABLETHRESHOLD": assoc_table_threshold,
+            "TRULEENDSTARTFLAG": trule_end_start_flag,
+            "UNIFORMLINKWIDTH": uniform_link_width,
+            "RULETYPE": rule_type,
+            "PERFORMREPEATREPAIR": "TRUE" if perform_repeat_repair else "FALSE",
+            "WRTYUSAGEMAXMILEAGE": wrty_usage_max_mileage,
+            "WRTYUSAGEMAXHOURS": wrty_usage_max_hours,
+            "WRTYUSAGEMAXKM": wrty_usage_max_km,
+            "REPAIRBEFORESOLD": "TRUE" if repair_before_sold else "FALSE",
+            "FAILURES": failures,
+            "MATURITYLEVEL": maturity_level,
+            "MAXEXPVAL": max_exp_val,
+            "MAXINTEROCTIME": max_inter_oc_time,
+            "MINCONFP": min_conf_p,
+            "MINLIFT": min_lift,
+            "MINCOST": min_cost,
+            "NORULESTODISPLAY": no_rules_to_display,
+            "YVAR2": yvar2,
+            "YVAR1": yvar1,
+            "XVAR2": xvar2,
+            "RULEFILTERCRITERIA": rule_filter_criteria,
+            "TISPOINTOFVIEW": tis_point_of_view,
+            "APPLYINTOCTIMEINCR": "TRUE" if apply_int_oc_time_incr else "FALSE",
+            "APPLYRULESTCRITERIA": "TRUE" if apply_rule_st_criteria else "FALSE",
+            "MINSUPPORTTYPE": min_support_type,
+            "RULESIZE": rule_size,
+            "MINSUPPORTP": min_support_p,
+            "MINSUPPORTC": min_support_c,
+            "DISPLAYTYPE": display_type,
+            "USERTITLE": user_title,
+            "USERSUBTITLE": user_subtitle,
+            "USERFOOTNOTE": user_footnote,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="FAILREL_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+
+    @mcp.tool()
+    async def run_geographic_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "CLAIM.CLAIMCOST",
+        report_var: str = "PRODUCT.SELLING_DEALER_COUNTRY_CD",
+        color_var: str = "CLAIM.CLAIMCOUNT",
+        data_domain: str = "PRODUCT,CLAIM,LABOR",
+        exposure_type: str = "TIS",
+        tis_point_of_view: str = "frombuild",
+        calc_method: str = "ASIS",
+        exp_chart_type: str = "cumulative",
+        exp_measurement_type: int = 1,
+        find_exp_measurement: bool = True,
+        find_first_fail_flag: bool = False,
+        show_immature_exposure: str = "N",
+        unique_value: bool = False,
+        usage_type: str = "mileage",
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = "",
+        repair_before_sold: bool = True,
+        failures: str = "all",
+        maturity_level: str = "",
+        max_exp_val: str = "",
+        min_sample_size: int = 0,
+        min_sample_size_type: str = "",
+        claim_submit_lag: bool = True,
+        display_type: str = "CODE",
+        user_title: str = "ANALYSISNAME",
+        user_subtitle: str = "CREATEDBY",
+        user_footnote: str = "CREATEDDATE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs a Geographic Analysis on product/claim geographic data.
+
+        Args:
+            name (str): Unique name for the analysis.
+            data_selection_id (str): ID of the launched data selection.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable (default: 'CLAIM.CLAIMCOST').
+            report_var (str): Report by variables.
+            color_var (str): Variable to determine map region colors.
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,LABOR').
+            exposure_type (str): Exposure type (default: 'TIS').
+            tis_point_of_view (str): TIS point of view (default: 'frombuild').
+            calc_method (str): Calculation method (default: 'ASIS').
+            exp_chart_type (str): Exposure chart type (default: 'cumulative').
+            exp_measurement_type (int): Exposure measurement type (default: 1).
+            find_exp_measurement (bool): Find exposure measurement (default: True).
+            find_first_fail_flag (bool): Find first fail flag (default: False).
+            show_immature_exposure (str): Show immature exposure (default: 'N').
+            unique_value (bool): Force unique value (default: False).
+            usage_type (str): Usage measurement type (default: 'mileage').
+            wrty_usage_max_mileage (int): Warranty max mileage (default: 100000).
+            wrty_usage_max_hours (int): Warranty max hours (default: 1000).
+            wrty_usage_max_km (str): Warranty max km.
+            repair_before_sold (bool): Exclude repairs before selling (default: True).
+            failures (str): Failure type filter (default: 'all').
+            maturity_level (str): Maturity level.
+            max_exp_val (str): Max exposure value.
+            min_sample_size (int): Min sample size (default: 0).
+            min_sample_size_type (str): Min sample size type.
+            claim_submit_lag (bool): Claim submit lag flag (default: True).
+            display_type (str): Display type (default: 'CODE').
+            user_title (str): Custom user title.
+            user_subtitle (str): Custom user subtitle.
+            user_footnote (str): Custom user footnote.
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_geographic_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "REPORTVAR": report_var,
+            "COLORVAR": color_var,
+            "DATADOMAIN": data_domain,
+            "EXPOSURETYPE": exposure_type,
+            "TISPOINTOFVIEW": tis_point_of_view,
+            "CALCMETHOD": calc_method,
+            "EXPCHARTTYPE": exp_chart_type,
+            "EXPMEASUREMENTTYPE": exp_measurement_type,
+            "FINDEXPMEASUREMENT": "TRUE" if find_exp_measurement else "FALSE",
+            "FINDFIRSTFAILFLAG": "TRUE" if find_first_fail_flag else "FALSE",
+            "SHOWIMMATUREEXPOSURE": show_immature_exposure,
+            "UNIQUEVALUE": "TRUE" if unique_value else "FALSE",
+            "USAGETYPE": usage_type,
+            "WRTYUSAGEMAXMILEAGE": wrty_usage_max_mileage,
+            "WRTYUSAGEMAXHOURS": wrty_usage_max_hours,
+            "WRTYUSAGEMAXKM": wrty_usage_max_km,
+            "REPAIRBEFORESOLD": "TRUE" if repair_before_sold else "FALSE",
+            "FAILURES": failures,
+            "MATURITYLEVEL": maturity_level,
+            "MAXEXPVAL": max_exp_val,
+            "MINSAMPLESIZE": min_sample_size,
+            "MINSAMPLESIZETYPE": min_sample_size_type,
+            "CLAIMSUBMITLAG": "TRUE" if claim_submit_lag else "FALSE",
+            "DISPLAYTYPE": display_type,
+            "USERTITLE": user_title,
+            "USERSUBTITLE": user_subtitle,
+            "USERFOOTNOTE": user_footnote,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="GEOGRAPHIC_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+
+    @mcp.tool()
+    async def run_time_of_event_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "CLAIM.CLAIMCOST",
+        report_var: str = "CLAIM.EVENT_PAID_MONTH",
+        by_var: str = "",
+        data_domain: str = "PRODUCT,CLAIM,LABOR",
+        exposure_type: str = "TIS",
+        find_first_fail_flag: bool = False,
+        exp_measurement_type: int = 1,
+        unique_value: bool = False,
+        show_immature_exposure: str = "N",
+        tis_point_of_view: str = "frombuild",
+        wrty_time_length: int = 12,
+        usage_profile: bool = False,
+        usage_type: str = "mileage",
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = "",
+        repair_before_sold: bool = True,
+        horiz_ref_value: bool = False,
+        horiz_ref_label: bool = False,
+        vert_ref_value: bool = False,
+        vert_ref_label: bool = False,
+        display_grid: bool = False,
+        display_type: str = "CODE",
+        user_title: str = "ANALYSISNAME",
+        user_subtitle: str = "CREATEDBY",
+        user_footnote: str = "CREATEDDATE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs a Time of Event (Time of Claim) Analysis on product/claim data.
+
+        Args:
+            name (str): Unique name for the analysis.
+            data_selection_id (str): ID of the launched data selection.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable (default: 'CLAIM.CLAIMCOST').
+            report_var (str): Report by variables.
+            by_var (str): Group by variable.
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,LABOR').
+            exposure_type (str): Exposure type (default: 'TIS').
+            find_first_fail_flag (bool): Find first fail flag (default: False).
+            exp_measurement_type (int): Exposure measurement type (default: 1).
+            unique_value (bool): Force unique value (default: False).
+            show_immature_exposure (str): Show immature exposure (default: 'N').
+            tis_point_of_view (str): TIS point of view (default: 'frombuild').
+            wrty_time_length (int): Warranty time length (default: 12).
+            usage_profile (bool): Usage profile flag (default: False).
+            usage_type (str): Usage measurement type (default: 'mileage').
+            wrty_usage_max_mileage (int): Warranty max mileage (default: 100000).
+            wrty_usage_max_hours (int): Warranty max hours (default: 1000).
+            wrty_usage_max_km (str): Warranty max km.
+            repair_before_sold (bool): Exclude repairs before selling (default: True).
+            horiz_ref_value (bool): Horizontal reference value flag (default: False).
+            horiz_ref_label (bool): Horizontal reference label flag (default: False).
+            vert_ref_value (bool): Vertical reference value flag (default: False).
+            vert_ref_label (bool): Vertical reference label flag (default: False).
+            display_grid (bool): Display grid lines (default: False).
+            display_type (str): Display type (default: 'CODE').
+            user_title (str): Custom user title.
+            user_subtitle (str): Custom user subtitle.
+            user_footnote (str): Custom user footnote.
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_time_of_event_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "REPORTVAR": report_var,
+            "BYVAR": by_var,
+            "DATADOMAIN": data_domain,
+            "EXPOSURETYPE": exposure_type,
+            "FINDFIRSTFAILFLAG": "TRUE" if find_first_fail_flag else "FALSE",
+            "EXPMEASUREMENTTYPE": exp_measurement_type,
+            "UNIQUEVALUE": "TRUE" if unique_value else "FALSE",
+            "SHOWIMMATUREEXPOSURE": show_immature_exposure,
+            "TISPOINTOFVIEW": tis_point_of_view,
+            "WRTYTIMELENGTH": wrty_time_length,
+            "USAGEPROFILE": "TRUE" if usage_profile else "FALSE",
+            "USAGETYPE": usage_type,
+            "WRTYUSAGEMAXMILEAGE": wrty_usage_max_mileage,
+            "WRTYUSAGEMAXHOURS": wrty_usage_max_hours,
+            "WRTYUSAGEMAXKM": wrty_usage_max_km,
+            "REPAIRBEFORESOLD": "TRUE" if repair_before_sold else "FALSE",
+            "HORIZREFVALUE": "TRUE" if horiz_ref_value else "FALSE",
+            "HORIZREFLABEL": "TRUE" if horiz_ref_label else "FALSE",
+            "VERTREFVALUE": "TRUE" if vert_ref_value else "FALSE",
+            "VERTREFLABEL": "TRUE" if vert_ref_label else "FALSE",
+            "DISPLAYGRID": "TRUE" if display_grid else "FALSE",
+            "DISPLAYTYPE": display_type,
+            "USERTITLE": user_title,
+            "USERSUBTITLE": user_subtitle,
+            "USERFOOTNOTE": user_footnote,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="TIMEOFCLAIM_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+
+    @mcp.tool()
+    async def run_reliability_analysis_tool(
+        name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_analysis_id: str = None,
+        parent_analysis_owner: str = None,
+        analysis_var: str = "RELIABILITYCLAIMCOUNT",
+        report_var: str = "",
+        by_var: str = "",
+        reliab_var: str = "TIS",
+        data_domain: str = "PRODUCT,CLAIM,LABOR",
+        exp_chart_type: str = "INCREMENTAL",
+        projected_values_hours: str = "100,200,300,400,500,600,700,800,900,1000",
+        confidence: float = 0.95,
+        bin_increment: int = 500,
+        display_grid: bool = False,
+        exp_measurement_type: int = 1,
+        exposure_type: str = "TIS",
+        find_exp_measurement: bool = False,
+        show_immature_exposure: str = "N",
+        seas_sale_lag: bool = False,
+        max_by_var: int = 20,
+        find_first_fail_flag: bool = True,
+        wrty_usage_max_km: str = "",
+        user_title: str = "ANALYSISNAME",
+        user_subtitle: str = "CREATEDBY",
+        user_footnote: str = "CREATEDDATE",
+        wait_for_completion: bool = True
+    ) -> dict:
+        """
+        Creates and runs a Reliability Analysis on product/claim reliability data.
+
+        Args:
+            name (str): Unique name for the analysis.
+            data_selection_id (str): ID of the launched data selection.
+            folder_id (str): Optional parent folder/project ID.
+            parent_analysis_id (str): Optional parent analysis ID to link alert analysis.
+            parent_analysis_owner (str): Optional parent owner to link alert analysis.
+            analysis_var (str): Analysis variable (default: 'RELIABILITYCLAIMCOUNT').
+            report_var (str): Report by variables.
+            by_var (str): Group by variable.
+            reliab_var (str): Reliability variable (default: 'TIS').
+            data_domain (str): Data domains involved (default: 'PRODUCT,CLAIM,LABOR').
+            exp_chart_type (str): Exposure chart type (default: 'INCREMENTAL').
+            projected_values_hours (str): Projected values hours list.
+            confidence (float): Confidence level (default: 0.95).
+            bin_increment (int): Bin increment size (default: 500).
+            display_grid (bool): Display grid lines (default: False).
+            exp_measurement_type (int): Exposure measurement type (default: 1).
+            exposure_type (str): Exposure type (default: 'TIS').
+            find_exp_measurement (bool): Find exposure measurement (default: False).
+            show_immature_exposure (str): Show immature exposure (default: 'N').
+            seas_sale_lag (bool): Seasonal sale lag (default: False).
+            max_by_var (int): Max by variable count (default: 20).
+            find_first_fail_flag (bool): Find first fail flag (default: True).
+            wrty_usage_max_km (str): Warranty max km.
+            user_title (str): Custom user title.
+            user_subtitle (str): Custom user subtitle.
+            user_footnote (str): Custom user footnote.
+            wait_for_completion (bool): If True, waits for job completion (default: True).
+        """
+        logger.info(f"--- TOOL USED: run_reliability_analysis ({name}) ---")
+        token = await get_token(ctx)
+        params = {
+            "ANALYSISVAR": analysis_var,
+            "REPORTVAR": report_var,
+            "BYVAR": by_var,
+            "RELIABVAR": reliab_var,
+            "DATADOMAIN": data_domain,
+            "EXPCHARTTYPE": exp_chart_type,
+            "PROJECTEDVALUESHOURS": projected_values_hours,
+            "CONFIDENCE": confidence,
+            "BININCREMENT": bin_increment,
+            "DISPLAYGRID": "TRUE" if display_grid else "FALSE",
+            "EXPMEASUREMENTTYPE": exp_measurement_type,
+            "EXPOSURETYPE": exposure_type,
+            "FINDEXPMEASUREMENT": "TRUE" if find_exp_measurement else "FALSE",
+            "SHOWIMMATUREEXPOSURE": show_immature_exposure,
+            "SEASSALELAG": "TRUE" if seas_sale_lag else "FALSE",
+            "MAXBYVAR": max_by_var,
+            "FINDFIRSTFAILFLAG": "TRUE" if find_first_fail_flag else "FALSE",
+            "WRTYUSAGEMAXKM": wrty_usage_max_km,
+            "USERTITLE": user_title,
+            "USERSUBTITLE": user_subtitle,
+            "USERFOOTNOTE": user_footnote,
+            "PARENT_ANALYSIS_ID": parent_analysis_id,
+            "PARENT_ANALYSIS_OWNER": parent_analysis_owner
+        }
+        return await create_and_run_analysis(
+            name=name,
+            model_name="RELIABILITY_PRODUCT",
+            data_selection_id=data_selection_id,
+            token=token,
+            folder_id=folder_id,
+            parameter_updates=params,
+            wait_for_completion=wait_for_completion
+        )
+
+

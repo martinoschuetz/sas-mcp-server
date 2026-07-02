@@ -26,7 +26,7 @@ import ssl
 import httpx
 from cachetools import TTLCache
 
-from .config import CONTEXT_NAME, VIYA_ENDPOINT, SSL_VERIFY
+from .config import CONTEXT_NAME, SSL_VERIFY, VIYA_ENDPOINT
 from .viya_client import logger, make_client
 
 # Caching for performance
@@ -478,10 +478,16 @@ async def list_iot_projects(token: str) -> dict:
                                accept="application/vnd.sas.collection+json")
 
 
-async def list_iot_analyses(token: str) -> dict:
+async def list_iot_analyses(token: str, start: int = None, limit: int = None) -> dict:
     """Lists all defined SAS Analytics for IoT analyses."""
+    params = {}
+    if start is not None:
+        params["start"] = start
+    if limit is not None:
+        params["limit"] = limit
     async with _make_client(token) as client:
         return await _get_json("/iotAnalysis/analyses", client,
+                               params=params or None,
                                accept="application/vnd.sas.collection+json")
 
 
@@ -492,7 +498,13 @@ async def get_iot_analysis(analysis_id: str, token: str) -> dict:
                                accept="application/vnd.sas.iot.analysis+json")
 
 
-async def create_iot_analysis(name: str, model_name: str, data_selection_id: str, token: str, folder_id: str = None) -> dict:
+async def create_iot_analysis(
+    name: str,
+    model_name: str,
+    data_selection_id: str,
+    token: str,
+    folder_id: str = None
+) -> dict:
     """Creates a new IoT analysis instance."""
     async with _make_client(token) as client:
         body = {
@@ -512,6 +524,89 @@ async def create_iot_analysis(name: str, model_name: str, data_selection_id: str
         return await _post_json("/iotAnalysis/analyses", client,
                                 body=collection_body,
                                 accept="application/json")
+
+
+async def create_and_run_analysis(
+    name: str,
+    model_name: str,
+    data_selection_id: str,
+    token: str,
+    folder_id: str = None,
+    parameter_updates: dict = None,
+    wait_for_completion: bool = True
+) -> dict:
+    """Creates a new IoT analysis instance, updates its parameters, and runs it."""
+    # 1. Create analysis
+    creation_res = await create_iot_analysis(name, model_name, data_selection_id, token, folder_id)
+    items = creation_res.get("items", [])
+    if not items:
+        return creation_res
+    analysis_id = items[0]["id"]
+
+    async with _make_client(token) as client:
+        # 2. Get full details to retrieve steps, inputParameters, and ETag
+        url = f"/iotAnalysis/analyses/{analysis_id}"
+        resp_get = await client.get(
+            f"{VIYA_ENDPOINT}{url}",
+            headers={"Accept": "application/vnd.sas.iot.analysis+json"}
+        )
+        resp_get.raise_for_status()
+        etag = resp_get.headers.get("ETag")
+        analysis_details = resp_get.json()
+
+        steps = analysis_details.get("steps", [])
+        if steps and parameter_updates:
+            # We assume single-step models (like PARETO, TREND, DETAIL)
+            step = steps[0]
+            
+            # Map parameterName -> parameter object to update values
+            new_params = []
+            for p in step.get("inputParameters", []):
+                pname = p.get("parameterName", "").strip()
+                new_p = dict(p)
+                # Find matching update key (case-insensitive)
+                for uk, uv in parameter_updates.items():
+                    if uk.upper() == pname.upper() and uv is not None:
+                        new_p["parameterValue"] = str(uv)
+                        break
+                new_params.append(new_p)
+                
+            step["inputParameters"] = new_params
+            analysis_details["steps"] = [step]
+
+            # 3. Update the parameters via PUT
+            resp_put = await client.put(
+                f"{VIYA_ENDPOINT}{url}",
+                json=analysis_details,
+                headers={
+                    "Content-Type": "application/vnd.sas.iot.analysis+json",
+                    "Accept": "application/vnd.sas.iot.analysis+json",
+                    "If-Match": etag
+                }
+            )
+            resp_put.raise_for_status()
+            analysis_details = resp_put.json()
+
+        # 4. Trigger the job
+        step_id = steps[0]["id"] if steps else analysis_id
+        job_url = f"/iotAnalysis/analyses/{analysis_id}/steps/{step_id}/jobs"
+        run_res = await _post_json(job_url, client, body={}, accept="application/json")
+        
+        # 5. Wait for completion if requested
+        if wait_for_completion:
+            job_id = run_res.get("id")
+            if job_id:
+                job_exec_url = f"/iotAnalysis/analyses/{analysis_id}/steps/{step_id}/jobs/{job_id}"
+                poll_res = await poll_job(job_exec_url, token)
+                return {
+                    "analysis": analysis_details,
+                    "job": poll_res
+                }
+        
+        return {
+            "analysis": analysis_details,
+            "job": run_res
+        }
 
 
 async def delete_iot_analysis(analysis_id: str, token: str) -> None:
@@ -534,12 +629,12 @@ async def run_iot_analysis(analysis_id: str, token: str) -> dict:
                 analysis = await get_iot_analysis(analysis_id, token)
                 steps = analysis.get("steps", [])
                 if not steps:
-                    raise RuntimeError(f"No steps found for analysis {analysis_id}")
+                    raise RuntimeError(f"No steps found for analysis {analysis_id}") from e
                 step_id = steps[0]["id"]
                 return await _post_json(f"/iotAnalysis/analyses/{analysis_id}/steps/{step_id}/jobs", client,
                                         body={},
                                         accept="application/json")
-            raise e
+            raise
 
 
 async def copy_iot_analyses(analysis_ids: list[str], token: str) -> dict:
@@ -557,7 +652,8 @@ async def copy_iot_analyses(analysis_ids: list[str], token: str) -> dict:
 async def get_iot_analysis_job(analysis_id: str, job_id: str, token: str) -> dict:
     """Retrieves the status and results of a specific IoT analysis job."""
     async with _make_client(token) as client:
-        # Note: Depending on context, job_id might be under /jobExecution/jobs or /iotAnalysis/analyses/{id}/jobs/{job_id}
+        # Note: Depending on context, job_id might be under /jobExecution/jobs
+        # or /iotAnalysis/analyses/{id}/jobs/{job_id}.
         # The tool implementation currently assumes the latter.
         return await _get_json(f"/iotAnalysis/analyses/{analysis_id}/jobs/{job_id}", client,
                                accept="application/vnd.sas.iot.analysis.job+json")
@@ -650,4 +746,87 @@ async def launch_data_selection_and_wait(selection_id: str, token: str) -> dict:
     # Launches in AIoT are jobs too
     job_url = f"/jobExecution/jobs/{launch_result.get('id')}"
     return await poll_job(job_url, token)
+
+
+async def list_folders_and_projects(token: str, folder_id: str = None) -> dict:
+    """Lists folders and projects under a specific folder (or root if not specified)."""
+    async with _make_client(token) as client:
+        if not folder_id:
+            # Fetch root folders
+            roots_resp = await _get_json(
+                "/folders/rootFolders?limit=1000",
+                client,
+                accept="application/vnd.sas.collection+json"
+            )
+            # Also resolve @myFolder shortcut to include in roots
+            try:
+                my_folder = await _get_json(
+                    "/folders/folders/@myFolder",
+                    client,
+                    accept="application/vnd.sas.content.folder+json"
+                )
+                my_folder["is_my_folder"] = True
+                roots_items = roots_resp.get("items", [])
+                if not any(item["id"] == my_folder["id"] for item in roots_items):
+                    roots_items.insert(0, my_folder)
+                roots_resp["items"] = roots_items
+            except Exception:
+                pass
+            return roots_resp
+        else:
+            # Fetch folder members
+            return await _get_json(
+                f"/folders/folders/{folder_id}/members?limit=1000",
+                client,
+                accept="application/vnd.sas.collection+json"
+            )
+
+
+async def create_folder(name: str, token: str, parent_folder_id: str = "@myFolder", description: str = None) -> dict:
+    """Creates a new folder under a parent folder."""
+    async with _make_client(token) as client:
+        parent_uri = f"/folders/folders/{parent_folder_id}"
+        body = {
+            "name": name,
+            "description": description or ""
+        }
+        url = f"{VIYA_ENDPOINT}/folders/folders?parentFolderUri={parent_uri}"
+        resp = await client.post(url, json=body, headers={
+            "Accept": "application/vnd.sas.content.folder+json",
+            "Content-Type": "application/json"
+        })
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def create_project(name: str, token: str, folder_id: str = "@myFolder", description: str = None) -> dict:
+    """Creates a new IoT project under a folder."""
+    async with _make_client(token) as client:
+        folder_uri = folder_id if folder_id.startswith("/folders/folders/") else f"/folders/folders/{folder_id}"
+        body = {
+            "name": name,
+            "description": description or "",
+            "folderUri": folder_uri,
+            "version": "1"
+        }
+        url = f"{VIYA_ENDPOINT}/iotAnalysis/projects"
+        resp = await client.post(url, json=body, headers={
+            "Accept": "application/vnd.sas.iot.project+json",
+            "Content-Type": "application/vnd.sas.iot.project+json"
+        })
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def delete_folder(folder_id: str, token: str) -> None:
+    """Deletes a folder by ID."""
+    async with _make_client(token) as client:
+        await _delete_resource(f"/folders/folders/{folder_id}", client)
+
+
+async def delete_project(project_id: str, token: str) -> None:
+    """Deletes an IoT project by ID."""
+    async with _make_client(token) as client:
+        await _delete_resource(f"/iotAnalysis/projects/{project_id}", client)
+
 
