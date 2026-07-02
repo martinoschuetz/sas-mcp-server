@@ -8,13 +8,16 @@ Requires VIYA_ENDPOINT, VIYA_USERNAME, and VIYA_PASSWORD environment variables.
 Run with:  uv run python -m pytest -m integration
 """
 import contextlib
+import os
 import tempfile
 import time
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import respx
 from fastmcp import Client
+from httpx import Response
 
 # Pin all integration tests to a single session-scoped event loop. The
 # session-scoped fixtures (viya_token, integration_mcp_server) and the
@@ -986,7 +989,28 @@ TOOL_COVERAGE = {
     "get_iot_analysis_output_tables_tool": "test_iot_workflow",
     "list_iot_models_tool": "test_iot_workflow",
     "get_iot_model_definition_tool": "test_iot_workflow",
+    "list_emerging_issue_runs_tool": "test_iot_workflow",
+    "list_alerts_for_run_tool": "test_iot_workflow",
+    "list_folders_and_projects_tool": "test_iot_workflow",
+    "create_folder_tool": "test_iot_workflow",
+    "create_project_tool": "test_iot_workflow",
+    "delete_folder_tool": "test_iot_workflow",
+    "delete_project_tool": "test_iot_workflow",
     "get_castable_summary_statistics_tool": "test_iot_workflow",
+    "run_pareto_analysis_tool": "test_fqa_analysis_tools",
+    "run_trend_analysis_tool": "test_fqa_analysis_tools",
+    "run_trend_by_exposure_analysis_tool": "test_fqa_analysis_tools",
+    "run_detail_analysis_tool": "test_fqa_analysis_tools",
+    "run_statistical_driver_analysis_tool": "test_fqa_analysis_tools",
+    "run_decision_tree_analysis_tool": "test_fqa_analysis_tools",
+    "run_event_forecasting_analysis_tool": "test_fqa_analysis_tools",
+    "run_summary_tables_analysis_tool": "test_fqa_analysis_tools",
+    "run_text_mining_analysis_tool": "test_fqa_analysis_tools",
+    "run_exposure_analysis_tool": "test_fqa_analysis_tools",
+    "run_failure_relationships_analysis_tool": "test_fqa_analysis_tools",
+    "run_geographic_analysis_tool": "test_fqa_analysis_tools",
+    "run_time_of_event_analysis_tool": "test_fqa_analysis_tools",
+    "run_reliability_analysis_tool": "test_fqa_analysis_tools",
 }
 
 
@@ -1013,17 +1037,49 @@ async def test_every_prompt_has_integration_coverage(integration_mcp_server):
 @pytest.mark.asyncio
 @respx.mock
 async def test_iot_workflow(integration_mcp_server):
-    import os
-    from httpx import Response
     
     viya_url = os.getenv("VIYA_ENDPOINT", "").rstrip("/")
     
     # Mock endpoints
     respx.get(f"{viya_url}/dataSelection/dataSelections").mock(
-        return_value=Response(200, json={"count": 1, "items": [{"id": "ds1", "name": "DS 1", "createdBy": "user", "creationTimeStamp": "time"}]})
+        return_value=Response(200, json={
+            "count": 2,
+            "items": [
+                {
+                    "id": "ds1",
+                    "name": "DS 1",
+                    "createdBy": "user",
+                    "creationTimeStamp": "time",
+                    "owner": "germsz",
+                    "ownerDisplayName": "Martin Schuetz",
+                    "category": "SIMPLE",
+                    "creationType": "DEFAULT",
+                    "description": "First selection"
+                },
+                {
+                    "id": "ds2",
+                    "name": "DS 2",
+                    "createdBy": "admin",
+                    "creationTimeStamp": "time",
+                    "owner": "admin",
+                    "ownerDisplayName": "Administrator",
+                    "category": "ADVANCED",
+                    "creationType": "CUSTOM",
+                    "description": "Second selection"
+                }
+            ]
+        })
     )
     respx.get(f"{viya_url}/dataSelection/dataSelections/ds1").mock(
-        return_value=Response(200, headers={"ETag": "etag1"}, json={"id": "ds1", "name": "DS 1", "filterCriteria": {"g1": [{"columnName": "MEASURE_DTTM", "values": []}]}})
+        return_value=Response(
+            200,
+            headers={"ETag": "etag1"},
+            json={
+                "id": "ds1",
+                "name": "DS 1",
+                "filterCriteria": {"g1": [{"columnName": "MEASURE_DTTM", "values": []}]}
+            }
+        )
     )
     respx.put(f"{viya_url}/dataSelection/dataSelections/ds1").mock(
         return_value=Response(200, json={"id": "ds1", "name": "DS 1"})
@@ -1044,10 +1100,28 @@ async def test_iot_workflow(integration_mcp_server):
         return_value=Response(200, json={"items": []})
     )
     respx.get(f"{viya_url}/iotAnalysis/analyses").mock(
-        return_value=Response(200, json={"items": [{"id": "a1", "name": "Analysis 1"}]})
+        return_value=Response(200, json={
+            "items": [
+                {
+                    "id": "a1",
+                    "name": "Analysis 1",
+                    "modelName": "EIENTERPRISE_PRODUCT",
+                    "status": "COMPLETED",
+                    "createdBy": "user",
+                    "currentOwner": "germsz",
+                    "currentOwnerDisplayName": "Martin Schuetz"
+                }
+            ]
+        })
     )
     respx.get(f"{viya_url}/iotAnalysis/analyses/a1").mock(
-        return_value=Response(200, json={"id": "a1", "name": "Analysis 1", "steps": [{"outputParameters": [{"parameterName": "OUTPUT_TABLE", "parameterValue": "t1"}]}]})
+        return_value=Response(200, json={
+            "id": "a1",
+            "name": "Analysis 1",
+            "shortId": "a1",
+            "modelName": "EIENTERPRISE_PRODUCT",
+            "steps": [{"outputParameters": [{"parameterName": "OUTPUT_TABLE", "parameterValue": "t1"}]}]
+        })
     )
     respx.post(f"{viya_url}/iotAnalysis/analyses").mock(
         return_value=Response(201, json={"id": "a2"})
@@ -1079,28 +1153,209 @@ async def test_iot_workflow(integration_mcp_server):
     respx.get(f"{viya_url}/jobExecution/jobs/job_1").mock(
         return_value=Response(200, json={"state": "completed"})
     )
+    respx.get(f"{viya_url}/folders/rootFolders").mock(
+        return_value=Response(200, json={"items": [{"id": "f1", "name": "Folder 1"}]})
+    )
+    respx.get(f"{viya_url}/folders/folders/@myFolder").mock(
+        return_value=Response(200, json={"id": "f2", "name": "My Folder"})
+    )
+    respx.get(f"{viya_url}/folders/folders/f1/members").mock(
+        return_value=Response(200, json={"items": [{"id": "f3", "name": "Child Folder", "contentType": "folder"}]})
+    )
+    respx.post(f"{viya_url}/folders/folders").mock(
+        return_value=Response(201, json={"id": "f_new", "name": "New Folder"})
+    )
+    respx.post(f"{viya_url}/iotAnalysis/projects").mock(
+        return_value=Response(201, json={"id": "proj_new", "name": "New Project"})
+    )
+    respx.delete(f"{viya_url}/folders/folders/f1").mock(
+        return_value=Response(204)
+    )
+    respx.delete(f"{viya_url}/iotAnalysis/projects/p1").mock(
+        return_value=Response(204)
+    )
 
-    async with Client(integration_mcp_server) as client:
-        # Call all 22 tools to get coverage
-        await client.call_tool("list_data_selections_tool", {})
-        await client.call_tool("get_data_selection_details", {"selection_id": "ds1"})
-        await client.call_tool("update_data_selection_tool", {"selection_id": "ds1", "selection_data": {}})
-        await client.call_tool("set_data_selection_date_range_tool", {"selection_id": "ds1", "start_date": "2024-07-01", "end_date": "2024-07-02"})
-        await client.call_tool("launch_data_selection_tool", {"selection_id": "ds1"})
-        await client.call_tool("launch_data_selection_and_wait_tool", {"selection_id": "ds1"})
-        await client.call_tool("copy_data_selection_tool", {"selection_id": "ds1", "new_name": "ds1_copy"})
-        await client.call_tool("copy_data_selections_tool", {"selection_ids": ["ds1"]})
-        await client.call_tool("list_iot_projects_tool", {})
-        await client.call_tool("list_iot_analyses_tool", {})
-        await client.call_tool("get_iot_analysis_details_tool", {"analysis_id": "a1"})
-        await client.call_tool("create_iot_analysis_tool", {"name": "a2", "model_name": "m1", "data_selection_id": "ds1"})
-        await client.call_tool("delete_iot_analysis_tool", {"analysis_id": "a1"})
-        await client.call_tool("run_iot_analysis_tool", {"analysis_id": "a1"})
-        await client.call_tool("run_iot_analysis_and_wait_tool", {"analysis_id": "a1"})
-        await client.call_tool("copy_iot_analyses_tool", {"analysis_ids": ["a1"]})
-        await client.call_tool("get_iot_analysis_results", {"analysis_id": "a1", "job_id": "job_1"})
-        await client.call_tool("get_iot_analysis_output_tables_tool", {"analysis_id": "a1"})
-        await client.call_tool("list_iot_models_tool", {})
-        await client.call_tool("get_iot_model_definition_tool", {"model_name": "m1"})
-        await client.call_tool("get_castable_summary_statistics_tool", {"server_id": "s1", "caslib_name": "c1", "table_name": "t1"})
-        await client.call_tool("delete_data_selection_tool", {"selection_id": "ds1"})
+
+    mock_run = AsyncMock()
+    mock_run.side_effect = [
+        # First call for find_alerts_table
+        {"listing": "EIENTERPRISE_ALERTS_a1"},
+        # Second call for export_alerts
+        {
+            "log": (
+                "JSON_OUT: {\n"
+                "JSON_OUT:   \"SASTableData+EIENTERPRISE_ALERTS_a1\": [\n"
+                "JSON_OUT:     {\n"
+                "JSON_OUT:       \"alert_id\": \"id1\",\n"
+                "JSON_OUT:       \"alert_type\": \"PRODUCTIONPERIOD\"\n"
+                "JSON_OUT:     }\n"
+                "JSON_OUT:   ]\n"
+                "JSON_OUT: }"
+            )
+        }
+    ]
+
+    with patch("sas_mcp_server.tools.run_one_snippet", mock_run):
+        async with Client(integration_mcp_server) as client:
+            # Call all tools to get coverage
+            await client.call_tool("list_data_selections_tool", {})
+            await client.call_tool("list_data_selections_tool", {"owner": "germsz"})
+            await client.call_tool("list_data_selections_tool", {"owner_display_name": "Martin"})
+            await client.call_tool("list_data_selections_tool", {"created_by": "user"})
+            await client.call_tool("list_data_selections_tool", {"name": "DS 1"})
+            await client.call_tool("list_data_selections_tool", {"category": "SIMPLE"})
+            await client.call_tool("list_data_selections_tool", {"creation_type": "DEFAULT"})
+            await client.call_tool("list_data_selections_tool", {"attribute_filters": {"description": "First"}})
+            await client.call_tool("get_data_selection_details", {"selection_id": "ds1"})
+            await client.call_tool("update_data_selection_tool", {"selection_id": "ds1", "selection_data": {}})
+            await client.call_tool(
+                "set_data_selection_date_range_tool",
+                {"selection_id": "ds1", "start_date": "2024-07-01", "end_date": "2024-07-02"}
+            )
+            await client.call_tool("launch_data_selection_tool", {"selection_id": "ds1"})
+            await client.call_tool("launch_data_selection_and_wait_tool", {"selection_id": "ds1"})
+            await client.call_tool("copy_data_selection_tool", {"selection_id": "ds1", "new_name": "ds1_copy"})
+            await client.call_tool("copy_data_selections_tool", {"selection_ids": ["ds1"]})
+            await client.call_tool("list_iot_projects_tool", {})
+            await client.call_tool("list_iot_analyses_tool", {})
+            await client.call_tool("get_iot_analysis_details_tool", {"analysis_id": "a1"})
+            await client.call_tool(
+                "create_iot_analysis_tool",
+                {"name": "a2", "model_name": "m1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool("delete_iot_analysis_tool", {"analysis_id": "a1"})
+            await client.call_tool("run_iot_analysis_tool", {"analysis_id": "a1"})
+            await client.call_tool("run_iot_analysis_and_wait_tool", {"analysis_id": "a1"})
+            await client.call_tool("copy_iot_analyses_tool", {"analysis_ids": ["a1"]})
+            await client.call_tool("get_iot_analysis_results", {"analysis_id": "a1", "job_id": "job_1"})
+            await client.call_tool("get_iot_analysis_output_tables_tool", {"analysis_id": "a1"})
+            await client.call_tool("list_iot_models_tool", {})
+            await client.call_tool("get_iot_model_definition_tool", {"model_name": "m1"})
+            await client.call_tool("list_emerging_issue_runs_tool", {})
+            await client.call_tool(
+                "list_emerging_issue_runs_tool",
+                {"name": "Analysis", "status": "Completed", "created_by": "user", "owner": "germsz"}
+            )
+            await client.call_tool("list_alerts_for_run_tool", {
+                "analysis_id": "a1",
+                "alert_id": "id1",
+                "alert_type": "PRODUCTIONPERIOD",
+                "attribute_filters": {"alert_id": "id1"}
+            })
+            await client.call_tool("list_folders_and_projects_tool", {})
+            await client.call_tool("list_folders_and_projects_tool", {"folder_id": "f1"})
+            await client.call_tool(
+                "create_folder_tool",
+                {"name": "test_dir", "parent_folder_id": "f1", "description": "desc"}
+            )
+            await client.call_tool(
+                "create_project_tool",
+                {"name": "test_proj", "folder_id": "f1", "description": "desc"}
+            )
+            await client.call_tool("delete_folder_tool", {"folder_id": "f1"})
+            await client.call_tool("delete_project_tool", {"project_id": "p1"})
+            await client.call_tool(
+                "get_castable_summary_statistics_tool",
+                {"server_id": "s1", "caslib_name": "c1", "table_name": "t1"}
+            )
+            await client.call_tool("delete_data_selection_tool", {"selection_id": "ds1"})
+
+
+async def test_fqa_analysis_tools(integration_mcp_server):
+    """Test standard FQA analysis tools under respx mock."""
+    viya_url = os.getenv("VIYA_ENDPOINT", "http://localhost").rstrip("/")
+    
+    with respx.mock:
+        respx.post(f"{viya_url}/SASLogon/oauth/token").mock(
+            return_value=Response(200, json={"access_token": "mock-token"})
+        )
+        respx.post(f"{viya_url}/iotAnalysis/analyses").mock(
+            return_value=Response(201, json={"items": [{"id": "analysis_new"}]})
+        )
+        respx.get(f"{viya_url}/iotAnalysis/analyses/analysis_new").mock(
+            return_value=Response(200, json={
+                "id": "analysis_new",
+                "steps": [{
+                    "id": "step_new",
+                    "inputParameters": [
+                        {"parameterName": "ANALYSISVAR", "parameterValue": ""},
+                        {"parameterName": "BYVAR", "parameterValue": ""},
+                        {"parameterName": "REPORTVAR", "parameterValue": ""},
+                        {"parameterName": "PARENT_ANALYSIS_ID", "parameterValue": ""},
+                        {"parameterName": "PARENT_ANALYSIS_OWNER", "parameterValue": ""}
+                    ]
+                }]
+            }, headers={"ETag": "w/\"mock-etag\""})
+        )
+        respx.put(f"{viya_url}/iotAnalysis/analyses/analysis_new").mock(
+            return_value=Response(200, json={
+                "id": "analysis_new",
+                "steps": [{"id": "step_new", "inputParameters": []}]
+            })
+        )
+        respx.post(f"{viya_url}/iotAnalysis/analyses/analysis_new/steps/step_new/jobs").mock(
+            return_value=Response(201, json={"id": "job_new"})
+        )
+        respx.get(f"{viya_url}/iotAnalysis/analyses/analysis_new/steps/step_new/jobs/job_new").mock(
+            return_value=Response(200, json={"id": "job_new", "state": "completed"})
+        )
+
+        async with Client(integration_mcp_server) as client:
+            await client.call_tool(
+                "run_pareto_analysis_tool",
+                {"name": "pareto_1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "run_trend_analysis_tool",
+                {"name": "trend_1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "run_trend_by_exposure_analysis_tool",
+                {"name": "trendexp_1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "run_detail_analysis_tool",
+                {"name": "detail_1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "run_statistical_driver_analysis_tool",
+                {"name": "stat_1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "run_decision_tree_analysis_tool",
+                {"name": "tree_1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "run_event_forecasting_analysis_tool",
+                {"name": "forecast_1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "run_summary_tables_analysis_tool",
+                {"name": "summary_1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "run_text_mining_analysis_tool",
+                {"name": "text_1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "run_exposure_analysis_tool",
+                {"name": "exposure_1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "run_failure_relationships_analysis_tool",
+                {"name": "failrel_1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "run_geographic_analysis_tool",
+                {"name": "geo_1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "run_time_of_event_analysis_tool",
+                {"name": "timeofclaim_1", "data_selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "run_reliability_analysis_tool",
+                {"name": "reliability_1", "data_selection_id": "ds1"}
+            )
+
+

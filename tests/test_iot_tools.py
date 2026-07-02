@@ -4,16 +4,18 @@
 import pytest
 import respx
 from httpx import Response
-from sas_mcp_server.viya_utils import (
-    list_data_selections,
-    get_data_selection,
-    launch_data_selection,
-    list_iot_analyses,
-    run_iot_analysis,
-    get_iot_analysis_job,
-    list_iot_models,
-)
+
 from sas_mcp_server.config import VIYA_ENDPOINT
+from sas_mcp_server.viya_utils import (
+    get_data_selection,
+    get_iot_analysis_job,
+    launch_data_selection,
+    list_data_selections,
+    list_iot_analyses,
+    list_iot_models,
+    run_iot_analysis,
+)
+
 
 @pytest.mark.asyncio
 @respx.mock
