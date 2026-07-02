@@ -16,6 +16,8 @@ from typing import Any
 import httpx
 from fastmcp import Context, FastMCP
 
+from sas_mcp_server.helpers import auto_ml_helpers, report_export_helpers
+
 from .config import CONTEXT_NAME, SSL_VERIFY, VIYA_ENDPOINT
 from .env import env_bool
 from .viya_client import (
@@ -87,23 +89,28 @@ class DataFormat:
 _DATA_FORMATS: tuple[DataFormat, ...] = (
     DataFormat("csv", "csv", extensions=(".csv",), header_row=True),
     DataFormat(
-        "tsv", "csv", extensions=(".tsv", ".tab"), aliases=("tab",),
-        delimiter="\t", header_row=True,
+        "tsv",
+        "csv",
+        extensions=(".tsv", ".tab"),
+        aliases=("tab",),
+        delimiter="\t",
+        header_row=True,
     ),
-    DataFormat("xls", "xls", extensions=(".xls",), header_row=True,
-               excel_format=True, binary=True),
-    DataFormat("xlsx", "xlsx", extensions=(".xlsx",), aliases=("excel",),
-               header_row=True, excel_format=True, binary=True),
-    DataFormat("xlsm", "xlsx", extensions=(".xlsm",), header_row=True,
-               excel_format=True, binary=True),
-    DataFormat("sas7bdat", "sas7bdat", extensions=(".sas7bdat",),
-               aliases=("sas",), binary=True),
+    DataFormat("xls", "xls", extensions=(".xls",), header_row=True, excel_format=True, binary=True),
+    DataFormat(
+        "xlsx", "xlsx", extensions=(".xlsx",), aliases=("excel",), header_row=True, excel_format=True, binary=True
+    ),
+    DataFormat("xlsm", "xlsx", extensions=(".xlsm",), header_row=True, excel_format=True, binary=True),
+    DataFormat("sas7bdat", "sas7bdat", extensions=(".sas7bdat",), aliases=("sas",), binary=True),
     DataFormat("sashdat", "sashdat", extensions=(".sashdat",), binary=True),
     # Recognized but not accepted by the upload endpoint: detected so we can fail
     # fast with guidance rather than a guaranteed HTTP 400. Flip ``supported`` to
     # True if/when a deployment's endpoint accepts parquet.
     DataFormat(
-        "parquet", "parquet", extensions=(".parquet", ".parq"), binary=True,
+        "parquet",
+        "parquet",
+        extensions=(".parquet", ".parq"),
+        binary=True,
         supported=False,
         unsupported_reason=(
             "The casManagement file-upload endpoint does not accept parquet "
@@ -147,10 +154,7 @@ def _resolve_data_format(
             return None, {
                 "status": "unsupported_format",
                 "data_format": name,
-                "message": (
-                    f"Unsupported data_format '{name}'. Supported: "
-                    f"{', '.join(_SUPPORTED_FORMATS)}."
-                ),
+                "message": (f"Unsupported data_format '{name}'. Supported: {', '.join(_SUPPORTED_FORMATS)}."),
             }
     else:
         fmt = None
@@ -171,15 +175,12 @@ def _resolve_data_format(
         return None, {
             "status": "format_not_supported",
             "data_format": fmt.key,
-            "message": fmt.unsupported_reason
-            or f"Format '{fmt.key}' is not accepted by the upload endpoint.",
+            "message": fmt.unsupported_reason or f"Format '{fmt.key}' is not accepted by the upload endpoint.",
         }
     return fmt, None
 
 
-async def _resolve_source_bytes(
-    file_path: str | None, url: str | None
-) -> tuple[bytes | None, dict[str, Any] | None]:
+async def _resolve_source_bytes(file_path: str | None, url: str | None) -> tuple[bytes | None, dict[str, Any] | None]:
     """Materialize the upload bytes server-side from ``file_path`` or ``url``.
 
     Assumes exactly one of the two is set (the caller's exactly-one-source
@@ -216,9 +217,7 @@ async def _resolve_source_bytes(
     # url — fetch with a plain client (no Viya bearer on an external URL).
     assert url is not None
     try:
-        async with httpx.AsyncClient(
-            timeout=120.0, follow_redirects=True, verify=SSL_VERIFY
-        ) as fetch_client:
+        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True, verify=SSL_VERIFY) as fetch_client:
             fetch_resp = await fetch_client.get(url)
             fetch_resp.raise_for_status()
             return fetch_resp.content, None
@@ -265,8 +264,7 @@ async def _post_cas_upload(
             "table_name": table_name,
             "caslib": caslib_name,
             "message": (
-                f"Table '{table_name}' already exists in caslib '{caslib_name}'. "
-                "Drop or rename before re-uploading."
+                f"Table '{table_name}' already exists in caslib '{caslib_name}'. Drop or rename before re-uploading."
             ),
         }
     if resp.status_code >= 400:
@@ -276,10 +274,7 @@ async def _post_cas_upload(
             "status": "upload_failed",
             "http_status": resp.status_code,
             "data_format": fmt.key,
-            "message": (
-                f"CAS rejected the {fmt.key} upload (HTTP {resp.status_code}). "
-                f"Viya said: {resp.text[:400]}"
-            ),
+            "message": (f"CAS rejected the {fmt.key} upload (HTTP {resp.status_code}). Viya said: {resp.text[:400]}"),
         }
     body = resp.json()
     return {
@@ -294,9 +289,8 @@ async def _post_cas_upload(
     }
 
 
-def register_tools(
-    mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]
-) -> None:
+# --- export_report: Visual Analytics export-format registry -------------------
+def register_tools(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> None:
     """Register all tools on *mcp*.
 
     Parameters
@@ -380,11 +374,8 @@ def register_tools(
             items, _ = await get_paged_items("/casManagement/servers", client)
             return return_items(items, ["name", "id", "description"])
 
-
     @mcp.tool()
-    async def list_caslibs(
-        server_id: str, ctx: Context, limit: int = 50
-    ) -> list[dict[str, Any]]:
+    async def list_caslibs(server_id: str, ctx: Context, limit: int = 50) -> list[dict[str, Any]]:
         """List CAS libraries (caslibs) available on a CAS server.
 
         Args:
@@ -392,15 +383,11 @@ def register_tools(
             limit: Maximum number of caslibs to return (default 50).
         """
         async with viya_session("list_caslibs", ctx) as client:
-            items, _ = await get_paged_items(
-                f"/casManagement/servers/{server_id}/caslibs", client, limit=limit
-            )
+            items, _ = await get_paged_items(f"/casManagement/servers/{server_id}/caslibs", client, limit=limit)
             return return_items(items, ["name", "type", "description"])
 
     @mcp.tool()
-    async def list_castables(
-        server_id: str, caslib_name: str, ctx: Context, limit: int = 50
-    ) -> list[dict[str, Any]]:
+    async def list_castables(server_id: str, caslib_name: str, ctx: Context, limit: int = 50) -> list[dict[str, Any]]:
         """List tables in a CAS library.
 
         Args:
@@ -440,9 +427,7 @@ def register_tools(
             return return_items(items, ["name", "sourceTableName", "scope", "state"])
 
     @mcp.tool()
-    async def get_castable_info(
-        server_id: str, caslib_name: str, table_name: str, ctx: Context
-    ) -> dict[str, Any]:
+    async def get_castable_info(server_id: str, caslib_name: str, table_name: str, ctx: Context) -> dict[str, Any]:
         """Get metadata for a CAS table (row count, column count, size, etc.).
 
         Args:
@@ -618,8 +603,7 @@ def register_tools(
                 "status": "invalid_source",
                 "provided": provided,
                 "message": (
-                    "Provide exactly one of file_path or url. To upload inline text "
-                    "use the upload_inline_data tool."
+                    "Provide exactly one of file_path or url. To upload inline text use the upload_inline_data tool."
                 ),
             }
         source = provided[0]
@@ -759,9 +743,7 @@ def register_tools(
             }
 
     @mcp.tool()
-    async def list_files(
-        ctx: Context, limit: int = 50, filter_name: str | None = None
-    ) -> list[dict[str, Any]]:
+    async def list_files(ctx: Context, limit: int = 50, filter_name: str | None = None) -> list[dict[str, Any]]:
         """List files in the Viya Files Service.
 
         Args:
@@ -770,9 +752,7 @@ def register_tools(
         """
         filters = f"contains(name,'{filter_name}')" if filter_name else None
         async with viya_session("list_files", ctx) as client:
-            items, _ = await get_paged_items(
-                "/files/files", client, limit=limit, filters=filters
-            )
+            items, _ = await get_paged_items("/files/files", client, limit=limit, filters=filters)
             return return_items(items, ["id", "name", "contentType", "size"])
 
     @mcp.tool()
@@ -816,9 +796,7 @@ def register_tools(
     # ------------------------------------------------------------------
 
     @mcp.tool()
-    async def list_reports(
-        ctx: Context, limit: int = 50, filter_name: str | None = None
-    ) -> list[dict[str, Any]]:
+    async def list_reports(ctx: Context, limit: int = 50, filter_name: str | None = None) -> list[dict[str, Any]]:
         """List Visual Analytics reports.
 
         Args:
@@ -827,9 +805,7 @@ def register_tools(
         """
         filters = f"contains(name,'{filter_name}')" if filter_name else None
         async with viya_session("list_reports", ctx) as client:
-            items, _ = await get_paged_items(
-                "/reports/reports", client, limit=limit, filters=filters
-            )
+            items, _ = await get_paged_items("/reports/reports", client, limit=limit, filters=filters)
             return return_items(items, ["id", "name", "description", "createdBy"])
 
     @mcp.tool()
@@ -843,44 +819,64 @@ def register_tools(
             return await get_json(f"/reports/reports/{report_id}", client)
 
     @mcp.tool()
-    async def get_report_image(
-        report_id: str, ctx: Context, image_type: str = "png", section_index: int = 0
-    ) -> dict[str, Any]:
-        """Render a Visual Analytics report section as an image.
+    async def export_report(
+        report_id: str,
+        export_format: str,
+        ctx: Context,
+        report_objects: list[str] | None = None,
+        image_size: str | None = None,
+        options: dict[str, Any] | None = None,
+    ):
+        """Export a Visual Analytics report (or specific report objects) in any
+        format the VA service exposes, via its synchronous export endpoints.
+
+        Formats (``export_format``):
+          * ``package`` — full report bundle as a ``.zip`` (source files, query
+            results, and rendered content); whole report or selected objects.
+          * ``pdf`` — rendered PDF; whole report or selected objects. Pass
+            rendering overrides (e.g. ``orientation``, ``paperSize``, ``margin``,
+            ``includeCoverPage``) via ``options``.
+          * ``png`` / ``svg`` — image of the report or a single object;
+            ``image_size`` is required, e.g. ``"1200px,800px"``.
+          * ``csv`` / ``tsv`` / ``xlsx`` — the data behind a single report
+            object; exactly one object label is required.
+          * ``summary`` — the report's text summary.
 
         Args:
             report_id: ID of the report.
-            image_type: Image format — 'png' or 'svg' (default 'png').
-            section_index: Report section/page index (default 0).
+            export_format: One of package, pdf, png, svg, csv, tsv, xlsx, summary.
+            report_objects: Report object labels to export. ``package``/``pdf``
+                accept several; image and data formats accept exactly one;
+                ``summary`` accepts none. Omit to export the whole report where
+                the format allows it.
+            image_size: Required for ``png``/``svg``; format ``"<w>px,<h>px"``.
+            options: Optional ``pdf`` rendering overrides, passed through as query
+                parameters (e.g. ``{"orientation": "landscape"}``).
+
+        Returns text inline for text formats, image content for ``png``, and an
+        embedded binary file (carrying the right MIME type) for ``package`` /
+        ``pdf`` / ``xlsx``. Binary results larger than ``MAX_EXPORT_INLINE_BYTES``
+        are refused with guidance rather than streamed through the model context.
         """
-        async with viya_session("get_report_image", ctx) as client:
-            body = {
-                "reportUri": f"/reports/reports/{report_id}",
-                "layoutType": "thumbnail",
-                "selectionType": "perSection",
-                "sectionIndex": section_index,
-                "size": "800x600",
-                "renderLimit": 1,
-            }
-            resp = await client.post(
-                f"{VIYA_ENDPOINT}/reportImages/jobs",
-                content=json.dumps(body).encode(),
-                headers={
-                    "Content-Type": "application/vnd.sas.report.images.job.request+json",
-                    "Accept": "application/vnd.sas.report.images.job+json",
-                },
-            )
-            resp.raise_for_status()
-            return resp.json()
+        req = report_export_helpers.ReportExportRequest(
+            report_id=report_id,
+            export_format=export_format,
+            report_objects=report_objects,
+            image_size=image_size,
+            options=options,
+        )
+        error = report_export_helpers.validate_export_request(req)
+        if error is not None:
+            return error
+        async with viya_session("export_report", ctx) as client:
+            return await report_export_helpers.execute_export(req, client)
 
     # ------------------------------------------------------------------
     # Tier 4 — Batch Jobs & Async Execution
     # ------------------------------------------------------------------
 
     @mcp.tool()
-    async def submit_batch_job(
-        sas_code: str, ctx: Context, job_name: str | None = None
-    ) -> dict[str, Any]:
+    async def submit_batch_job(sas_code: str, ctx: Context, job_name: str | None = None) -> dict[str, Any]:
         """Submit a SAS job for asynchronous execution via the Job Execution service.
 
         Args:
@@ -977,9 +973,7 @@ def register_tools(
             limit: Maximum projects to return (default 50).
         """
         async with viya_session("list_ml_projects", ctx) as client:
-            items, _ = await get_paged_items(
-                "/mlPipelineAutomation/projects", client, limit=limit
-            )
+            items, _ = await get_paged_items("/mlPipelineAutomation/projects", client, limit=limit)
             return return_items(items, ["id", "name", "state", "description"])
 
     @mcp.tool()
@@ -1020,9 +1014,7 @@ def register_tools(
             "targetVariable": target_variable,
             "targetLevel": prediction_type,
             "partitionEnabled": True,
-            "classSelectionStatistic": (
-                "ks" if prediction_type in ("binary", "nominal") else "ase"
-            ),
+            "classSelectionStatistic": ("ks" if prediction_type in ("binary", "nominal") else "ase"),
         }
         if prediction_type in ("binary", "nominal"):
             analytics_attrs["targetEventLevel"] = target_event_level
@@ -1071,6 +1063,51 @@ def register_tools(
             return await post_json("/mlPipelineAutomation/projects", client, body=body)
 
     @mcp.tool()
+    async def list_publishing_destinations(
+        ctx: Context, limit: int = 50, start: int = 0, filter_name: str | None = None
+    ) -> list[dict[str, Any]]:
+        """List available publishing destinations.
+
+        Args:
+            ctx: FastMCP context.
+            limit: Maximum destinations to return (default 50).
+            start: Row offset (default 0).
+            filter_name: Optional filter for destination names.
+        """
+        async with viya_session("list_publishing_destinations", ctx) as client:
+            items, _ = await get_paged_items(
+                "/modelPublish/destinations",
+                client,
+                limit=limit,
+                start=start,
+                filters=f"contains(name,'{filter_name}')" if filter_name else None,
+            )
+            return return_items(items, ["id", "name", "description", "destinationType"])
+
+    @mcp.tool()
+    async def register_ml_champion_model(project_id: str, ctx: Context) -> dict[str, Any]:
+        """Register the champion model from an AutoML pipeline automation project to the Model Repository.
+
+        Args:
+            project_id: ID of the ML pipeline automation project.
+        """
+        async with viya_session("register_ml_champion_model", ctx) as client:
+            props = auto_ml_helpers.MLRegisterProps(project_id=project_id)
+            return await auto_ml_helpers.ml_register_publish(props, client)
+
+    @mcp.tool()
+    async def publish_ml_champion_model(project_id: str, destination_name: str, ctx: Context) -> dict[str, Any]:
+        """Publish the champion model from an AutoML pipeline automation project to the Model Repository.
+
+        Args:
+            project_id: ID of the ML pipeline automation project.
+            destination_name: Name of the destination to publish to.
+        """
+        async with viya_session("publish_ml_champion_model", ctx) as client:
+            props = auto_ml_helpers.MLPublishProps(project_id=project_id, destination_name=destination_name)
+            return await auto_ml_helpers.ml_register_publish(props, client)
+
+    @mcp.tool()
     async def run_ml_project(project_id: str, ctx: Context) -> dict[str, Any]:
         """Run an AutoML pipeline automation project.
 
@@ -1103,39 +1140,29 @@ def register_tools(
             return resp.json()
 
     @mcp.tool()
-    async def list_registered_models(
-        ctx: Context, limit: int = 50
-    ) -> list[dict[str, Any]]:
+    async def list_registered_models(ctx: Context, limit: int = 50) -> list[dict[str, Any]]:
         """List models in the Model Repository.
 
         Args:
             limit: Maximum models to return (default 50).
         """
         async with viya_session("list_registered_models", ctx) as client:
-            items, _ = await get_paged_items(
-                "/modelRepository/models", client, limit=limit
-            )
+            items, _ = await get_paged_items("/modelRepository/models", client, limit=limit)
             return return_items(items, ["id", "name", "description", "modelVersionName"])
 
     @mcp.tool()
-    async def list_models_and_decisions(
-        ctx: Context, limit: int = 50
-    ) -> list[dict[str, Any]]:
+    async def list_models_and_decisions(ctx: Context, limit: int = 50) -> list[dict[str, Any]]:
         """List published scoring models and decisions (MAS modules).
 
         Args:
             limit: Maximum modules to return (default 50).
         """
         async with viya_session("list_models_and_decisions", ctx) as client:
-            items, _ = await get_paged_items(
-                "/microanalyticScore/modules", client, limit=limit
-            )
+            items, _ = await get_paged_items("/microanalyticScore/modules", client, limit=limit)
             return return_items(items, ["id", "name", "description"])
 
     @mcp.tool()
-    async def score_data(
-        module_id: str, step_id: str, input_data: dict, ctx: Context
-    ) -> dict[str, Any]:
+    async def score_data(module_id: str, step_id: str, input_data: dict, ctx: Context) -> dict[str, Any]:
         """Score data against a published model or decision (MAS module).
 
         Args:
@@ -1162,9 +1189,7 @@ def register_tools(
         """List available compute contexts on the Viya environment."""
         async with viya_session("list_compute_contexts", ctx) as client:
             filters = f"contains(name,'{filter_name}')" if filter_name else None
-            items, _ = await get_paged_items(
-                "/compute/contexts", client, limit=limit, start=start, filters=filters
-            )
+            items, _ = await get_paged_items("/compute/contexts", client, limit=limit, start=start, filters=filters)
             return return_items(items, ["name", "description"])
 
     @mcp.tool()
@@ -1186,9 +1211,7 @@ def register_tools(
             start: Offset of the first library to return (default 0).
             filter_name: Optional name filter (substring match).
         """
-        async with compute_tool_session(
-            "list_compute_libraries", ctx, compute_context_name
-        ) as (client, session_id):
+        async with compute_tool_session("list_compute_libraries", ctx, compute_context_name) as (client, session_id):
             filters = f"contains(name,'{filter_name}')" if filter_name else None
             items, _ = await get_paged_items(
                 f"/compute/sessions/{session_id}/data",
@@ -1221,9 +1244,7 @@ def register_tools(
             start: Offset of the first table to return (default 0).
             filter_name: Optional name filter (substring match).
         """
-        async with compute_tool_session(
-            "list_compute_tables", ctx, compute_context_name
-        ) as (client, session_id):
+        async with compute_tool_session("list_compute_tables", ctx, compute_context_name) as (client, session_id):
             filters = f"contains(name,'{filter_name}')" if filter_name else None
             items, _ = await get_paged_items(
                 f"/compute/sessions/{session_id}/data/{library_name}",
@@ -1256,9 +1277,7 @@ def register_tools(
             start: Offset of the first column to return (default 0).
             filter_name: Optional name filter (substring match).
         """
-        async with compute_tool_session(
-            "list_compute_columns", ctx, compute_context_name
-        ) as (client, session_id):
+        async with compute_tool_session("list_compute_columns", ctx, compute_context_name) as (client, session_id):
             filters = f"contains(name,'{filter_name}')" if filter_name else None
             items, _ = await get_paged_items(
                 f"/compute/sessions/{session_id}/data/{library_name}/{table_name}/columns",
@@ -1270,9 +1289,7 @@ def register_tools(
             return return_items(items, ["id", "name", "label", "type", "length"])
 
     @mcp.tool()
-    async def reset_compute_session(
-        ctx: Context, compute_context_name: str | None = None
-    ) -> dict[str, str]:
+    async def reset_compute_session(ctx: Context, compute_context_name: str | None = None) -> dict[str, str]:
         """Reset (delete) the cached compute session for a compute context.
 
         The server keeps one reusable SAS compute session per user and compute
@@ -1322,9 +1339,7 @@ def register_tools(
                 return link.get("href", "") or link.get("uri", "")
         return ""
 
-    async def instance_for_resource_uri(
-        client: httpx.AsyncClient, resource_uri: str
-    ) -> dict[str, Any] | None:
+    async def instance_for_resource_uri(client: httpx.AsyncClient, resource_uri: str) -> dict[str, Any] | None:
         """Resolve the catalog instance for a source-asset URI, or None if absent.
 
         Filters ``/catalog/instances`` by ``resourceId`` — the reliable way to
@@ -1434,15 +1449,11 @@ def register_tools(
                 client,
                 params={"q": query, "start": 0, "limit": limit},
             )
-            facets = return_items(
-                data.get("items", []), ["name", "type", "indices"]
-            )
+            facets = return_items(data.get("items", []), ["name", "type", "indices"])
             return {"facets": facets}
 
     @mcp.tool()
-    async def catalog_find_instance(
-        resource_uri: str, ctx: Context
-    ) -> dict[str, Any]:
+    async def catalog_find_instance(resource_uri: str, ctx: Context) -> dict[str, Any]:
         """Resolve the catalog instance for a source-asset URI.
 
         ``catalog_search`` finds assets by free text and facets, but the
@@ -1609,9 +1620,7 @@ def register_tools(
             get_nlp_semantic_id: Derive semantic types / privacy classification
                 (informationPrivacy, nlpTerms, nlpTags) (default True).
         """
-        rtype = resource_type or (
-            "CASMEMTable" if "cas~fs~" in resource_uri else ""
-        )
+        rtype = resource_type or ("CASMEMTable" if "cas~fs~" in resource_uri else "")
         if not rtype:
             return {
                 "status": "missing_resource_type",
@@ -1682,18 +1691,13 @@ def register_tools(
                     return {
                         "id": job_id,
                         "status": "not_found",
-                        "message": (
-                            "No such analysis job — it may have finished and been "
-                            "purged, or the id is wrong."
-                        ),
+                        "message": ("No such analysis job — it may have finished and been purged, or the id is wrong."),
                     }
                 raise
             resources = job.get("resources", []) or []
             resource_uri = ""
             if resources:
-                resource_uri = resources[0].get("uri", "") or resources[0].get(
-                    "resourceId", ""
-                )
+                resource_uri = resources[0].get("uri", "") or resources[0].get("resourceId", "")
             # Cross-check the asset itself: the job can be terminal while the
             # profile is still being written onto the instance.
             instance_id = ""
@@ -1717,11 +1721,9 @@ def register_tools(
                 "profile_ready": profile_ready,
                 "information_privacy": information_privacy,
                 "message": (
-                    f"Profile ready — download with catalog_download_table_profile "
-                    f"(instance_id='{instance_id}')."
+                    f"Profile ready — download with catalog_download_table_profile (instance_id='{instance_id}')."
                     if profile_ready
-                    else "Profile not written to the asset yet — poll again before "
-                    "downloading."
+                    else "Profile not written to the asset yet — poll again before downloading."
                 ),
             }
 
@@ -1777,10 +1779,7 @@ def register_tools(
                         return {
                             "status": "not_found",
                             "instance_id": instance_id,
-                            "message": (
-                                f"No catalog instance '{instance_id}'. "
-                                "Use catalog_search to find one."
-                            ),
+                            "message": (f"No catalog instance '{instance_id}'. Use catalog_search to find one."),
                         }
                     raise
             else:
