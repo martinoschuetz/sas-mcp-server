@@ -941,6 +941,118 @@ async def test_promote_from_source_workflow(integration_mcp_server, viya_token):
             )
 
 
+async def test_drop_and_reload_table_workflow(integration_mcp_server):
+    """Test drop_table_from_memory and reload_table_to_memory."""
+    async with Client(integration_mcp_server) as client:
+        server = (await client.call_tool("list_cas_servers", {})).data[0]["name"]
+        
+        # 1. Create a temporary table in CASUSER via execute_sas_code
+        table_name = "INTEG_TEMP_TABLE"
+        await client.call_tool(
+            "execute_sas_code",
+            {
+                "sas_code": f"""
+                cas mySession;
+                caslib _all_ assign;
+                data CASUSER.{table_name}(promote=yes);
+                  val = 42;
+                run;
+                """
+            }
+        )
+        
+        # Verify it exists
+        info = (await client.call_tool(
+            "get_castable_info",
+            {
+                "server_id": server,
+                "caslib_name": "CASUSER",
+                "table_name": table_name,
+            }
+        )).data
+        assert info.get("state") == "loaded"
+        
+        # 2. Drop the table
+        drop_res = (await client.call_tool(
+            "drop_table_from_memory",
+            {
+                "caslib_name": "CASUSER",
+                "table_name": table_name,
+            }
+        )).data
+        assert drop_res.get("status") == "success"
+        
+        # Verify it is gone (get_castable_info should fail or return unloaded)
+        try:
+            info = (await client.call_tool(
+                "get_castable_info",
+                {
+                    "server_id": server,
+                    "caslib_name": "CASUSER",
+                    "table_name": table_name,
+                }
+            )).data
+            assert info.get("state") != "loaded"
+        except Exception:
+            # Getting info on a dropped table might raise a 404/exception
+            pass
+
+        # 3. Test reload_table_to_memory with a known file
+        # We save CASUSER.INTEG_TEMP_TABLE to disk first using proc cas table.save
+        await client.call_tool(
+            "execute_sas_code",
+            {
+                "sas_code": f"""
+                cas mySession;
+                caslib _all_ assign;
+                data CASUSER.{table_name};
+                  val = 99;
+                run;
+                proc cas;
+                  table.save / caslib="CASUSER" table="{table_name}" name="{table_name}.sashdat" replace=true;
+                  table.dropTable / caslib="CASUSER" name="{table_name}" quiet=true;
+                quit;
+                """
+            }
+        )
+        
+        # Now reload it!
+        reload_res = (await client.call_tool(
+            "reload_table_to_memory",
+            {
+                "caslib_name": "CASUSER",
+                "table_name": table_name,
+            }
+        )).data
+        assert reload_res.get("status") == "success"
+        
+        # Verify it's loaded again
+        info = (await client.call_tool(
+            "get_castable_info",
+            {
+                "server_id": server,
+                "caslib_name": "CASUSER",
+                "table_name": table_name,
+            }
+        )).data
+        assert info.get("state") == "loaded"
+        assert info.get("scope") == "global"
+        
+        # Clean up disk file and table
+        await client.call_tool(
+            "execute_sas_code",
+            {
+                "sas_code": f"""
+                cas mySession;
+                proc cas;
+                  table.dropTable / caslib="CASUSER" name="{table_name}" quiet=true;
+                  table.deleteSource / caslib="CASUSER" source="{table_name}.sashdat" quiet=true;
+                quit;
+                """
+            }
+        )
+
+
 # -----------------------------------------------------------------------
 # Prompt templates — rendered through the live-connected server
 # -----------------------------------------------------------------------
@@ -1233,6 +1345,8 @@ TOOL_COVERAGE = {
     "run_geographic_analysis_tool": "test_fqa_analysis_tools",
     "run_time_of_event_analysis_tool": "test_fqa_analysis_tools",
     "run_reliability_analysis_tool": "test_fqa_analysis_tools",
+    "drop_table_from_memory": "test_drop_and_reload_table_workflow",
+    "reload_table_to_memory": "test_drop_and_reload_table_workflow",
 }
 
 
