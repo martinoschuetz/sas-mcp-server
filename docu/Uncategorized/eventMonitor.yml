@@ -1,0 +1,1593 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: Event Monitor
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+  description: >
+    The Event Monitor API enables clients to perform the following tasks:
+
+    * Work with Events
+      * Get, Set and Delete event configuration.
+    * Work with Providers
+      * Get, Set and Delete provider configuations for file systems.
+    * Get File Event
+      * Retrieve if file event is verified.
+    * Recieve Event Alerts
+      * Get event alerts from registered providers.
+tags:
+- name: Api
+  description: Get the links to all base resources managed by the Event Monitor.
+- name: Events
+  description: Contains the operations for the event resource.
+- name: Provider
+  description: Contains the operations for the provider resource.
+- name: FileEvent
+  description: Contains the operations for the file event  resource.
+- name: EventAlert
+  description: Contains the operations for the  event alert resource.
+paths:
+  /:
+    get:
+      tags:
+      - Api
+      summary: Get resource links
+      description: Get the links to all base resources managed by the Event Monitor
+        service.
+      operationId: root
+      responses:
+        "200":
+          headers:
+            Last-Modified:
+              description: the ISO8601 date string representing the timestamp of the
+                last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          description: OK.
+          content:
+            "application/vnd.sas.api+json":
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/apiInfoResponse"
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/apiInfoResponse"
+        "400":
+          description: The request was invalid.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+    head:
+      tags:
+      - Api
+      summary: See if the Event Monitor service exists
+      description: Check to see if the Event Monitor service is available.
+      operationId: headersForRoot
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        "400":
+          description: The request was invalid.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+  /eventMonitor/events:
+    get:
+      tags:
+      - Events
+      summary: Get a list of events
+      description: "Returns a list of monitored events. Standard paging, filtering,\
+        \ and sorting options are provided.<br>\nReturned items will be of media type\
+        \ application/vnd.sas.monitor.event"
+      operationId: getEvents
+      responses:
+        "200":
+          headers:
+            Last-Modified:
+              description: the ISO8601 date string representing the timestamp of the
+                last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          description: OK.
+          content:
+            "application/vnd.sas.collection+json":
+              schema:
+                $ref: "#/components/schemas/event"
+              examples:
+                api:
+                  $ref: "#/components/examples/event"
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/event"
+              examples:
+                api:
+                  $ref: "#/components/examples/event"
+        "400":
+          description: The request was invalid.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+      parameters:
+      - name: start
+        in: query
+        description: 0-based offset of first event to return. The default value is
+          0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: Maximum number of events to return. The default value is 20.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: "Filter criteria for returned events. See [Filtering in REST\
+          \ APIs](https://developer.sas.com/apis/rest/Topics/#filters). <br>Any member\
+          \ of the Event object can be used to filter the results: id, name, eventType,\
+          \ createdBy, modifiedBy, uri or source. Date fields currently cannot be\
+          \ used to filter results. <br>Sample queries<br> <ul>  <li>Get events by\
+          \ name: `/events?filter=contains(name, 'Sample')`</li> <li>Get events by\
+          \ eventType: `/events?filter=in(eventType, 'file')` </ul>"
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: Sort returned events. See [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting).<br>
+          The default sort order is name:ascending. Other valid sorting options are
+          <ul><li><code>orderNum</code> the order specified by the user</li> <li><code>added</code>
+          the timestamp when the item was added</li> <li><code>name</code> the event
+          name </ul>
+        schema:
+          type: string
+          format: sort-criteria
+      - name: If-None-Match
+        in: header
+        description: Specifies the ETag that is associated with a value of the session
+          state.
+        required: false
+        schema:
+          type: string
+    post:
+      tags:
+      - Events
+      summary: Create a new event
+      description: Creates a new event.
+      operationId: createEvent
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.event.monitor.event+json:
+            schema:
+              $ref: "#/components/schemas/event"
+            examples:
+              context:
+                $ref: "#/components/examples/event"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/event"
+            examples:
+              context:
+                $ref: "#/components/examples/event"
+      responses:
+        "201":
+          description: An event was created.
+          headers:
+            Location:
+              description: The URI of the newly created event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            "application/vnd.sas.event.monitor.event+json":
+              schema:
+                $ref: "#/components/schemas/event"
+              examples:
+                api:
+                  $ref: "#/components/examples/event"
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/event"
+              examples:
+                api:
+                  $ref: "#/components/examples/event"
+        "400":
+          description: The request was invalid.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+  "/eventMonitor/events/{eventId}":
+    get:
+      tags:
+      - Events
+      summary: Get a event
+      description: Returns the specified event.
+      operationId: getEvent
+      parameters:
+      - name: eventId
+        in: path
+        description: The identifier of a specific event.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: If-None-Match
+        in: header
+        description: Specifies the ETag that is associated with a value of the session
+          state.
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. The event was returned.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            "application/vnd.sas.event.monitor.event+json":
+              schema:
+                $ref: "#/components/schemas/event"
+              examples:
+                api:
+                  $ref: "#/components/examples/event"
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/event"
+              examples:
+                api:
+                  $ref: "#/components/examples/event"
+        "400":
+          description: The request was invalid.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+        "428":
+          description: Precondition Required.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/preconditionRequiredErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/preconditionRequiredErrorResponse"
+    head:
+      tags:
+      - Events
+      summary: Check availability of an Event
+      operationId: headersForEvent
+      description: Retrieve the headers and check the availability of an Event.
+      parameters:
+      - name: eventId
+        in: path
+        description: The identifier of a specific event.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: If-None-Match
+        in: header
+        description: Specifies the ETag that is associated with a value of the session
+          state.
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: success.  The event is returned.
+          headers:
+            Etag:
+              description: A tag that identifies the revision of this object.
+              schema:
+                type: string
+            Last-Modified:
+              description: The last modified timestamp of this object.
+              schema:
+                type: string
+                format: date-time
+        "404":
+          description: Not Found.  No event with the given id was found.
+          headers:
+            Etag:
+              description: A tag that identifies the revision of this object.
+              schema:
+                type: string
+            Last-Modified:
+              description: The last modified timestamp of this object.
+              schema:
+                type: string
+                format: date-time
+    delete:
+      tags:
+      - Events
+      summary: Delete a event
+      description: >
+        The specified event is deleted.
+      operationId: deleteEvent
+      parameters:
+      - name: eventId
+        in: path
+        description: The identifier of a specific event
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "204":
+          description: The event was deleted.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        "400":
+          description: The request was invalid.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+        "409":
+          description: The request could not be completed due to a conflict with the
+            current state of the resource.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+    put:
+      tags:
+      - Events
+      description: |
+        Replaces an existing event.
+      operationId: updateEvent
+      summary: Update the specified event
+      parameters:
+      - name: eventId
+        in: path
+        description: The identifier of a specific event.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: If-Match
+        required: true
+        in: header
+        description: The ETag that was returned from a GET, POST, or PUT of this event.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        required: true
+        in: header
+        description: The value of the lastModified date of the event. If the event
+          has been updated since this time, the update fails.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.event.monitor.event+json:
+            schema:
+              $ref: "#/components/schemas/event"
+            examples:
+              context:
+                $ref: "#/components/examples/event"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/event"
+            examples:
+              context:
+                $ref: "#/components/examples/event"
+      responses:
+        "200":
+          description: The request succeeded. The event was updated.
+          headers:
+            Last-Modified:
+              description: The ISO8601 date string representing the timestamp of the
+                last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            "application/vnd.sas.event.monitor.event+json":
+              schema:
+                $ref: "#/components/schemas/event"
+              examples:
+                api:
+                  $ref: "#/components/examples/event"
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/event"
+              examples:
+                api:
+                  $ref: "#/components/examples/event"
+        "400":
+          description: The request was invalid.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+        "412":
+          description: The `If-Match` request header did not match the resource's
+            entity tag, or the `If-Unmodified-Since` request header did not match
+            the resource's last modified timestamp.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+        "428":
+          description: Precondition Required.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/preconditionRequiredErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/preconditionRequiredErrorResponse"
+  /eventMonitor/providers:
+    get:
+      tags:
+      - Provider
+      summary: Get a list of providers
+      description: "Returns a list of providers. Standard paging, filtering, and sorting\
+        \ options are provided.<br>\nReturned items will be of media type application/vnd.sas.monitor.provider"
+      operationId: getProviders
+      responses:
+        "200":
+          headers:
+            Last-Modified:
+              description: the ISO8601 date string representing the timestamp of the
+                last update to this provider.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          description: OK.
+          content:
+            "application/vnd.sas.collection+json":
+              schema:
+                $ref: "#/components/schemas/provider"
+              examples:
+                api:
+                  $ref: "#/components/examples/provider"
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/provider"
+              examples:
+                api:
+                  $ref: "#/components/examples/provider"
+        "400":
+          description: The request was invalid.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+      parameters:
+      - name: start
+        in: query
+        description: 0-based offset of first provider to return. The default value
+          is 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: Maximum number of providers to return. The default value is 20.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: "Filter criteria for returned providers. See [Filtering in REST\
+          \ APIs](https://developer.sas.com/apis/rest/Topics/#filters). <br>Any member\
+          \ of the Provider object can be used to filter the results: name, HealthCheckType,\
+          \ HealthCheckLocation, RegistrationURL, StatURL, createdBy, modifiedBy or\
+          \ version. Date fields currently cannot be used to filter results. <br>Sample\
+          \ queries<br> <ul>  <li>Get provider by name: `/providers?filter=contains(name,\
+          \ 'Sample')`</li> <li>Get providers by createdBy: `/providers?filter=in(createdBy,\
+          \ 'sasUser')` </ul>"
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: Sort returned Providers. See [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting).<br>
+          The default sort order is name:ascending. Other valid sorting options are
+          <ul><li><code>orderNum</code> the order specified by the user</li> <li><code>added</code>
+          the timestamp when the item was added</li> <li><code>name</code> the provider
+          name </ul>
+        schema:
+          type: string
+          format: sort-criteria
+      - name: If-None-Match
+        in: header
+        description: Specifies the ETag that is associated with a value of the session
+          state.
+        required: false
+        schema:
+          type: string
+    post:
+      tags:
+      - Provider
+      summary: Create a new provider
+      description: Creates a new provider.
+      operationId: createProvider
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.event.monitor.provider+json:
+            schema:
+              $ref: "#/components/schemas/provider"
+            examples:
+              context:
+                $ref: "#/components/examples/provider"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/provider"
+            examples:
+              context:
+                $ref: "#/components/examples/provider"
+      responses:
+        "201":
+          description: An provider was created.
+          headers:
+            Location:
+              description: The URI of the newly created provider.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            "application/vnd.sas.event.monitor.provider+json":
+              schema:
+                $ref: "#/components/schemas/provider"
+              examples:
+                api:
+                  $ref: "#/components/examples/provider"
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/provider"
+              examples:
+                api:
+                  $ref: "#/components/examples/provider"
+        "400":
+          description: The request was invalid.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+  "/eventMonitor/providers/{name}":
+    get:
+      tags:
+      - Provider
+      summary: Get a provider
+      description: Returns the specified provider.
+      operationId: getProvider
+      parameters:
+      - name: name
+        in: path
+        description: The identifier of a specific provider.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: If-None-Match
+        in: header
+        description: Specifies the ETag that is associated with a value of the session
+          state.
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. The provider was returned.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this provider.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            "application/vnd.sas.event.monitor.provider+json":
+              schema:
+                $ref: "#/components/schemas/provider"
+              examples:
+                api:
+                  $ref: "#/components/examples/provider"
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/provider"
+              examples:
+                api:
+                  $ref: "#/components/examples/provider"
+        "400":
+          description: The request was invalid.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+        "428":
+          description: Precondition Required.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/preconditionRequiredErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/preconditionRequiredErrorResponse"
+    head:
+      tags:
+      - Provider
+      summary: Check availability of an Provider
+      operationId: headersForProvider
+      description: Retrieves the headers and check the availability of an Provider.
+      parameters:
+      - name: name
+        in: path
+        description: The identifier of a specific provider.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: If-None-Match
+        in: header
+        description: Specifies the ETag that is associated with a value of the session
+          state.
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: success.  The provider is returned.
+          headers:
+            Etag:
+              description: A tag that identifies the revision of this object.
+              schema:
+                type: string
+            Last-Modified:
+              description: The last modified timestamp of this object.
+              schema:
+                type: string
+                format: date-time
+        "404":
+          description: Not Found.  No provider with the given name was found.
+          headers:
+            Etag:
+              description: A tag that identifies the revision of this object.
+              schema:
+                type: string
+            Last-Modified:
+              description: The last modified timestamp of this object.
+              schema:
+                type: string
+                format: date-time
+    delete:
+      tags:
+      - Provider
+      summary: Delete a provider
+      description: >
+        The specified provider is deleted.
+      operationId: deleteProvider
+      parameters:
+      - name: name
+        in: path
+        description: The identifier of a specific provider
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "204":
+          description: The provider was deleted.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        "400":
+          description: The request was invalid.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+        "409":
+          description: The request could not be completed due to a conflict with the
+            current state of the resource.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+  "/eventMonitor/fileEvents/{fileEventId}":
+    get:
+      tags:
+      - FileEvent
+      summary: Get a file event
+      description: Returns the specified file event.
+      operationId: getFileEvent
+      parameters:
+      - name: fileEventId
+        in: path
+        description: The identifier of a specific file event.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: If-None-Match
+        in: header
+        description: Specifies the ETag that is associated with a value of the session
+          state.
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. The file event was returned.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this file event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            "application/vnd.sas.event.monitor.event+json":
+              schema:
+                $ref: "#/components/schemas/fileEvent"
+              examples:
+                api:
+                  $ref: "#/components/examples/fileEvent"
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/fileEvent"
+              examples:
+                api:
+                  $ref: "#/components/examples/fileEvent"
+        "400":
+          description: The request was invalid.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundErrorResponse"
+        "428":
+          description: Precondition Required.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/preconditionRequiredErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/preconditionRequiredErrorResponse"
+    head:
+      tags:
+      - FileEvent
+      summary: Check availability of an File Event
+      operationId: headersForFileEvent
+      description: Retrieve the headers and check the availability of an File Event.
+      parameters:
+      - name: fileEventId
+        in: path
+        description: The identifier of a specific event.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: If-None-Match
+        in: header
+        description: Specifies the ETag that is associated with a value of the session
+          state.
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: success.  The event is returned.
+          headers:
+            Etag:
+              description: A tag that identifies the revision of this object.
+              schema:
+                type: string
+            Last-Modified:
+              description: The last modified timestamp of this object.
+              schema:
+                type: string
+                format: date-time
+        "404":
+          description: Not Found.  No event with the given id was found.
+          headers:
+            Etag:
+              description: A tag that identifies the revision of this object.
+              schema:
+                type: string
+            Last-Modified:
+              description: The last modified timestamp of this object.
+              schema:
+                type: string
+                format: date-time
+  /eventMonitor/eventsAlert:
+    post:
+      tags:
+      - EventAlert
+      summary: Create a new event alert
+      description: Creates a new event alert.
+      operationId: createEventAlert
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.event.monitor.event+json:
+            schema:
+              $ref: "#/components/schemas/eventAlert"
+            examples:
+              context:
+                $ref: "#/components/examples/eventAlert"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/eventAlert"
+            examples:
+              context:
+                $ref: "#/components/examples/eventAlert"
+      responses:
+        "201":
+          description: An event was created.
+          headers:
+            Location:
+              description: The URI of the newly created event alert.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            "application/vnd.sas.event.monitor.event+json":
+              schema:
+                $ref: "#/components/schemas/eventAlert"
+              examples:
+                api:
+                  $ref: "#/components/examples/eventAlert"
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/eventAlert"
+              examples:
+                api:
+                  $ref: "#/components/examples/eventAlert"
+        "400":
+          description: The request was invalid.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/badRequestErrorResponse"
+servers:
+- url: http://example.com/eventMonitor
+  description: This is an example base URL.
+components:
+  examples:
+    badRequestErrorResponse:
+      description: This is an example of an error response for a bad request.
+      summary: Bad request error response
+      value:
+        details:
+        - The request was invalid.
+        httpStatusCode: 400
+        message: Bad Request
+        version: 2
+    notFoundErrorResponse:
+      summary: Not found error response
+      description: This is an example of an error response for a resource that is
+        not found.
+      value:
+        version: 2
+        httpStatusCode: 404
+        message: Not Found
+        details:
+        - No resource exists at the requested path.
+    event:
+      summary: Event example
+      description: An example of event details.
+      value:
+        id: fc8bd22-932d-40d6-bfbd-ce4b72574cea
+        name: Test Event 1
+        eventTriggers: [{eventType: file, event: {id: 75f03eeb-31e6-4194-b26e-57e73f7c1dd3,
+              expression: Updated("file.ext")}}, {eventType: file, event: {id: fd54eeb-31e6-4194-b26e-57e73f7c1dd3,
+              expression: Created("file.ext")}}]
+        uri: location/to/alert/of/event
+        exchange: sas.job
+        source: floworchestrator
+        links: [{"method": "GET", "rel": "self", "href": "/eventMonitor/events/fc8bd22-932d-40d6-bfbd-ce4b72574cea",
+            "uri": "/eventMonitor/events/fc8bd22-932d-40d6-bfbd-ce4b72574cea", "type": "application/vnd.sas.event.monitor.event"},
+          {"method": "PUT", "rel": "update", "href": "/eventMonitor/events/fc8bd22-932d-40d6-bfbd-ce4b72574cea",
+            "uri": "/eventMonitor/events/fc8bd22-932d-40d6-bfbd-ce4b72574cea", "type": "application/vnd.sas.event.monitor.event"},
+          {"method": "DELETE", "rel": "delete", "href": "/eventMonitor/events/fc8bd22-932d-40d6-bfbd-ce4b72574cea",
+            "uri": "/eventMonitor/events/fc8bd22-932d-40d6-bfbd-ce4b72574cea"}]
+        creationTimeStamp: 2021-08-09T12:32:05.852500Z
+        createdBy: sasboot,
+        modifiedTimeStamp: 2021-08-09T12:32:05.852500Z
+        modifiedBy: sasboot
+        version: 1
+    provider:
+      summary: Provider example
+      description: An example of provider details.
+      value:
+        name: Azure
+        healthCheck: {type: REST, location: "https://queryblobstorage.azurewebsites.net/api/HTTPTrigger_Verify"}
+        registrationURL: https://queryblobstorage.azurewebsites.net/api/HTTPTrigger_RegisterEvent
+        statURL: https://queryblobstorage.azurewebsites.net/api/GetStatData
+        links: [{"method": "GET", "rel": "self", "href": "/eventMonitor/providers/azure",
+            "uri": "/eventMonitor/providers/azure", "type": "application/vnd.sas.event.monitor.provider"},
+          {"method": "DELETE", "rel": "delete", "href": "/eventMonitor/providers/azure",
+            "uri": "/eventMonitor/providers/azure"}]
+        modifiedTimeStamp: 0001-01-01T00:00:00Z,
+        creationTimeStamp: 0001-01-01T00:00:00Z,
+        version: 1
+    eventAlert:
+      summary: Event Alert example
+      description: An example of event alert details.
+      value:
+        id: 4893-3432-jk343-34ks,
+        type: file,
+        eventType: CREATED,
+        eventTime: 2017-06-26T18:41:00.958000Z
+    fileEvent:
+      summary: File Event
+      description: An example of file event response.
+      value:
+        id: fc8bd22-932d-40d6-bfbd-ce4b72574cea
+        verified: true
+    preconditionRequiredErrorResponse:
+      summary: Precondition required error response
+      description: This is an example of an error response for a conditional request
+        with a missing precondition.
+      value:
+        version: 2
+        name: Item name
+        httpStatusCode: 428
+        message: Precondition Required
+        details:
+        - The server refused to accept the request because a precondition is missing.
+    preconditionFailedError:
+      summary: Precondition Failed
+      value:
+        message: 'The specified "If-Match" header value did not match the value in
+          the conditional PUT request for the object.'
+        httpStatusCode: 412
+        version: 2
+      description: example of an error that might be returned on a 412 response
+    unsupportedMediaTypeError:
+      summary: Unsupported Mediatype
+      value:
+        message: "Unsupported Media Type"
+        httpStatusCode: 415
+        version: 2
+      description: example of an error that might be returned on a 415 response
+    preconditionRequiredError:
+      summary: Precondition Required
+      value:
+        message: 'The PUT request must include an eTag in the "if-match" header, or
+          a "last-modified" timestamp in the "if-unmodified-since" header.'
+        httpStatusCode: 428
+        version: 2
+      description: example of an error that might be returned on a 428 response
+    apiInfoResponse:
+      summary: Event Monitor API Info
+      description: List of all the top-level links provided by the Event Monitor.
+      value:
+        links:
+        - method: GET
+          rel: apiMeta
+          href: "/eventMonitor/"
+          uri: "/eventMonitor/"
+          type: application/vnd.sas.api
+        - method: GET
+          rel: events
+          href: "/eventMonitor/events"
+          uri: "/eventMonitor/events"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.event.monitor.event
+        - method: Get
+          rel: getEvent
+          href: "eventMonitor/events/{eventId}"
+          uri: "eventMonitor/events/{eventId}"
+          type: application/vnd.sas.event.monitor.event
+        - method: POST
+          rel: createEvent
+          href: "eventMonitor/events"
+          uri: "eventMonitor/events"
+          type: application/vnd.sas.event.monitor.event
+        - method: Put
+          rel: updateEvent
+          href: "eventMonitor/events/{eventId}"
+          uri: "eventMonitor/events/{eventId}"
+          type: application/vnd.sas.event.monitor.event
+        - method: Delete
+          rel: deleteEvent
+          href: "eventMonitor/events/{eventId}"
+          uri: "eventMonitor/events/{eventId}"
+        - method: Post
+          rel: createEventAlert
+          href: "eventMonitor/eventsAlert"
+          uri: "eventMonitor/eventsAlert"
+          type: application/vnd.sas.event.monitor.event.alert
+        - method: Get
+          rel: getEventAlert
+          href: "eventMonitor/events/{eventId}"
+          uri: "eventMonitor/events/{eventId}"
+          type: text/plain
+        - method: Head
+          rel: events
+          href: "eventMonitor/events/{eventId}"
+          uri: "eventMonitor/events/{eventId}"
+          type: application/vnd.sas.event.monitor.event
+        - method: GET
+          rel: providers
+          href: "eventMonitor/providers"
+          uri: "eventMonitor/providers"
+          type: application/vnd.sas.event.monitor.provider
+        - method: POST
+          rel: createProvider
+          href: "eventMonitor/providers"
+          uri: "eventMonitor/providers"
+          type: application/vnd.sas.event.monitor.provider
+        - method: Delete
+          rel: deleteProvider
+          href: "eventMonitor/providers/{name}"
+          uri: "eventMonitor/providers/{name}"
+          version: 1
+  schemas:
+    event:
+      description: Eventmonitor - The full representation of a event object.
+      properties:
+        eventId:
+          type: string
+          description: unique identifier generated upon submission or submitted with
+            event
+        name:
+          type: string
+          description: optional event name.
+        eventTriggers:
+          type: array
+          description: This is an interface for different type's of event objects.
+        uri:
+          type: string
+          description: The URI of what needs to be done if the event occurs. This
+            is writable by the client. In order to perform a update, PUT this event
+            with an updated uri pointing to the new uri. It is valid for this field
+            to be null, if source is populated.
+        source:
+          type: string
+          description: The source of what needs to be informed if event occurs. This
+            is writable by the client. In order to perform a update, PUT this event
+            with an updated source. It is valid for this field to be null, if uri
+            is populated.
+        exchange:
+          type: string
+          description: The exchange to post message. This is used when source is supplied
+            but is nullable since it will default to sas.job
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp of event creation.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp of last event modification.
+        createdBy:
+          type: string
+          description: The name of the user who created this event.
+        modifiedBy:
+          type: string
+          description: The name of the last user who modified this object.
+        links:
+          type: array
+          description: Links that apply to this object. Includes "self", "members",
+            and "delete".
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+    provider:
+      title: Storage Provider
+      description: The schema for posting a storage provider.
+      required:
+      - name
+      - healthCheck
+      - registrationURL
+      - statURL
+      properties:
+        name:
+          type: string
+          description: Name of storage provider.
+        healthCheck:
+          type: object
+          description: object with type and location of health check
+        registrationUrl:
+          type: string
+          description: URL to register file for storage provider.
+        statUrl:
+          type: string
+          description: URL to check stats for a file in a storage provider.
+    eventAlert:
+      title: Event Alert
+      description: The schema for posting an event alert.
+      required:
+      - eventType
+      - type
+      - eventDetail
+      properties:
+        type:
+          type: string
+          description: Subtype for the type of alert. The default value is 'file'.
+          default: file
+        eventType:
+          type: string
+          description: Subtype for event alert.
+        eventTime:
+          type: string
+          format: date-time
+          description: >
+            Timestamp of event object creation.
+        eventDetail:
+          type: object
+          description: This is an interface for different type's of event objects.
+    fileEvent:
+      title: File Event
+      description: The schema for retrieved file events.
+      required:
+      - verified
+      properties:
+        id:
+          type: string
+          description: unique identifier generated upon submission of event
+        verified:
+          type: boolean
+          description: Boolean value if event is verified. The default value is 'false'.
+          default: false
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    api:
+      description: API-The full representation of a API.
+      example:
+        links: [{"method": "GET", "rel": "apiMeta", "href": "/eventMonitor/", "uri": "/eventMonitor/",
+            "type": "application/vnd.sas.api"}, {"method": "GET", "rel": "events",
+            "href": "/eventMonitor/events", "uri": "/eventMonitor/events", "type": "application/vnd.sas.collection+json",
+            "itemType": "application/vnd.sas.event.monitor.event"}, {"method": "GET",
+            "rel": "getEvent", "href": "/eventMonitor/events/{eventId}", "uri": "/eventMonitor/events/{eventId}",
+            "type": "application/vnd.sas.event.monitor.event"}, {"method": "POST",
+            "rel": "createEvent", "href": "/eventMonitor/events", "uri": "/eventMonitor/events",
+            "type": "application/vnd.sas.event.monitor.event"}, {"method": "PUT",
+            "rel": "updateEvemt", "href": "/eventMonitor/events/{eventId}", "uri": "/eventMonitor/events/{eventId}",
+            "type": "application/vnd.sas.event.monitor.event"}, {"method": "DELETE",
+            "rel": "deleteEvent", "href": "/eventMonitor/events/{eventId}", "uri": "/eventMonitor/events/{eventId}"},
+          {"method": "POST", "rel": "createEventAlert", "href": "/eventMonitor/eventsAlert",
+            "uri": "/eventMonitor/eventsAlert", "type": "application/vnd.sas.event.monitor.event.alert"},
+          {"method": "GET", "href": "/eventMonitor/events/{eventId}", "uri": "/eventMonitor/events/{eventId}",
+            "type": "text/plain"}, {"method": "HEAD", "href": "/eventMonitor/events/{eventId}",
+            "uri": "/eventMonitor/events/{eventId}"}, {"method": "GET", "rel": "providers",
+            "href": "/eventMonitor/providers", "uri": "/eventMonitor/providers", "type": "application/vnd.sas.collection+json",
+            "itemType": "application/vnd.sas.event.monitor.provider"}, {"method": "POST",
+            "rel": "createProvider", "href": "/eventMonitor/providers", "uri": "/eventMonitor/proprovidersvider",
+            "type": "application/vnd.sas.event.monitor.provider"}, {"method": "DELETE",
+            "rel": "deleteProvider", "href": "/eventMonitor/providers/{name}", "uri": "/eventMonitor/providers/{name}"}]
+        "version": 1,
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.

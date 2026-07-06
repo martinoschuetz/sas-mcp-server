@@ -1,0 +1,4240 @@
+---
+openapi: 3.0.3
+info:
+  version: "4"
+  title: Deployment Backup
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: devex@sas.com
+  description: Document listing the methods available for the deployment backup REST
+    API
+tags:
+- name: Root
+  description: The operations for Root resource.
+- name: Backups
+  description: Backup Operations.
+- name: DeploymentBackups
+  description: Backup Operations done by Provider Administrator in Multi-tenant environment.
+- name: Configurations
+  description: Operation on Configuration.
+- name: Sources
+  description: Operation on Sources.
+- name: Restores
+  description: Restore Operations.
+- name: DeploymentRestores
+  description: Restore Operations done by Provider Administrator in Multi-tenant environment.
+paths:
+  /:
+    get:
+      summary: List of top-level links
+      description: Returns list of links to the top-level collections surfaced through
+        this API.
+      operationId: root
+      tags:
+      - Root
+      responses:
+        "200":
+          description: OK
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/rootapi"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/rootapi"
+    head:
+      summary: Check if backup service is available
+      description: Returns whether backup service is running. It also returns headers
+        that get "/" Api returns.
+      operationId: headersForRoot
+      tags:
+      - Root
+      responses:
+        "200":
+          description: OK
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+  /backups:
+    get:
+      summary: Retrieves the history of all the backups that have been performed till
+        date by Tenant in multi-tenant environment or by administrator in non-multi-tenant
+        environment
+      description: Get backup operations history(Paginated). Returns application/vnd.sas.collection
+        of type application/vnd.sas.backup.summary
+      operationId: getBackups
+      tags:
+      - Backups
+      parameters:
+      - name: start
+        in: query
+        required: false
+        description: (Optional) starting index of paginated list of backups from history
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: (Optional) number of backups from history on a page.
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: OK
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.backup.summary+json:
+              schema:
+                $ref: "#/components/schemas/backupCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/backups"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/backupCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/backups"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/backupCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/backups"
+  /backups#deployment:
+    get:
+      summary: Retrieves the history of all the backups that have been performed till
+        date by Provider Administrator in multi-tenant-environment
+      description: Get Provider backup operations history(Paginated). Returns application/vnd.sas.collection
+        of type application/vnd.sas.backup.deployment.summary
+      operationId: getDeploymentBackups
+      tags:
+      - DeploymentBackups
+      parameters:
+      - name: start
+        in: query
+        required: false
+        description: (Optional) starting index of paginated list of Provider backups
+          from history
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: (Optional) number of backups from history on a page.
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: OK
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.backup.deployment.summary+json:
+              schema:
+                $ref: "#/components/schemas/deploymentBackupCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupsDeployment"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/deploymentBackupCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupsDeployment"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/deploymentBackupCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupsDeployment"
+  /backups/{backupId}:
+    get:
+      summary: Get backup operation's details for Tenant in multi-tenant environment
+        or for administrator in non-multi-tenant environment
+      description: Get backup details performed by Tenant in multi-tenant environment
+        or by administrator in non-multi-tenant environment for given backup id. Returns
+        application/vnd.sas.backup+json
+      operationId: getBackup
+      tags:
+      - Backups
+      parameters:
+      - name: backupId
+        in: path
+        required: true
+        description: specifies unique id of backup operation for which details have
+          been asked
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Successful response
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.backup+json:
+              schema:
+                $ref: "#/components/schemas/backup"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupsId"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/backup"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupsId"
+        "404":
+          description: No backup with given id found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /backups/{backupId}#deployment:
+    get:
+      summary: Get details of backup operation performed by Provider Administrator
+        in multi-tenant environment
+      description: Get backup operation's details which is performed by Provider Administrator
+        in multi-tenant environment. Returns application/vnd.sas.backup.deployment.summary+json
+      operationId: getDeploymentBackup
+      tags:
+      - DeploymentBackups
+      parameters:
+      - name: backupId
+        in: path
+        required: true
+        description: specifies unique id of backup operation for which details have
+          been asked
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Successful response
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.backup.deployment.summary+json:
+              schema:
+                $ref: "#/components/schemas/backupDeploymentSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupsIdDeployment"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/backupDeploymentSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupsIdDeployment"
+        "404":
+          description: No backup with given id found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /backups/jobs:
+    post:
+      summary: Initiates a backup operation for Tenant in multi-tenant environment
+        or by administrator in non-multi-tenant environment asynchronously
+      description: Start a backup asynchronously.The backup job is created and returned
+        to user while the operation happens in the background. Returns application/vnd.sas.backup.job+json
+      operationId: createStartBackup
+      tags:
+      - Backups
+      requestBody:
+        content:
+          application/vnd.sas.backup.request+json:
+            schema:
+              $ref: "#/components/schemas/backupRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/backupJobRequest"
+        description: request body for the backup operation
+        required: true
+      responses:
+        "202":
+          description: Accepted - if operation is requested asynchronous
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+            Location:
+              description: Location of the newly created job in the form /backups/jobs/{id}
+              schema:
+                type: string
+          content:
+            application/vnd.sas.backup.job+json:
+              schema:
+                $ref: "#/components/schemas/backupJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/backupJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobResponse"
+        "400":
+          description: "(Bad Request): There was a validation error for the request."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error2"
+        "409":
+          description: Resource Conflict.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/resourceConflictError"
+    get:
+      summary: Retrieves the running or pending backup jobs started by Tenant in multi-tenant
+        environment or by administrator in non-multi-tenant environment
+      description: Get collection of running / pending backup jobs started by Tenant
+        in multi-tenant environment or by administrator in non-multi-tenant environment.
+        Returns application/vnd.sas.collection of type application/vnd.sas.backup.job
+      operationId: getRunningBackups
+      tags:
+      - Backups
+      parameters:
+      - name: start
+        in: query
+        required: false
+        description: (Optional) starting index of paginated list of running backups
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: (Optional) number of running backups .
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: Success
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.backup.job:
+              schema:
+                $ref: "#/components/schemas/backupJobCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobResponse"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/backupJobCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/backupJobCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobResponse"
+  /backups/jobs#deployment:
+    post:
+      summary: Start backup by Provider Administrator in multi-tenant environment
+      description: Start a backup by Provider Administrator asynchronously. Returns
+        application/vnd.sas.backup.deployment.job.details+json
+      operationId: createStartDeploymentBackup
+      tags:
+      - DeploymentBackups
+      requestBody:
+        content:
+          application/vnd.sas.backup.deployment.request+json:
+            schema:
+              $ref: "#/components/schemas/deploymentRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/backupJobDeploymentRequest"
+        description: request body for the backup operation performed by Provider Administrator
+        required: true
+      responses:
+        "202":
+          description: Accepted - if operation is requested asynchronous
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+            Location:
+              description: Location of the newly created job in the form /backups/jobs/{id}
+              schema:
+                type: string
+          content:
+            application/vnd.sas.backup.deployment.job.details+json:
+              schema:
+                $ref: "#/components/schemas/backupDeploymentJobDetails"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobDeploymentResponse"
+        "400":
+          description: "(Bad Request): There was a validation error for the request."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error2"
+        "409":
+          description: Resource Conflict.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/resourceConflictError"
+  /backups/jobs/{jobId}:
+    get:
+      summary: Get backup job of Tenant in multi-tenant environment or administrator
+        in non-multi-tenant environment by given id
+      description: Get details of any backup job of Tenant in multi-tenant environment
+        or administrator in non-multi-tenant environment. Returns application/vnd.sas.backup.job+json
+      operationId: getBackupJob
+      tags:
+      - Backups
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        description: A valid id of any ongoing or completed backup operation.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Successful response
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.backup.job+json:
+              schema:
+                $ref: "#/components/schemas/backupJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobId"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/backupJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobId"
+        "404":
+          description: No backup job with given jobId found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /backups/jobs/{jobId}#deployment:
+    get:
+      summary: Backup job details started by Provider Administrator in multi-tenant
+        environment
+      description: Get details of backup job started by Provider Administrator. Returns  application/vnd.sas.backup.deployment.job.details+json
+      operationId: getDeploymentBackupJob
+      tags:
+      - DeploymentBackups
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        description: A valid id of any ongoing or completed backup operation.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Successful response
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.backup.deployment.job.details+json:
+              schema:
+                $ref: "#/components/schemas/backupDeploymentJobDetails"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobIdDeployment"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/backupDeploymentJobDetails"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobIdDeployment"
+        "404":
+          description: No backup job with given jobId found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /backups/jobs/{jobId}/state:
+    get:
+      summary: Backup job state
+      description: Get state of the backup job by id. Possible values for this attribute
+        are 'pending', 'running', 'completedWithWarning', 'completed', 'failed', 'canceling',
+        'canceled'.
+      operationId: getBackupState
+      tags:
+      - Backups
+      parameters:
+      - name: jobId
+        in: path
+        description: id of the backup job
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: success
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.job.state+json:
+              schema:
+                $ref: "#/components/schemas/jobState"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobState"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/jobState"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobState"
+        "404":
+          description: No backup job with given jobId found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+    put:
+      summary: Change state of only running or pending Backup job to cancel
+      description: Change the state of the backup job by id. A state of backup job
+        can be changed to 'canceled' only if that job's status is either 'running'
+        or 'pending'.  The value for this attribute is 'canceled'.
+      operationId: updateJobState
+      tags:
+      - Backups
+      parameters:
+      - name: jobId
+        in: path
+        description: id of the backup job
+        required: true
+        schema:
+          type: string
+      - name: value
+        in: query
+        description: Value should be 'canceled'.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: success
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.job.state+json:
+              schema:
+                $ref: "#/components/schemas/jobState"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupCancelState"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/jobState"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupCancelState"
+        "400":
+          description: "(Bad Request): There was a validation error for the request."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error2"
+        "404":
+          description: No backup job with given jobId found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /backups/jobs/{jobId}/state#deployment:
+    get:
+      summary: Deployment Backup job state
+      description: Get state of the backup job by id. Possible values for this attribute
+        are 'pending', 'running', 'completedWithWarning', 'completed', 'failed' 'canceling',
+        'canceled'.
+      operationId: getDeploymentBackupState
+      tags:
+      - DeploymentBackups
+      parameters:
+      - name: jobId
+        in: path
+        description: id of the backup job
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: success
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.job.deployment.state+json:
+              schema:
+                $ref: "#/components/schemas/jobDeploymentState"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobDeploymentState"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/jobDeploymentState"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupJobDeploymentState"
+        "404":
+          description: No backup job with given jobId found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+    put:
+      summary: Change state of only running or pending Deployment Backup job to cancel
+      description: Change the state of the backup job by id. A state of backup job
+        can be changed to 'canceled' only if that job's status is either 'running'
+        or 'pending'.  The value for this attribute is 'canceled'.
+      operationId: updateDeploymentJobState
+      tags:
+      - DeploymentBackups
+      parameters:
+      - name: jobId
+        in: path
+        description: id of the backup job
+        required: true
+        schema:
+          type: string
+      - name: value
+        in: query
+        description: Value should be 'canceled'.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: success
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.job.deployment.state+json:
+              schema:
+                $ref: "#/components/schemas/jobDeploymentState"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupCancelStateDeployment"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/jobDeploymentState"
+              examples:
+                json:
+                  $ref: "#/components/examples/backupCancelStateDeployment"
+        "400":
+          description: "(Bad Request): There was a validation error for the request."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error2"
+        "404":
+          description: No backup job with given jobId found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /configurations:
+    get:
+      summary: Available configurations
+      description: Get all configurations. Returns application/vnd.sas.collection
+        of type application/vnd.sas.backup.configuration
+      operationId: getBackupConfigurations
+      tags:
+      - Configurations
+      responses:
+        "200":
+          description: Success
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/configurationCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/configurations"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/configurationCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/configurations"
+  /configurations/{configurationId}:
+    get:
+      summary: Configuration by id
+      description: Get backup configuration with given id.
+      operationId: getBackupConfiguration
+      tags:
+      - Configurations
+      parameters:
+      - name: configurationId
+        in: path
+        description: id of the required configuration
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Success
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.backup.configuration+json:
+              schema:
+                $ref: "#/components/schemas/backupConfiguration"
+              examples:
+                json:
+                  $ref: "#/components/examples/configuration"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/backupConfiguration"
+              examples:
+                json:
+                  $ref: "#/components/examples/configuration"
+        "404":
+          description: No configuration found with given id
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /configurations/{configurationId}/sources:
+    get:
+      summary: Sources enabled for backup/restore
+      description: Get collection of backup enabled sources. Returns application/vnd.sas.collection
+        of type application/vnd.sas.backup.source.type
+      operationId: getBackupSources
+      tags:
+      - Sources
+      parameters:
+      - name: configurationId
+        in: path
+        description: id of the parent configuration
+        required: true
+        schema:
+          type: string
+      - name: start
+        in: query
+        required: false
+        description: (Optional) starting index of paginated list of running backups
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: (Optional) number of running backups .
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: Success
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/sourceCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/sources"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sourceCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/sources"
+        "404":
+          description: No configuration found with given id
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /configurations/{configurationId}/sources/{sourceId}:
+    get:
+      summary: Backup enabled source by id
+      description: Get configuration of a backup enabled source by id.
+      operationId: getBackupSource
+      tags:
+      - Sources
+      parameters:
+      - name: configurationId
+        in: path
+        description: id of the parent configuration
+        required: true
+        schema:
+          type: string
+      - name: sourceId
+        in: path
+        description: id of the source whose configuration is required
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Success
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.backup.source.type+json:
+              schema:
+                $ref: "#/components/schemas/backupSourceType"
+              examples:
+                json:
+                  $ref: "#/components/examples/source"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/backupSourceType"
+              examples:
+                json:
+                  $ref: "#/components/examples/source"
+        "404":
+          description: either configuration with given configuration Id or source
+            with given sourceId not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /restores:
+    get:
+      summary: Retrieves the history of all the restore that have been performed till
+        date by Tenant in multi-tenant environment or by administrator in non-multi-tenant
+        environment
+      description: Get restore operations history(paginated). Returns application/vnd.sas.collection
+        of type application/vnd.sas.restore.summary
+      operationId: getRestores
+      tags:
+      - Restores
+      parameters:
+      - name: start
+        in: query
+        required: false
+        description: (Optional) starting index of paginated list of restores from
+          history.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: (Optional) number of paginated list of restores from history
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: Successful response
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.restore.summary+json:
+              schema:
+                $ref: "#/components/schemas/restoreCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/restores"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/restoreCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/restores"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/restoreCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/restores"
+  /restores#deployment:
+    get:
+      summary: Retrieves the history of all the restore that have been performed till
+        date by Provider Administrator in multi-tenant environment
+      description: Get restore operations history(paginated) performed by Provider
+        Administrator. Returns application/vnd.sas.collection of type application/vnd.sas.restore.deployment.summary
+      operationId: getDeploymentRestores
+      tags:
+      - DeploymentRestores
+      parameters:
+      - name: start
+        in: query
+        required: false
+        description: (Optional) starting index of paginated list of restores from
+          history.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: (Optional) number of paginated list of restores from history
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: Successful response
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.restore.deployment.summary+json:
+              schema:
+                $ref: "#/components/schemas/deploymentRestoreCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoresDeployment"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/deploymentRestoreCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoresDeployment"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/deploymentRestoreCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoresDeployment"
+  /restores/{restoreId}:
+    get:
+      summary: Get restore done by Tenant in multi-tenant environment or by administrator
+        in non-multi-tenant environment by given id
+      description: Get restore operation's details. Returns application/vnd.sas.restore+json
+      operationId: gettRestore
+      tags:
+      - Restores
+      parameters:
+      - name: restoreId
+        in: path
+        required: true
+        description: specifies unique id of restore operation for which details have
+          been asked.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Successful response
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.restore+json:
+              schema:
+                $ref: "#/components/schemas/restore"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreId"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/restore"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreId"
+        "404":
+          description: No restore found with given id
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /restores/{restoreId}#deployment:
+    get:
+      summary: Restore details performed by Provider Administrator in multi-tenant
+        environment by given id
+      description: Get restore operation's details performed by Provider Administrator.
+        Returns application/vnd.sas.restore.deployment.summary+json
+      operationId: getDeploymentRestore
+      tags:
+      - DeploymentRestores
+      parameters:
+      - name: restoreId
+        in: path
+        required: true
+        description: specifies unique id of restore operation for which details have
+          been asked.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Successful response
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.restore.deployment.summary+json:
+              schema:
+                $ref: "#/components/schemas/restoreDeploymentSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreIdDeployment"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/restoreDeploymentSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreIdDeployment"
+        "404":
+          description: No restore found with given id
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /restores/jobs:
+    post:
+      summary: Initiates a restore operation for Tenant in multi-tenant environment
+        or by administrator in non-multi-tenant environment asynchronously
+      description: Start a restore operation. Returns application/vnd.sas.restore.job+json
+      operationId: createStartRestore
+      tags:
+      - Restores
+      requestBody:
+        content:
+          application/vnd.sas.restore.request+json:
+            schema:
+              $ref: "#/components/schemas/restoreRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/restoreJobRequest"
+        description: Request body for the restore operation
+        required: true
+      responses:
+        "202":
+          description: Accepted - if operation is requested asynchronous
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+            Location:
+              description: Location of the newly created job in the form /restores/jobs/{id}
+              schema:
+                type: string
+          content:
+            application/vnd.sas.restore.job+json:
+              schema:
+                $ref: "#/components/schemas/restoreJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/restoreJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobResponse"
+        "400":
+          description: "(Bad Request): There was a validation error for the request."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error2"
+        "409":
+          description: Resource Conflict.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/resourceConflictError"
+    get:
+      summary: Retrieves the running or pending restore jobs run by Tenant in multi-tenant
+        environment or by administrator in non-multi-tenant environment
+      description: Get collection of running / pending restore jobs. Returns application/vnd.sas.collection
+        of type application/vnd.sas.restore.job
+      operationId: getRunningRestore
+      tags:
+      - Restores
+      parameters:
+      - name: start
+        in: query
+        required: false
+        description: (Optional) starting index of paginated list of running restores
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: (Optional) number of running restores.
+        schema:
+          type: integer
+      - name: backupName
+        in: query
+        required: false
+        description: (Optional) find running restore jobs using the backupName. This
+          field is same as 'name' field in application/vnd.sas.backup representation.
+          This should be urlEncoded
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Success
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.restore.job+json:
+              schema:
+                $ref: "#/components/schemas/restoreJobCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobResponse"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/restoreJobCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/restoreJobCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobResponse"
+  /restores/jobs#deployment:
+    post:
+      summary: Start restore operation for Provider Administrator in multi-tenant
+        environment asynchronously
+      description: Start a restore operation for Provider Administrator asynchronously.
+        Returns application/vnd.sas.restore.deployment.job.details+json
+      operationId: createStartDeploymentRestore
+      tags:
+      - DeploymentRestores
+      requestBody:
+        content:
+          application/vnd.sas.restore.deployment.request+json:
+            schema:
+              $ref: "#/components/schemas/restoreDeploymentRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/restoreJobDeploymentRequest"
+        description: Request body for the restore operation
+        required: true
+      responses:
+        "202":
+          description: Accepted - if operation is requested asynchronous
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+            Location:
+              description: Location of the newly created job in the form /restores/jobs/{id}
+              schema:
+                type: string
+          content:
+            application/vnd.sas.restore.deployment.job.details+json:
+              schema:
+                $ref: "#/components/schemas/restoreDeploymentJobDetails"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobDeploymentResponse"
+        "400":
+          description: "(Bad Request): There was a validation error for the request."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error2"
+        "409":
+          description: Resource Conflict.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/resourceConflictError"
+  /restores/jobs/{jobId}:
+    get:
+      summary: Get restore job run by Tenant in multi-tenant environment or by administrator
+        in non-multi-tenant environment by given id
+      description: Get details of any restore job. Returns application/vnd.sas.restore.job+json
+      operationId: getRestoreJob
+      tags:
+      - Restores
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        description: a valid id of any ongoing or completed restore operation. It
+          could be a system generated valid existing restore id
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Successful response, Body would contain state
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.restore.job+json:
+              schema:
+                $ref: "#/components/schemas/restoreJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobId"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/restoreJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobId"
+        "404":
+          description: Job with given jobId not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /restores/jobs/{jobId}#deployment:
+    get:
+      summary: Restore job details for restore performed by Provider Administrator
+        in multi-tenant environment by given id
+      description: Get details of restore job performed by Provider Administrator.
+        Returns application/vnd.sas.restore.deployment.job.details+json
+      operationId: getDeploymentRestoreJob
+      tags:
+      - DeploymentRestores
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        description: a valid id of any ongoing or completed restore operation. It
+          could be a system generated valid existing restore id
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Successful response, Body would contain state
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.restore.deployment.job.details+json:
+              schema:
+                $ref: "#/components/schemas/restoreDeploymentJobDetails"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobIdDeployment"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/restoreDeploymentJobDetails"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobIdDeployment"
+        "404":
+          description: Job with given jobId not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /restores/jobs/{jobId}/state:
+    get:
+      summary: Restore job state
+      description: Get job state of any restore operation. Possible values for this
+        attribute are 'pending', 'running', 'completedWithWarning', 'completed', 'failed'.
+      operationId: getRestoreStatus
+      tags:
+      - Restores
+      parameters:
+      - name: jobId
+        in: path
+        description: id of the restore job
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: success
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.job.state+json:
+              schema:
+                $ref: "#/components/schemas/jobState"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobState"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/jobState"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobState"
+        "404":
+          description: No restore job with given jobId found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /restores/jobs/{jobId}/state#deployment:
+    get:
+      summary: Restore job state
+      description: Get job state of any restore operation. Possible values for this
+        attribute are 'pending', 'running', 'completedWithWarning', 'completed', 'failed'.
+      operationId: getDeploymentRestoreStatus
+      tags:
+      - DeploymentRestores
+      parameters:
+      - name: jobId
+        in: path
+        description: id of the restore job
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: success
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.job.deployment.state+json:
+              schema:
+                $ref: "#/components/schemas/jobDeploymentState"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobDeploymentState"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/jobDeploymentState"
+              examples:
+                json:
+                  $ref: "#/components/examples/restoreJobDeploymentState"
+        "404":
+          description: No restore job with given jobId found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+servers:
+- url: "http://example.com/deploymentBackup"
+  description: This is an example base URL.
+components:
+  schemas:
+    backupRequest:
+      title: Backup Request
+      description: Schema for backup Request.
+      properties:
+        version:
+          type: integer
+          description: The version number of this representation, the current version
+            is 2.
+        slug:
+          type: string
+          description: name given to a backup operation.
+        comments:
+          type: string
+          description: free text comments associated with this backup operation
+        configurationId:
+          type: string
+          description: id of a configuration to be used for backup operation. For
+            now only `default` configuration is supported.
+        backupType:
+          type: string
+          enum:
+          - default
+          - binary
+          description: Type of postgres backup defines `backupType`. `backupType`
+            can be `default` or `binary`. If backup type is `default` postgres backup
+            will be taken with pg_dump and if backup type is `binary` postgres backup
+            will be taken with pg_basebackup utility.
+        includeAllSourcesForBinaryBackup:
+          type: boolean
+          description: This is optional boolean variable which will be false by default
+            if omitted from the request body. This flag will be considered only if
+            we are selecting backupType as `binary`. If this flag set to true `SAS
+            Configuration Server`, `SAS Message Broker` and `SAS Cloud Analytic Services`
+            backup will also be taken along with postgres `binary` backup, else backup
+            will have only `SAS Infrastructure Data Server` binary backup.
+    backupJob:
+      title: Backup Job
+      description: Information about backup job. Returns vnd.sas.backup.job
+      properties:
+        version:
+          type: integer
+          description: The version number of this representation, the current version
+            is 2.
+        jobId:
+          type: string
+          description: identifier of job, derived from start timestamp.
+        backupType:
+          type: string
+          enum:
+          - default
+          - binary
+          description: Type of postgres backup defines `backupType`. `backupType`
+            can be `default` or `binary`. If backup type is `default` postgres backup
+            will be taken with pg_dump and if backup type is `binary` postgres backup
+            will be taken with pg_basebackup utility.
+        includeAllSourcesForBinaryBackup:
+          type: boolean
+          description: This is optional boolean variable which will be false by default
+            if omitted from the request body. This flag will be considered only if
+            we are selecting backupType as `binary`. If this flag set to true `SAS
+            Configuration Server`, `SAS Message Broker` and `SAS Cloud Analytic Services`
+            backup will also be taken along with postgres `binary` backup, else backup
+            will have only `SAS Infrastructure Data Server` binary backup.
+        slug:
+          type: string
+          description: Slug name is a name given to a backup operation.
+        comments:
+          type: string
+          description: free text comments associated with this backup operation.
+        state:
+          type: string
+          enum:
+          - pending
+          - running
+          - completedWithWarning
+          - completed
+          - failed
+          - canceling
+          - canceled
+          description: The state of the job. The state can be `pending`, `running`,
+            `completedWithWarning`, `completed`, `failed`, `canceling`, `canceled`.
+        owner:
+          type: string
+          description: user who initiated this backup.
+        purged:
+          type: boolean
+          description: This is boolean variable which will be false by default. Value
+            will be true if this backup no more exist because of auto purge after
+            specified retention period.
+        startTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when job started.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when job completed.
+        message:
+          $ref: "#/components/schemas/message"
+        links:
+          type: array
+          description: relation links that apply to this resource
+          items:
+            $ref: "#/components/schemas/link"
+    backup:
+      title: Backup
+      description: Backup representation.
+      properties:
+        version:
+          type: integer
+          description: The version number of this representation, the current version
+            is 2.
+        backupId:
+          type: string
+          description: id derived from start timestamp.
+        backupType:
+          type: string
+          enum:
+          - default
+          - binary
+          description: Type of postgres backup defines `backupType`. `backupType`
+            can be `default` or `binary`. If backup type is `default` postgres backup
+            will be taken with pg_dump and if backup type is `binary` postgres backup
+            will be taken with pg_basebackup utility.
+        includeAllSourcesForBinaryBackup:
+          type: boolean
+          description: This is optional boolean variable which will be false by default
+            if omitted from the request body. This flag will be considered only if
+            we are selecting backupType as `binary`. If this flag set to true `SAS
+            Configuration Server`, `SAS Message Broker` and `SAS Cloud Analytic Services`
+            backup will also be taken along with postgres `binary` backup, else backup
+            will have only `SAS Infrastructure Data Server` binary backup.
+        slug:
+          type: string
+          description: Slug name is a name given to a backup operation.
+        comments:
+          type: string
+          description: free text comments associated with this backup operation.
+        name:
+          type: string
+          description: name derived from start timestamp.
+        state:
+          type: string
+          enum:
+          - pending
+          - running
+          - completedWithWarning
+          - completed
+          - failed
+          - canceling
+          - canceled
+          description: The state of the job. The state can be `pending`, `running`,
+            `completedWithWarning`, `completed`, `failed`, `canceling`, `canceled`.
+        size:
+          type: integer
+          format: int64
+          description: The size of the files in bytes after backup.
+        owner:
+          type: string
+          description: user who initiated this backup.
+        purged:
+          type: boolean
+          description: This is boolean variable which will be false by default. Value
+            will be true if this backup no more exist because of auto purge after
+            specified retention period.
+        startTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when backup started.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when backup completed.
+        sources:
+          type: array
+          description: sources included in this backup
+          items:
+            $ref: "#/components/schemas/source"
+        message:
+          $ref: "#/components/schemas/message"
+        links:
+          type: array
+          description: relation links that apply to this resource
+          items:
+            $ref: "#/components/schemas/link"
+    backupSummary:
+      title: Backup Summary
+      description: Representation of type vnd.sas.backup.summary
+      properties:
+        version:
+          type: integer
+          description: The version number of this representation, the current version
+            is 2.
+        backupId:
+          type: string
+          description: id derived from start timestamp
+        backupType:
+          type: string
+          enum:
+          - default
+          - binary
+          description: Type of postgres backup defines `backupType`. `backupType`
+            can be `default` or `binary`. If backup type is `default` postgres backup
+            will be taken with pg_dump and if backup type is `binary` postgres backup
+            will be taken with pg_basebackup utility.
+        includeAllSourcesForBinaryBackup:
+          type: boolean
+          description: This is optional boolean variable which will be false by default
+            if omitted from the request body. This flag will be considered only if
+            we are selecting backupType as binary. If this flag set to true `SAS Configuration
+            Server`, `SAS Message Broker` and `SAS Cloud Analytic Services` backup
+            will also be taken along with postgres binary backup, else backup will
+            have only `SAS Infrastructure Data Server` binary backup.
+        slug:
+          type: string
+          description: Slug name is a name given to a backup operation.
+        comments:
+          type: string
+          description: free text comments associated with this backup operation.
+        name:
+          type: string
+          description: name derived from start timestamp
+        state:
+          type: string
+          enum:
+          - pending
+          - running
+          - completedWithWarning
+          - completed
+          - failed
+          - canceling
+          - canceled
+          description: The state of the operation. The state can be `pending`, `running`,
+            `completedWithWarning`, `completed`, `failed`, `canceling`, `canceled`.
+        size:
+          type: integer
+          format: int64
+          description: The size of the files in bytes after backup.
+        owner:
+          type: string
+          description: user who initiated this backup.
+        purged:
+          type: boolean
+          description: This is boolean variable which will be false by default. Value
+            will be true if this backup no more exist because of auto purge after
+            specified retention period.
+        startTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when job started.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when job completed.
+        sources:
+          $ref: "#/components/schemas/sourceSummary"
+        message:
+          $ref: "#/components/schemas/message"
+        links:
+          type: array
+          description: relation links that apply to this resource
+          items:
+            $ref: "#/components/schemas/link"
+    restoreRequest:
+      title: Restore Request
+      description: Schema for restore Request.
+      type: object
+      required:
+      - backupName
+      properties:
+        version:
+          type: integer
+          description: The version number of this representation, the current version
+            is 2.
+        slug:
+          type: string
+          description: name given to a restore operation.
+        comments:
+          type: string
+          description: free text comments associated with this restore operation
+        backupName:
+          type: string
+          description: unique id of backup for which restore operation is to be executed.
+            This is same as 'name' field from vnd.sas.backup representation
+        force:
+          type: boolean
+          default: false
+          description: "optional boolean variable which will be false by default if\
+            \ omitted from the request body. This will enable user to force restore\
+            \ a source if the pre restore validations fail. for example: This can\
+            \ be used when the list of databases currently in SAS Infrastructure Data\
+            \ Server do not match with the list databases that were backed up. If\
+            \ it is set to true, the restore operation will be forced to restore databases\
+            \ that are currently present both in SAS Infrastructure Data Server and\
+            \ the backup."
+    restoreJob:
+      title: Restore Job
+      description: Information about restore job. Returns vnd.sas.restore.job
+      properties:
+        version:
+          type: integer
+          description: The version number of this representation, the current version
+            is 2.
+        jobId:
+          type: string
+          description: identifier of job, driven from start time.
+        backupType:
+          type: string
+          enum:
+          - default
+          - binary
+          description: Type of postgres backup defines `backupType`. `backupType`
+            can be `default` or `binary`. If backup type is `default` postgres backup
+            has been taken with pg_dump and if backup type is `binary` postgres backup
+            has been taken with pg_basebackup utility.
+        includeAllSourcesForBinaryBackup:
+          type: boolean
+          description: This is optional boolean variable which will be false by default
+            if omitted from the request body. This flag will be considered only if
+            we are selecting backupType as `binary`. If this flag set to true `SAS
+            Configuration Server`, `SAS Message Broker` and `SAS Cloud Analytic Services`
+            backup has been taken along with postgres `binary` backup, else backup
+            has only `SAS Infrastructure Data Server` binary backup.
+        slug:
+          type: string
+          description: Slug name is a name given to a backup operation.
+        comments:
+          type: string
+          description: free text comments associated with this backup operation.
+        backupName:
+          type: string
+          description: name of the backup being restored
+        state:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          description: The state of the job. The state can be `pending`, `running`,
+            `completed`, `failed`.
+        owner:
+          type: string
+          description: user who initiated this backup.
+        startTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when job started.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when job completed.
+        message:
+          $ref: "#/components/schemas/message"
+        links:
+          type: array
+          description: relation links that apply to this resource
+          items:
+            $ref: "#/components/schemas/link"
+    restore:
+      title: Restore
+      description: Restore representation.
+      properties:
+        version:
+          type: integer
+          description: The version number of this representation, the current version
+            is 2.
+        restoreId:
+          type: string
+          description: id derived from start timestamp.
+        backupType:
+          type: string
+          enum:
+          - default
+          - binary
+          description: Type of postgres backup defines `backupType`. `backupType`
+            can be `default` or `binary`. If backup type is `default` postgres backup
+            has been taken with pg_dump and if backup type is `binary` postgres backup
+            has been taken with pg_basebackup utility.
+        includeAllSourcesForBinaryBackup:
+          type: boolean
+          description: This is optional boolean variable which will be false by default
+            if omitted from the request body. This flag will be considered only if
+            we are selecting backupType as `binary`. If this flag set to true `SAS
+            Configuration Server`, `SAS Message Broker` and `SAS Cloud Analytic Services`
+            backup has been taken along with `SAS Infrastructure Data Server` binary
+            backup, else backup has only `SAS Infrastructure Data Server` binary backup.
+        backupName:
+          type: string
+          description: name of the backup being restored
+        slug:
+          type: string
+          description: Slug name is a name given to a restore operation.
+        comments:
+          type: string
+          description: free text comments associated with this restore operation
+        name:
+          type: string
+          description: name derived from start timestamp
+        state:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          description: The state of the job. The state can be `pending`, `running`,
+            `completed`, `failed`.
+        owner:
+          type: string
+          description: user who initiated this restore.
+        startTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when restore started.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when restore completed.
+        sources:
+          type: array
+          description: sources included in this restore operation
+          items:
+            $ref: "#/components/schemas/source"
+        message:
+          $ref: "#/components/schemas/message"
+        links:
+          type: array
+          description: relation links that apply to this resource
+          items: {}
+    restoreSummary:
+      title: Restore Summary
+      description: Representation of type vnd.sas.restore.summary
+      properties:
+        version:
+          type: integer
+          description: The version number of this representation, the current version
+            is 2.
+        restoreId:
+          type: string
+          description: id derived from start timestamp.
+        backupName:
+          type: string
+          description: unique id of backup for which restore operation is  executed.
+            This is same as 'name' field from vnd.sas.backup representation
+        backupType:
+          type: string
+          enum:
+          - default
+          - binary
+          description: Type of postgres backup defines `backupType`. `backupType`
+            can be `default` or `binary`. If backup type is `default` postgres backup
+            has been taken with pg_dump and if backup type is `binary` postgres backup
+            has been taken with pg_basebackup utility.
+        includeAllSourcesForBinaryBackup:
+          type: boolean
+          description: This is optional boolean variable which will be false by default
+            if omitted from the request body. This flag will be considered only if
+            we are selecting backupType as `binary`. If this flag set to true `SAS
+            Configuration Server`, `SAS Message Broker` and `SAS Cloud Analytic Services`
+            backup has been taken along with `SAS Infrastructure Data Server` binary
+            backup, else backup has only `SAS Infrastructure Data Server` binary backup.
+        slug:
+          type: string
+          description: Slug name is a name given to a restore operation.
+        comments:
+          type: string
+          description: free text comments associated with this restore operation
+        name:
+          type: string
+          description: name derived from start timestamp
+        state:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          description: The state of the job. The state can be `pending`, `running`,
+            `completed`, `failed`.
+        owner:
+          type: string
+          description: user who initiated this restore.
+        startTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when restore started.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when restore completed.
+        sources:
+          $ref: "#/components/schemas/sourceSummary"
+        message:
+          $ref: "#/components/schemas/message"
+        links:
+          type: array
+          description: relation links that apply to this resource
+          items:
+            $ref: "#/components/schemas/link"
+    deploymentRequest:
+      title: Deployment Request
+      description: Schema for the backup operation performed by Provider Administrator
+      allOf:
+      - $ref: "#/components/schemas/backupRequest"
+      - type: object
+        properties:
+          tenants:
+            type: array
+            description: List of tenants should get included in backup.
+            items: {}
+    backupDeploymentJobDetails:
+      title: Backup Deployment Job Details
+      description: Schema for backup deployment job created.
+      allOf:
+      - $ref: "#/components/schemas/backupJob"
+      - type: object
+        properties:
+          tenants:
+            type: array
+            description: List of Tenant included in this backup.
+            items: {}
+    backupDeploymentSummary:
+      title: Backup Deployment Summary
+      description: schema of type vnd.sas.backup.deployment.summary.
+      properties:
+        version:
+          type: integer
+          description: The version number of this representation, the current version
+            is 2.
+        backupId:
+          type: string
+          description: id derived from start timestamp
+        backupType:
+          type: string
+          enum:
+          - default
+          - binary
+          description: Type of postgres backup defines `backupType`. `backupType`
+            can be `default` or `binary`. If backup type is `default` postgres backup
+            will be taken with pg_dump and if backup type is `binary` postgres backup
+            will be taken with pg_basebackup utility.
+        includeAllSourcesForBinaryBackup:
+          type: boolean
+          description: This is optional boolean variable which will be false by default
+            if omitted from the request body. This flag will be considered only if
+            we are selecting backupType as `binary`. If this flag set to true `SAS
+            Configuration Server`, `SAS Message Broker` and `SAS Cloud Analytic Services`
+            backup will also be taken along with `SAS Infrastructure Data Server`
+            binary backup, else backup will have only `SAS Infrastructure Data Server`
+            binary backup.
+        slug:
+          type: string
+          description: Slug name is a name given to a backup operation.
+        comments:
+          type: string
+          description: free text comments associated with this backup operation.
+        state:
+          type: string
+          enum:
+          - pending
+          - running
+          - completedWithWarning
+          - completed
+          - failed
+          - canceling
+          - canceled
+          description: The state of the job. The state can be `pending`, `running`,
+            `completedWithWarning`, `completed`, `failed`, `canceling`, `canceled`.
+        owner:
+          type: string
+          description: user who initiated this backup.
+        ownerTenantId:
+          type: string
+          description: tenant for which this backup initiated.
+        purged:
+          type: boolean
+          description: This is boolean variable which will be false by default. Value
+            will be true if this backup no more exist because of auto purge after
+            specified retention period.
+        startTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when job started.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when job completed.
+        tenantBackups:
+          $ref: "#/components/schemas/backupTenant"
+        message:
+          $ref: "#/components/schemas/message"
+        links:
+          type: array
+          description: relation links that apply to this resource
+          items:
+            $ref: "#/components/schemas/link"
+    restoreDeploymentRequest:
+      title: Restore Deployment Summary
+      description: Schema for restore operation.
+      allOf:
+      - $ref: "#/components/schemas/restoreRequest"
+      - type: object
+        properties:
+          tenants:
+            type: array
+            description: List of tenants should get included in restore.
+            items: {}
+          alternateSharedVaultForRestore:
+            type: string
+            description: Optional string variable. A valid shared system path, against
+              which restore operation of selected tenants would be done. This property
+              to be used in case where the history files of deployment is not copied
+              on Target environment but we want to restore selected tenants from source
+              to target environment.
+    restoreDeploymentJobDetails:
+      title: Restore Deployment Job Details
+      description: Schema for restore deployment job created.
+      allOf:
+      - $ref: "#/components/schemas/restoreJob"
+      - type: object
+        properties:
+          tenants:
+            type: array
+            description: List of Tenant included in this restore.
+            items: {}
+    restoreDeploymentSummary:
+      title: Restore Deployment Summary
+      description: schema of type vnd.sas.restore.deployment.summary.
+      properties:
+        version:
+          type: integer
+          description: The version number of this representation, the current version
+            is 2.
+        restoreId:
+          type: string
+          description: System generated unique resource identifier.
+        backupType:
+          type: string
+          enum:
+          - default
+          - binary
+          description: Type of postgres backup defines `backupType`. `backupType`
+            can be `default` or `binary`. If backup type is `default` postgres backup
+            has been taken with pg_dump and if backup type is `binary` postgres backup
+            has been taken with pg_basebackup utility.
+        includeAllSourcesForBinaryBackup:
+          type: boolean
+          description: This is optional boolean variable which will be false by default
+            if omitted from the request body. This flag will be considered only if
+            we are selecting backupType as `binary`. If this flag set to true `SAS
+            Configuration Server`, `SAS Message Broker` and `SAS Cloud Analytic Services`
+            backup will also be taken along with `SAS Infrastructure Data Server`
+            binary backup, else backup will have only `SAS Infrastructure Data Server`
+            binary backup.
+        slug:
+          type: string
+          description: Slug name is a name given to a restore operation.
+        comments:
+          type: string
+          description: free text comments associated with this restore operation.
+        backupName:
+          type: string
+          description: unique id of backup for which restore operation is executed.
+            This is same as 'name' field from vnd.sas.backup representation
+        state:
+          type: string
+          enum:
+          - pending
+          - running
+          - completedWithWarning
+          - completed
+          - failed
+          description: The state of the job. The state can be `pending`, `running`,
+            `completedWithWarning`, `completed`, `failed`.
+        owner:
+          type: string
+          description: user who initiated this restore.
+        ownerTenantId:
+          type: string
+          description: tenant for which this backup initiated.
+        startTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when restore started.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when restore completed.
+        tenantRestores:
+          $ref: "#/components/schemas/restoreTenant"
+        message:
+          $ref: "#/components/schemas/message"
+        links:
+          type: array
+          description: relation links that apply to this resource
+          items:
+            $ref: "#/components/schemas/link"
+    backupSourceType:
+      title: Source Type
+      description: schema for the sources to be backed up
+      properties:
+        version:
+          type: integer
+          description: The version number of this representation, the current version
+            is 1.
+        id:
+          type: string
+          description: identifier of the source
+        name:
+          type: string
+          description: name of the source
+        address:
+          type: string
+          description: host address of the source
+        included:
+          description: indicates whether source is to be backed up or not
+          type: boolean
+        description:
+          type: string
+          description: description for the source
+        links:
+          type: array
+          description: relation links that apply to this resource
+          items:
+            $ref: "#/components/schemas/link"
+    backupConfiguration:
+      title: configuration
+      description: actual configuration object
+      properties:
+        version:
+          type: integer
+          description: The version number of this representation, the current version
+            is 1.
+        retentionPeriod:
+          type: string
+          description: Representation of the period for which the old backups should
+            be retained. The retention period will always be in days. The media type
+            will represent this in form of W3S duration strings (for e.g. 'P30D' representing
+            '30 days'). After expiry auto purge would be run.
+        id:
+          type: string
+          description: unique configuration identifier
+        sharedVault:
+          type: string
+          description: shared vault location set in configuration. Backed up contents
+            from all deployment gets store in this centrally shared vault location.
+            The value for this field should be a valid shared system path.
+        additionalDatabases:
+          type: string
+          description: This property is deprecated, please do not use. Comma separated
+            list of additional Postgres databases which needs to be backed up.
+        sources:
+          type: array
+          description: indicates the sources enabled for backup.
+          items:
+            $ref: "#/components/schemas/backupSourceType"
+        links:
+          type: array
+          description: relation links that apply to this object
+          items:
+            $ref: "#/components/schemas/link"
+    configurationCollection:
+      title: Backup Configurations
+      description: application/vnd.sas.collection of type application/vnd.sas.backup.configuration
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/backupConfiguration"
+            description: The array of application/vnd.sas.backup.configuration representations.
+    sourceSummary:
+      title: Source Summary
+      description: schema for summary of state of each source within a job
+      properties:
+        id:
+          type: string
+          description: unique source identifier.
+        name:
+          type: string
+          description: name of source.
+        state:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          - unknown
+          description: Possible values for this attribute are 'pending', 'running',
+            'completed', 'failed', 'unknown'.
+    source:
+      title: Source
+      description: Schema for source.
+      properties:
+        version:
+          type: integer
+          description: The version number of this representation, the current version
+            is 1.
+        sourceId:
+          type: string
+          description: System generated unique resource identifier.
+        name:
+          type: string
+          description: The name of the source.
+        state:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          - unknown
+          description: The state of the operation. The state can be `pending`, `running`,
+            `completed`, `failed`, `unknown`.
+        address:
+          type: string
+          description: The host address of the source.
+        startTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when backup for this source started.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when backup for this source completed.
+        size:
+          type: integer
+          description: The size of the files in bytes after backup.
+    message:
+      title: Message
+      description: Schema for message.
+      properties:
+        jobMessages:
+          type: string
+          description: Error message occurred at job level.
+        sourceMessages:
+          type: object
+          description: Error message occurred at source level.
+          additionalProperties:
+            type: string
+            description: Error message occurred at source level.
+    sourceCollection:
+      title: Source Collection
+      description: application /vnd.sas.collection of type application/vnd.sas.backup.source.type
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/backupSourceType"
+    restoreTenant:
+      title: vnd.sas.restore.tenant
+      description: schema for restore summary of each tenant within a deployment backup
+        job.
+      properties:
+        restoreId:
+          type: string
+          description: id derived from start timestamp.
+        state:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          description: The state of the operation. The state can be `pending`, `running`,
+            `completed`, `failed`.
+        tenant:
+          type: string
+          description: name of tenant available in deployment backup job.
+        owner:
+          type: string
+          description: user who initiated this restore.
+        startTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when job started.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when job completed.
+    backupTenant:
+      title: vnd.sas.backup.tenant
+      description: schema for backup summary of each tenant within a deployment backup
+        job.
+      properties:
+        backupId:
+          type: string
+          description: id derived from start timestamp.
+        state:
+          type: string
+          enum:
+          - pending
+          - running
+          - completedWithWarning
+          - completed
+          - failed
+          - canceling
+          - canceled
+          description: The state of the operation. The state can be `pending`, `running`,
+            `completedWithWarning`, `completed`, `failed`, `canceling`, `canceled`.
+        purged:
+          type: boolean
+          description: This is boolean variable which will be false by default. Value
+            will be true if this backup no more exist because of auto purge after
+            specified retention period.
+        owner:
+          type: string
+          description: user who initiated this backup.
+        tenant:
+          type: string
+          description: name of tenant available in deployment backup job.
+        startTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when job started.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: Date Time stamp when job completed.
+    jobState:
+      title: vnd.sas.job.state
+      description: Provide status of job (backup/restore) in non multi tenant environment
+        for administratore and in multi tenant environment for tenant.
+      properties:
+        state:
+          type: string
+          description: The state of the operation. The state can be pending, running,
+            completedWithWarning, completed, failed, canceling, canceled.
+    jobDeploymentState:
+      title: vnd.sas.job.deployment.state
+      description: Provide deployment level job (backup or restore) status.
+      properties:
+        state:
+          type: string
+          description: The state of the operation. The state can be pending, running,
+            completedWithWarning, completed, failed,  canceling, canceled.
+    backupCollection:
+      title: Backup Collection
+      description: application /vnd.sas.collection of type application/vnd.sas.backup.summary
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/backupSummary"
+            description: The array of vnd.sas.backup.summary representations.
+    deploymentBackupCollection:
+      title: Deployment Backup Collection
+      description: application /vnd.sas.collection of type application/vnd.sas.backup.deployment.summary
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/backupDeploymentSummary"
+            description: The array of vnd.sas.backup.deployment.summary representations.
+    backupJobCollection:
+      title: Backup Job Collection
+      description: application /vnd.sas.collection of type application/vnd.sas.backup.job
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/backupJob"
+            description: The array of vnd.sas.backup.job representations.
+    restoreCollection:
+      title: Restore Collection
+      description: application /vnd.sas.collection of type application/vnd.sas.restore.summary
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/restoreSummary"
+            description: The array of vnd.sas.restore.summary representations.
+    deploymentRestoreCollection:
+      title: Deployment Restore Collection
+      description: application /vnd.sas.collection of type application/vnd.sas.restore.deployment.summary
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/restoreDeploymentSummary"
+            description: The array of vnd.sas.restore.deployment.summary representations.
+    restoreJobCollection:
+      title: Restore Job Collection
+      description: application /vnd.sas.collection of type application/vnd.sas.restore.job
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/restoreJob"
+            description: The array of vnd.sas.restore.job representations.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+  examples:
+    configurations:
+      summary: Configurations
+      description: Available configuration
+      value:
+        links:
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/configurations"
+          uri: "/deploymentBackup/configurations"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.backup.configuration
+        name: configurations
+        accept: application/vnd.sas.backup.configuration
+        count: 1
+        items:
+        - version: 1
+          configurationId: default
+          retentionPeriod: P30D
+          additionalDatabases: postgres,test
+          sharedVault: "/r/vetter/vol/scratch"
+          sources:
+          - version: 1
+            sourceId: consul
+            name: consul
+            address: rdcesx07140.race.sas.com
+            included: true
+            description: default description
+            links:
+            - method: GET
+              rel: self
+              href: "/deploymentBackup/configurations/default/sources/consul"
+              uri: "/deploymentBackup/configurations/default/sources/consul"
+              type: application/vnd.sas.backup.source.type
+          - version: 1
+            sourceId: rabbitmq
+            name: rabbitmq
+            address: rdcesx07140.race.sas.com
+            included: true
+            description: default description
+            links:
+            - method: GET
+              rel: self
+              href: "/deploymentBackup/configurations/default/sources/rabbitmq"
+              uri: "/deploymentBackup/configurations/default/sources/rabbitmq"
+              type: application/vnd.sas.backup.source.type
+          - version: 1
+            sourceId: postgres
+            name: postgres
+            address: rdcesx07140.race.sas.com
+            included: true
+            description: default description
+            links:
+            - method: GET
+              rel: self
+              href: "/deploymentBackup/configurations/default/sources/postgres"
+              uri: "/deploymentBackup/configurations/default/sources/postgres"
+              type: application/vnd.sas.backup.source.type
+          - version: 1
+            sourceId: cas-shared-default
+            name: cas-shared-default
+            address: rdcesx07140.race.sas.com
+            included: true
+            description: default description
+            links:
+            - method: GET
+              rel: self
+              href: "/deploymentBackup/configurations/default/sources/cas-shared-default"
+              uri: "/deploymentBackup/configurations/default/sources/cas-shared-default"
+              type: application/vnd.sas.backup.source.type
+          links:
+          - method: GET
+            rel: self
+            href: "/deploymentBackup/configurations/default"
+            uri: "/deploymentBackup/configurations/default"
+            type: application/vnd.sas.backup.configuration
+          - method: GET
+            rel: up
+            href: "/deploymentBackup/configurations"
+            uri: "/deploymentBackup/configurations"
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.backup.configuration
+          - method: GET
+            rel: collection
+            href: "/deploymentBackup/configurations/default/sources"
+            uri: "/deploymentBackup/configurations/default/sources"
+            type: application/vnd.sas.backup.configuration
+          - method: POST
+            rel: startBackup
+            href: "/deploymentBackup/backups/jobs"
+            uri: "/deploymentBackup/backups/jobs"
+            type: application/vnd.sas.backup.request
+            responseType: application/vnd.sas.backup.job
+        version: 2
+    configuration:
+      summary: Configuration
+      description: Get backup configuration with given id.
+      value:
+        version: 1
+        configurationId: default
+        retentionPeriod: P30D
+        sharedVault: /opt/sas/viya/sharedVault
+        sources:
+        - version: 1
+          sourceId: consul
+          name: SAS Configuration Server
+          address: deployment.prdpune.sashq-d.openstack.sas.com
+          included: true
+          description: default description
+          links:
+          - method: GET
+            rel: self
+            href: /deploymentBackup/configurations/default/sources/consul
+            uri: /deploymentBackup/configurations/default/sources/consul
+            type: application/vnd.sas.backup.source.type
+        - version: 1
+          sourceId: rabbitmq
+          name: SAS Message Broker
+          address: sin.prdpune.sashq-d.openstack.sas.com
+          included: true
+          description: default description
+          links:
+          - method: GET
+            rel: self
+            href: /deploymentBackup/configurations/default/sources/rabbitmq
+            uri: /deploymentBackup/configurations/default/sources/rabbitmq
+            type: application/vnd.sas.backup.source.type
+        - version: 1
+          sourceId: postgres-pgpool0
+          name: SAS Infrastructure Data Server
+          address: deployment.prdpune.sashq-d.openstack.sas.com
+          included: true
+          description: default description
+          links:
+          - method: GET
+            rel: self
+            href: /deploymentBackup/configurations/default/sources/postgres-pgpool0
+            uri: /deploymentBackup/configurations/default/sources/postgres-pgpool0
+            type: application/vnd.sas.backup.source.type
+        - version: 1
+          sourceId: cas-shared-default
+          name: SAS Cloud Analytic Services
+          address: deployment.prdpune.sashq-d.openstack.sas.com
+          included: true
+          description: default description
+          links:
+          - method: GET
+            rel: self
+            href: /deploymentBackup/configurations/default/sources/cas-shared-default
+            uri: /deploymentBackup/configurations/default/sources/cas-shared-default
+            type: application/vnd.sas.backup.source.type
+        links:
+        - method: GET
+          rel: self
+          href: /deploymentBackup/configurations/default
+          uri: /deploymentBackup/configurations/default
+          type: application/vnd.sas.backup.configuration
+        - method: GET
+          rel: up
+          href: /deploymentBackup/configurations
+          uri: /deploymentBackup/configurations
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.backup.configuration
+        - method: GET
+          rel: collection
+          href: /deploymentBackup/configurations/default/sources
+          uri: /deploymentBackup/configurations/default/sources
+          type: application/vnd.sas.backup.configuration
+        - method: POST
+          rel: startBackup
+          href: /deploymentBackup/backups/jobs
+          uri: /deploymentBackup/backups/jobs
+          type: application/vnd.sas.backup.request
+          responseType: application/vnd.sas.backup.job
+    sources:
+      summary: Sources
+      description: Get collection of backup enabled sources.
+      value:
+        links:
+        - method: GET
+          rel: collection
+          href: /deploymentBackup/backups
+          uri: /deploymentBackup/backups
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.backup.source.type
+        - method: GET
+          rel: self
+          href: /deploymentBackup/backups?start=0&limit=10
+          uri: /deploymentBackup/backups?start=0&limit=10
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.backup.source.type
+        name: sources
+        accept: application/vnd.sas.backup.source.type
+        start: 0
+        count: 4
+        items:
+        - version: 1
+          sourceId: consul
+          name: SAS Configuration Server
+          address: deployment.prdpune.sashq-d.openstack.sas.com
+          included: true
+          description: default description
+          links:
+          - method: GET
+            rel: self
+            href: /deploymentBackup/configurations/default/sources/consul
+            uri: /deploymentBackup/configurations/default/sources/consul
+            type: application/vnd.sas.backup.source.type
+        - version: 1
+          sourceId: rabbitmq
+          name: SAS Message Broker
+          address: deployment.prdpune.sashq-d.openstack.sas.com
+          included: true
+          description: default description
+          links:
+          - method: GET
+            rel: self
+            href: /deploymentBackup/configurations/default/sources/rabbitmq
+            uri: /deploymentBackup/configurations/default/sources/rabbitmq
+            type: application/vnd.sas.backup.source.type
+        - version: 1
+          sourceId: postgres-pgpool0
+          name: SAS Infrastructure Data Server
+          address: deployment.prdpune.sashq-d.openstack.sas.com
+          included: true
+          description: default description
+          links:
+          - method: GET
+            rel: self
+            href: /deploymentBackup/configurations/default/sources/postgres-pgpool0
+            uri: /deploymentBackup/configurations/default/sources/postgres-pgpool0
+            type: application/vnd.sas.backup.source.type
+        - version: 1
+          sourceId: cas-shared-default
+          name: SAS Cloud Analytic Services
+          address: deployment.prdpune.sashq-d.openstack.sas.com
+          included: true
+          description: default description
+          links:
+          - method: GET
+            rel: self
+            href: /deploymentBackup/configurations/default/sources/cas-shared-default
+            uri: /deploymentBackup/configurations/default/sources/cas-shared-default
+            type: application/vnd.sas.backup.source.type
+        limit: 4
+        version: 2
+    source:
+      summary: Source
+      description: Backup enabled source by id
+      value:
+        version: 1
+        sourceId: consul
+        name: SAS Configuration Server
+        address: deployment.prdpune.sashq-d.openstack.sas.com
+        included: true
+        description: default description
+        links:
+        - method: GET
+          rel: self
+          href: /deploymentBackup/configurations/default/sources/consul
+          uri: /deploymentBackup/configurations/default/sources/consul
+          type: application/vnd.sas.backup.source.type
+        - method: GET
+          rel: configuration
+          href: /deploymentBackup/configurations/default
+          uri: /deploymentBackup/configurations/default
+          type: application/vnd.sas.backup.configuration
+    rootapi:
+      summary: Root
+      description: root api links
+      value:
+        version: 1
+        links:
+        - method: POST
+          rel: startTenantBackup
+          href: "/deploymentBackup/backups/jobs"
+          uri: "/deploymentBackup/backups/jobs"
+          type: application/vnd.sas.backup.request
+          responseType: application/vnd.sas.backup.job
+        - method: POST
+          rel: startTenantRestore
+          href: "/deploymentBackup/restores/jobs"
+          uri: "/deploymentBackup/restores/jobs"
+          type: application/vnd.sas.restore.request
+          responseType: application/vnd.sas.restore.job
+        - method: GET
+          rel: backupHistory
+          href: "/deploymentBackup/backups"
+          uri: "/deploymentBackup/backups"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: restoreHistory
+          href: "/deploymentBackup/restores"
+          uri: "/deploymentBackup/restores"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: configurations
+          href: "/deploymentBackup/configurations"
+          uri: "/deploymentBackup/configurations"
+          type: application/vnd.sas.backup.configuration
+        - method: POST
+          rel: startDeploymentBackup
+          href: "/deploymentBackup/backups/jobs"
+          uri: "/deploymentBackup/backups/jobs"
+          responseType: application/vnd.sas.backup.deployment.job.details
+        - method: POST
+          rel: startDeploymentRestore
+          href: "/deploymentBackup/restores/jobs"
+          uri: "/deploymentBackup/restores/jobs"
+          responseType: application/vnd.sas.restore.deployment.job
+        - method: GET
+          rel: deploymentBackupHistory
+          href: "/deploymentBackup/backups"
+          uri: "/deploymentBackup/backups"
+          type: application/vnd.sas.backup.deployment.summary
+        - method: GET
+          rel: deploymentRestoreHistory
+          href: "/deploymentBackup/restores"
+          uri: "/deploymentBackup/restores"
+          type: application/vnd.sas.restore.deployment.summary
+    backups:
+      summary: Backups
+      description: Get backup operations history
+      value:
+        links:
+        - method: GET
+          rel: collection
+          href: "/deploymentBackup/backups"
+          uri: "/deploymentBackup/backups"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.backup.summary
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/backups?start=11&limit=2"
+          uri: "/deploymentBackup/backups?start=11&limit=2"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.backup.summary
+        - method: GET
+          rel: first
+          href: "/deploymentBackup/backups?start=0&limit=2"
+          uri: "/deploymentBackup/backups?start=0&limit=2"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: prev
+          href: "/deploymentBackup/backups?start=9&limit=2"
+          uri: "/deploymentBackup/backups?start=9&limit=2"
+          type: application/vnd.sas.collection
+        name: backupHistory
+        accept: application/vnd.sas.backup.summary
+        start: 11
+        count: 13
+        items:
+        - version: 2
+          backupId: 2018-03-13T00_01_29_240-0400
+          backupType: default
+          includeAllSourcesForBinaryBackup: false
+          slug: slug
+          comments: comments
+          name: 2018-03-13T00_01_29_240-0400
+          state: completed
+          size: 217274829
+          owner: sas.deploymentBackup
+          purged: false
+          startTimeStamp: '2018-03-13T04:01:29.240Z'
+          endTimeStamp: '2018-03-13T04:05:10.405Z'
+          sources:
+          - id: rabbitmq
+            name: SAS Message Broker
+            state: completed
+          - id: consul
+            name: SAS Configuration Server
+            state: completed
+          - id: cas-shared-default
+            name: SAS Cloud Analytic Services
+            state: completed
+          - id: postgres
+            name: SAS Infrastructure Data Server
+            state: completed
+          links:
+          - method: GET
+            rel: details
+            href: "/deploymentBackup/backups/2018-03-13T00_01_29_240-0400"
+            uri: "/deploymentBackup/backups/2018-03-13T00_01_29_240-0400"
+            type: application/vnd.sas.backup
+          - method: GET
+            rel: configuration
+            href: "/deploymentBackup/configurations/default"
+            uri: "/deploymentBackup/configurations/default"
+            type: application/vnd.sas.backup.configuration
+          - method: POST
+            rel: startTenantRestore
+            href: "/deploymentBackup/restores/jobs"
+            uri: "/deploymentBackup/restores/jobs"
+            type: application/vnd.sas.restore.request
+            responseType: application/vnd.sas.restore.job
+        - version: 2
+          backupId: 2018-03-12T09_48_51_636-0400
+          backupType: default
+          includeAllSourcesForBinaryBackup: false
+          slug: new-Slug
+          comments: new backup
+          name: 2018-03-12T09_48_51_636-0400
+          state: failed
+          size: 0
+          owner: sasboot
+          purged: false
+          startTimeStamp: '2018-03-12T13:48:51.636Z'
+          endTimeStamp: '2018-03-12T13:48:52.579Z'
+          sources:
+          - id: rabbitmq
+            name: SAS Message Broker
+            state: unknown
+          - id: postgres
+            name: SAS Infrastructure Data Server
+            state: unknown
+          - id: cas-shared-default
+            name: SAS Cloud Analytic Services
+            state: unknown
+          - id: consul
+            name: SAS Configuration Server
+            state: unknown
+          message:
+            jobMessages: " Transfer failed. The backup, transfer, or post-backup operation\
+              \ failed."
+            sourceMessages:
+              cas-shared-default: ' The backup agent is either not available or is
+                not running on the host "SAS Cloud Analytic Services".'
+              consul: ' The backup agent is either not available or is not running
+                on the host "SAS Configuration Server".'
+              rabbitmq: ' The backup agent is either not available or is not running
+                on the host "SAS Message Broker".'
+              postgres: ' The backup agent is either not available or is not running
+                on the host "SAS Infrastructure Data Server".'
+          links:
+          - method: GET
+            rel: details
+            href: "/deploymentBackup/backups/2018-03-12T09_48_51_636-0400"
+            uri: "/deploymentBackup/backups/2018-03-12T09_48_51_636-0400"
+            type: application/vnd.sas.backup
+          - method: GET
+            rel: configuration
+            href: "/deploymentBackup/configurations/default"
+            uri: "/deploymentBackup/configurations/default"
+            type: application/vnd.sas.backup.configuration
+          - method: POST
+            rel: startTenantRestore
+            href: "/deploymentBackup/restores/jobs"
+            uri: "/deploymentBackup/restores/jobs"
+            type: application/vnd.sas.restore.request
+            responseType: application/vnd.sas.restore.job
+        limit: 2
+        version: 2
+    backupsDeployment:
+      summary: Backups
+      description: Retrieves the history of all the backups by Provider Administrator
+        in multi-tenant-environment.
+      value:
+        links:
+        - method: GET
+          rel: collection
+          href: "/deploymentBackup/backups"
+          uri: "/deploymentBackup/backups"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.backup.deployment.summary
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/backups?start=2&limit=2"
+          uri: "/deploymentBackup/backups?start=2&limit=2"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.backup.deployment.summary
+        - method: GET
+          rel: first
+          href: "/deploymentBackup/backups?start=0&limit=2"
+          uri: "/deploymentBackup/backups?start=0&limit=2"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: prev
+          href: "/deploymentBackup/backups?start=0&limit=2"
+          uri: "/deploymentBackup/backups?start=0&limit=2"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: next
+          href: "/deploymentBackup/backups?start=4&limit=2"
+          uri: "/deploymentBackup/backups?start=4&limit=2"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: last
+          href: "/deploymentBackup/backups?start=6&limit=2"
+          uri: "/deploymentBackup/backups?start=6&limit=2"
+          type: application/vnd.sas.collection
+        name: deploymentbackupHistory
+        accept: application/vnd.sas.backup.deployment.summary
+        start: 2
+        count: 8
+        items:
+        - version: 2
+          backupId: 2018-03-14T02_23_19_293-0400
+          backupType: default
+          includeAllSourcesForBinaryBackup: false
+          slug: slug
+          comments: comments
+          state: completed
+          owner: sasboot
+          ownerTenantId: provider
+          purged: false
+          startTimeStamp: '2018-03-14T06:23:19.307Z'
+          endTimeStamp: '2018-03-14T06:27:00.624Z'
+          tenantBackups:
+          - backupId: 2018-03-14T02_23_19_293-0400
+            state: completed
+            purged: false
+            owner: provider
+            tenant: provider
+            startTimeStamp: '2018-03-14T06:23:19.293Z'
+            endTimeStamp: '2018-03-14T06:27:00.624Z'
+          - backupId: 2018-03-14T02_23_19_293-0400
+            state: completed
+            purged: false
+            owner: provider
+            tenant: intech
+            startTimeStamp: '2018-03-14T06:23:19.293Z'
+            endTimeStamp: '2018-03-14T06:25:20.416Z'
+          - backupId: 2018-03-14T02_23_19_293-0400
+            state: completed
+            purged: false
+            owner: provider
+            tenant: cyberdyne
+            startTimeStamp: '2018-03-14T06:23:19.293Z'
+            endTimeStamp: '2018-03-14T06:24:00.016Z'
+          - backupId: 2018-03-14T02_23_19_293-0400
+            state: completed
+            purged: false
+            owner: provider
+            tenant: acme
+            startTimeStamp: '2018-03-14T06:23:19.293Z'
+            endTimeStamp: '2018-03-14T06:24:40.254Z'
+          links:
+          - method: GET
+            rel: self
+            href: "/deploymentBackup/backups/jobs/2018-03-14T02_23_19_293-0400"
+            uri: "/deploymentBackup/backups/jobs/2018-03-14T02_23_19_293-0400"
+            type: application/vnd.sas.backup.deployment.summary
+          - method: GET
+            rel: configuration
+            href: "/deploymentBackup/configurations/default"
+            uri: "/deploymentBackup/configurations/default"
+            type: application/vnd.sas.backup.configuration
+          - method: POST
+            rel: startDeploymentRestore
+            href: "/deploymentBackup/restores/jobs"
+            uri: "/deploymentBackup/restores/jobs"
+            type: application/vnd.sas.restore.deployment.request
+            responseType: application/vnd.sas.restore.deployment.job.details
+        - version: 2
+          backupId: 2018-03-13T09_11_24_621-0400
+          backupType: default
+          includeAllSourcesForBinaryBackup: false
+          slug: test slug
+          comments: test deployment backup
+          state: completed
+          owner: sasboot
+          ownerTenantId: provider
+          purged: false
+          startTimeStamp: '2018-03-13T13:11:24.630Z'
+          endTimeStamp: '2018-03-13T13:15:05.573Z'
+          tenantBackups:
+          - backupId: 2018-03-13T09_11_24_621-0400
+            state: completed
+            purged: false
+            owner: provider
+            tenant: cyberdyne
+            startTimeStamp: '2018-03-13T13:11:24.621Z'
+            endTimeStamp: '2018-03-13T13:12:05.015Z'
+          - backupId: 2018-03-13T09_11_24_621-0400
+            state: completed
+            purged: false
+            owner: provider
+            tenant: acme
+            startTimeStamp: '2018-03-13T13:11:24.621Z'
+            endTimeStamp: '2018-03-13T13:12:45.271Z'
+          - backupId: 2018-03-13T09_11_24_621-0400
+            state: completed
+            purged: false
+            owner: provider
+            tenant: provider
+            startTimeStamp: '2018-03-13T13:11:24.621Z'
+            endTimeStamp: '2018-03-13T13:15:05.573Z'
+          - backupId: 2018-03-13T09_11_24_621-0400
+            state: completed
+            purged: false
+            owner: provider
+            tenant: intech
+            startTimeStamp: '2018-03-13T13:11:24.621Z'
+            endTimeStamp: '2018-03-13T13:13:25.396Z'
+          links:
+          - method: GET
+            rel: self
+            href: "/deploymentBackup/backups/jobs/2018-03-13T09_11_24_621-0400"
+            uri: "/deploymentBackup/backups/jobs/2018-03-13T09_11_24_621-0400"
+            type: application/vnd.sas.backup.deployment.summary
+          - method: GET
+            rel: configuration
+            href: "/deploymentBackup/configurations/default"
+            uri: "/deploymentBackup/configurations/default"
+            type: application/vnd.sas.backup.configuration
+          - method: POST
+            rel: startDeploymentRestore
+            href: "/deploymentBackup/restores/jobs"
+            uri: "/deploymentBackup/restores/jobs"
+            type: application/vnd.sas.restore.deployment.request
+            responseType: application/vnd.sas.restore.deployment.job.details
+        limit: 2
+        version: 2
+    backupsId:
+      summary: Backup
+      description: Retirves Backup based on BackupId
+      value:
+        version: 2
+        backupId: 2017-07-24T06_33_04_439-0400
+        backupType: default
+        includeAllSourcesForBinaryBackup: false
+        slug: new-Slug
+        comments: new backup
+        name: 2017-07-24T06_33_04_439-0400
+        state: completed
+        size: 40878137
+        owner: sasin
+        purged: false
+        startTimeStamp: '2017-07-24T10:33:05.339Z'
+        endTimeStamp: '2017-07-24T10:33:38.886Z'
+        sources:
+        - version: 1
+          sourceId: consul
+          name: consul
+          address: rdcesx07140.race.sas.com
+          state: completed
+          startTimeStamp: '2017-07-24T10:33:05.279Z'
+          endTimeStamp: '2017-07-24T10:33:16.109Z'
+          size: 556057
+        - version: 1
+          sourceId: rabbitmq
+          name: rabbitmq
+          address: rdcesx07140.race.sas.com
+          state: completed
+          startTimeStamp: '2017-07-24T10:33:05.286Z'
+          endTimeStamp: '2017-07-24T10:33:16.036Z'
+          size: 11541
+        - version: 1
+          sourceId: postgres
+          name: postgres
+          address: rdcesx07140.race.sas.com
+          state: completed
+          startTimeStamp: '2017-07-24T10:33:05.286Z'
+          endTimeStamp: '2017-07-24T10:33:36.619Z'
+          size: 40261147
+        - version: 1
+          sourceId: cas-shared-default
+          name: cas-shared-default
+          address: rdcesx07140.race.sas.com
+          state: completed
+          startTimeStamp: '2017-07-24T10:33:05.287Z'
+          endTimeStamp: '2017-07-24T10:33:17.739Z'
+          size: 49392
+        links:
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/backups/2017-07-24T06_33_04_439-0400"
+          uri: "/deploymentBackup/backups/2017-07-24T06_33_04_439-0400"
+          type: application/vnd.sas.backup
+        - method: GET
+          rel: configuration
+          href: "/deploymentBackup/configurations/default"
+          uri: "/deploymentBackup/configurations/default"
+          type: application/vnd.sas.backup.configuration
+        - method: PUT
+          rel: cancelJob
+          href: "/deploymentBackup/backups/2017-07-24T06_33_04_439-0400?value=canceled"
+          uri: "/deploymentBackup/backups/2017-07-24T06_33_04_439-0400?value=canceled"
+          type: application/vnd.sas.backup
+        - method: POST
+          rel: startRestore
+          href: "/deploymentBackup/restores/jobs"
+          uri: "/deploymentBackup/restores/jobs"
+          type: application/vnd.sas.restore.request
+          responseType: application/vnd.sas.restore.job
+    backupsIdDeployment:
+      summary: Backup
+      description: Get Backup based on BackupId
+      value:
+        version: 2
+        backupId: 2017-08-03T04_44_11_270-0400
+        backupType: default
+        includeAllSourcesForBinaryBackup: false
+        slug: slug
+        comments: comments
+        state: completed
+        owner: sasboot
+        ownerTenantId: provider
+        purged: false
+        startTimeStamp: '2017-08-03T08:44:11.287Z'
+        endTimeStamp: '2017-08-03T08:44:55.779Z'
+        tenantBackups:
+        - backupId: 2017-08-03T04_44_11_270-0400
+          startTimeStamp: '2017-08-03T08:44:12.422Z'
+          endTimeStamp: '2017-08-03T08:44:13.906Z'
+          state: completed
+          tenant: cyberdyne
+          owner: provider
+        - backupId: 2017-08-03T04_44_11_270-0400
+          startTimeStamp: '2017-08-03T08:44:18.612Z'
+          endTimeStamp: '2017-08-03T08:44:55.779Z'
+          state: completed
+          tenant: provider
+          owner: provider
+        - backupId: 2017-08-03T04_44_11_270-0400
+          startTimeStamp: '2017-08-03T08:44:14.041Z'
+          endTimeStamp: '2017-08-03T08:44:16.091Z'
+          state: completed
+          tenant: acme
+          owner: provider
+        - backupId: 2017-08-03T04_44_11_270-0400
+          startTimeStamp: '2017-08-03T08:44:16.354Z'
+          endTimeStamp: '2017-08-03T08:44:17.865Z'
+          state: completed
+          tenant: intech
+          owner: provider
+        links:
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/backups/jobs/2017-08-03T04_44_11_270-0400"
+          uri: "/deploymentBackup/backups/jobs/2017-08-03T04_44_11_270-0400"
+          type: application/vnd.sas.backup.deployment.summary
+        - method: GET
+          rel: configuration
+          href: "/deploymentBackup/configurations/default"
+          uri: "/deploymentBackup/configurations/default"
+          type: application/vnd.sas.backup.configuration
+        - method: PUT
+          rel: cancelDeploymentJob
+          href: "/deploymentBackup/backups/jobs/2017-08-03T04_44_11_270-0400?value=canceled"
+          uri: "/deploymentBackup/backups/jobs/2017-08-03T04_44_11_270-0400?value=canceled"
+          type: application/vnd.sas.job.deployment.state
+        - method: POST
+          rel: startDeploymentRestore
+          href: "/deploymentBackup/restores/jobs"
+          uri: "/deploymentBackup/restores/jobs"
+          type: application/vnd.sas.restore.deployment.request
+          responseType: application/vnd.sas.restore.deployment.job.details
+    backupJobRequest:
+      summary: Job
+      description: Backup Job request Body
+      value:
+        version: 2
+        slug: backup
+        comments: backup
+        configurationId: default
+        backupType: default
+    backupJobResponse:
+      summary: Backup Job
+      description: Backup Job Response
+      value:
+        version: 2
+        jobId: 2017-08-03T00_59_44_303-0400
+        backupType: default
+        includeAllSourcesForBinaryBackup: false
+        slug: new-Slug
+        comments: new backup
+        state: pending
+        owner: sasin
+        purged: false
+        startTimeStamp: '2017-08-03T00:59:44.658Z'
+        links:
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/backups/jobs/2017-08-03T00_59_44_303-0400"
+          uri: "/deploymentBackup/backups/jobs/2017-08-03T00_59_44_303-0400"
+          type: application/vnd.sas.backup.job
+        - method: GET
+          rel: details
+          href: "/deploymentBackup/backups/2017-08-03T00_59_44_303-0400"
+          uri: "/deploymentBackup/backups/2017-08-03T00_59_44_303-0400"
+          type: application/vnd.sas.backup
+        - method: GET
+          rel: state
+          href: "/deploymentBackup/backups/jobs/2017-08-03T00_59_44_303-0400/state"
+          uri: "/deploymentBackup/backups/jobs/2017-08-03T00_59_44_303-0400/state"
+          type: application/vnd.sas.job.state
+        - method: PUT
+          rel: cancelJob
+          href: "/deploymentBackup/backups/jobs/2017-08-03T00_59_44_303-0400/state?value=canceled"
+          uri: "/deploymentBackup/backups/jobs/2017-08-03T00_59_44_303-0400/state?value=canceled"
+          type: application/vnd.sas.job.state
+        - method: POST
+          rel: startRestore
+          href: "/deploymentBackuprestores/jobs"
+          uri: "/deploymentBackuprestores/jobs"
+          type: application/vnd.sas.restore.request
+          responseType: application/vnd.sas.restore.job
+    backupJobDeploymentRequest:
+      summary: Job
+      description: Request body for the backup operation performed by Provider Administrator
+      value:
+        version: 2
+        slug: Provider backup
+        comments: Provider backup
+        configurationId: default
+        backupType: default
+        tenants:
+        - acme
+        - cyberdyne
+        - intech
+        - provider
+    backupJobDeploymentResponse:
+      summary: Backup Job
+      description: BackupJob Deployment Response
+      value:
+        version: 2
+        jobId: 2017-08-03T04_44_11_270-0400
+        backupType: default
+        includeAllSourcesForBinaryBackup: false
+        slug: Deployment Backup
+        comments: Deployment Backup
+        state: pending
+        owner: sasboot
+        purged: false
+        startTimeStamp: '2017-08-03T08:44:18.734Z'
+        tenants:
+        - cyberdyne
+        - acme
+        - intech
+        - provider
+        links:
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/backups/jobs/2017-08-03T04_44_11_270-0400"
+          uri: "/deploymentBackup/backups/jobs/2017-08-03T04_44_11_270-0400"
+          type: application/vnd.sas.backup.deployment.job.details
+        - method: GET
+          rel: details
+          href: "/deploymentBackup/backups/2017-08-03T04_44_11_270-0400"
+          uri: "/deploymentBackup/backups/2017-08-03T04_44_11_270-0400"
+          type: application/vnd.sas.backup.deployment.summary
+        - method: GET
+          rel: state
+          href: "/deploymentBackup/backups/jobs/2017-08-03T04_44_11_270-0400/state"
+          uri: "/deploymentBackup/backups/jobs/2017-08-03T04_44_11_270-0400/state"
+          type: application/vnd.sas.job.deployment.state
+        - method: PUT
+          rel: cancelDeploymentJob
+          href: "/deploymentBackup/backups/jobs/2017-08-03T04_44_11_270-0400/state?value=canceled"
+          uri: "/deploymentBackup/backups/jobs/2017-08-03T04_44_11_270-0400/state?value=canceled"
+          type: application/vnd.sas.job.deployment.state
+        - method: POST
+          rel: startDeploymentRestore
+          href: "/deploymentBackup/restores/jobs"
+          uri: "/deploymentBackup/restores/jobs"
+          type: application/vnd.sas.restore.deployment.request
+          responseType: application/vnd.sas.restore.deployment.job.details
+    backupJobId:
+      summary: Backup Job
+      description: Get Backup Job Details
+      value:
+        version: 2
+        jobId: 2017-07-31T05_11_43_874-0400
+        backupType: default
+        includeAllSourcesForBinaryBackup: false
+        slug: slug
+        comments: comments
+        state: running
+        owner: sasboot
+        purged: false
+        startTimeStamp: '2017-07-31T09:11:44.957Z'
+        links:
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/backups/jobs/2017-07-31T05_11_43_874-0400"
+          uri: "/deploymentBackup/backups/jobs/2017-07-31T05_11_43_874-0400"
+          type: application/vnd.sas.backup.job
+        - method: GET
+          rel: details
+          href: "/deploymentBackup/backups/2017-07-31T05_11_43_874-0400"
+          uri: "/deploymentBackup/backups/2017-07-31T05_11_43_874-0400"
+          type: application/vnd.sas.backup
+        - method: GET
+          rel: state
+          href: "/deploymentBackup/backups/jobs/2017-07-31T05_11_43_874-0400/state"
+          uri: "/deploymentBackup/backups/jobs/2017-07-31T05_11_43_874-0400/state"
+          type: application/vnd.sas.job.state
+        - method: PUT
+          rel: cancelJob
+          href: "/deploymentBackup/backups/2017-07-31T05_11_43_874-0400?value=canceled"
+          uri: "/deploymentBackup/backups/2017-07-31T05_11_43_874-0400?value=canceled"
+          type: application/vnd.sas.job.state
+        - method: POST
+          rel: startRestore
+          href: "/deploymentBackuprestores/jobs"
+          uri: "/deploymentBackuprestores/jobs"
+          type: application/vnd.sas.restore.request
+          responseType: application/vnd.sas.restore.job
+    backupJobIdDeployment:
+      summary: Backup Job
+      description: Backup job details
+      value:
+        version: 2
+        jobId: 2017-10-23T06_37_01_017-0400
+        backupType: binary
+        includeAllSourcesForBinaryBackup: true
+        slug: slug
+        comments: comments
+        state: completed
+        owner: sasboot
+        purged: false
+        startTimeStamp: '2017-10-23T10:37:01.020Z'
+        endTimeStamp: '2017-10-23T10:42:00.757Z'
+        tenants:
+        - cyberdyne
+        - acme
+        - intech
+        - provider
+        links:
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/backups/jobs/2017-10-23T06_37_01_017-0400"
+          uri: "/deploymentBackup/backups/jobs/2017-10-23T06_37_01_017-0400"
+          type: application/vnd.sas.backup.deployment.job.details
+        - method: GET
+          rel: details
+          href: "/deploymentBackup/backups/2017-10-23T06_37_01_017-0400"
+          uri: "/deploymentBackup/backups/2017-10-23T06_37_01_017-0400"
+          type: application/vnd.sas.backup.deployment.summary
+        - method: GET
+          rel: state
+          href: "/deploymentBackup/backups/jobs/2017-10-23T06_37_01_017-0400/state"
+          uri: "/deploymentBackup/backups/jobs/2017-10-23T06_37_01_017-0400/state"
+          type: application/vnd.sas.job.deployment.state
+        - method: PUT
+          rel: cancelDeploymentJob
+          href: "/deploymentBackup/backups/jobs/2017-10-23T06_37_01_017-0400?value=canceled"
+          uri: "/deploymentBackup/backups/jobs/2017-10-23T06_37_01_017-0400?value=canceled"
+          type: application/vnd.sas.job.deployment.state
+        - method: POST
+          rel: startDeploymentRestore
+          href: "/deploymentBackup/restores/jobs"
+          uri: "/deploymentBackup/restores/jobs"
+          type: application/vnd.sas.restore.deployment.request
+          responseType: application/vnd.sas.restore.deployment.job.details
+    backupJobState:
+      summary: Backup Job State
+      description: Get State of backup
+      value:
+        state: completed
+    backupJobDeploymentState:
+      summary: Backup Job State
+      description: Get state for backup operation performed by provider administrator
+      value:
+        state: completed
+    backupCancelState:
+      summary: Backup Job State
+      description: Cancel state
+      value:
+        state: canceling
+    backupCancelStateDeployment:
+      summary: Backup Job State
+      description: Cancel state
+      value:
+        state: canceling
+    restores:
+      summary: Restores
+      description: Get restore operations history
+      value:
+        links:
+        - method: GET
+          rel: collection
+          href: "/deploymentBackup/restores"
+          uri: "/deploymentBackup/restores"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.restore.summary
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/restores?start=2&limit=2"
+          uri: "/deploymentBackup/restores?start=2&limit=2"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.restore.summary
+        - method: GET
+          rel: first
+          href: "/deploymentBackup/restores?start=0&limit=2"
+          uri: "/deploymentBackup/restores?start=0&limit=2"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: prev
+          href: "/deploymentBackup/restores?start=0&limit=2"
+          uri: "/deploymentBackup/restores?start=0&limit=2"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: next
+          href: "/deploymentBackup/restores?start=4&limit=2"
+          uri: "/deploymentBackup/restores?start=4&limit=2"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: last
+          href: "/deploymentBackup/restores?start=4&limit=2"
+          uri: "/deploymentBackup/restores?start=4&limit=2"
+          type: application/vnd.sas.collection
+        name: restoreHistory
+        accept: application/vnd.sas.restore.summary
+        start: 2
+        count: 5
+        items:
+        - version: 2
+          restoreId: 2018-03-14T03_19_55_581-0400
+          backupName: 2018-03-14T02_23_19_293-0400
+          backupType: default
+          includeAllSourcesForBinaryBackup: false
+          slug: new-restore-slug
+          comments: Testing Restore
+          name: 2018-03-14T03_19_55_581-0400
+          state: failed
+          owner: sasboot
+          startTimeStamp: '2018-03-14T07:19:55.581Z'
+          endTimeStamp: '2018-03-14T07:23:55.996Z'
+          sources:
+          - id: rabbitmq
+            name: SAS Message Broker
+            state: failed
+          - id: consul
+            name: SAS Configuration Server
+            state: failed
+          - id: postgres
+            name: SAS Infrastructure Data Server
+            state: failed
+          message:
+            jobMessages: " Transfer failed."
+            sourceMessages:
+              cas-shared-default: ' The backup agent is either not available or is
+                not running on the host "SAS Cloud Analytic Services".'
+              consul: ' The backup agent is either not available or is not running
+                on the host "SAS Configuration Server".'
+              rabbitmq: ' The backup agent is either not available or is not running
+                on the host "SAS Message Broker".'
+              postgres: ' The backup agent is either not available or is not running
+                on the host "SAS Infrastructure Data Server".'
+          links:
+          - method: GET
+            rel: details
+            href: "/deploymentBackup/restores/2018-03-14T03_19_55_581-0400"
+            uri: "/deploymentBackup/restores/2018-03-14T03_19_55_581-0400"
+            type: application/vnd.sas.restore
+          - method: GET
+            rel: backup
+            href: "/deploymentBackup/backups/2018-03-14T02_23_19_293-0400"
+            uri: "/deploymentBackup/backups/2018-03-14T02_23_19_293-0400"
+            type: application/vnd.sas.backup
+          - method: GET
+            rel: configuration
+            href: "/deploymentBackup/configurations/default"
+            uri: "/deploymentBackup/configurations/default"
+            type: application/vnd.sas.backup.configuration
+        - version: 2
+          restoreId: 2018-03-13T09_15_12_266-0400
+          backupName: 2018-03-13T09_11_24_621-0400
+          backupType: default
+          includeAllSourcesForBinaryBackup: false
+          slug: Recovery triggered as a part of deployment restore
+          comments: Recovery triggered as a part of deployment restore
+          name: 2018-03-13T09_15_12_266-0400
+          state: completed
+          owner: sasboot
+          startTimeStamp: '2018-03-13T13:15:12.266Z'
+          endTimeStamp: '2018-03-13T13:19:53.436Z'
+          sources:
+          - id: consul
+            name: SAS Configuration Server
+            state: completed
+          - id: rabbitmq
+            name: SAS Message Broker
+            state: completed
+          - id: postgres
+            name: SAS Infrastructure Data Server
+            state: completed
+          links:
+          - method: GET
+            rel: details
+            href: "/deploymentBackup/restores/2018-03-13T09_15_12_266-0400"
+            uri: "/deploymentBackup/restores/2018-03-13T09_15_12_266-0400"
+            type: application/vnd.sas.restore
+          - method: GET
+            rel: backup
+            href: "/deploymentBackup/backups/2018-03-13T09_11_24_621-0400"
+            uri: "/deploymentBackup/backups/2018-03-13T09_11_24_621-0400"
+            type: application/vnd.sas.backup
+          - method: GET
+            rel: configuration
+            href: "/deploymentBackup/configurations/default"
+            uri: "/deploymentBackup/configurations/default"
+            type: application/vnd.sas.backup.configuration
+        limit: 2
+        version: 2
+    restoresDeployment:
+      summary: Restores
+      description: Get restore operations history(paginated) performed by Provider
+        Administrator.
+      value:
+        links:
+        - method: GET
+          rel: collection
+          href: "/deploymentBackup/restores"
+          uri: "/deploymentBackup/restores"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.restore.deployment.summary
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/restores?start=2&limit=2"
+          uri: "/deploymentBackup/restores?start=2&limit=2"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.restore.deployment.summary
+        - method: GET
+          rel: first
+          href: "/deploymentBackup/restores?start=0&limit=2"
+          uri: "/deploymentBackup/restores?start=0&limit=2"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: prev
+          href: "/deploymentBackup/restores?start=0&limit=2"
+          uri: "/deploymentBackup/restores?start=0&limit=2"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: next
+          href: "/deploymentBackup/restores?start=4&limit=2"
+          uri: "/deploymentBackup/restores?start=4&limit=2"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: last
+          href: "/deploymentBackup/restores?start=8&limit=2"
+          uri: "/deploymentBackup/restores?start=8&limit=2"
+          type: application/vnd.sas.collection
+        name: deploymentbackupHistory
+        accept: application/vnd.sas.restore.deployment.summary
+        start: 2
+        count: 9
+        items:
+        - version: 2
+          restoreId: 2018-03-13T09_15_12_266-0400
+          backupType: default
+          includeAllSourcesForBinaryBackup: false
+          slug: " test restore slug"
+          comments: test restore
+          backupName: 2018-03-13T09_11_24_621-0400
+          state: completed
+          owner: sasboot
+          ownerTenantId: provider
+          startTimeStamp: '2018-03-13T13:15:12.280Z'
+          endTimeStamp: '2018-03-13T13:19:53.436Z'
+          tenantRestores:
+          - restoreId: 2018-03-13T09_15_12_266-0400
+            state: completed
+            owner: provider
+            tenant: acme
+            startTimeStamp: '2018-03-13T13:15:12.266Z'
+            endTimeStamp: '2018-03-13T13:17:13.091Z'
+          - restoreId: 2018-03-13T09_15_12_266-0400
+            state: completed
+            owner: provider
+            tenant: provider
+            startTimeStamp: '2018-03-13T13:15:12.266Z'
+            endTimeStamp: '2018-03-13T13:19:53.436Z'
+          - restoreId: 2018-03-13T09_15_12_266-0400
+            state: completed
+            owner: provider
+            tenant: cyberdyne
+            startTimeStamp: '2018-03-13T13:15:12.266Z'
+            endTimeStamp: '2018-03-13T13:16:12.972Z'
+          - restoreId: 2018-03-13T09_15_12_266-0400
+            state: completed
+            owner: provider
+            tenant: intech
+            startTimeStamp: '2018-03-13T13:15:12.266Z'
+            endTimeStamp: '2018-03-13T13:18:13.213Z'
+          links:
+          - method: GET
+            rel: self
+            href: "/deploymentBackup/restores/2018-03-13T09_15_12_266-0400"
+            uri: "/deploymentBackup/restores/2018-03-13T09_15_12_266-0400"
+            type: application/vnd.sas.restore.deployment.summary
+          - method: GET
+            rel: configuration
+            href: "/deploymentBackup/configurations/default"
+            uri: "/deploymentBackup/configurations/default"
+            type: application/vnd.sas.backup.configuration
+          - method: GET
+            rel: backup
+            href: "/deploymentBackup/backups/2018-03-13T09_11_24_621-0400"
+            uri: "/deploymentBackup/backups/2018-03-13T09_11_24_621-0400"
+            type: application/vnd.sas.backup.deployment.summary
+          - method: POST
+            rel: startDeploymentRestore
+            href: "/deploymentBackup/restores/jobs"
+            uri: "/deploymentBackup/restores/jobs"
+            type: application/vnd.sas.restore.deployment.request
+            responseType: application/vnd.sas.restore.deployment.job.details
+        - version: 2
+          restoreId: 2018-03-13T03_23_21_137-0400
+          backupType: default
+          includeAllSourcesForBinaryBackup: false
+          slug: restore slug
+          comments: 'restore '
+          backupName: 2018-03-13T00_01_29_240-0400
+          state: failed
+          owner: sasboot
+          ownerTenantId: provider
+          startTimeStamp: '2018-03-13T07:23:21.166Z'
+          endTimeStamp: '2018-03-13T07:23:24.104Z'
+          tenantRestores:
+          - restoreId: 2018-03-13T03_23_21_137-0400
+            state: failed
+            owner: provider
+            tenant: intech
+            startTimeStamp: '2018-03-13T07:23:21.166Z'
+            endTimeStamp: '2018-03-13T07:23:23.636Z'
+            message:
+              jobMessages: Backup directory for backup job "2018-03-13T00_01_29_240-0400"
+                does not exist. Backup directory for backup job "2018-03-13T00_01_29_240-0400"
+                does not exist.
+              sourceMessages: {}
+          - restoreId: 2018-03-13T03_23_21_137-0400
+            state: failed
+            owner: provider
+            tenant: cyberdyne
+            startTimeStamp: '2018-03-13T07:23:21.166Z'
+            endTimeStamp: '2018-03-13T07:23:22.500Z'
+            message:
+              jobMessages: Backup directory for backup job "2018-03-13T00_01_29_240-0400"
+                does not exist. Backup directory for backup job "2018-03-13T00_01_29_240-0400"
+                does not exist.
+              sourceMessages: {}
+          - restoreId: 2018-03-13T03_23_21_137-0400
+            state: failed
+            owner: provider
+            tenant: acme
+            startTimeStamp: '2018-03-13T07:23:21.166Z'
+            endTimeStamp: '2018-03-13T07:23:23.118Z'
+            message:
+              jobMessages: Backup directory for backup job "2018-03-13T00_01_29_240-0400"
+                does not exist. Backup directory for backup job "2018-03-13T00_01_29_240-0400"
+                does not exist.
+              sourceMessages: {}
+          - restoreId: 2018-03-13T03_23_21_137-0400
+            state: failed
+            owner: provider
+            tenant: provider
+            startTimeStamp: '2018-03-13T07:23:21.166Z'
+            endTimeStamp: '2018-03-13T07:23:24.104Z'
+            message:
+              jobMessages: Backup directory for backup job "2018-03-13T00_01_29_240-0400"
+                does not exist. Backup directory for backup job "2018-03-13T00_01_29_240-0400"
+                does not exist.
+              sourceMessages: {}
+          links:
+          - method: GET
+            rel: self
+            href: "/deploymentBackup/restores/2018-03-13T03_23_21_137-0400"
+            uri: "/deploymentBackup/restores/2018-03-13T03_23_21_137-0400"
+            type: application/vnd.sas.restore.deployment.summary
+          - method: GET
+            rel: configuration
+            href: "/deploymentBackup/configurations/default"
+            uri: "/deploymentBackup/configurations/default"
+            type: application/vnd.sas.backup.configuration
+          - method: GET
+            rel: backup
+            href: "/deploymentBackup/backups/2018-03-13T00_01_29_240-0400"
+            uri: "/deploymentBackup/backups/2018-03-13T00_01_29_240-0400"
+            type: application/vnd.sas.backup.deployment.summary
+          - method: POST
+            rel: startDeploymentRestore
+            href: "/deploymentBackup/restores/jobs"
+            uri: "/deploymentBackup/restores/jobs"
+            type: application/vnd.sas.restore.deployment.request
+            responseType: application/vnd.sas.restore.deployment.job.details
+        limit: 2
+        version: 2
+    restoreId:
+      summary: Restore
+      description: Get restore operation's details.
+      value:
+        version: 2
+        restoreId: 2018-03-13T09_15_12_266-0400
+        backupType: default
+        includeAllSourcesForBinaryBackup: false
+        backupName: 2018-03-13T09_11_24_621-0400
+        slug: Recovery triggered as a part of deployment backup
+        comments: Recovery triggered as a part of deployment backup
+        name: 2018-03-13T09_15_12_266-0400
+        state: completed
+        owner: sas.deploymentBackup
+        startTimeStamp: '2018-03-13T13:15:12.266Z'
+        endTimeStamp: '2018-03-13T13:19:53.436Z'
+        sources:
+        - version: 1
+          sourceId: consul
+          name: SAS Configuration Server
+          address: deployment.prdpune.sashq-r.openstack.sas.com
+          state: completed
+          startTimeStamp: '2018-03-13T13:15:13.807Z'
+          endTimeStamp: '2018-03-13T13:18:53.333Z'
+        - version: 1
+          sourceId: rabbitmq
+          name: SAS Message Broker
+          address: deployment.prdpune.sashq-r.openstack.sas.com
+          state: completed
+          startTimeStamp: '2018-03-13T13:15:13.807Z'
+          endTimeStamp: '2018-03-13T13:19:13.368Z'
+        - version: 1
+          sourceId: postgres
+          name: SAS Infrastructure Data Server
+          address: deployment.prdpune.sashq-r.openstack.sas.com
+          state: completed
+          startTimeStamp: '2018-03-13T13:15:13.810Z'
+          endTimeStamp: '2018-03-13T13:19:53.426Z'
+        links:
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/restores/2018-03-13T09_15_12_266-0400"
+          uri: "/deploymentBackup/restores/2018-03-13T09_15_12_266-0400"
+          type: application/vnd.sas.restore
+        - method: GET
+          rel: backup
+          href: "/deploymentBackup/backups/2018-03-13T09_11_24_621-0400"
+          uri: "/deploymentBackup/backups/2018-03-13T09_11_24_621-0400"
+          type: application/vnd.sas.backup
+        - method: GET
+          rel: configuration
+          href: "/deploymentBackup/configurations/default"
+          uri: "/deploymentBackup/configurations/default"
+          type: application/vnd.sas.backup.configuration
+        - method: POST
+          rel: startTenantRestore
+          href: "/deploymentBackup/restores/jobs"
+          uri: "/deploymentBackup/restores/jobs"
+          type: application/vnd.sas.restore.request
+          responseType: application/vnd.sas.restore.job
+    restoreIdDeployment:
+      summary: Restore
+      description: Get restore operation's details performed by Provider Administrator.
+      value:
+        version: 2
+        restoreId: 2018-03-13T09_15_12_266-0400
+        backupType: default
+        includeAllSourcesForBinaryBackup: false
+        slug: " test restore slug"
+        comments: test restore
+        backupName: 2018-03-13T09_11_24_621-0400
+        state: completed
+        owner: sasboot
+        ownerTenantId: provider
+        startTimeStamp: '2018-03-13T13:15:12.280Z'
+        endTimeStamp: '2018-03-13T13:19:53.436Z'
+        tenantRestores:
+        - restoreId: 2018-03-13T09_15_12_266-0400
+          state: completed
+          owner: provider
+          tenant: acme
+          startTimeStamp: '2018-03-13T13:15:12.266Z'
+          endTimeStamp: '2018-03-13T13:17:13.091Z'
+        - restoreId: 2018-03-13T09_15_12_266-0400
+          state: completed
+          owner: provider
+          tenant: provider
+          startTimeStamp: '2018-03-13T13:15:12.266Z'
+          endTimeStamp: '2018-03-13T13:19:53.436Z'
+        - restoreId: 2018-03-13T09_15_12_266-0400
+          state: completed
+          owner: provider
+          tenant: cyberdyne
+          startTimeStamp: '2018-03-13T13:15:12.266Z'
+          endTimeStamp: '2018-03-13T13:16:12.972Z'
+        - restoreId: 2018-03-13T09_15_12_266-0400
+          state: completed
+          owner: provider
+          tenant: intech
+          startTimeStamp: '2018-03-13T13:15:12.266Z'
+          endTimeStamp: '2018-03-13T13:18:13.213Z'
+        links:
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/restores/2018-03-13T09_15_12_266-0400"
+          uri: "/deploymentBackup/restores/2018-03-13T09_15_12_266-0400"
+          type: application/vnd.sas.restore.deployment.summary
+        - method: GET
+          rel: configuration
+          href: "/deploymentBackup/configurations/default"
+          uri: "/deploymentBackup/configurations/default"
+          type: application/vnd.sas.backup.configuration
+        - method: GET
+          rel: backup
+          href: "/deploymentBackup/backups/2018-03-13T09_11_24_621-0400"
+          uri: "/deploymentBackup/backups/2018-03-13T09_11_24_621-0400"
+          type: application/vnd.sas.backup.deployment.summary
+        - method: POST
+          rel: startDeploymentRestore
+          href: "/deploymentBackup/restores/jobs"
+          uri: "/deploymentBackup/restores/jobs"
+          type: application/vnd.sas.restore.deployment.request
+          responseType: application/vnd.sas.restore.deployment.job.details
+    restoreJobRequest:
+      summary: Restore
+      description: Request body to start restore
+      value:
+        version: 2
+        slug: new-restore-slug
+        comments: Testing Restore
+        backupName: 2017-07-26T08_13_50_000-0400
+    restoreJobResponse:
+      summary: Restore Jobs
+      description: Response of start Restore
+      value:
+        version: 2
+        jobId: 2018-03-14T04_34_06_210-0400
+        backupType: default
+        includeAllSourcesForBinaryBackup: false
+        slug: Recovery triggered as a part of deployment restore
+        comments: Recovery triggered as a part of deployment restore
+        backupName: 2018-03-14T02_23_19_293-0400
+        state: pending
+        owner: sasboot
+        startTimeStamp: '2018-03-14T08:34:06.210Z'
+        endTimeStamp: '2018-03-14T08:42:07.280Z'
+        links:
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/restores/jobs/2018-03-14T04_34_06_210-0400"
+          uri: "/deploymentBackup/restores/jobs/2018-03-14T04_34_06_210-0400"
+          type: application/vnd.sas.restore.job
+        - method: GET
+          rel: details
+          href: "/deploymentBackup/restores/2018-03-14T04_34_06_210-0400"
+          uri: "/deploymentBackup/restores/2018-03-14T04_34_06_210-0400"
+          type: application/vnd.sas.restore
+        - method: GET
+          rel: backup
+          href: "/deploymentBackup/backups/2018-03-14T02_23_19_293-0400"
+          uri: "/deploymentBackup/backups/2018-03-14T02_23_19_293-0400"
+          type: application/vnd.sas.backup
+        - method: GET
+          rel: state
+          href: "/deploymentBackup/restores/jobs/2018-03-14T04_34_06_210-0400/state"
+          uri: "/deploymentBackup/restores/jobs/2018-03-14T04_34_06_210-0400/state"
+          type: application/vnd.sas.job.state
+    restoreJobDeploymentRequest:
+      summary: Restore
+      description: Start restore by provider administrator
+      value:
+        version: 2
+        slug: new-restore-slug
+        comments: Testing Restore
+        backupName: 2018-03-14T02_23_19_293-0400
+    restoreJobDeploymentResponse:
+      summary: Restore Jobs
+      description: Restore Response
+      value:
+        version: 2
+        jobId: 2018-03-14T04_34_06_210-0400
+        backupType: default
+        includeAllSourcesForBinaryBackup: false
+        slug: restore slug
+        comments: 'restore '
+        backupName: 2018-03-14T02_23_19_293-0400
+        state: pending
+        owner: sasboot
+        startTimeStamp: '2018-03-14T08:34:06.226Z'
+        tenants:
+        - provider
+        - cyberdyne
+        - intech
+        - acme
+        links:
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/restores/jobs/2018-03-14T04_34_06_210-0400"
+          uri: "/deploymentBackup/restores/jobs/2018-03-14T04_34_06_210-0400"
+          type: application/vnd.sas.restore.deployment.job.details
+        - method: GET
+          rel: details
+          href: "/deploymentBackup/restores/2018-03-14T04_34_06_210-0400"
+          uri: "/deploymentBackup/restores/2018-03-14T04_34_06_210-0400"
+          type: application/vnd.sas.restore.deployment.summary
+        - method: GET
+          rel: backup
+          href: "/deploymentBackup/backups/2018-03-14T02_23_19_293-0400"
+          uri: "/deploymentBackup/backups/2018-03-14T02_23_19_293-0400"
+          type: application/vnd.sas.backup.deployment.summary
+        - method: GET
+          rel: state
+          href: "/deploymentBackup/restores/jobs/2018-03-14T04_34_06_210-0400/state"
+          uri: "/deploymentBackup/restores/jobs/2018-03-14T04_34_06_210-0400/state"
+          type: application/vnd.sas.job.deployment.state
+    restoreJobId:
+      summary: Restore Job
+      description: Get restore job run by Tenant in multi-tenant environment or by
+        administrator in non-multi-tenant environment by given id
+      value:
+        version: 2
+        jobId: 2018-03-13T09_15_12_266-0400
+        backupType: default
+        includeAllSourcesForBinaryBackup: false
+        slug: Recovery triggered as a part of deployment backup
+        comments: Recovery triggered as a part of deployment backup
+        backupName: 2018-03-13T09_11_24_621-0400
+        state: completed
+        owner: sas.deploymentBackup
+        startTimeStamp: '2018-03-13T13:15:12.266Z'
+        endTimeStamp: '2018-03-13T13:19:53.436Z'
+        links:
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/restores/jobs/2018-03-13T09_15_12_266-0400"
+          uri: "/deploymentBackup/restores/jobs/2018-03-13T09_15_12_266-0400"
+          type: application/vnd.sas.restore.job
+        - method: GET
+          rel: details
+          href: "/deploymentBackup/restores/2018-03-13T09_15_12_266-0400"
+          uri: "/deploymentBackup/restores/2018-03-13T09_15_12_266-0400"
+          type: application/vnd.sas.restore
+        - method: GET
+          rel: backup
+          href: "/deploymentBackup/backups/2018-03-13T09_11_24_621-0400"
+          uri: "/deploymentBackup/backups/2018-03-13T09_11_24_621-0400"
+          type: application/vnd.sas.backup
+        - method: GET
+          rel: state
+          href: "/deploymentBackup/restores/jobs/2018-03-13T09_15_12_266-0400/state"
+          uri: "/deploymentBackup/restores/jobs/2018-03-13T09_15_12_266-0400/state"
+          type: application/vnd.sas.job.state
+    restoreJobIdDeployment:
+      summary: Restore Job
+      description: Restore job details for restore performed by Provider Administrator
+        in multi-tenant environment by given id
+      value:
+        version: 2
+        jobId: 2018-03-13T09_15_12_266-0400
+        backupType: default
+        includeAllSourcesForBinaryBackup: false
+        backupName: 2018-03-13T09_11_24_621-0400
+        state: completed
+        owner: sasboot
+        startTimeStamp: '2018-03-13T13:15:12.280Z'
+        endTimeStamp: '2018-03-13T13:19:53.436Z'
+        tenants:
+        - acme
+        - provider
+        - cyberdyne
+        - intech
+        links:
+        - method: GET
+          rel: self
+          href: "/deploymentBackup/restores/jobs/2018-03-13T09_15_12_266-0400"
+          uri: "/deploymentBackup/restores/jobs/2018-03-13T09_15_12_266-0400"
+          type: application/vnd.sas.restore.deployment.job.details
+        - method: GET
+          rel: details
+          href: "/deploymentBackup/restores/2018-03-13T09_15_12_266-0400"
+          uri: "/deploymentBackup/restores/2018-03-13T09_15_12_266-0400"
+          type: application/vnd.sas.restore.deployment.summary
+        - method: GET
+          rel: backup
+          href: "/deploymentBackup/backups/2018-03-13T09_11_24_621-0400"
+          uri: "/deploymentBackup/backups/2018-03-13T09_11_24_621-0400"
+          type: application/vnd.sas.backup.deployment.summary
+        - method: GET
+          rel: state
+          href: "/deploymentBackup/restores/jobs/2018-03-13T09_15_12_266-0400/state"
+          uri: "/deploymentBackup/restores/jobs/2018-03-13T09_15_12_266-0400/state"
+          type: application/vnd.sas.job.deployment.state
+    restoreJobState:
+      summary: Restore Job State
+      description: Get job state of any restore operation.
+      value:
+        state: completed
+    restoreJobDeploymentState:
+      summary: Restore Job State
+      description: Get job state of any restore operation.
+      value:
+        state: completed
+    error2:
+      summary: Bad Request
+      value:
+        version: 2
+        message: "example error message"
+        httpStatusCode: 400
+      description: "this is an example of an error that could be returned for bad\
+        \ requests"
+    notFoundError:
+      summary: Not Found
+      value:
+        message: "not found"
+        httpStatusCode: 404
+        version: 2
+      description: example of an error that might be returned on a 404 response
+    resourceConflictError:
+      summary: Resource Conflict
+      value:
+        message: "resource conflict"
+        httpStatusCode: 409
+        version: 2
+      description: example of an error that might be returned on a 409 response

@@ -1,0 +1,2024 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: Gen AI Gateway
+  description: The Gen AI gateway.
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+servers:
+- url: https://example.com/genAiGateway
+  description: This is an example base URL.
+tags:
+- name: Root
+  description: The API root.
+- name: Proxy
+  description: Send a direct LLM request to the Gen AI platform.
+- name: Copilots
+  description: Copilots related operations.
+- name: Chats
+  description: Chat related operations.
+- name: Messages
+  description: Message related operations.
+- name: AccessInfo
+  description: Access information for the GenAI platform.
+- name: Copilot Requests
+  description: Copilot request related operations.
+- name: Status
+  description: Service related operations.
+- name: Model Context Protocol
+  description: MCP related operations.
+paths:
+  /v1:
+    get:
+      tags:
+      - Root
+      summary: Get a list of top-level links
+      operationId: getRoot
+      description: Returns a list of links to the top-level collections surfaced through
+        this API.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/getRootResponse"
+        "404":
+          description: Service is not available
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+    head:
+      summary: Check the state of the service
+      tags:
+      - Root
+      operationId: headersForRoot
+      responses:
+        "200":
+          description: The request succeeded. The service is available.
+      description: Determine if the service is available.
+  /v1/proxy:
+    post:
+      summary: Send a direct LLM request to the Gen AI platform
+      description: |
+        Send a direct LLM request to the Gen AI platform.
+        Direct LLM proxy is intended for use in agentic frameworks or scenarios where GEM is not required.
+        For example, this can be used to send a request to the model completions endpoint (/openai/deployments/gpt-4.1/chat/completions?api-version=2024-12-01-preview).
+        The request body should contain the messages to send to the model and the expected response format.
+        The response from the model is returned in the body of the response.
+        For more information about the request body and response format, see the documentation of a specific model.
+      operationId: proxy
+      tags:
+      - Proxy
+      parameters:
+      - name: sas-application-name
+        in: header
+        required: true
+        schema:
+          type: string
+        description: The name of the application that is using the Gen AI Gateway
+          Direct LLM Proxy.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: The request body to send to the Gen AI platform.
+              properties:
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                        description: The role of the message sender (e.g., "user",
+                          "developer", "system").
+                      content:
+                        type: string
+                        description: The content of the message.
+                response_format:
+                  type: object
+                  description: The expected response format (e.g., "json_object",
+                    "text").
+                  properties:
+                    type:
+                      type: string
+                      description: The type of the response format (e.g., "json_object",
+                        "text").
+      responses:
+        "200":
+          description: The request was successful. The response from the Gen AI platform
+            is returned in the body.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: The response returned by model.
+  /v1/status:
+    get:
+      summary: Provides the current status of the GenAI Gateway service
+      description: Provides the current status of the GenAI Gateway service. If disabled,
+        includes the reason for its status.
+      tags:
+      - Status
+      operationId: getStatus
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/status"
+              examples:
+                enabled:
+                  $ref: "#/components/examples/statusEnabled"
+                disabled:
+                  $ref: "#/components/examples/statusDisabled"
+    post:
+      summary: Enable the GenAI Gateway service
+      description: |
+        Enables the GenAI Gateway service by creating credentials. Note: This operation may take a while since there is an Azure AD propagation delay. When using a new client secret, it can take several seconds (sometimes up to a minute) for the new secret to become active across all Microsoft Identity endpoints. If the service is already enabled, a 409 Conflict is returned.
+      tags:
+      - Status
+      operationId: createCredentials
+      requestBody:
+        description: The enable request payload.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                territory:
+                  type: string
+                  description: The territory for which to enable the service.
+                platformUrl:
+                  type: string
+                  description: The URL of the Gen AI platform.
+              required:
+              - territory
+              - platformUrl
+            examples:
+              default:
+                value:
+                  territory: "US"
+                  platformUrl: "https://genai.sas.com"
+      responses:
+        "201":
+          description: The service was enabled and credentials were created.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/status"
+              examples:
+                default:
+                  $ref: "#/components/examples/statusEnabled"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+        "409":
+          description: The service is already enabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+    put:
+      summary: Renew the GenAI Gateway service credentials
+      description: |
+        Renews the credentials for the GenAI Gateway service. Requires administrator privileges. If the service is not enabled, a 409 Conflict is returned.
+      tags:
+      - Status
+      operationId: updateCredentials
+      responses:
+        "200":
+          description: The credentials were renewed and the service status is returned.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/status"
+              examples:
+                default:
+                  $ref: "#/components/examples/statusEnabled"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+        "409":
+          description: The service is not enabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+    delete:
+      summary: Disable the GenAI Gateway service
+      description: |
+        Disables the GenAI Gateway service by deleting credentials. If the service is already disabled, a 409 Conflict is returned.
+      tags:
+      - Status
+      operationId: deleteCredentials
+      responses:
+        "204":
+          description: The service was disabled and credentials were deleted.
+  /v1/accessInfo:
+    get:
+      summary: Retrieve Access Information for the GenAI Platform
+      description: Retrieves access information including access-token and site number
+        details for the Gen AI Platform. Access restricted to users in the `VSCodeGenAI`
+        group.
+      operationId: getAccessInfo
+      tags:
+      - AccessInfo
+      responses:
+        "200":
+          description: Successfully retrieved access information.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/accessInfo"
+              examples:
+                default:
+                  $ref: "#/components/examples/accessInfo"
+  /v1/copilots:
+    parameters:
+    - name: hasChats
+      schema:
+        type: boolean
+        default: true
+      in: query
+      required: false
+      description: Whether to fetch only copilots in use, with existing chats.
+    get:
+      summary: Copilots that are available or may be in use
+      tags:
+      - Copilots
+      operationId: getCopilots
+      responses:
+        "200":
+          description: A collection of copilots
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/copilots"
+              examples:
+                default:
+                  $ref: "#/components/examples/copilotsResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/copilots"
+              examples:
+                default:
+                  $ref: "#/components/examples/copilotsResponse"
+      description: Get copilots that are available or may be in use.
+  /v1/copilots/{copilotId}/{copilotVersion}:
+    parameters:
+    - name: copilotId
+      schema:
+        type: string
+      in: path
+      required: true
+      description: The copilot id
+    - name: copilotVersion
+      schema:
+        type: string
+      in: path
+      required: true
+      description: The copilot version number
+    head:
+      summary: Check the state of a copilot
+      tags:
+      - Copilots
+      operationId: headersForCopilot
+      responses:
+        "200":
+          description: The request succeeded. The copilot is available.
+        "404":
+          description: The copilot does not exist.
+      description: Determine if the copilot is available.
+  /v1/chats:
+    get:
+      description: Retrieve a list of chats
+      summary: |
+        Retrieve a list of chats using either basic filters or search
+        with an advanced expression using the "filter" field.
+      tags:
+      - Chats
+      operationId: getChats
+      parameters:
+      - name: copilot.id
+        in: query
+        description: The ID of the copilot for which to retrieve chats
+        schema:
+          type: string
+          format: string
+        required: false
+      - name: copilot.version
+        in: query
+        description: The version of the copilot for which to retrieve chats
+        schema:
+          type: string
+          format: string
+        required: false
+      - name: createdBy
+        in: query
+        description: The userId of the person that created the chats that should be
+          retrieved. This feature is only available to administrators.
+        schema:
+          type: string
+          format: string
+        required: false
+      - name: creationTimeStamp
+        in: query
+        description: The creation timestamp of the chat to retrieve
+        schema:
+          type: string
+          format: timestamp
+        required: false
+      - name: filter
+        in: query
+        description: The criteria for filtering the collection. See [Filtering in
+          REST APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#filtering).
+        schema:
+          type: string
+          format: string
+      - name: id
+        in: query
+        description: The unique identifier of the chat to retrieve
+        schema:
+          type: string
+          format: string
+        required: false
+      - name: modifiedBy
+        in: query
+        description: The userId of the person that modified the chats that should
+          be retrieve. This feature is only available to administrators.
+        schema:
+          type: string
+          format: string
+        required: false
+      - name: modifiedTimeStamp
+        in: query
+        description: The modification timestamp of the chat to retrieve
+        schema:
+          type: string
+          format: timestamp
+        required: false
+      - name: start
+        in: query
+        description: The start index for pagination
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: The limit parameter for pagination
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the collection. See [Sorting in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#sorting.
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: A collection of chats
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/chats"
+              examples:
+                default:
+                  $ref: "#/components/examples/chatsResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/chats"
+              examples:
+                default:
+                  $ref: "#/components/examples/chatsResponse"
+    post:
+      summary: Create a chat
+      tags:
+      - Chats
+      operationId: createChat
+      description: Create a chat for a specific copilot. Optionally, an initial request
+        can be included.
+      requestBody:
+        description: The chat to create
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/chatRequest"
+            examples:
+              example1:
+                $ref: "#/components/examples/chatRequest1"
+              example2:
+                $ref: "#/components/examples/chatRequest2"
+              example3:
+                $ref: "#/components/examples/chatRequest3"
+      responses:
+        "201":
+          description: The chat was created.
+          headers:
+            Location:
+              description: The URI of the newly-created resource.
+              schema:
+                type: string
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/chat"
+              examples:
+                example1:
+                  $ref: "#/components/examples/chatResponse"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+  /v1/chats/{chatId}:
+    get:
+      description: Retrieve a specific chat
+      summary: Retrieve a specific chat. This feature is only available to administrators
+      tags:
+      - Chats
+      operationId: getChat
+      parameters:
+      - name: chatId
+        in: path
+        description: The ID of the chat to retrieve.
+        schema:
+          type: string
+          format: string
+        required: true
+      responses:
+        "200":
+          description: A single chat object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/chat"
+              examples:
+                default:
+                  $ref: "#/components/examples/chatResponse"
+    head:
+      summary: Verify that a chat exists. This feature is only available to administrators
+      description: Determine if the chat is available.
+      tags:
+      - Chats
+      operationId: headersForChat
+      parameters:
+      - name: chatId
+        in: path
+        description: The ID of the chat to verify.
+        schema:
+          type: string
+          format: string
+        required: true
+      responses:
+        "200":
+          description: The request succeeded. The chat is available.
+        "404":
+          description: The chat does not exist.
+  /v1/chats/{chatId}/state:
+    get:
+      summary: Retrieve the state of a specific chat
+      tags:
+      - Chats
+      operationId: getChatState
+      description: |
+        Returns the current state ("ready" or "processing") of the specified chat. If a chat is in
+        the "processing" state, it means that a message is currently being processed by the copilot.
+        The [Cancel Chat](#operation/cancelChat) endpoint can be used to cancel a chat that is in
+        the "processing" state.
+      parameters:
+      - name: chatId
+        in: path
+        required: true
+        description: The ID of the chat to retrieve the state for.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The current state of the chat.
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: The state of the chat.
+                enum: [ready, processing]
+              example: ready
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+        "404":
+          description: The chat does not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+    put:
+      summary: Cancel a chat
+      tags:
+      - Chats
+      operationId: updateChatState
+      description: |
+        Cancel a chat that is in the "processing" state. The chat will immediately move to the "ready" state
+        and new messages can be submitted. The cancellation operation will be processed on the server in the
+        background.
+
+        Note that the "value=canceled" query string parameter is required.
+      parameters:
+      - name: chatId
+        in: path
+        description: The ID of the chat to verify.
+        schema:
+          type: string
+          format: string
+        required: true
+      - name: value
+        in: query
+        description: The "value" query string parameter must be set to "canceled"
+        schema:
+          type: string
+          format: string
+          example: canceled
+        required: true
+      responses:
+        "200":
+          description: The chat was successfully canceled.
+        "404":
+          description: The chat does not exist.
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+  /v1/chats/{chatId}/messages:
+    parameters:
+    - name: chatId
+      schema:
+        type: string
+      in: path
+      required: true
+      description: The chat ID
+    get:
+      summary: Get the collection of messages
+      tags:
+      - Messages
+      operationId: getMessages
+      description: |
+        Get the collection of messages. Note that by default, only the first ten messages of the chat are returned.
+        To retrieve all messages, use the "start", "limit", and "sortBy" query parameters. For example to retrieve
+        the twenty most recent messages, use the following query string: ?limit=20&sortBy=order:descending.
+      parameters:
+      - name: filter
+        in: query
+        description: The criteria for filtering the collection. See [Filtering in
+          REST APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#filtering).
+        schema:
+          type: string
+          format: string
+      - name: start
+        in: query
+        description: The start index for pagination
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: The limit parameter for pagination
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the collection. See [Sorting in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: A collection of messages.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/messages"
+              examples:
+                default:
+                  $ref: "#/components/examples/messagesResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/messages"
+              examples:
+                default:
+                  $ref: "#/components/examples/messagesResponse"
+    post:
+      summary: Create a message
+      tags:
+      - Messages
+      operationId: createMessage
+      description: |
+        Create a message where the structure of the body is indicated by the "type"
+        field. The following "type" values can be sent from the client: "userRequest",
+        "userPromptRequest" or "functionResult".
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: "#/components/schemas/userRequest"
+              - $ref: "#/components/schemas/userPromptRequest"
+              - $ref: "#/components/schemas/functionResult"
+            examples:
+              example1:
+                $ref: "#/components/examples/userRequest"
+              example2:
+                $ref: "#/components/examples/userPromptRequest"
+              example3:
+                $ref: "#/components/examples/functionResult"
+        description: The message to create
+      responses:
+        "201":
+          description: |
+            The message was created. Poll the getMessages endpoint to retrieve the
+            full response from the copilot.
+          headers:
+            Location:
+              description: The URI of the newly-created resource.
+              schema:
+                type: string
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: "#/components/schemas/userRequest"
+                - $ref: "#/components/schemas/userPromptRequest"
+                - $ref: "#/components/schemas/functionResult"
+              examples:
+                example1:
+                  $ref: "#/components/examples/userRequestResponse"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+        "409":
+          description: |
+            An HTTP 409 (Conflict) response can happen for a message of type "userRequest" or "userPromptRequest" if the
+            chat is currently in the "processing" state. New request messages can only be accepted when the chat is in
+            the "ready" state. If necessary, the chat can be returned to the "ready" state by using the cancel chat
+            endpoint to stop the current message from being processed further.
+
+            A 409 response can also occur for a message of type "functionResult" if the chat is not in the "processing"
+            state or if the function result cannot be matched with an active initiating request. This situation can
+            occur if the initiating request was canceled.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+  /v1/copilotRequest:
+    post:
+      summary: Send a message to a copilot
+      tags:
+      - Copilot Requests
+      operationId: callCopilot
+      description: |
+        Send a message to a copilot where the structure of the message is indicated
+        by the "type" field. The following "type" values can be sent from the client:
+        "userRequest" or "userPromptRequest".
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/copilotRequest"
+            examples:
+              example1:
+                $ref: "#/components/examples/copilotRequest"
+        description: The request to send to a copilot
+      responses:
+        "201":
+          description: |
+            The response from the copilot.
+          headers:
+            Location:
+              description: The URI of the newly-created resource.
+              schema:
+                type: string
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: "#/components/schemas/copilotResponse"
+                - $ref: "#/components/schemas/copilotFunctionResponse"
+              examples:
+                example1:
+                  $ref: "#/components/examples/copilotRequestResponse"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+  /v1/mcpServers:
+    get:
+      summary: Retrieve a collection of MCP server registrations
+      description: |
+        Get a collection of MCP server registrations. Note that by default,
+        only the first ten MCP server registrations are returned. To retrieve
+        all MCP server registrations, use the "start", "limit", and "sortBy"
+        query parameters. For example, to retrieve the twenty most recently
+        registered MCP servers, use the following query string:
+        `?limit=20&sortBy=order:descending`.
+      tags:
+      - Model Context Protocol
+      operationId: getMcpServers
+      parameters:
+      - name: filter
+        in: query
+        description: The criteria for filtering the collection. See [Filtering in
+          REST APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#filtering).
+        schema:
+          type: string
+          format: string
+      - name: start
+        in: query
+        description: The start index for pagination.
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: The maximum number of MCP server registrations to return on a
+          page.
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the collection. See [Sorting in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: A collection of MCP server registrations.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/mcpServers"
+              examples:
+                default:
+                  $ref: "#/components/examples/mcpServersResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/mcpServers"
+              examples:
+                default:
+                  $ref: "#/components/examples/mcpServersResponse"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+    post:
+      summary: Create an MCP server registration
+      description: Create a new MCP server registration.
+      tags:
+      - Model Context Protocol
+      operationId: createMcpServer
+      requestBody:
+        description: The MCP server registration to create.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/mcpServer"
+            examples:
+              default:
+                $ref: "#/components/examples/mcpServerRequest"
+      responses:
+        "201":
+          description: The MCP server registration was created.
+          headers:
+            ETag:
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the resource was last modified.
+              schema:
+                type: string
+            Location:
+              description: The URI of the newly-created resource.
+              schema:
+                type: string
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/mcpServer"
+              examples:
+                default:
+                  $ref: "#/components/examples/mcpServerResponse"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+        "409":
+          description: An MCP server registration with the same ID already exists.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+  /v1/mcpServers/{mcpServerId}:
+    head:
+      summary: Check if an MCP server registration exists
+      description: Check if a single MCP server registration exists by its ID.
+      tags:
+      - Model Context Protocol
+      operationId: headersForMcpServer
+      parameters:
+      - name: mcpServerId
+        in: path
+        description: The unique identifier of the MCP server registration to retrieve.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The MCP server registration was found.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+            ETag:
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the resource was last modified.
+              schema:
+                type: string
+        "404":
+          description: The MCP server registration was not found.
+    get:
+      summary: Retrieve an MCP server registration
+      description: Retrieve a single MCP server registration by its ID.
+      tags:
+      - Model Context Protocol
+      operationId: getMcpServer
+      parameters:
+      - name: mcpServerId
+        in: path
+        description: The unique identifier of the MCP server registration to retrieve.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The MCP server registration was found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/mcpServer"
+              examples:
+                default:
+                  $ref: "#/components/examples/mcpServerResponse"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+            ETag:
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the resource was last modified.
+              schema:
+                type: string
+        "404":
+          description: The MCP server registration was not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+    put:
+      summary: Update an MCP server registration
+      description: |
+        Replace an existing MCP server registration with the provided
+        representation.
+      tags:
+      - Model Context Protocol
+      operationId: updateMcpServer
+      parameters:
+      - name: If-Match
+        in: header
+        required: true
+        description: The entity tag for the resource.
+        schema:
+          type: string
+      - name: mcpServerId
+        in: path
+        description: The unique identifier of the MCP server registration to update.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: The updated MCP server registration representation.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/mcpServer"
+            examples:
+              default:
+                $ref: "#/components/examples/mcpServerRequest"
+      responses:
+        "200":
+          description: The MCP server registration was updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/mcpServer"
+              examples:
+                default:
+                  $ref: "#/components/examples/mcpServerResponse"
+          headers:
+            ETag:
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the resource was last modified.
+              schema:
+                type: string
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+        "404":
+          description: The MCP server registration was not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+        "412":
+          description: The If-Match precondition failed.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+        "428":
+          description: The If-Match header is required but was not provided.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+    delete:
+      summary: Delete an MCP server registration
+      description: Delete an MCP server registration by its ID.
+      tags:
+      - Model Context Protocol
+      operationId: deleteMcpServer
+      parameters:
+      - name: mcpServerId
+        in: path
+        description: The unique identifier of the MCP server registration to delete.
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: The MCP server registration was deleted successfully.
+components:
+  schemas:
+    status:
+      type: object
+      description: Retrieves information about whether the GenAI Gateway service is
+        enabled.
+      properties:
+        enabled:
+          type: boolean
+          description: Indicates whether the GenAI Gateway service is enabled.
+        reason:
+          type: string
+          description: If the service is disabled, provides the reason why it is disabled.
+        activeTimeStamp:
+          type: string
+          description: Indicates the time when credentials were created in Orders
+            API.
+        territory:
+          type: string
+          description: Indicates the territory associated with the credentials.
+    accessInfo:
+      type: object
+      description: Retrieves access information including credentials and site number
+        details for the Gen AI platform.
+      properties:
+        accessToken:
+          type: string
+          description: The access token for the Gen AI platform.
+        siteNumber:
+          type: string
+          description: The site number associated with the license.
+        platformUrl:
+          type: string
+          description: The URL of the Gen AI platform.
+        secretId:
+          type: string
+          description: The secret ID from Orders API.
+    copilot:
+      type: object
+      description: Copilot instance that contains the copilot ID and version.
+      properties:
+        id:
+          type: string
+          description: ID of the copilot
+        version:
+          type: string
+          description: |
+            Version of the copilot. This value must be in a url appropriate
+            format. The "v" prefix is required. For example: v1, v2, v3, etc.
+    initialRequest:
+      type: object
+      description: Optional first message request that will be sent to the copilot
+      oneOf:
+      - $ref: "#/components/schemas/userRequest"
+      - $ref: "#/components/schemas/userPromptRequest"
+    chatRequest:
+      type: object
+      description: A request to create a new chat instance
+      properties:
+        applicationName:
+          type: string
+          description: The name of the application that is using the copilot.
+          maxLength: 50
+        copilot:
+          $ref: "#/components/schemas/copilot"
+        initialRequest:
+          $ref: "#/components/schemas/initialRequest"
+      required:
+      - copilot
+      - applicationName
+
+    chat:
+      type: object
+      description: A chat
+      properties:
+        id:
+          type: string
+          description: ID of the chat.
+        copilot:
+          $ref: "#/components/schemas/copilot"
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp when the chat was created.
+        createdBy:
+          type: string
+          description: The user who created the chat.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp when the chat was last modified.
+        modifiedBy:
+          type: string
+          description: The user who last modified the chat.
+        state:
+          type: string
+          description: The state of the chat with possible values of "ready" or "processing".
+          enum:
+          - ready
+          - processing
+    messageType:
+      title: Message Type
+      description: The message type. Indicates one of the enums.
+      type: string
+      enum:
+      - userRequest
+      - userPromptRequest
+      - functionResult
+      - copilotResponse
+      - copilotFunctionResponse
+    message:
+      title: Message
+      description: A message to or from a copilot.
+      required:
+      - type
+      properties:
+        id:
+          type: string
+          description: ID of the message.
+        type:
+          $ref: "#/components/schemas/messageType"
+      discriminator:
+        propertyName: type
+        mapping:
+          userRequest: "#/components/schemas/userRequest"
+          userPromptRequest: "#/components/schemas/userPromptRequest"
+          functionResult: "#/components/schemas/functionResult"
+          copilotResponse: "#/components/schemas/copilotResponse"
+          copilotFunctionResponse: "#/components/schemas/copilotFunctionResponse"
+    userRequest:
+      title: User request
+      description: A message from the user. The "type" field should be set to either
+        "userRequest", "userPromptRequest", or "functionResult".
+      required:
+      - content
+      allOf:
+      - $ref: "#/components/schemas/message"
+      - type: object
+        properties:
+          context:
+            description: Map of context values
+            type: object
+            additionalProperties: true
+          content:
+            type: string
+            description: The message content.
+          canceled:
+            type: boolean
+            description: False by default. Whether or not the request was canceled.
+    userPromptRequest:
+      title: User prompt request
+      description: A message from the user indicating the selected prompt. The "type"
+        field should be set to "userPromptRequest".
+      required:
+      - selectedPrompt
+      allOf:
+      - $ref: "#/components/schemas/message"
+      - type: object
+        properties:
+          context:
+            description: Map of context values
+            type: object
+            additionalProperties: true
+          selectedPrompt:
+            $ref: "#/components/schemas/prompt"
+          canceled:
+            type: boolean
+            description: False by default. Whether or not the request was canceled.
+    functionResult:
+      title: Function result
+      description: A message containing the results of a function call.
+      required:
+      - data
+      - copilotFunctionResponseId
+      allOf:
+      - $ref: "#/components/schemas/message"
+      - type: object
+        properties:
+          data:
+            description: Map of data values
+            type: object
+            additionalProperties: true
+          partial:
+            description: Whether or not the result is a partial function result.
+            type: boolean
+          copilotFunctionResponseId:
+            description: The id of the function response related to the results.
+            type: string
+          jobId:
+            description: If applicable, the id of the job associated with the function
+              result.
+            type: string
+    functionCall:
+      title: Function call
+      description: A function to call.
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the function to call.
+        arguments:
+          description: Map of function arguments
+          type: object
+          additionalProperties: true
+    copilotResponse:
+      title: Copilot response
+      description: A response from a copilot.
+      allOf:
+      - $ref: "#/components/schemas/message"
+      - type: object
+        properties:
+          content:
+            type: string
+            description: The message content.
+          promptCard:
+            $ref: "#/components/schemas/promptCard"
+          complete:
+            type: boolean
+            description: Whether or not the copilot is done responding
+          requestMessageId:
+            type: string
+            description: The ID of the request message that triggered this response.
+          metadata:
+            description: Optional JSON data that provides additional contextual information
+              in the response
+            type: object
+            additionalProperties: true
+    copilotFunctionResponse:
+      title: Copilot function response
+      description: A response from a copilot including a function call.
+      required:
+      - functionCall
+      allOf:
+      - $ref: "#/components/schemas/message"
+      - type: object
+        properties:
+          functionCall:
+            $ref: "#/components/schemas/functionCall"
+          content:
+            type: string
+            description: The message content.
+          complete:
+            type: boolean
+            description: Whether or not the copilot is done responding
+          requestMessageId:
+            type: string
+            description: The ID of the request message that triggered this response.
+    copilots:
+      title: Collection of copilots
+      description: A collection of copilots
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/copilot"
+    chats:
+      title: Collection of chats
+      description: A collection of chats
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/chat"
+    messages:
+      title: Collection of messages
+      description: A collection of messages
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              anyOf:
+              - $ref: "#/components/schemas/copilotResponse"
+              - $ref: "#/components/schemas/copilotFunctionResponse"
+              - $ref: "#/components/schemas/functionResult"
+              - $ref: "#/components/schemas/userRequest"
+              - $ref: "#/components/schemas/userPromptRequest"
+    promptCardType:
+      title: Prompt Card Type
+      description: The prompt card type.
+      type: string
+      enum:
+      - list
+      - custom
+    promptCard:
+      title: Prompt card
+      description: A card of predefined prompts
+      required:
+      - type
+      - content
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/promptCardType"
+        content:
+          oneOf:
+          - $ref: "#/components/schemas/promptList"
+          - $ref: "#/components/schemas/promptCustom"
+      discriminator:
+        propertyName: type
+        mapping:
+          list: "#/components/schemas/promptList"
+          custom: "#/components/schemas/promptCustom"
+    promptList:
+      title: Prompt list
+      description: A list of prompts.
+      required:
+      - prompts
+      allOf:
+      - $ref: "#/components/schemas/promptCard"
+      - type: object
+        properties:
+          prompts:
+            type: array
+            description: Array containing prompt objects
+            items:
+              $ref: "#/components/schemas/prompt"
+    prompt:
+      title: Prompt
+      description: A predefined prompt.
+      required:
+      - label
+      - messageText
+      properties:
+        id:
+          type: string
+          description: The id of the prompt.
+        label:
+          type: string
+          description: The text shown on the prompt element.
+        messageText:
+          type: string
+          description: The text sent in the message if the prompt is selected.
+        properties:
+          type: object
+          description: Additional set of properties related to the prompt.
+    promptCustom:
+      title: Prompt custom
+      description: A custom prompt card.
+      required:
+      - content
+      allOf:
+      - $ref: "#/components/schemas/promptCard"
+      - type: object
+        properties:
+          content:
+            type: object
+    copilotRequest:
+      title: Copilot request
+      description: A request to a copilot.
+      required:
+      - copilot
+      - applicationName
+      - message
+      properties:
+        copilot:
+          $ref: "#/components/schemas/copilot"
+        applicationName:
+          type: string
+          description: The name of the application that is using the copilot.
+        message:
+          oneOf:
+          - $ref: "#/components/schemas/userRequest"
+          - $ref: "#/components/schemas/userPromptRequest"
+    mcpServer:
+      title: MCP Server Registration
+      description: An MCP server registration containing the information needed to
+        connect to it.
+      type: object
+      required:
+      - id
+      - url
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the MCP server registration.
+        url:
+          type: string
+          description: |
+            The URL of the MCP server.
+
+            This may be a relative URL that is resolved against the base URL
+            of the Viya deployment. Relative URLs must begin with a forward
+            slash (`/`).
+    mcpServers:
+      title: Collection of MCP server registrations
+      description: A collection of MCP server registrations.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/mcpServer"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+  examples:
+    userPromptRequest:
+      summary: Example 2 - User Prompt Request
+      description: |
+        A request that is sent from the client to the gateway after a user prompt has been selected.
+        The "type" field must be set to "userPromptRequest"
+      value: {"type": "userPromptRequest", "context": {"project_id": "95876166-2c45-486f-b304-13eb60979d9c",
+          "pipeline_id": "508664ac-5b53-4272-bce3-77e3aa90d2eb", "node_id": "2f85baaf-090c-4364-b0c7-49aaf1064110"},
+        "selectedPrompt": {"id": "start_exploration", "label": "Start exploration",
+          "messageText": "Start the exploration process."}}
+    copilotRequestResponse:
+      summary: Message List Response
+      description: A list of messages
+      value:
+        creationTimeStamp: "2025-03-02T13:39:35.925677Z"
+        createdBy: "sas"
+        modifiedTimeStamp: "2025-03-02T13:39:35.925669Z"
+        modifiedBy: "sas"
+        id: "990989bd-e6f7-4a76-b313-afdba829144b"
+        type: "copilotResponse"
+        chatId: "0b447308-2f1a-4430-9fc9-3e4738cf59c3"
+        content: "Run a longer process that will train some exploratory models and\
+          \ report the best suggestions.\n\n[Start exploration](prompt:start_exploration?messageText=Start%20the%20exploration%20process.)"
+        complete: true
+    mcpServersResponse:
+      summary: MCP Server Registrations Response
+      description: The response from fetching a collection of MCP server registrations.
+      value:
+        version: 1
+        accept: application/vnd.sas.collection+json
+        count: 2
+        start: 0
+        limit: 10
+        name: mcpservers
+        items:
+        - id: some-mcp-server
+          url: /someStudioMcp/v1/mcp
+          creationTimeStamp: 2026-03-06T03:36:07.587214Z
+          createdBy: sas
+          modifiedTimeStamp: 2026-03-06T03:36:20.037110Z
+          modifiedBy: sas
+        - id: another-mcp-server
+          url: some-service-name:8080/anotherStudioMcp/v1/mcp
+          creationTimeStamp: 2026-03-06T03:36:07.587214Z
+          createdBy: sas
+          modifiedTimeStamp: 2026-03-06T03:36:20.037110Z
+          modifiedBy: sas
+        links:
+        - method: GET
+          rel: collection
+          href: /genAiGateway/v1/mcpServers
+          uri: /genAiGateway/v1/mcpServers
+          type: application/vnd.sas.collection
+          itemType: application/json
+        - method: GET
+          rel: self
+          href: /genAiGateway/v1/mcpServers?start=0&limit=10
+          uri: /genAiGateway/v1/mcpServers?start=0&limit=10
+          type: application/vnd.sas.collection
+          itemType: application/json
+    copilotsResponse:
+      summary: Copilot List Response
+      description: A list of copilots
+      value: {"version": 1, "accept": "application/vnd.sas.collection+json", "count": 2,
+        "start": 0, "limit": 0, "name": "collection", "items": [{"id": "modelStudio",
+            "version": "v1"}, {"id": "visualAnalytics", "version": "v1"}]}
+    messagesResponse:
+      summary: Message List Response
+      description: A list of messages
+      value:
+        version: 1
+        accept: application/vnd.sas.collection+json
+        count: 8
+        start: 0
+        limit: 10
+        name: collection
+        items:
+        - creationTimeStamp: "2025-03-02T13:37:39.029147Z"
+          createdBy: sas
+          modifiedTimeStamp: "2025-03-02T13:37:39.029142Z"
+          modifiedBy: sas
+          id: "e980c0ba-165b-424f-9c46-f069974421f0"
+          type: copilotResponse
+          chatId: "0b447308-2f1a-4430-9fc9-3e4738cf59c3"
+          content: What would you like to do?
+          promptCard:
+            type: list
+            content:
+              prompts:
+              - id: information
+                label: What is a Transformations node?
+                messageText: What is a Transformations node?
+                properties: {}
+              - id: next_steps
+                label: Suggest the next node
+                messageText: Suggest the next node to add.
+                properties: {}
+          complete: true
+          requestMessageId: "894b0f7c-cf05-456b-814f-55091aaac100"
+        - canceled: false
+          creationTimeStamp: "2025-03-02T13:39:25.075081Z"
+          createdBy: sas
+          modifiedTimeStamp: "2025-03-02T13:39:25.090679Z"
+          modifiedBy: sas
+          id: "69e7719c-9913-434f-bad3-7182cee9cfb7"
+          type: userRequest
+          chatId: "0b447308-2f1a-4430-9fc9-3e4738cf59c3"
+          context:
+            node_id: "c18a5c3e-bebc-4cd1-8a1e-d382a462c1e5"
+            pipeline:
+              id: "e0c50b84-1e2b-4a43-a8cd-542370af55fb"
+              name: Pipeline 1
+              project_id: "48c9c70f-d471-4f03-9b97-d0ab39ec6d67"
+              selected_view: pipelineTab
+            content: What should I add next?
+        - creationTimeStamp: "2025-03-02T13:39:35.925677Z"
+          createdBy: sas
+          modifiedTimeStamp: "2025-03-02T13:39:35.925669Z"
+          modifiedBy: sas
+          id: "990989bd-e6f7-4a76-b313-afdba829144b"
+          type: copilotResponse
+          chatId: "0b447308-2f1a-4430-9fc9-3e4738cf59c3"
+          content: |-
+            Run a longer process that will train some exploratory models and report the best suggestions.
+
+            [Start exploration](prompt:start_exploration?messageText=Start%20the%20exploration%20process.)
+          complete: true
+          requestMessageId: "60f1fc3c-5927-46b5-a972-781a808efe72"
+          metadata:
+            sampleData: one
+            nestedData:
+              valueA: two
+              valueB: three
+        - canceled: false
+          creationTimeStamp: "2025-03-02T13:39:42.423766Z"
+          createdBy: sas
+          modifiedTimeStamp: "2025-03-02T13:39:42.43173Z"
+          modifiedBy: sas
+          id: "894b0f7c-cf05-456b-814f-55091aaac100"
+          type: userPromptRequest
+          chatId: "0b447308-2f1a-4430-9fc9-3e4738cf59c3"
+          context:
+            node_id: "c18a5c3e-bebc-4cd1-8a1e-d382a462c1e5"
+            pipeline:
+              id: "e0c50b84-1e2b-4a43-a8cd-542370af55fb"
+              name: Pipeline 1
+              project_id: "48c9c70f-d471-4f03-9b97-d0ab39ec6d67"
+              selected_view: pipelineTab
+            selectedPrompt:
+              id: start_exploration
+              messageText: Start the exploration process.
+              label: Start exploration
+        - creationTimeStamp: "2025-03-02T13:39:43.734535Z"
+          createdBy: sas
+          modifiedTimeStamp: "2025-03-02T13:39:43.73453Z"
+          modifiedBy: sas
+          id: "ecc86b77-fc22-4250-8d9b-e7d0638cc9f5"
+          type: copilotFunctionResponse
+          chatId: "0b447308-2f1a-4430-9fc9-3e4738cf59c3"
+          content: Starting the exploratory process.
+          functionCall:
+            name: execute_job
+            arguments:
+              jobArguments:
+                node_id: "c18a5c3e-bebc-4cd1-8a1e-d382a462c1e5"
+                pipeline_id: "e0c50b84-1e2b-4a43-a8cd-542370af55fb"
+                project_id: "48c9c70f-d471-4f03-9b97-d0ab39ec6d67"
+              jobName: modelBuilderJob
+              jobProvider: dataMiningProjectResources
+          complete: false
+          requestMessageId: "60f1fc3c-5927-46b5-a972-781a808efe72"
+        - creationTimeStamp: "2025-03-02T13:39:49.045698Z"
+          createdBy: sas
+          modifiedTimeStamp: "2025-03-02T13:39:49.045692Z"
+          modifiedBy: sas
+          id: "c55d3f24-57fd-4fa8-ae06-43ead398d7b5"
+          type: copilotResponse
+          chatId: "0b447308-2f1a-4430-9fc9-3e4738cf59c3"
+          promptCard:
+            type: custom
+            content:
+              visuals:
+              - text: "The exploratory process has started. "
+                type: text
+              - cancelButtonPrompt:
+                  id: stop_model_builder
+                  label: Stop Running
+                  messageText: Stop running exploratory trials.
+                  properties:
+                    job_id: "db69e39c-74b5-4670-846b-4a0fae7bc94d"
+                text: Initializing sessions...
+                type: progressIndicator
+          complete: false
+          requestMessageId: "60f1fc3c-5927-46b5-a972-781a808efe72"
+        - creationTimeStamp: "2025-03-02T13:40:49.074632Z"
+          createdBy: sas
+          modifiedTimeStamp: "2025-03-02T13:40:49.078368Z"
+          modifiedBy: sas
+          id: "774022e8-0292-4f7b-a471-1c5a53e12d73"
+          type: functionResult
+          chatId: "0b447308-2f1a-4430-9fc9-3e4738cf59c3"
+          data:
+            numTrialsComplete: 15
+            selectionCriterionName: ks
+            selectionCriterionValue: 0.79987550575785
+          partial: false
+          jobId: "db69e39c-74b5-4670-846b-4a0fae7bc94d"
+          copilotFunctionResponseId: "ecc86b77-fc22-4250-8d9b-e7d0638cc9f5"
+        - creationTimeStamp: "2025-03-02T13:40:49.18511Z"
+          createdBy: sas
+          modifiedTimeStamp: "2025-03-02T13:40:49.185103Z"
+          modifiedBy: sas
+          id: "401c8b0e-95a0-4782-b95c-e7c743831d84"
+          type: copilotResponse
+          chatId: "0b447308-2f1a-4430-9fc9-3e4738cf59c3"
+          content: |-
+            Here is the best suggestion out of 15 trials.
+            - KS: 0.800
+          complete: true
+          requestMessageId: "60f1fc3c-5927-46b5-a972-781a808efe72"
+    chatRequest1:
+      summary: Example 1 - Create a Chat
+      description: Create a basic chat with no initial request
+      value:
+        applicationName: My Sample Application
+        copilot:
+          id: myApplication
+          version: v2
+    getRootResponse:
+      summary: Get Root Response
+      description: This is an example response from the GET request to retrieve the
+        API\'s top-level links.
+      value: {"version": 1, "links": [{"method": "POST", "rel": "createChat", "href": "/genAiGateway/v1/chats",
+            "uri": "/genAiGateway/v1/chats", "type": "application/json", "responseType": "application/json"},
+          {"method": "GET", "rel": "getMessages", "href": "/genAiGateway/v1/chats/{chatId}/messages",
+            "uri": "/genAiGateway/v1/chats/{chatId}/messages", "responseType": "application/vnd.sas.collection+json"},
+          {"method": "POST", "rel": "createMessage", "href": "/genAiGateway/v1/chats/{chatId}/messages",
+            "uri": "/genAiGateway/v1/chats/{chatId}/messages", "type": "application/json",
+            "responseType": "application/json"}]}
+    statusEnabled:
+      summary: GenAI Gateway Status Example with Enabled State
+      description: Example of a GenAI Gateway status response.
+      value:
+        enabled: true
+        activeTimeStamp: "2014-08-06 11:20:00.764522 +0000 UTC"
+        territory: "US"
+    chatRequest3:
+      summary: Example 3 - with user prompt request
+      description: Create a chat with an initial request of type "userPromptRequest"
+      value:
+        applicationName: My Sample Application
+        copilot:
+          id: myApplication
+          version: v2
+        initialRequest:
+          type: userPromptRequest
+          selectedPrompt:
+            id: "start_exploration"
+            label: "Start exploration"
+            messageText: "Start the exploration process."
+    chatsResponse:
+      summary: Chat List Response
+      description: The response from fetching a list of chat objects
+      value: {"version": 1, "accept": "application/vnd.sas.collection+json", "count": 4,
+        "start": 0, "limit": 10, "name": "collection", "items": [{"creationTimeStamp": "2025-02-20T23:19:02.048331Z",
+            "createdBy": "user1", "modifiedTimeStamp": "2025-02-20T23:19:02.04832Z",
+            "modifiedBy": "user1", "id": "c5098078-af59-451a-8b18-0e3937e9df90", "state": "ready"},
+          {"creationTimeStamp": "2025-02-20T20:18:38.200451Z", "createdBy": "user2",
+            "modifiedTimeStamp": "2025-02-20T20:18:38.200443Z", "modifiedBy": "user2",
+            "id": "03f888b4-a2be-4b4a-aa5e-05920dcce57a", "state": "ready"}, {"creationTimeStamp": "2025-02-20T20:15:45.239657Z",
+            "createdBy": "user1", "modifiedTimeStamp": "2025-02-20T20:15:45.239648Z",
+            "modifiedBy": "user1", "id": "36e08a2e-4647-467b-b5d9-58c1cf3e01b0", "state": "ready"},
+          {"creationTimeStamp": "2025-02-20T16:49:29.920978Z", "createdBy": "user1",
+            "modifiedTimeStamp": "2025-02-20T16:49:29.920968Z", "modifiedBy": "user1",
+            "id": "cb68e96a-3d08-400c-8b2f-d0a650d61918", "state": "ready"}]}
+    mcpServerResponse:
+      summary: MCP Server Registration Response
+      description: |
+        A response for a single MCP server registration.
+      value:
+        id: some-mcp-server
+        url: /someStudioMcp/v1/mcp
+        creationTimeStamp: 2026-03-06T03:36:07.587214Z
+        createdBy: sas
+        modifiedTimeStamp: 2026-03-06T03:36:20.037110Z
+        modifiedBy: sas
+    errorResponse:
+      summary: Error Response
+      description: This example shows the error response returned when the Gen AI
+        gateway API returns an error
+      value: {"message": "An error has occurred", "remediation": "Do this to fix the\
+          \ error", "errorCode": 12345, "errors": [], "version": 2}
+    copilotRequest:
+      summary: Copilot Request Example
+      description: Send a copilot request of type "userPromptRequest"
+      value:
+        applicationName: My Sample Application
+        copilot:
+          id: myApplication
+          version: v2
+        message:
+          type: userPromptRequest
+          selectedPrompt:
+            id: "start_exploration"
+            label: "Start exploration"
+            messageText: "Start the exploration process."
+    statusDisabled:
+      summary: GenAI Gateway Status Example with Disabled State
+      description: Example of a GenAI Gateway status response.
+      value:
+        enabled: false
+        reason: "One or more required credentials are missing"
+    chatResponse:
+      summary: Chat Response
+      description: |
+        A single chat object. Note that the "id" field can be
+        used to reference the chat in subsequent calls.
+      value:
+        creationTimeStamp: "2025-04-02T17:21:56.273376Z"
+        createdBy: "testuser"
+        modifiedTimeStamp: "2025-04-02T17:21:56.273373Z"
+        modifiedBy: "testuser"
+        id: "285d301b-aaee-4062-9e34-1ab5f245a7b0"
+        copilot:
+          id: "modelStudio"
+          version: "v1"
+        state: "ready"
+    accessInfo:
+      summary: Example access information
+      description: Example of access information for the GenAI platform
+      value:
+        accessToken: "TOKEN"
+        siteNumber: "123456"
+        platformUrl: "https://genai.example.com"
+        secretId: "1f1e35bf-e762-4158-83d5-40746b1671e1"
+    mcpServerRequest:
+      summary: MCP Server Registration Request
+      description: |
+        A request body for creating or updating an MCP server registration.
+      value:
+        id: some-mcp-server
+        url: /someStudioMcp/v1/mcp
+    userRequest:
+      summary: Example 1 - User Request
+      description: |
+        A request that is sent from the client to the gateway after a basic prompt has been entered.
+        The "type" field must be set to "userRequest"
+      value: {"content": "Hello, how are you?", "type": "userRequest", "context": {
+          "view": "pipelineTab", "node_id": "95876166-2c45-486f-b304-13eb60979d9c"}}
+    chatRequest2:
+      summary: Example 2 - with user request
+      description: Create a chat with an initial request of type "userRequest"
+      value:
+        applicationName: My Sample Application
+        copilot:
+          id: myApplication
+          version: v2
+        initialRequest:
+          type: userRequest
+          context:
+            view: pipelineTab
+          content: hello, how are you?
+    functionResult:
+      summary: Example 3 - Function Result
+      description: |
+        A request that is sent from the client to the gateway after a function has been executed.
+        The "type" field must be set to "functionResult"
+      value: {"type": "functionResult", "copilotFunctionResponseId": "95876166-2c45-486f-b304-13eb60979d9c",
+        "data": {"pipeline_id": "508664ac-5b53-4272-bce3-77e3aa90d2eb", "node_id": "2f85baaf-090c-4364-b0c7-49aaf1064110",
+          "status": "complete"}}
+    userRequestResponse:
+      summary: User request response
+      description: Response from sending a message
+      value: {"creationTimeStamp": "2025-03-20T18:43:06.701515Z", "createdBy": "testUser",
+        "modifiedTimeStamp": "2025-03-20T18:43:06.701511Z", "modifiedBy": "testUser",
+        "id": "599ff50e-62be-41c2-81ce-1c0c365d20f4", "type": "userRequest", "chatId": "2b5a5582-9421-479e-9960-f45ccbdcb7f5",
+        "content": "Hello, how are you?", "requestMessageId": "2357f8e7-dcbb-4f84-abea-e04eaff9b337"}

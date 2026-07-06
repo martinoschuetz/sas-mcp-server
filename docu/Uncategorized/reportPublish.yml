@@ -1,0 +1,459 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: Report Publish
+  description: |
+    Publishes a SAS Visual Analytics report as a self-contained container
+    image. A publish job renders the report into a report package and then
+    builds and publishes a container image to a destination registry so the
+    report can be served by a standalone runtime.
+  termsOfService: "https://www.sas.com/en_us/legal/copyright.html"
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: devex@sas.com
+servers:
+- url: http://example.com/reportPublish
+  description: Sample server URL.
+  x-sas-internal: true
+tags:
+- name: Root
+  description: The root of the Report Publish service.
+- name: Jobs
+  description: Asynchronous jobs that publish a report as a container image.
+paths:
+  /:
+    get:
+      summary: |
+        Return a list of top level links.
+      operationId: root
+      description: |
+        Return a list of top level links for the Report Publish service.
+      tags:
+      - Root
+      responses:
+        "200":
+          description: Successful response.
+          headers:
+            Content-Type:
+              description: application/vnd.sas.api+json;version=1
+              schema:
+                type: string
+          content:
+            application/vnd.sas.api+json;version=1:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/topLevelLinks"
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/topLevelLinks"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/topLevelLinks"
+        "404":
+          description: |
+            Not found. Returned when the feature flag that enables this service
+            is not active.
+          content:
+            application/vnd.sas.error+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                json:
+                  $ref: "#/components/examples/featureFlagNotEnabled"
+  /job:
+    post:
+      summary: |
+        Create a publish job.
+      description: >
+        Creates an asynchronous job that publishes the requested report as a
+        container image. The request returns immediately with a job in the
+        "running" state. Poll the returned job using
+        [GET /job/{jobId}](#op:getJobStatus) to obtain the final state and, on
+        success, the published image coordinates.
+      operationId: createJob
+      tags:
+      - Jobs
+      requestBody:
+        description: The report to publish, its destination, and image name.
+        required: true
+        content:
+          application/vnd.sas.report.publish.job.request+json;version=1:
+            schema:
+              $ref: "#/components/schemas/reportPublishJobRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/reportPublishJobRequest"
+          application/vnd.sas.report.publish.job.request+json:
+            schema:
+              $ref: "#/components/schemas/reportPublishJobRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/reportPublishJobRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/reportPublishJobRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/reportPublishJobRequest"
+      responses:
+        "201":
+          description: |
+            The job was created. The job is initially in the "running" state.
+          headers:
+            Cache-Control:
+              description: no-cache, no-store, max-age=0, must-revalidate
+              schema:
+                type: string
+          content:
+            application/vnd.sas.report.publish.job+json;version=1:
+              schema:
+                $ref: "#/components/schemas/reportPublishJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/reportPublishJobRunning"
+            application/vnd.sas.report.publish.job+json:
+              schema:
+                $ref: "#/components/schemas/reportPublishJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/reportPublishJobRunning"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/reportPublishJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/reportPublishJobRunning"
+        "400":
+          description: |
+            Bad request. A required property (reportUri, destination, or
+            imageName) was missing or invalid.
+          content:
+            application/vnd.sas.error+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                json:
+                  $ref: "#/components/examples/invalidRequest"
+        "404":
+          description: |
+            Not found. Returned when the feature flag that enables this service
+            is not active.
+          content:
+            application/vnd.sas.error+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                json:
+                  $ref: "#/components/examples/featureFlagNotEnabled"
+  /job/{jobId}:
+    get:
+      summary: |
+        Return the status of a publish job.
+      description: >
+        Returns the current state of the publish job identified by `jobId`.
+
+
+        While the job is processing, the `status` will be `running`. When the
+        job finishes successfully the `status` will be `completed` and the
+        `imageCoordinates` field will contain the location of the published
+        container image. If the job fails the `status` will be `error` and the
+        `error` field will contain details. The HTTP response status code
+        reflects the failure when the job is in the `error` state.
+      operationId: getJobStatus
+      tags:
+      - Jobs
+      parameters:
+      - name: jobId
+        in: path
+        description: The identifier of the publish job. Must be a UUID.
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Successful response. The job state is returned.
+          headers:
+            Cache-Control:
+              description: no-cache, no-store, max-age=0, must-revalidate
+              schema:
+                type: string
+          content:
+            application/vnd.sas.report.publish.job+json;version=1:
+              schema:
+                $ref: "#/components/schemas/reportPublishJob"
+              examples:
+                completed:
+                  $ref: "#/components/examples/reportPublishJobCompleted"
+                running:
+                  $ref: "#/components/examples/reportPublishJobRunning"
+            application/vnd.sas.report.publish.job+json:
+              schema:
+                $ref: "#/components/schemas/reportPublishJob"
+              examples:
+                completed:
+                  $ref: "#/components/examples/reportPublishJobCompleted"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/reportPublishJob"
+              examples:
+                completed:
+                  $ref: "#/components/examples/reportPublishJobCompleted"
+        "400":
+          description: |
+            Bad request. The supplied `jobId` was not a valid UUID, or the job
+            finished in an error state caused by an invalid request.
+          content:
+            application/vnd.sas.report.publish.job+json;version=1:
+              schema:
+                $ref: "#/components/schemas/reportPublishJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/reportPublishJobError"
+            application/vnd.sas.error+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                json:
+                  $ref: "#/components/examples/invalidJobId"
+        "404":
+          description: |
+            Not found. No job exists for the supplied `jobId`, or the feature
+            flag that enables this service is not active.
+          content:
+            application/vnd.sas.error+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                jobNotFound:
+                  $ref: "#/components/examples/jobNotFound"
+                featureFlagNotEnabled:
+                  $ref: "#/components/examples/featureFlagNotEnabled"
+        "500":
+          description: |
+            The job finished in an error state caused by a server-side failure
+            (for example, the report package could not be generated or the
+            image could not be published).
+          content:
+            application/vnd.sas.report.publish.job+json;version=1:
+              schema:
+                $ref: "#/components/schemas/reportPublishJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/reportPublishJobError"
+components:
+  schemas:
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    error:
+      $ref: "#/components/schemas/error2"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    reportPublishJobRequest:
+      description: The options needed to create a publish job.
+      type: object
+      required:
+      - reportUri
+      - destination
+      - imageName
+      properties:
+        reportUri:
+          type: string
+          description: The URI of the report to publish.
+          example: "/reports/reports/b3c2d1e0-1234-5678-9abc-def012345678"
+        destination:
+          type: string
+          description: The name of the publishing destination (container registry)
+            to publish the image to.
+          example: "myRegistry"
+        imageName:
+          type: string
+          description: The name to assign to the published container image.
+          example: "my-report-image"
+    reportPublishJob:
+      description: The state of a publish job.
+      type: object
+      properties:
+        version:
+          type: integer
+          default: 1
+          description: This media type's schema version number.
+        id:
+          type: string
+          format: uuid
+          description: The unique identifier of the publish job.
+        status:
+          type: string
+          description: The current state of the job.
+          enum:
+          - running
+          - completed
+          - error
+        imageCoordinates:
+          type: string
+          description: >
+            The coordinates (location) of the published container image. Present
+            only when `status` is `completed`.
+        error:
+          $ref: "#/components/schemas/error"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+  examples:
+    topLevelLinks:
+      summary: Top level links
+      description: The links returned from the root of the service.
+      value: {"version": 1, "links": [{"method": "POST", "rel": "create", "href": "/reportPublish/job",
+            "uri": "/reportPublish/job", "type": "application/vnd.sas.report.publish.job.request",
+            "responseType": "application/vnd.sas.report.publish.job+json"}, {"method": "GET",
+            "rel": "job", "href": "/reportPublish/job/{jobId}", "uri": "/reportPublish/job/{jobId}",
+            "responseType": "application/vnd.sas.report.publish.job+json"}]}
+    reportPublishJobRequest:
+      summary: A publish job request
+      description: An example request body to publish a report as a container image.
+      value: {"reportUri": "/reports/reports/b3c2d1e0-1234-5678-9abc-def012345678",
+        "destination": "myRegistry", "imageName": "my-report-image"}
+    reportPublishJobRunning:
+      summary: A running job
+      description: A newly created job that is still being processed.
+      value: {"version": 1, "id": "0b9d1f2a-3c4e-5a6b-7c8d-9e0f1a2b3c4d", "status": "running"}
+    reportPublishJobCompleted:
+      summary: A completed job
+      description: A job that has finished successfully. The published image coordinates
+        are returned.
+      value: {"version": 1, "id": "0b9d1f2a-3c4e-5a6b-7c8d-9e0f1a2b3c4d", "status": "completed",
+        "imageCoordinates": "myregistry.example.com/my-report-image:latest"}
+    reportPublishJobError:
+      summary: A failed job
+      description: A job that finished in an error state.
+      value: {"version": 1, "id": "0b9d1f2a-3c4e-5a6b-7c8d-9e0f1a2b3c4d", "status": "error",
+        "error": {"version": 2, "httpStatusCode": 500, "errorCode": 190999, "message": "Unable\
+            \ to generate package."}}
+    invalidRequest:
+      summary: Invalid request
+      description: A response body for a request that was missing a required property.
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 190901, "message": "Invalid\
+          \ value provided for : reportURI"}
+    invalidJobId:
+      summary: Invalid job id
+      description: A response body for a request whose jobId was not a valid UUID.
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 190901, "message": "Invalid\
+          \ value provided for : Id"}
+    jobNotFound:
+      summary: Job not found
+      description: A response body returned when no job exists for the supplied id.
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 190902, "message": "Requested\
+          \ job not found."}
+    featureFlagNotEnabled:
+      summary: Feature flag not enabled
+      description: A response body returned when the feature flag that enables this
+        service is not active.
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 190903, "message": "Feature\
+          \ Flag not enabled."}

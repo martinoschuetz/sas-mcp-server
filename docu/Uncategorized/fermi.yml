@@ -1,0 +1,1764 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: Fermi
+  description: |
+    SAS Fermi API Package
+  termsOfService: "https://www.sas.com/en_us/legal/copyright.html"
+  contact:
+    name: SAS Developers
+    email: devex@sas.com
+    url: "https://developer.sas.com"
+servers:
+- url: http://example.com/fermi
+  description: Sample server URL.
+tags:
+- name: Root
+  description: API root.
+- name: Namespaces
+  description: Namespace management.
+- name: Flow Definitions
+  description: Create, read, import/export and run flows.
+- name: Run Instances
+  description: Run instance operations and logs/code file access.
+- name: Contexts
+  description: Execution contexts.
+components:
+  parameters:
+    # --- Selectors ---
+    namespaceId:
+      name: namespaceId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: >
+        Namespace identifier. Can be either the unique key or the id of the namespace
+        object.
+    flowDefnId:
+      name: flowDefnId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: >
+        Flow definition identifier. Can be either the unique key of the flow definition,
+        or in the format `<id>:<version>:<namespace>`.
+    taskDefnId:
+      name: taskDefnId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: >
+        Task definition identifier. Can be either the unique key of the task definition,
+        or in the format `<id>:<version>:<namespace>`.
+    runInstId:
+      name: runInstId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: >
+        Run instance identifier. Can be either the unique key of the run instance,
+        or in the format `<id>:<version>:<namespace>`.
+    forceDeleteRunInst:
+      name: force
+      in: query
+      required: false
+      schema:
+        type: boolean
+      description: |
+        If not set or false, the run instance can only be deleted if it is in a terminal state (COMPLETED, FAILED, CANCELED).
+        If set to true, the API will attempt to cancel the run if it is currently running and then delete it.
+        Cancellation and deletion may still fail if there are related resources or execution state that prevent these actions.
+    contextId:
+      name: contextId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: >
+        Context identifier. Can be either the unique key of the context,
+        or in the format `<id>:<version>:<namespace>`.
+    start:
+      name: start
+      in: query
+      description: 0-based offset of first type to return. Defaults to 0.
+      schema:
+        type: integer
+        minimum: 0
+        example: 0
+    limit:
+      name: limit
+      in: query
+      description: Maximum number of types to return. Defaults to 20.
+      schema:
+        type: integer
+        minimum: 1
+        example: 20
+    filter:
+      name: filter
+      in: query
+      description: "Filter criteria for returned types. See [Filtering in REST APIs](https://developer.sas.com/apis/rest/Topics/#filters)."
+      schema:
+        type: string
+        format: filter-criteria
+    sortBy:
+      name: sortBy
+      in: query
+      description: "Sort returned types. See [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting)."
+      schema:
+        type: string
+        format: sort-criteria
+    partition:
+      name: partition
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: >
+        Partition index used to select which partition's file to retrieve
+        when a run instance spans multiple partitions.
+  schemas:
+    # --- Enums ---
+    runStatusEnum:
+      type: string
+      description: "Status of a run instance."
+      enum:
+      - pending
+      - queued
+      - running
+      - completed
+      - failed
+      - timedOut
+      - cancelling
+      - cancelled
+      - aborted
+
+    codeOverrideEnum:
+      type: string
+      description: "Specifies how code is applied relative to parent code."
+      enum:
+      - override
+      - none
+      - add
+
+    codeLanguageEnum:
+      type: string
+      description: "Programming language of the code."
+      enum:
+      - sas
+      - py
+
+    dataDefnTypeEnum:
+      type: string
+      description: "Type of a data definition."
+      enum:
+      - sas9PathLib
+      - sas7bdat
+      - sas7bvew
+      - csv
+      - xlsx
+      - pdf
+      - docx
+      - pptx
+      - txt
+      - xbrl
+
+    deploymentStatusEnum:
+      type: string
+      description: "Deployment status of a context."
+      enum:
+      - ready
+      - deploying
+      - failed
+      - unknown
+
+    # --- Create DTOs ---
+    codeDefinitionCreateDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 512
+        language:
+          $ref: "#/components/schemas/codeLanguageEnum"
+        volumeName:
+          type: string
+        path:
+          type: string
+          maxLength: 1024
+      required:
+      - path
+      description: "Dto to create code definition"
+    preCodeCreateDto:
+      type: object
+      properties:
+        preCodeOverride:
+          $ref: "#/components/schemas/codeOverrideEnum"
+        preCode:
+          $ref: "#/components/schemas/codeDefinitionCreateDto"
+      description: "Base dto to create pre code"
+    postCodeCreateDto:
+      type: object
+      properties:
+        postCodeOverride:
+          $ref: "#/components/schemas/codeOverrideEnum"
+        postCode:
+          $ref: "#/components/schemas/codeDefinitionCreateDto"
+      description: "Base dto to create post code"
+    contextResLimitCreateDto:
+      type: object
+      properties:
+        cpu:
+          type: string
+        memory:
+          type: string
+      description: "Limits for resources."
+    contextResRequestsCreateDto:
+      type: object
+      properties:
+        cpu:
+          type: string
+        memory:
+          type: string
+      description: "Requests for resources."
+    contextResourceCreateDto:
+      type: object
+      properties:
+        limits:
+          $ref: "#/components/schemas/contextResLimitCreateDto"
+        requests:
+          $ref: "#/components/schemas/contextResRequestsCreateDto"
+      required:
+      - limits
+      - requests
+
+    contextScalingCreateDto:
+      type: object
+      properties:
+        min:
+          type: integer
+          format: int32
+        max:
+          type: integer
+          format: int32
+      required:
+      - min
+
+    contextVolumeCreateDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        path:
+          type: string
+          maxLength: 512
+        claim:
+          type: string
+          maxLength: 255
+        readOnly:
+          type: boolean
+      required:
+      - name
+      - path
+      - claim
+
+    contextCreateDto:
+      type: object
+      properties:
+        id:
+          type: string
+          maxLength: 50
+        version:
+          type: string
+          maxLength: 50
+        namespace:
+          type: string
+          maxLength: 50
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 512
+        scaling:
+          $ref: "#/components/schemas/contextScalingCreateDto"
+        resources:
+          $ref: "#/components/schemas/contextResourceCreateDto"
+        volumes:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/contextVolumeCreateDto"
+      required:
+      - id
+      - version
+      - namespace
+      - name
+      description: "Dto to create context"
+    dataOptionsCreateDto:
+      type: object
+      properties:
+        sasmacrovarload:
+          type: boolean
+        cardinality:
+          type: string
+          maxLength: 255
+    dataDefinitionCreateDto:
+      type: object
+      properties:
+        alias:
+          type: string
+          maxLength: 255
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 512
+        type:
+          $ref: "#/components/schemas/dataDefnTypeEnum"
+        uri:
+          type: string
+          maxLength: 1024
+        volumeName:
+          type: string
+        isPartitioned:
+          type: boolean
+        options:
+          $ref: "#/components/schemas/dataOptionsCreateDto"
+      required:
+      - name
+      - type
+      - uri
+      description: "Base dto to create data definition"
+    graphNodeCreateDto:
+      type: object
+      properties:
+        id:
+          type: string
+          maxLength: 50
+        task:
+          type: string
+          maxLength: 255
+        subFlow:
+          type: string
+          maxLength: 255
+      required:
+      - id
+      description: "Node used in flow graph"
+    graphEdgeCreateDto:
+      type: object
+      properties:
+        from:
+          $ref: "#/components/schemas/graphNodeCreateDto"
+        to:
+          type: array
+          items:
+            $ref: "#/components/schemas/graphNodeCreateDto"
+      required:
+      - from
+      description: "Edge used in flow graph"
+    paramDefinitionCreateDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 50
+        value:
+          type: string
+          maxLength: 512
+        description:
+          type: string
+          maxLength: 512
+      required:
+      - name
+      description: "Parameter definition"
+    taskOptionsCreateDto:
+      type: object
+      properties:
+        timeout:
+          type: integer
+          format: int32
+        cardinality:
+          type: string
+    taskDefinitionCreateDto:
+      allOf:
+      - $ref: "#/components/schemas/preCodeCreateDto"
+      - $ref: "#/components/schemas/postCodeCreateDto"
+      - type: object
+        properties:
+          id:
+            type: string
+            maxLength: 50
+          name:
+            type: string
+            maxLength: 255
+          description:
+            type: string
+            maxLength: 512
+          docUrl:
+            type: string
+            maxLength: 512
+          parameters:
+            type: array
+            items:
+              $ref: "#/components/schemas/paramDefinitionCreateDto"
+          code:
+            $ref: "#/components/schemas/codeDefinitionCreateDto"
+          inputData:
+            type: array
+            items:
+              $ref: "#/components/schemas/dataDefinitionCreateDto"
+          outputData:
+            type: array
+            items:
+              $ref: "#/components/schemas/dataDefinitionCreateDto"
+          options:
+            $ref: "#/components/schemas/taskOptionsCreateDto"
+        required:
+        - id
+        - code
+        description: "Dto to create task definition"
+    flowDefinitionCreateDto:
+      allOf:
+      - $ref: "#/components/schemas/preCodeCreateDto"
+      - $ref: "#/components/schemas/postCodeCreateDto"
+      - type: object
+        properties:
+          id:
+            type: string
+            maxLength: 50
+          version:
+            type: string
+            maxLength: 50
+          namespace:
+            type: string
+            maxLength: 50
+          name:
+            type: string
+            maxLength: 255
+          description:
+            type: string
+            maxLength: 512
+          docUrl:
+            type: string
+            maxLength: 512
+          tasks:
+            type: array
+            items:
+              $ref: "#/components/schemas/taskDefinitionCreateDto"
+          graph:
+            type: array
+            items:
+              $ref: "#/components/schemas/graphEdgeCreateDto"
+          parameters:
+            type: array
+            items:
+              $ref: "#/components/schemas/paramDefinitionCreateDto"
+        required:
+        - id
+        - version
+        - namespace
+        - graph
+        description: "Dto to create flow definition"
+    namespaceCreateDto:
+      type: object
+      properties:
+        id:
+          type: string
+          maxLength: 50
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 512
+      required:
+      - id
+      - name
+
+    runInstanceCreateDto:
+      type: object
+      properties:
+        id:
+          type: string
+          maxLength: 50
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 512
+        context:
+          type: string
+        timeout:
+          type: integer
+          format: int32
+        parameters:
+          type: array
+          items:
+            $ref: "#/components/schemas/paramDefinitionCreateDto"
+        extraArgs:
+          type: array
+          items:
+            type: string
+      required:
+      - id
+      - context
+      description: "Dto to create run instance"
+    runInstanceSelectionDto:
+      type: object
+      properties:
+        refs:
+          type: array
+          items:
+            type: string
+      required:
+      - refs
+      description: "Dto to select run instances for batch operations"
+    responseDto:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        mediaTypeName:
+          type: string
+        mediaTypeVersion:
+          type: integer
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+      description: "Base DTO with common resource metadata"
+    identifierDefnResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+        version:
+          type: string
+        namespace:
+          type: string
+      description: "Identifier for definitions"
+    identifierInstResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+        namespace:
+          type: string
+      description: "Identifier for instances"
+    statusResponseDto:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/runStatusEnum"
+        error:
+          type: string
+      description: "Status and error info"
+    preCodeResponseDto:
+      type: object
+      properties:
+        preCodeOverride:
+          $ref: "#/components/schemas/codeOverrideEnum"
+        preCode:
+          $ref: "#/components/schemas/codeDefinitionDefaultDto"
+      description: "Response for pre-execution code"
+    postCodeResponseDto:
+      type: object
+      properties:
+        postCodeOverride:
+          $ref: "#/components/schemas/codeOverrideEnum"
+        postCode:
+          $ref: "#/components/schemas/codeDefinitionDefaultDto"
+      description: "Response for post-execution code"
+    runInstDefaultOptionsDto:
+      type: object
+      properties:
+        timeout:
+          type: string
+        cardinality:
+          type: integer
+        extraArgs:
+          type: array
+          items:
+            type: string
+      description: "Default options for run instances"
+    codeDefinitionDefaultDto:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        language:
+          $ref: "#/components/schemas/codeLanguageEnum"
+        volumeName:
+          type: string
+        path:
+          type: string
+      description: "Default response dto for code definition"
+    contextResLimitDefaultDto:
+      type: object
+      properties:
+        cpu:
+          type: string
+        memory:
+          type: string
+    contextResRequestsDefaultDto:
+      type: object
+      properties:
+        cpu:
+          type: string
+        memory:
+          type: string
+    contextResourceDefaultDto:
+      type: object
+      properties:
+        limits:
+          $ref: "#/components/schemas/contextResLimitDefaultDto"
+        requests:
+          $ref: "#/components/schemas/contextResRequestsDefaultDto"
+    contextScalingDefaultDto:
+      type: object
+      properties:
+        min:
+          type: integer
+          format: int32
+        max:
+          type: integer
+          format: int32
+          nullable: true
+    contextVolumeDefaultDto:
+      type: object
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        claim:
+          type: string
+        readOnly:
+          type: boolean
+    contextDefaultDto:
+      allOf:
+      - $ref: "#/components/schemas/responseDto"
+      - $ref: "#/components/schemas/identifierDefnResponseDto"
+      - type: object
+        properties:
+          key:
+            type: string
+          scaling:
+            $ref: "#/components/schemas/contextScalingDefaultDto"
+          resources:
+            $ref: "#/components/schemas/contextResourceDefaultDto"
+          volumes:
+            type: array
+            items:
+              $ref: "#/components/schemas/contextVolumeDefaultDto"
+          status:
+            $ref: "#/components/schemas/deploymentStatusEnum"
+        description: "Default response dto for context"
+    dataOptionsDefaultDto:
+      type: object
+      properties:
+        sasmacrovarload:
+          type: boolean
+        cardinality:
+          type: string
+    dataDefinitionDefaultDto:
+      type: object
+      properties:
+        alias:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          $ref: "#/components/schemas/dataDefnTypeEnum"
+        uri:
+          type: string
+        volumeName:
+          type: string
+        isPartitioned:
+          type: boolean
+        options:
+          $ref: "#/components/schemas/dataOptionsDefaultDto"
+    graphNodeflowDefnDefaultDto:
+      type: object
+      properties:
+        id:
+          type: string
+        task:
+          type: string
+        subFlow:
+          type: string
+        start:
+          type: boolean
+          nullable: true
+    graphEdgeflowDefnDefaultDto:
+      type: object
+      properties:
+        from:
+          $ref: "#/components/schemas/graphNodeflowDefnDefaultDto"
+        to:
+          type: array
+          items:
+            $ref: "#/components/schemas/graphNodeflowDefnDefaultDto"
+        start:
+          type: boolean
+          nullable: true
+    flowDefinitiontaskDefaultDto:
+      allOf:
+      - $ref: "#/components/schemas/responseDto"
+      - $ref: "#/components/schemas/identifierDefnResponseDto"
+      - $ref: "#/components/schemas/preCodeResponseDto"
+      - $ref: "#/components/schemas/postCodeResponseDto"
+      - type: object
+        properties:
+          key:
+            type: string
+          docUrl:
+            type: string
+          parameters:
+            type: array
+            items:
+              $ref: "#/components/schemas/paramDefinitionCreateDto"
+          code:
+            $ref: "#/components/schemas/codeDefinitionDefaultDto"
+          inputData:
+            type: array
+            items:
+              $ref: "#/components/schemas/dataDefinitionDefaultDto"
+          outputData:
+            type: array
+            items:
+              $ref: "#/components/schemas/dataDefinitionDefaultDto"
+          options:
+            $ref: "#/components/schemas/taskOptionsDefaultDto"
+    flowDefinitionDefaultDto:
+      allOf:
+      - $ref: "#/components/schemas/responseDto"
+      - $ref: "#/components/schemas/identifierDefnResponseDto"
+      - $ref: "#/components/schemas/preCodeResponseDto"
+      - $ref: "#/components/schemas/postCodeResponseDto"
+      - type: object
+        properties:
+          key:
+            type: string
+          docUrl:
+            type: string
+          subFlows:
+            type: array
+            items:
+              $ref: "#/components/schemas/flowDefinitiontaskDefaultDto"
+          tasks:
+            type: array
+            items:
+              $ref: "#/components/schemas/flowDefinitiontaskDefaultDto"
+          graph:
+            type: array
+            items:
+              $ref: "#/components/schemas/graphEdgeflowDefnDefaultDto"
+          parameters:
+            type: array
+            items:
+              $ref: "#/components/schemas/paramDefinitionCreateDto"
+    graphNoderunInstDefaultDto:
+      type: object
+      properties:
+        id:
+          type: string
+        runKey:
+          type: string
+        taskKey:
+          type: string
+        flowKey:
+          type: string
+        isStart:
+          type: boolean
+          nullable: true
+        status:
+          $ref: "#/components/schemas/runStatusEnum"
+        error:
+          type: string
+    graphEdgerunInstDefaultDto:
+      type: object
+      properties:
+        from:
+          $ref: "#/components/schemas/graphNoderunInstDefaultDto"
+        to:
+          type: array
+          items:
+            $ref: "#/components/schemas/graphNoderunInstDefaultDto"
+        isStart:
+          type: boolean
+          nullable: true
+    namespaceDefaultDto:
+      allOf:
+      - $ref: "#/components/schemas/responseDto"
+      - type: object
+        properties:
+          id:
+            type: string
+    paramDefinitionDefaultDto:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+        description:
+          type: string
+    runInstanceDefaultDto:
+      allOf:
+      - $ref: "#/components/schemas/responseDto"
+      - $ref: "#/components/schemas/identifierInstResponseDto"
+      - $ref: "#/components/schemas/statusResponseDto"
+      - type: object
+        properties:
+          key:
+            type: string
+          rootKey:
+            type: string
+          parentKey:
+            type: string
+          taskDefinitionKey:
+            type: string
+          flowDefinitionKey:
+            type: string
+          isDefinition:
+            type: boolean
+            nullable: true
+          isStart:
+            type: boolean
+            nullable: true
+          graph:
+            type: array
+            items:
+              $ref: "#/components/schemas/graphEdgerunInstDefaultDto"
+          subRuns:
+            type: array
+            items:
+              $ref: "#/components/schemas/subrunInstanceDefaultDto"
+          options:
+            $ref: "#/components/schemas/runInstDefaultOptionsDto"
+          parametersOverride:
+            type: array
+            items:
+              $ref: "#/components/schemas/paramDefinitionDefaultDto"
+          inputParameters:
+            type: array
+            items:
+              $ref: "#/components/schemas/paramDefinitionDefaultDto"
+          outputParameters:
+            type: array
+            items:
+              $ref: "#/components/schemas/paramDefinitionDefaultDto"
+          codeFile:
+            type: string
+          inputData:
+            type: array
+            items:
+              $ref: "#/components/schemas/dataDefinitionDefaultDto"
+          outputData:
+            type: array
+            items:
+              $ref: "#/components/schemas/dataDefinitionDefaultDto"
+          duration:
+            type: string
+          contextKey:
+            type: string
+        description: "Default representation of the run instance"
+    subrunInstanceDefaultDto:
+      allOf:
+      - $ref: "#/components/schemas/responseDto"
+      - $ref: "#/components/schemas/identifierInstResponseDto"
+      - $ref: "#/components/schemas/statusResponseDto"
+      - type: object
+        properties:
+          key:
+            type: string
+          rootKey:
+            type: string
+          parentKey:
+            type: string
+          taskDefinitionKey:
+            type: string
+          flowDefinitionKey:
+            type: string
+          isDefinition:
+            type: boolean
+            nullable: true
+          isStart:
+            type: boolean
+            nullable: true
+          codeFile:
+            type: string
+          duration:
+            type: string
+          contextKey:
+            type: string
+    taskOptionsDefaultDto:
+      type: object
+      properties:
+        cardinality:
+          type: string
+          description: "Optional cardinality setting for the task."
+      description: "Default DTO for task option"
+    namespaceUpdateDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 512
+      description: "Dto to update namespace"
+    contextUpdateDto:
+      type: object
+      properties:
+        scaling:
+          $ref: "#/components/schemas/contextScalingCreateDto"
+        resources:
+          $ref: "#/components/schemas/contextResourceCreateDto"
+        volumes:
+          type: array
+          items:
+            $ref: "#/components/schemas/contextVolumeCreateDto"
+      description: "Dto to update context"
+    apiDiscoveryResponse:
+      type: object
+      properties:
+        version:
+          type: number
+    getNamespacesResponse:
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/namespaceDefaultDto"
+    getFlowDefinitionsResponse:
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/flowDefinitionDefaultDto"
+    getRunInstancesResponse:
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/runInstanceDefaultDto"
+    getContextsResponse:
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/contextDefaultDto"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+paths:
+  # --- Root ---
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get API root (discovery)
+      operationId: root
+      responses:
+        "200":
+          description: "Discovery."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/apiDiscoveryResponse"
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/apiDiscoveryResponse"
+  /namespaces:
+    get:
+      tags:
+      - Namespaces
+      summary: Get list of namespaces
+      operationId: getNamespaces
+      parameters:
+      - $ref: "#/components/parameters/start"
+      - $ref: "#/components/parameters/limit"
+      - $ref: "#/components/parameters/filter"
+      - $ref: "#/components/parameters/sortBy"
+      responses:
+        "200":
+          description: "List of namespaces."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getNamespacesResponse"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/getNamespacesResponse"
+    post:
+      tags:
+      - Namespaces
+      summary: Create namespace
+      operationId: createNamespace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/namespaceCreateDto"
+          application/vnd.sas.fermi.namespace+json:
+            schema:
+              $ref: "#/components/schemas/namespaceCreateDto"
+      responses:
+        "201":
+          description: "Created namespace."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/namespaceDefaultDto"
+            application/vnd.sas.fermi.namespace+json:
+              schema:
+                $ref: "#/components/schemas/namespaceDefaultDto"
+        "400":
+          description: "Invalid input. Further details in response body."
+        "409":
+          description: "Namespace with the same identifier already exists."
+  /namespaces/{namespaceId}:
+    get:
+      tags:
+      - Namespaces
+      summary: Get a namespace
+      operationId: getNamespace
+      parameters:
+      - $ref: "#/components/parameters/namespaceId"
+      responses:
+        "200":
+          description: "The namespace."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/namespaceDefaultDto"
+            application/vnd.sas.fermi.namespace+json:
+              schema:
+                $ref: "#/components/schemas/namespaceDefaultDto"
+        "404":
+          description: "Namespace not found."
+    put:
+      tags:
+      - Namespaces
+      summary: Update a namespace
+      operationId: updateNamespace
+      parameters:
+      - $ref: "#/components/parameters/namespaceId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/namespaceUpdateDto"
+          application/vnd.sas.fermi.namespace+json:
+            schema:
+              $ref: "#/components/schemas/namespaceUpdateDto"
+      responses:
+        "200":
+          description: "Updated namespace."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/namespaceDefaultDto"
+            application/vnd.sas.fermi.namespace+json:
+              schema:
+                $ref: "#/components/schemas/namespaceDefaultDto"
+        "400":
+          description: "Invalid input. Further details in response body."
+        "404":
+          description: "Namespace not found."
+    delete:
+      tags:
+      - Namespaces
+      summary: Delete a namespace
+      operationId: deleteNamespace
+      parameters:
+      - $ref: "#/components/parameters/namespaceId"
+      responses:
+        "204":
+          description: "Namespace deleted."
+        "400":
+          description: "Namespace could not be deleted due to related resources. Further\
+            \ details in response body."
+        "404":
+          description: "Namespace not found."
+  /flowDefinitions:
+    get:
+      tags:
+      - Flow Definitions
+      summary: Get flow definitions collection
+      operationId: getFlowDefinitions
+      parameters:
+      - $ref: "#/components/parameters/start"
+      - $ref: "#/components/parameters/limit"
+      - $ref: "#/components/parameters/filter"
+      - $ref: "#/components/parameters/sortBy"
+      responses:
+        "200":
+          description: "List of flow definitions."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getFlowDefinitionsResponse"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/getFlowDefinitionsResponse"
+    post:
+      tags:
+      - Flow Definitions
+      summary: Create flow definition
+      operationId: createFlowDefinition
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/flowDefinitionCreateDto"
+          application/vnd.sas.fermi.flow.definition+json:
+            schema:
+              $ref: "#/components/schemas/flowDefinitionCreateDto"
+      responses:
+        "201":
+          description: "Created flow definition."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/flowDefinitionDefaultDto"
+            application/vnd.sas.fermi.flow.definition+json:
+              schema:
+                $ref: "#/components/schemas/flowDefinitionDefaultDto"
+        "400":
+          description: "Invalid input. Further details in response body."
+        "404":
+          description: "Related resource not found. Further details in response body."
+        "409":
+          description: "Flow definition with the same identifier already exists."
+  /flowDefinitions/import:
+    post:
+      tags:
+      - Flow Definitions
+      summary: Import flow definition(s)
+      operationId: importFlowDefinitions
+      parameters:
+      - name: force
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: |
+          A conflict is defined as an attempt to import a flow definition with the same id, version, and namespace but with different content than an existing flow definition.
+          If not set or false, existing flow definitions will not be overwritten, and in the case of a conflict, the import will fail.
+          If set to true, the API will attempt to overwrite existing flow definitions with the new values provided in the import.
+          Overwrite may still fail if there are relationships between items outside the import package and any items inside it that prevent deletion or replacement.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/flowDefinitionCreateDto"
+          application/vnd.sas.fermi.flow.definition.package+json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/flowDefinitionCreateDto"
+      responses:
+        "201":
+          description: "Imported flow definition(s)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/flowDefinitionDefaultDto"
+            application/vnd.sas.fermi.flow.definition+json:
+              schema:
+                $ref: "#/components/schemas/flowDefinitionDefaultDto"
+        "204":
+          description: "No new flow definitions were imported."
+        "400":
+          description: "Invalid input. Further details in response body."
+        "404":
+          description: "Related resource not found. Further details in response body."
+        "409":
+          description: "Flow definition with the same identifier already exists."
+  /flowDefinitions/{flowDefnId}:
+    get:
+      tags:
+      - Flow Definitions
+      summary: Get a flow definition
+      operationId: getFlowDefinition
+      parameters:
+      - $ref: "#/components/parameters/flowDefnId"
+      responses:
+        "200":
+          description: "The flow definition."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/flowDefinitionDefaultDto"
+            application/vnd.sas.fermi.flow.definition+json:
+              schema:
+                $ref: "#/components/schemas/flowDefinitionDefaultDto"
+        "404":
+          description: "Flow definition not found."
+    delete:
+      tags:
+      - Flow Definitions
+      summary: Delete a flow definition
+      operationId: deleteFlowDefinition
+      parameters:
+      - $ref: "#/components/parameters/flowDefnId"
+      responses:
+        "204":
+          description: "Flow definition deleted."
+        "400":
+          description: "Flow definition could not be deleted due to related resources.\
+            \ Further details in response body."
+        "404":
+          description: "Flow definition not found."
+  /flowDefinitions/{flowDefnId}/runs:
+    get:
+      tags:
+      - Flow Definitions
+      summary: Get runs for a flow definition
+      operationId: getFlowRuns
+      parameters:
+      - $ref: "#/components/parameters/flowDefnId"
+      - $ref: "#/components/parameters/start"
+      - $ref: "#/components/parameters/limit"
+      - $ref: "#/components/parameters/filter"
+      - $ref: "#/components/parameters/sortBy"
+      - name: includeDefinitions
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+        description: If true, the response will include the internal definitions used
+          as templates for new runs.
+      responses:
+        "200":
+          description: "List of run instances for the flow definition."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getRunInstancesResponse"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/getRunInstancesResponse"
+        "404":
+          description: "Flow definition not found."
+  /flowDefinitions/{flowDefnId}/export:
+    get:
+      tags:
+      - Flow Definitions
+      summary: Export flow definition
+      operationId: exportFlowDefinition
+      parameters:
+      - $ref: "#/components/parameters/flowDefnId"
+      responses:
+        "200":
+          description: "The flow definition export package."
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/flowDefinitionCreateDto"
+            application/vnd.sas.fermi.flow.definition.package+json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/flowDefinitionCreateDto"
+        "404":
+          description: "Flow definition not found."
+  /flowDefinitions/{flowDefnId}/run:
+    post:
+      tags:
+      - Flow Definitions
+      summary: Create run instance for a flow definition
+      operationId: createRunFromFlowDefinition
+      parameters:
+      - $ref: "#/components/parameters/flowDefnId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/runInstanceCreateDto"
+          application/vnd.sas.fermi.run.instance+json:
+            schema:
+              $ref: "#/components/schemas/runInstanceCreateDto"
+      responses:
+        "201":
+          description: "Created run instance."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/runInstanceDefaultDto"
+            application/vnd.sas.fermi.run.instance+json:
+              schema:
+                $ref: "#/components/schemas/runInstanceDefaultDto"
+        "400":
+          description: "Invalid input. Further details in response body."
+        "404":
+          description: "Related resource not found. Further details in response body."
+        "409":
+          description: "Run instance with the same identifier already exists."
+  /flowDefinitions/{flowDefnId}/run/{runInstId}/cancel:
+    post:
+      tags:
+      - Flow Definitions
+      summary: Cancel a run instance created for a flow definition
+      operationId: cancelRunInstanceForFlow
+      parameters:
+      - $ref: "#/components/parameters/flowDefnId"
+      - $ref: "#/components/parameters/runInstId"
+      responses:
+        "204":
+          description: "Run instance cancellation requested."
+        "400":
+          description: "Invalid input. Further details in response body."
+        "404":
+          description: "Flow definition or run instance not found."
+  /flowDefinitions/{flowDefnId}/doc:
+    get:
+      tags:
+      - Flow Definitions
+      summary: Get flow definition documentation URL
+      operationId: getFlowDefinitionDoc
+      parameters:
+      - $ref: "#/components/parameters/flowDefnId"
+      responses:
+        "303":
+          description: "Redirect to the flow definition documentation URL."
+          headers:
+            Location:
+              description: "The documentation URL."
+              schema:
+                type: string
+        "404":
+          description: "Flow definition not found or did not have a documentation\
+            \ URL."
+  /taskDefinitions/{taskDefnId}/doc:
+    get:
+      tags:
+      - Task Definitions
+      summary: Get task definition documentation URL
+      operationId: getTaskDefinitionDoc
+      parameters:
+      - $ref: "#/components/parameters/taskDefnId"
+      responses:
+        "303":
+          description: "Redirect to the task definition documentation URL."
+          headers:
+            Location:
+              description: "The documentation URL."
+              schema:
+                type: string
+        "404":
+          description: "Task definition not found or did not have a documentation\
+            \ URL."
+  /runInstances:
+    get:
+      tags:
+      - Run Instances
+      summary: Get run instances
+      operationId: getRunInstances
+      parameters:
+      - $ref: "#/components/parameters/start"
+      - $ref: "#/components/parameters/limit"
+      - $ref: "#/components/parameters/filter"
+      - $ref: "#/components/parameters/sortBy"
+      - name: includeDefinitions
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+        description: If true, the response will include the internal definitions used
+          as templates for new runs.
+      responses:
+        "200":
+          description: "List of run instances."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getRunInstancesResponse"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/getRunInstancesResponse"
+    delete:
+      tags:
+      - Run Instances
+      summary: Batch delete run instances
+      operationId: deleteRunInstances
+      parameters:
+      - $ref: "#/components/parameters/forceDeleteRunInst"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/runInstanceSelectionDto"
+          application/vnd.sas.fermi.run.instance.selection+json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/runInstanceSelectionDto"
+      responses:
+        "204":
+          description: "Run instances deleted."
+        "400":
+          description: "Run instances could not be deleted due to one or more errors.\
+            \ Further details in response body."
+  /runInstances/{runInstId}:
+    get:
+      tags:
+      - Run Instances
+      summary: Get a run instance
+      operationId: getRunInstance
+      parameters:
+      - $ref: "#/components/parameters/runInstId"
+      responses:
+        "200":
+          description: "The run instance."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/runInstanceDefaultDto"
+            application/vnd.sas.fermi.run.instance+json:
+              schema:
+                $ref: "#/components/schemas/runInstanceDefaultDto"
+        "404":
+          description: "Run instance not found."
+    delete:
+      tags:
+      - Run Instances
+      summary: Delete a run instance
+      operationId: deleteRunInstance
+      parameters:
+      - $ref: "#/components/parameters/runInstId"
+      - $ref: "#/components/parameters/forceDeleteRunInst"
+      responses:
+        "204":
+          description: "Run instance deleted."
+        "400":
+          description: "Run instance could not be deleted due to related resources\
+            \ or execution state. Further details in response body."
+        "404":
+          description: "Run instance not found."
+  /runInstances/{runInstId}/cancel:
+    post:
+      tags:
+      - Run Instances
+      summary: Cancel a run instance
+      operationId: cancelRunInstance
+      parameters:
+      - $ref: "#/components/parameters/runInstId"
+      responses:
+        "204":
+          description: "Run instance cancellation requested."
+        "400":
+          description: "Invalid input. Further details in response body."
+        "404":
+          description: "Run instance not found."
+  /runInstances/{runInstId}/codeFile:
+    get:
+      tags:
+      - Run Instances
+      summary: Get run instance code file
+      operationId: getRunInstanceCodeFile
+      parameters:
+      - $ref: "#/components/parameters/runInstId"
+      - $ref: "#/components/parameters/partition"
+      responses:
+        "200":
+          description: "The run instance code file."
+          content:
+            text/plain:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: "Run instance not found or code file not available."
+  /runInstances/{runInstId}/log:
+    get:
+      tags:
+      - Run Instances
+      summary: Get run instance log
+      operationId: getRunInstanceLog
+      parameters:
+      - $ref: "#/components/parameters/runInstId"
+      - $ref: "#/components/parameters/partition"
+      responses:
+        "200":
+          description: "The run instance log."
+          content:
+            text/plain:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: "Run instance not found or log not available."
+  /contexts:
+    get:
+      tags:
+      - Contexts
+      summary: Get contexts
+      operationId: getContexts
+      parameters:
+      - $ref: "#/components/parameters/start"
+      - $ref: "#/components/parameters/limit"
+      - $ref: "#/components/parameters/filter"
+      - $ref: "#/components/parameters/sortBy"
+      responses:
+        "200":
+          description: "List of contexts."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getContextsResponse"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/getContextsResponse"
+    post:
+      tags:
+      - Contexts
+      summary: Create context
+      operationId: createContext
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/contextCreateDto"
+              - required:
+                - volumes
+          application/vnd.sas.fermi.context+json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/contextCreateDto"
+              - required:
+                - volumes
+      parameters:
+      - name: init
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+        description: If true, the context will be initialized.
+      responses:
+        "201":
+          description: "Created context."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/contextDefaultDto"
+            application/vnd.sas.fermi.context+json:
+              schema:
+                $ref: "#/components/schemas/contextDefaultDto"
+        "400":
+          description: "Invalid input. Further details in response body."
+        "409":
+          description: "Context with the same identifier already exists."
+  /contexts/{contextId}:
+    get:
+      tags:
+      - Contexts
+      summary: Get a context
+      operationId: getContext
+      parameters:
+      - $ref: "#/components/parameters/contextId"
+      responses:
+        "200":
+          description: "The context."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/contextDefaultDto"
+            application/vnd.sas.fermi.context+json:
+              schema:
+                $ref: "#/components/schemas/contextDefaultDto"
+        "404":
+          description: "Context not found."
+    put:
+      tags:
+      - Contexts
+      summary: Update a context
+      operationId: updateContext
+      parameters:
+      - $ref: "#/components/parameters/contextId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/contextUpdateDto"
+          application/vnd.sas.fermi.context+json:
+            schema:
+              $ref: "#/components/schemas/contextUpdateDto"
+      responses:
+        "200":
+          description: "Updated context."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/contextDefaultDto"
+            application/vnd.sas.fermi.context+json:
+              schema:
+                $ref: "#/components/schemas/contextDefaultDto"
+        "400":
+          description: "Invalid input. Further details in response body."
+        "404":
+          description: "Context not found."
+    delete:
+      tags:
+      - Contexts
+      summary: Delete a context
+      operationId: deleteContext
+      parameters:
+      - $ref: "#/components/parameters/contextId"
+      responses:
+        "204":
+          description: "Context deleted."
+        "400":
+          description: "Context could not be deleted due to related resources or execution\
+            \ state. Further details in response body."
+        "404":
+          description: "Context not found."
+  /contexts/{contextId}/init:
+    post:
+      tags:
+      - Contexts
+      summary: (Re-)initialize a context by deploying required k8s resources
+      operationId: initContext
+      parameters:
+      - $ref: "#/components/parameters/contextId"
+      responses:
+        "200":
+          description: "Started context initialization."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/contextDefaultDto"
+            application/vnd.sas.fermi.context+json:
+              schema:
+                $ref: "#/components/schemas/contextDefaultDto"
+        "400":
+          description: "Invalid input. Further details in response body."
+        "404":
+          description: "Context not found."

@@ -1,0 +1,2789 @@
+---
+openapi: 3.0.3
+info:
+  version: "6"
+  title: Subject Contacts
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+  description: The Subject Contacts API records contacts to subjects and records documents
+    that are produced when executing decisions and business rules.
+tags:
+- name: Root
+  description: Contains the operations for the root resource.
+- name: Contacts
+  description: Contains the operations for the contacts resource.
+- name: Aggregations
+  description: Contains the operations for the aggregations resource.
+- name: Traces
+  description: Contains the operations for the traces resource.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get a list of top-level resource links
+      description: Returns a list of links to the top-level resources in this API.
+      operationId: root
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                root:
+                  $ref: "#/components/examples/root"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                root:
+                  $ref: "#/components/examples/root"
+  /contacts:
+    get:
+      tags:
+      - Contacts
+      summary: Get all contacts
+      description: Returns a collection of information about each contact made. Each
+        item also contains the presentation, and the response to that contact.
+      operationId: getContacts
+      parameters:
+      - name: start
+        in: query
+        description: The starting index of the first item on a page. The index is
+          0-based. The default index is 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: The maximum number of items to return on this page. The actual
+          number of returned items might be less if there are no more items in the
+          collection. The default is 10.
+        schema:
+          type: integer
+      - name: sortBy
+        in: query
+        description: The sorting criteria for the returned contacts. The default sort
+          order is creationTimeStamp:descending.
+        schema:
+          type: string
+          format: sort-criteria
+      - name: filter
+        in: query
+        description: The filter criteria for the returned contacts. All fields of
+          application/vnd.sas.decision.subject.contact can be used in the filter.
+        schema:
+          type: string
+          format: filter-criteria
+      - name: Accept-Item
+        in: header
+        description: Select the desired item representation.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.decision.subject.contact+json
+          - application/vnd.sas.search.indexable.data+json
+          - application/vnd.sas.summary+json
+          default: application/vnd.sas.summary+json
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/subjectContactCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContactCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subjectContactCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContactCollection"
+        "400":
+          description: The request was invalid.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: No resource exists at the requested path.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+    post:
+      tags:
+      - Contacts
+      summary: Create a new contact record
+      description: The contact and response are recorded. If the presentation is configured
+        to be recorded, it can be recorded at this time or deferred to a future update.
+        The PATCH action can be used with the responseTrackingCode property to make
+        the update and record the response to the treatment. If the operation is to
+        be fulfilled asynchronously by using asynchronous=true, a resource ID is issued
+        without waiting for the completion of the operation. The endpoint returns
+        a URI for retrieving the resource in the Location response header. An HTTP
+        status of 202 is returned.
+      operationId: createContact
+      parameters:
+      - name: asynchronous
+        in: query
+        description: Whether the operation is to be carried out asynchronously or
+          not. The default is false.
+        schema:
+          type: boolean
+      requestBody:
+        $ref: "#/components/requestBodies/subjectContact"
+      responses:
+        "201":
+          description: A resource was created.
+          headers:
+            Location:
+              description: The URI of the contact.
+              schema:
+                type: string
+            ETag:
+              description: A tag that identifies this contact.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.decision.subject.contact+json:
+              schema:
+                $ref: "#/components/schemas/subjectContact"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContact"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subjectContact"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContact"
+        "202":
+          description: The asynchronous request is accepted for processing, but the
+            processing has not been completed.
+          headers:
+            Location:
+              description: The URI of the contact.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.decision.subject.contact+json:
+              schema:
+                $ref: "#/components/schemas/subjectContact"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContactAsynchronous"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subjectContact"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContactAsynchronous"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+  /contacts#multiples:
+    get:
+      tags:
+      - Contacts
+      operationId: getContactsAsCSV
+      summary: Export contact records
+      description: "Exports contacts as CSV text. A filter can be used to select the\
+        \ contacts. If a filter is not used, all contacts are returned. The output\
+        \ is not pageable nor sortable. A header is not returned by default. To add\
+        \ a header, add the `header=present` option to the text/csv media type. The\
+        \ columns are:\n<ul> <li>id</li> <li>creationTimeStamp</li> <li>responseTrackingCode</li>\
+        \ <li>subjectId</li> <li>subjectLevel</li> <li>excludeFromContactRule</li>\
+        \ <li>conclusionResponseValue</li> <li>conclusionResponseType</li> <li>objectUri</li>\
+        \ <li>objectRevisionId</li> <li>objectType</li> <li>objectVariables</li> <li>receiverId</li>\
+        \ <li>receiverRole</li> <li>channel</li> <li>ruleFired</li> <li>pathTraversed</li>\
+        \ <li>abTests</li> <li>treatmentId</li> <li>treatmentRevisionId</li> <li>treatmentGroupId</li>\
+        \ <li>treatmentGroupRevisionId</li> <li>objectNodeId</li> <li>presented</li>\
+        \ <li>presentedTimeStamp</li> <li>respondedTimeStamp</li> <li>responseValue</li>\
+        \ <li>responseType</li> <li>responseChannel</li> </ul>"
+      parameters:
+      - name: Accept
+        in: header
+        required: true
+        description: In addition to text/csv, also include application/vnd.sas.error+json
+          in the Accept header. The two media types are separated by a comma. If there
+          is a processing error, the error is reported in a JSON error object. In
+          that case, without this arrangement, since the client is expecting only
+          a response of text/csv type, the server uses Http status of 406 to tell
+          the client that it cannot match the expectation because a JSON error object
+          cannot be mapped into a text/csv response. By also accepting application/vnd.sas.error+json,
+          this is avoided.
+        schema:
+          type: string
+          enum:
+          - text/csv, application/vnd.sas.error+json
+      - name: filter
+        in: query
+        description: The filter criteria for the returned contacts. All fields of
+          application/vnd.sas.decision.subject.contact can be used in the filter.
+          If a filter is not used, all the contacts are returned.
+        schema:
+          type: string
+          format: filter-criteria
+      responses:
+        "200":
+          description: The request succeeded. The export was successful.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            text/csv:
+              schema:
+                type: string
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContactCSV"
+        "400":
+          description: The request was invalid.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: No resource exists at the requested path.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+        "406":
+          description: The media type is incompatible. Occurs when there is an error
+            but the error response media type is not compatible with the text/csv
+            media type. The server returns this status error instead.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notAcceptable"
+    post:
+      tags:
+      - Contacts
+      operationId: createContactsFromCSV
+      summary: Create contact records from CSV
+      description: "Creates contact records from a CSV file. It imports the CSV text\
+        \ with a header row that specifies the order of these required columns:\n\
+        <ul> <li>creationTimeStamp</li> <li>responseTrackingCode</li> <li>subjectId</li>\
+        \ <li>subjectLevel</li> <li>excludeFromContactRule</li> <li>conclusionResponseValue</li>\
+        \ <li>conclusionResponseType</li> <li>objectUri</li> <li>objectRevisionId</li>\
+        \ <li>objectType</li> <li>objectVariables</li> <li>receiverId</li> <li>receiverRole</li>\
+        \ <li>channel</li> <li>ruleFired</li> <li>pathTraversed</li> <li>abTests</li>\
+        \ <li>treatmentId</li> <li>treatmentRevisionId</li> <li>treatmentGroupId</li>\
+        \ <li>treatmentGroupRevisionId</li> <li>objectNodeId</li> <li>presented</li>\
+        \ <li>presentedTimeStamp</li> <li>respondedTimeStamp</li> <li>responseValue</li>\
+        \ <li>responseType</li> <li>responseChannel</li> </ul>\n\nA contact might\
+        \ require one or more rows of CSV text to describe it. There is one row for\
+        \ each treatment to be considered. A contact can include more than one treatment.\
+        \ The information in the columns from responseTrackingCode to pathTraversed\
+        \ are repeated. The columns from treatmentId to responseChannel contain unique\
+        \ information per row.\n\nCSV text that is obtained by the counterpart GET\
+        \ action can be used here. The GET action includes an ID column in the output.\
+        \ The import ignores the ID value and a new ID is generated for each contact.\
+        \ Importing the CSV text that is obtained by CSV exporting on the same deployment\
+        \ is not successful because there is a uniqueness constraint violation in\
+        \ the response tracking code value.\n\nIn the objectVariables column, each\
+        \ name, value, dataType tuple in the array is represented as a triple tilde\
+        \ separated string and each tuple is separated by a semicolon. The strings\
+        \ cannot contain semicolons.\n\nThe responseTrackingCode column cannot be\
+        \ blank.\n\nIf the contact already exists, the unique information columns\
+        \ on the rows are used to update the contact. The other columns must carry\
+        \ information identical to what is already recorded. If this condition is\
+        \ not met, the update is rejected.\n\nThese are the immutable columns: <ul>\
+        \ <li>creationTimeStamp</li> <li>responseTrackingCode</li> <li>subjectId</li>\
+        \ <li>subjectLevel</li> <li>objectUri</li> <li>objectRevisionId</li> <li>objectType</li>\
+        \ <li>objectVariables</li> <li>receiverId</li> <li>receiverRole</li> <li>channel</li>\
+        \ <li>ruleFired</li> <li>pathTraversed</li> <li>abTests</li> <li>treatmentId</li>\
+        \ <li>treatmentRevisionId</li> <li>treatmentGroupId</li> <li>treatmentGroupRevisionId</li>\
+        \ <li>objectNodeId</li> </ul>\n\nThe input CSV is processed in the order it\
+        \ is received. All contiguous rows with the same responseTrackingCode are\
+        \ considered one section. Those rows are processed according to the description\
+        \ above. It is possible to have the same responseTrackingCode in non-consecutive\
+        \ sections. In that case, the subsequent section is considered updating the\
+        \ contact from the previous section. The service tries to process as many\
+        \ rows as possible.\n\nThe output is a multipart/mixed response body. The\
+        \ boundary string of each part is identified in the Content-Type response\
+        \ header. There are three parts in this response.\n\nThe first part is for\
+        \ the accepted CSV (header Content-ID: Accepted-CSV). Each contact that was\
+        \ successfully processed is included here. As soon as a contact is created,\
+        \ its rows are streamed back.\n\nThe second part is for the rejected CSV (header\
+        \ Content-ID:Rejected-CSV). Each contact that failed processing is identified\
+        \ here. It is in CSV format with the following column order: record number\
+        \ in the entire CSV input, the columns from the input row, and error message.\
+        \ If one line of text has error, all the lines for that contact are rejected.\
+        \ This API prints the first line of the rejected text.\n\nThe third part is\
+        \ for global issues (header Content-ID: Global-Issue). It is in CSV format\
+        \ with the following column order: responseTrackingCode or the asterisk value\
+        \ (i.e wildcard for all contacts), global error message that conveys the error\
+        \ that prevents any CSV processing. An example would be the lack of permissions."
+      parameters:
+      - name: Accept
+        in: header
+        required: true
+        description: In addition to multipart/mixed, also include application/vnd.sas.error+json
+          in the Accept header. The two media types are separated by a comma. If there
+          is a processing error, the error is reported in a JSON error object. In
+          that case, without this arrangement, since the client is expecting only
+          a response of multipart/mixed type, the server uses Http status of 406 to
+          tell the client that it cannot match the expectation because a JSON error
+          object cannot be mapped into a multipart/mixed response. By also accepting
+          application/vnd.sas.error+json, this is avoided.
+        schema:
+          type: string
+          enum:
+          - multipart/mixed, application/vnd.sas.error+json
+      - name: If-Unmodified-Since
+        in: header
+        required: false
+        description: Checks to see whether the existing subject contacts identified
+          in the CSV have not been modified since the time specified in the value.
+          If this is not true, the update is not performed. This header is not required
+          when CSV text is used to create contact records. However, this header is
+          required when the CSV text is used to update existing contact records. The
+          value is a timestamp. An appropriate value might be a timestamp that marks
+          a point past the last update of the records to be updated.
+        schema:
+          type: string
+      requestBody:
+        content:
+          text/csv:
+            schema:
+              type: string
+            examples:
+              default:
+                $ref: "#/components/examples/createContactsFromCSV"
+        description: The CSV that contains a header row.
+        required: true
+      responses:
+        "200":
+          description: The request succeeded. One or more contacts were created. Check
+            the response for any errors.
+          headers:
+            Location:
+              description: The URI for retrieving the contacts that were created.
+              schema:
+                type: string
+          content:
+            multipart/mixed:
+              schema:
+                type: object
+                properties:
+                  part1:
+                    description: Accepted response
+                    type: object
+                    properties:
+                      contentType:
+                        type: string
+                      contentId:
+                        type: string
+                      body:
+                        type: string
+                  part2:
+                    description: Rejected response
+                    type: object
+                    properties:
+                      contentType:
+                        type: string
+                      contentId:
+                        type: string
+                      body:
+                        type: string
+                  part3:
+                    description: Global issues
+                    type: object
+                    properties:
+                      contentType:
+                        type: string
+                      contentId:
+                        type: string
+                      body:
+                        type: string
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContactMultipartMixed"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+        "406":
+          description: The media type is incompatible. Occurs when there is an error
+            but the error response media type is not compatible with the multipart/mixed
+            media type. The server returns this status error instead.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notAcceptable"
+        "412":
+          description: The `If-Unmodified-Since` request header did not match the
+            resource's last modified timestamp. The resource has changed. The "If-Match"
+            header is not appropriate here because multiple records are included.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/preConditionFailed"
+        "428":
+          description: The 'If-Unmodified-Since' header was not sent. The "If-Match"
+            header is not appropriate here because multiple records are included.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/preConditionRequired"
+  "/contacts/{contactId}":
+    get:
+      tags:
+      - Contacts
+      operationId: getContact
+      summary: Get a contact
+      description: Returns information about the contact.
+      parameters:
+      - name: contactId
+        in: path
+        description: The resource identifier of a contact.
+        required: true
+        schema:
+          type: string
+      - name: Accept
+        in: header
+        description: Selects the desired item representation.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.decision.subject.contact+json
+          - application/vnd.sas.summary+json
+          default: application/vnd.sas.decision.subject.contact+json
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: A tag that identifies this contact.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.decision.subject.contact+json:
+              schema:
+                $ref: "#/components/schemas/subjectContact"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContact"
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContactSummary"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subjectContact"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContact"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+    put:
+      tags:
+      - Contacts
+      summary: Update a contact record
+      description: "Updates the contact record by replacing it. Use this endpoint\
+        \ to update the presentation or the response of the treatments in the contact.\
+        \ Presentation and responses can be updated multiple times. For example, a\
+        \ subject clicking a treatment link is one type of response and subsequent\
+        \ engagement (for example, taking the next step in a commercial flow) is another\
+        \ response. Depending on how the merchant wants to track responses, it can\
+        \ be multiple updates or just one update of the final response.  Although\
+        \ some members of the contact record have changed, the full contact object\
+        \ is required for this action. Since some members are immutable, an error\
+        \ occurs if you attempt to change them. Furthermore, if a member is an array,\
+        \ it is an error to change the number of entries in the array. These are the\
+        \ immutable first and second-level members of the record:\n<ul> <li>responseTrackingCode</li>\
+        \ <li>subjectId</li> <li>subjectLevel</li> <li>objectUri</li> <li>objectRevisionId</li>\
+        \ <li>objectType</li> <li>objectVariables</li> <li>receiverId</li> <li>receiverRole</li>\
+        \ <li>channel</li> <li>ruleFired</li> <li>pathTraversed</li> <li>treatmentId</li>\
+        \ <li>treatmentRevisionId</li> <li>treatmentGroupId</li> <li>treatmentGroupRevisionId</li>\
+        \ <li>objectNodeId</li> </ul>\n\nDo not alter the members that should not\
+        \ be changed. An alternative is to use the PATCH action, which requires only\
+        \ sending in members to be changed together with the response tracking code.\n\
+        \nAt the successful completion of the PUT action, the full updated record\
+        \ is sent in the response."
+      operationId: updateContact
+      parameters:
+      - name: contactId
+        in: path
+        description: The resource identifier for a contact.
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: The ETag value that was returned from a GET, POST, or PATCH of
+          the resource. If the ETag value does not match the ETag value of the resource,
+          the update cannot be completed. This is preferred over the If-Unmodified-Since
+          header.
+        required: false
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: The value of the last modified timestamp of the resource. If
+          the resource has been updated since this time, the update cannot be completed.
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.decision.subject.contact+json:
+            schema:
+              $ref: "#/components/schemas/subjectContact"
+            examples:
+              default:
+                $ref: "#/components/examples/subjectContact"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/subjectContact"
+            examples:
+              default:
+                $ref: "#/components/examples/subjectContact"
+        description: The full contact record.
+        required: true
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Location:
+              description: The URI of the contact.
+              schema:
+                type: string
+            ETag:
+              description: A tag that identifies this contact.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.decision.subject.contact+json:
+              schema:
+                $ref: "#/components/schemas/subjectContact"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContact"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subjectContact"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContact"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+        "412":
+          description: The `If-Match` request header did not match the resource's
+            entity tag, or the `If-Unmodified-Since` request header did not match
+            the resource's last modified timestamp.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/preConditionFailed"
+        "428":
+          description: The request headers did not include a `If-Match` or 'If-Unmodified-Since'
+            precondition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/preConditionRequired"
+    patch:
+      tags:
+      - Contacts
+      summary: Patch a contact record
+      description: Patches a contact record by sending a partial representation of
+        the contact record, which includes a key field and the fields that are to
+        be changed. The full object is sent in the response. If a field in the partial
+        representation has the 'null' value, it is interpreted to mean that a value
+        is not sent rather than having the value in the field erased.
+      operationId: patchContact
+      parameters:
+      - name: contactId
+        in: path
+        description: The resource identifier for a contact. Alternatively, use the
+          delegate resource identifier @deriveFromContent. When this delegate resource
+          identifier is used, the service looks into the request body for an identifier
+          of the resource. In this case, it is the responseTrackingCode member of
+          the partial contact record. This identifier is to be used in lieu of the
+          actual resource identifier.
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: The ETag value that was returned from a GET, POST, or PATCH of
+          the resource. If the ETag value does not match the ETag value of the resource,
+          the update is not completed. This is preferred over the If-Unmodified-Since
+          header.
+        required: false
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: The value of the last modified timestamp of the resource. If
+          the resource has been updated since this time, the update cannot be completed.
+        required: false
+        schema:
+          type: string
+      requestBody:
+        $ref: "#/components/requestBodies/subjectContact"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Location:
+              description: The URI of the contact.
+              schema:
+                type: string
+            ETag:
+              description: A tag that identifies this contact.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.decision.subject.contact+json:
+              schema:
+                $ref: "#/components/schemas/subjectContact"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContact"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subjectContact"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContact"
+        "400":
+          description: The request was invalid.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: No resource exists at the requested path.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+        "409":
+          description: The presentation has already been set and cannot be updated.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/conflict"
+        "412":
+          description: The `If-Match` request header did not match the resource's
+            entity tag, or the `If-Unmodified-Since` request header did not match
+            the resource's last modified timestamp.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/preConditionFailed"
+        "422":
+          description: The server understands the request but was unable to process
+            the contained instructions. There are inconsistencies between members
+            of the contact records as a result of the operation. An example is changing
+            the respondedTimeStamp to a value earlier than the stored presentedTimeStamp.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/unprocessableEntity"
+        "428":
+          description: The request header did not include a `If-Match` or 'If-Unmodified-Since'
+            precondition.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/preConditionRequired"
+    delete:
+      tags:
+      - Contacts
+      operationId: deleteContact
+      summary: Delete a contact record
+      description: Deletes a contact record.
+      parameters:
+      - name: contactId
+        in: path
+        description: The identifier for a contact.
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: The contact was deleted.
+        "404":
+          description: No resource exists at the requested path.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /aggregations:
+    post:
+      tags:
+      - Aggregations
+      operationId: aggregateInformation
+      summary: Use a query to answer several related queries
+      description: "Returns information about the treatments. In anticipating queries\
+        \ like how many times a subject has been contacted in the last N time-units\
+        \ through X channels for different values of N, for multiple time units, for\
+        \ different channel values X, this endpoint allows the user to provide the\
+        \ parameters so that these queries can be answered at once by aggregating\
+        \ the results of multiple queries. This is done by combining different values\
+        \ of time, time unit, contact channel and response channel.\n\nThe aggregation\
+        \ period is divided into widening sub-periods. The unit of division, such\
+        \ as hour, is provided in the aggregation specification. The first sub-period\
+        \ covers the endTimeStamp back to the start of the closest unit. The second\
+        \ sub-period adds one unit to the length. The last element of the array covers\
+        \ the entire aggregation period.\n\nIf the excludeFromContactRule field of\
+        \ a contact record is true, the record is excluded from the aggregation."
+      requestBody:
+        content:
+          application/vnd.sas.decision.subject.contact.aggregation.specification+json:
+            schema:
+              $ref: "#/components/schemas/aggregationSpecification"
+            examples:
+              default:
+                $ref: "#/components/examples/aggregationSpecification"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/aggregationSpecification"
+            examples:
+              default:
+                $ref: "#/components/examples/aggregationSpecification"
+        description: The aggregation parameters.
+        required: true
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.decision.subject.contact.aggregation.treatment+json:
+              schema:
+                $ref: "#/components/schemas/subjectContactTreatmentAggregate"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContactTreatmentAggregate"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subjectContactTreatmentAggregate"
+              examples:
+                default:
+                  $ref: "#/components/examples/subjectContactTreatmentAggregate"
+        "400":
+          description: The request was invalid.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: No resource exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /traces:
+    get:
+      tags:
+      - Traces
+      summary: Get decision traces
+      description: "Returns a collection of decision traces. The traces can either\
+        \ be returned in either text/tab-separated-values or application/vnd.sas.collection+json\
+        \ format. The former would be the same format used for adding a decision trace.\
+        \ In the latter format, the traces without the actual trace texts are returned\
+        \ as items in a collection.\n\nThere are two types of traces: one is at the\
+        \ decision step boundary and the other is at the variable assignment. Each\
+        \ GET only obtains the type of traces specified. The scope query parameter\
+        \ is used to specify the type of traces.\n\nThe order of the columns for query\
+        \ parameter `scope=step` in tab-separated-values format are: traceid, seqno,\
+        \ tracetimestamp, objecturi, processornote, text. The version is 1 implicitly.\
+        \ Always use the column heading to help you locate a specific column. The\
+        \ order of the column and the number of columns are not fixed.\n\nThe order\
+        \ of the columns for query parameter `scope=assignment` in tab-separated-values\
+        \ format are: traceid, seqno, tracetimestamp, objecturi, processornote, version,\
+        \ scope, and text. The current version is 2. However, always use the column\
+        \ heading to help you locate a specific column. The order of the column and\
+        \ the number of columns might change in a future version."
+      operationId: getTraces
+      parameters:
+      - name: scope
+        in: query
+        description: The type of traces.
+        required: false
+        schema:
+          type: string
+          enum:
+          - assignment
+          - step
+          default: step
+      - name: start
+        in: query
+        description: The starting index of the first item on a page. The index is
+          0-based. The default index is 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: The maximum number of items to return on this page. The actual
+          number of returned items might be less if there are no more items in the
+          collection. The default is 10 for the application/vnd.sas.collection+json
+          format. For the tab-separated-values format the default is 1 because the
+          trace text is included in the output. Trace text can be very long. There
+          is much higher potential of exhausting the service's memory when retrieving
+          a lot of trace texts at once.
+        schema:
+          type: integer
+      - name: sortBy
+        in: query
+        description: The sorting criteria for the returned traces.
+        schema:
+          type: string
+          format: sort-criteria
+      - name: filter
+        in: query
+        description: The filter criteria for the returned traces. The fields that
+          can be used are traceId, traceTimeStamp and processorNote.
+        schema:
+          type: string
+          format: filter-criteria
+      - name: Accept
+        in: header
+        description: Selects the desired representation
+        schema:
+          type: string
+          enum:
+          - text/tab-separated-values
+          - application/vnd.sas.collection+json
+          - application/json
+          default: application/vnd.sas.collection+json
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            text/tab-separated-values:
+              schema:
+                type: string
+              examples:
+                default:
+                  $ref: "#/components/examples/traceCollectionTSV"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/traceCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/traceCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/traceCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/traceCollection"
+        "400":
+          description: The request was invalid.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+    post:
+      tags:
+      - Traces
+      operationId: appendOrUpdateTracesFromTsv
+      summary: Append text or update traces from TSV
+      description: "Appends text to the collection or updates the processorNote field\
+        \ of appended text.\nThere are two types of traces: one is at the decision\
+        \ step boundary and other is at the variable assignment. The scope query parameter\
+        \ is used to specify the type of trace.\n\nThis operation processes tab-separated-values\
+        \ (TSV) text with a case-insensitive header row that specifies the order of\
+        \ these required columns:\n<ul> <li>traceId</li> <li>seqNo</li> <li>traceTimeStamp</li>\
+        \ <li>objectUri</li> <li>action</li> <li>processorNote</li> <li>text</li>\
+        \ </ul>\nA decision trace might require one or more rows of TSV text to convey.\
+        \ The value of seqNo, starting from 1, should be  monotonically increasing\
+        \ from the first row to the last row. The rows are likely to be appended using\
+        \ multiple POST actions due to request body size restriction on the client\
+        \ formulating the POST action. Otherwise, one TSV row would have been used.\n\
+        \nThe text column value must not include the TAB character.\n\nThe text column\
+        \ contains whole or part of a decision trace.\n\nThe value of the action column\
+        \ is either append or update.\n\nWhen the POST call is used to append text\
+        \ to the collection, all the above columns except the processorNote column\
+        \ must be given non-empty values.\n\nWhen the POST call is used to update\
+        \ text to the collection, the only column that can be changed is the processorNote\
+        \ column. The traceId column must have a value for the service to know which\
+        \ execution trace to update. Since a trace has one or more rows, the seqNo\
+        \ column is normally left empty so that all rows of the trace receive the\
+        \ same processorNote value. The other columns (traceTimeStamp, objectUri,\
+        \ text) should be left empty. If values are specified for these columns, they\
+        \ are ignored since they cannot be changed. Here is the order that the columns\
+        \ for updated:\n<ul> <li>traceId</li> <li>seqNo</li> <li>traceTimeStamp</li>\
+        \ <li>objectUri</li> <li>text</li> <li>action</li> <li>processorNote</li>\
+        \ </ul>\nThe output is a multipart/mixed response body. The boundary string\
+        \ of each part is identified in the Content-Type response header. There are\
+        \ three parts in this response.\n<ol> <li>The first part is for the accepted\
+        \ TSV (header Content-ID: Accepted-TSV). Each trace line that was successfully\
+        \ processed is identified here.</li>\n<li>The second part is for the rejected\
+        \ TSV (header Content-ID:Rejected-TSV). Each trace that could not be processed\
+        \ is identified here. It is in CSV format with the following column order:\
+        \ traceId, and error message.</li>\n<li>The third part is for global issues\
+        \ (header Content-ID: Global-Issue). It is in TSV format with the following\
+        \ column order: line number, global error message that conveys the error that\
+        \ prevents any TSV processing. An example would be the lack of permissions.</li>\
+        \ </ol>"
+      parameters:
+      - name: scope
+        in: query
+        description: The type of traces.
+        required: false
+        schema:
+          type: string
+          enum:
+          - assignment
+          - step
+          default: step
+      - name: Accept
+        in: header
+        required: true
+        description: In addition to multipart/mixed, also include application/vnd.sas.error+json
+          in the Accept header. The two media types are separated by a comma. If there
+          is a processing error, the error is reported in a JSON error object. In
+          that case, without this arrangement, since the client is expecting only
+          a response of multipart/mixed type, the server uses Http status of 406 to
+          tell the client that it cannot match the expectation because a JSON error
+          object cannot be mapped into a multipart/mixed response. By also accepting
+          application/vnd.sas.error+json, this is avoided.
+        schema:
+          type: string
+          enum:
+          - multipart/mixed, application/vnd.sas.error+json
+      requestBody:
+        content:
+          text/tab-separated-values:
+            schema:
+              type: string
+            examples:
+              default:
+                $ref: "#/components/examples/traceCollectionTSV"
+        description: The tap-separated-values that contains a header row.
+        required: true
+      responses:
+        "200":
+          description: The request succeeded. One or more rows of text are appended.
+            Check the response for any error.
+          content:
+            multipart/mixed:
+              schema:
+                type: object
+                properties:
+                  part1:
+                    description: Accepted response
+                    type: object
+                    properties:
+                      contentType:
+                        type: string
+                      contentId:
+                        type: string
+                      body:
+                        type: string
+                  part2:
+                    description: Rejected response
+                    type: object
+                    properties:
+                      contentType:
+                        type: string
+                      contentId:
+                        type: string
+                      body:
+                        type: string
+                  part3:
+                    description: Global issues
+                    type: object
+                    properties:
+                      contentType:
+                        type: string
+                      contentId:
+                        type: string
+                      body:
+                        type: string
+              examples:
+                default:
+                  $ref: "#/components/examples/traceCollectionMultipartMixed"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+    delete:
+      tags:
+      - Traces
+      operationId: deleteTraces
+      summary: Delete traces
+      description: Deletes traces produced by decision execution.
+      parameters:
+      - name: scope
+        in: query
+        description: The type of traces to delete. For your convenience, if both decision
+          step and variable assignment traces, exist, they can be deleted at the same
+          time if the value of the scope query parameter is "all".
+        required: false
+        schema:
+          type: string
+          enum:
+          - all
+          - assignment
+          - step
+          default: step
+      - name: start
+        in: query
+        description: The starting index of the first item on a page. The index is
+          0-based. The default index is 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: The maximum number of items to work on. The actual number of
+          returned items might be less if there are no more items in the collection.
+          The default is 10.
+        schema:
+          type: integer
+      - name: sortBy
+        in: query
+        description: The sorting criteria for the returned traces.
+        schema:
+          type: string
+          format: sort-criteria
+      - name: filter
+        in: query
+        description: The filter criteria for identifying the trace. The fields that
+          can be used are traceId, traceTimeStamp and processorNote.
+        schema:
+          type: string
+          format: filter-criteria
+      responses:
+        "204":
+          description: The request is processed.
+  "/traces/{traceId}/process":
+    post:
+      tags:
+      - Traces
+      operationId: processTrace
+      summary: Process a trace and store a report file
+      description: "Processes a trace and stores the report in a file resource in\
+        \ the Files service. A text report is produced from the raw trace. The text\
+        \ report for a decision step boundary provides the following information:\
+        \ <ul> <li>The mappings of the input and output variables to the traced decision.\
+        \ In general a step in a decision names its variables congruent to their purpose\
+        \ in the step while the decision variables are often drawn from a data table\
+        \ that name the columns from a perspective different from the step. In that\
+        \ case, the decision variables have to be mapped to the step's variables.</li>\n\
+        <li>Identifies whether each variable is used an input or output.</li>\n<li>Identifies\
+        \ the entering and exiting values of each variable in a step.</li> </ul>\n\
+        \nThe text report for a variable assignment provides the following information:\
+        \ <ul> <li>The line number in the entire decision code.</li> <li>The DS2 package\
+        \ or the thread block name.</li> <li>The line number within the DS2 package\
+        \ or the thread block.</li> <li>The variable and the value assigned to it.</li>\
+        \ </ul>\nThe report is stored as the content of a file resource in the Files\
+        \ service so that it can be obtained for viewing. The file content is given\
+        \ the name in the format of testName_trace.txt.\n\nThe same raw trace can\
+        \ be processed as many times as needed. At the end of each successful processing,\
+        \ the previously allocated file object in the Files service is deleted. A\
+        \ new file resource is created. The Files service allows a file size up to\
+        \ 100MB by default. The report can be twice as large or more as the raw trace.\n\
+        \nUpon successful processing, this operation stores the Files service resource\
+        \ URI and the timestamp of the processing  in the processorNote column of\
+        \ the raw trace record.\n\nThough a trace ID can be associated with both decision\
+        \ boundary and variable assignment traces, only one type of trace can be processed\
+        \ at one time."
+      parameters:
+      - name: traceId
+        in: path
+        description: The id of the trace to process.
+        required: true
+        schema:
+          type: string
+        example: 3b4998e5-bac3-4a60-af24-61f63912fbf0
+      - name: scope
+        in: query
+        description: The type of trace.
+        required: false
+        schema:
+          type: string
+          enum:
+          - assignment
+          - step
+          default: step
+      - name: testName
+        in: query
+        description: The name of a decision test case that produces the trace. It
+          is used in naming the report. The testName portion of the report name is
+          encoded. Each character not safe to be used in a URL are encoded in the
+          form of a percent character followed by a pair of hexadecimal characters.
+        required: false
+        schema:
+          type: string
+          default: traceId
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+            examples:
+              default:
+                value: {}
+      responses:
+        "201":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.decision.trace.report:
+              schema:
+                $ref: "#/components/schemas/traceReport"
+              examples:
+                default:
+                  $ref: "#/components/examples/traceReport"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: No resource identified by the traceId.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+servers:
+- url: https://example.com/subjectContacts
+  description: This is an example of a base URL.
+components:
+  headers:
+    Sas-Service-Response-Flag:
+      description: Indicates whether the response is coming from a SAS service.
+      schema:
+        type: boolean
+      example: true
+  requestBodies:
+    subjectContact:
+      content:
+        application/vnd.sas.decision.subject.contact+json:
+          schema:
+            $ref: "#/components/schemas/subjectContact"
+          examples:
+            default:
+              $ref: "#/components/examples/subjectContact"
+        application/json:
+          schema:
+            $ref: "#/components/schemas/subjectContact"
+          examples:
+            default:
+              $ref: "#/components/examples/subjectContact"
+      description: The contact and response representation.
+      required: true
+  schemas:
+    subjectContactCollection:
+      title: Contact and Response Collection
+      description: A collection of the contact representation.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The actual results of a query.
+            items:
+              $ref: "#/components/schemas/subjectContact"
+    subjectContact:
+      title: Contact Record
+      description: A contact representation
+      required:
+      - subjectId
+      - subjectLevel
+      - objectUri
+      - objectRevisionId
+      - objectType
+      - responseTrackingCode
+      properties:
+        id:
+          type: string
+          readOnly: true
+          description: The system-assigned unique ID for this object.
+        subjectId:
+          type: string
+          description: A string that identifies the subject. This cannot be unique
+            across subject levels.
+        subjectLevel:
+          type: string
+          description: A string that indicates the type of subject ID. Example values
+            are household and customer. A subject is uniquely identified by the subjectLevel
+            and subjectId tuple.
+        objectUri:
+          type: string
+          description: A URI of the resource that created this contact record.
+        objectRevisionId:
+          type: string
+          description: A string that identifies the revision of the resource that
+            created this contact record.
+        objectType:
+          type: string
+          description: A string that identifies the type of resource that created
+            this contact record.
+        objectVariables:
+          type: array
+          description: A place for saving arbitrary values from the object.
+          items:
+            $ref: "#/components/schemas/objectValue"
+        treatmentsForConsideration:
+          type: array
+          description: All the treatments that a subject can consider.
+          items:
+            $ref: "#/components/schemas/treatmentForConsideration"
+        ruleFired:
+          type: string
+          description: An encoded string that records which business rules evaluated
+            to true.
+        pathTraversed:
+          type: string
+          description: An ordered string that shows the IDs of rules that were evaluated.
+        abTests:
+          type: array
+          description: A place for recording values from AB test node.
+          items:
+            $ref: "#/components/schemas/abTests"
+        responseTrackingCode:
+          type: string
+          description: A string that a response uses. This is provided by the merchant's
+            application. This is for grouping all the responses, one for each treatment,
+            considered by the subject.
+        receiverId:
+          type: string
+          description: A string that identifies the person that receives this treatment.
+            If the receiver is the subject, then receiverId equals subjectId. Otherwise,
+            they are not equal.
+        receiverRole:
+          type: string
+          description: Identifies whether the receiver is a subject or an agent.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Timestamp when this object is created. This field is a derived
+            field. This also serves as the contact timestamp. If there are multiple
+            treatments to consider, there is one contact and one contact timestamp.
+            For example, all the treatment options are used to build a customized
+            web page. All the treatment options are used to populate a menu used by
+            a customer agent.
+        createdBy:
+          type: string
+          readOnly: true
+          description: ID of the user who created this object. This field is a derived
+            field.
+        channel:
+          type: string
+          description: The channel through which the contact is made. This can be
+            different from the response channel. For example, a subject receives an
+            email for a purchase offer and makes the purchase by telephone.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp when this object is last modified. This field is
+            a derived field. This tells when the response is recorded.
+        modifiedBy:
+          type: string
+          description: ID of the user who last modified this object. This field is
+            a derived field.
+        conclusionResponseValue:
+          type: string
+          description: A summary response value derived from the responses to the
+            individual treatments
+        conclusionResponseType:
+          type: string
+          description: An interpretation of conclusionResponseValue.
+        excludeFromContactRule:
+          type: boolean
+          description: When true, this contact record is ignored by a contact rule
+            when determining an answer. The default is false.
+        links:
+          type: array
+          readOnly: true
+          description: Zero or more link objects.
+          items:
+            $ref: "#/components/schemas/link"
+    objectValue:
+      title: Object Value
+      description: Record a named value from the object that created this contact.
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          description: Field name.
+        value:
+          type: string
+          description: Value.
+        dataType:
+          type: string
+          description: The data type of the value.
+          format: enumeration
+          enum:
+          - boolean
+          - date
+          - datetime
+          - decimal
+          - integer
+          - string
+    abTests:
+      title: AB Test Node Records
+      description: Record testing data from AB testing.
+      required:
+      - nodeId
+      - champion
+      properties:
+        nodeId:
+          type: string
+          description: The ID of the AB test node.
+        champion:
+          type: boolean
+          description: An indicator for whether this record is coming from a Champion
+            path.
+        pathId:
+          type: string
+          description: The ID of the AB test case.
+        pathName:
+          type: string
+          description: The name of the AB test case.
+        pathKey:
+          type: string
+          description: The name of an input variable whose value determines which
+            outgoing path is used to process input records with the same value of
+            the input variable.
+    treatmentForConsideration:
+      title: Treatments for Subject Consideration
+      description: Represents the treatment with its customized attribute values and
+        how the subject responds to it.
+      required:
+      - treatmentId
+      - treatmentRevisionId
+      - treatmentGroupId
+      - treatmentGroupRevisionId
+      - objectNodeId
+      properties:
+        treatmentId:
+          type: string
+          description: A string that identifies a treatment.
+        treatmentRevisionId:
+          type: string
+          description: A string that identifies the revision of the treatment.
+        treatmentGroupId:
+          type: string
+          description: A string that identifies the group that a treatment belongs
+            to.
+        treatmentGroupRevisionId:
+          type: string
+          description: A string that identifies the revision of the group that a treatment
+            belongs to.
+        objectNodeId:
+          type: string
+          description: A string that identifies a node in the resource identified
+            by the objectUri member in the subject contact record that selected this
+            treatment.
+        presented:
+          type: boolean
+          description: Records whether the treatment has been presented. A customer
+            agent handling the customer might decide not to present a treatment based
+            on the nature and mood of the communication.
+        presentedTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp when the treatment is presented to the subject.
+        respondedTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp when the response is actually received.
+        responseValue:
+          type: string
+          description: The response.
+        responseType:
+          type: string
+          description: An interpretation derived from responseValue.
+        responseChannel:
+          type: string
+          description: The channel through which the response is made. This might
+            be different from the contact channel.
+        subjectContactId:
+          type: string
+          description: The system-assigned ID for the subject contact that included
+            this treatment.
+    aggregationSpecification:
+      title: Aggregation Specification
+      description: Specify how the aggregation is done. Aggregation is done for a
+        subject, for one or more channels and for a definite time period sub-divided
+        into segments such as one day, two days, and so on.
+      required:
+      - subjectId
+      - subjectLevel
+      properties:
+        subjectId:
+          description: ID of the subject for whom the aggregation is done.
+          type: string
+        subjectLevel:
+          description: Indicates the type of subject ID.
+          type: string
+        beginAggregationTimeStamp:
+          description: Begin aggregation from this time. If omitted, the aggregation
+            starts from seven days prior to the time at which the request is serviced.
+          type: string
+          format: date-time
+        endAggregationTimeStamp:
+          description: Stop aggregation before this time. If omitted, the aggregation
+            stops right before the time at which the request is serviced.
+          type: string
+          format: date-time
+        timeAggregationUnits:
+          type: array
+          items:
+            type: string
+          description: The units to use for time-based aggregation. If omitted, the
+            time unit is day. The other acceptable time unit is hour. Aggregation
+            can be done in both time units.
+        contactChannels:
+          type: array
+          items:
+            type: string
+          description: The contact channels to aggregate. All channels found are used
+            in secondary aggregation if this is omitted. Through a contact channel,
+            a subject is contacted.
+        responseChannels:
+          type: array
+          items:
+            type: string
+          description: The response channels to aggregate. All channels found are
+            used in secondary aggregation if this is omitted. Through a response channel,
+            the subject responds to a treatment.
+    subjectContactTreatmentAggregate:
+      title: Subject Contact Aggregate
+      description: Aggregation of a subject's treatments made with the subject by
+        channel or time period.
+      required:
+      - subjectId
+      - subjectLevel
+      - beginTimeStamp
+      - endTimeStamp
+      properties:
+        subjectId:
+          type: string
+          description: ID of the subject for whom the aggregation is done.
+        subjectLevel:
+          type: string
+          description: Indicates the type of subject ID.
+        beginTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp that marks the beginning of the aggregation.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp that marks the end of the aggregation.
+        contactedTimeStampAggregation:
+          type: array
+          description: Aggregation of the subject's treatments in the contacted timestamp
+            dimension
+          items:
+            $ref: "#/components/schemas/timeStampPrimaryAggregate"
+        respondedTimeStampAggregation:
+          type: array
+          description: Aggregation of the subject's treatments in the responded timestamp
+            dimension
+          items:
+            $ref: "#/components/schemas/timeStampPrimaryAggregate"
+        contactChannelAggregation:
+          type: array
+          description: Aggregation of the subject's treatments in the contact channel
+            dimension
+          items:
+            $ref: "#/components/schemas/channelPrimaryAggregate"
+        responseChannelAggregation:
+          type: array
+          description: Aggregation of the subject's treatments in the response channel
+            dimension
+          items:
+            $ref: "#/components/schemas/channelPrimaryAggregate"
+    timeStampAggregate:
+      title: Timestamp Aggregation
+      description: Aggregation of metadata regarding the timestamp
+      required:
+      - timeStampType
+      - periodLength
+      - periodUnit
+      - beginTimeStamp
+      - endTimeStamp
+      properties:
+        periodLength:
+          type: string
+          description: The length of this period in terms of the period unit.
+        periodUnit:
+          type: string
+          description: The unit of the period.
+          format: enumeration
+          enum:
+          - hour
+          - day
+        timeStampType:
+          type: string
+          description: The type of timestamp to use for the aggregation
+          format: enumeration
+          enum:
+          - contacted
+          - responded
+        beginTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp that marks the beginning of this period.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp that marks the end of this period.
+        contactedTreatments:
+          type: array
+          description: array of IDs of treatments IDs corresponding to the contacts.
+          items:
+            type: string
+        presentedTreatments:
+          type: array
+          description: array of IDs of treatment presented.
+          items:
+            type: string
+        respondedTreatments:
+          type: array
+          description: array of IDs of treatments that have received response.
+          items:
+            type: string
+    channelAggregate:
+      title: Channel Aggregation
+      description: Aggregation for channels
+      required:
+      - name
+      - channelType
+      properties:
+        name:
+          type: string
+          description: Channel code
+        channelType:
+          type: string
+          description: Type of channel
+          format: enumeration
+          enum:
+          - contact
+          - response
+        contactedTreatments:
+          type: array
+          description: array of IDs of treatments IDs corresponding to the contacts.
+          items:
+            type: string
+        presentedTreatments:
+          type: array
+          description: array of IDs of treatment presented.
+          items:
+            type: string
+        respondedTreatments:
+          type: array
+          description: array of IDs of treatments that have received response.
+          items:
+            type: string
+    timeStampSecondaryAggregate:
+      title: Timestamp Secondary Aggregation
+      description: Aggregate treatments in the timestamp dimension for a particular
+        channel for which the primary aggregation was done. The secondary aggregation
+        is for a specific length of time
+      allOf:
+      - $ref: "#/components/schemas/timeStampAggregate"
+    channelSecondaryAggregate:
+      title: Channel Secondary Aggregation
+      description: Aggregate treatments in a channel dimension for a given time period
+        constraint. That time period is the primary aggregation. This identifies the
+        treatments that go through this channel in the time period.
+      allOf:
+      - $ref: "#/components/schemas/channelAggregate"
+    timeStampPrimaryAggregate:
+      title: Contact Timestamp Primary Aggregation
+      description: Aggregate treatments in the timestamp dimension.
+      allOf:
+      - $ref: "#/components/schemas/timeStampAggregate"
+      - properties:
+          channels:
+            type: array
+            description: The secondary aggregation in the channel dimension for this
+              time period. This identifies the treatments by the channels that they
+              go through. This is a drill down from a time period to the channels.
+            items:
+              $ref: "#/components/schemas/channelSecondaryAggregate"
+    channelPrimaryAggregate:
+      title: Channel Aggregation
+      description: Aggregate treatments in a channel dimension. This identifies the
+        treatments that go through this channel over the entire aggregation time period.
+      required:
+      - beginTimeStamp
+      - endTimeStamp
+      allOf:
+      - $ref: "#/components/schemas/channelAggregate"
+      - properties:
+          beginTimeStamp:
+            type: string
+            format: date-time
+            description: The timestamp that marks the beginning of the aggregation
+              period.
+          endTimeStamp:
+            type: string
+            format: date-time
+            description: The timestamp that marks the end of the aggregation period.
+          periods:
+            type: array
+            description: This identifies the time periods when treatments go through
+              this channel. This is a drill down from a channel to time periods.
+            items:
+              $ref: "#/components/schemas/timeStampSecondaryAggregate"
+    traceCollection:
+      title: Decision Trace Collection
+      description: A collection of the trace representations.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The actual results of a query.
+            items:
+              $ref: "#/components/schemas/trace"
+    trace:
+      title: Decision Trace
+      description: Conveys the essential information of a decision trace. The trace
+        text is not included.
+      required:
+      - traceId
+      - traceTimeStamp
+      - objectUri
+      - processorNote
+      properties:
+        traceId:
+          type: string
+          description: The ID of the raw trace. This is provided by the user of the
+            API when a raw trace is submitted to the service for recording.
+        traceTimeStamp:
+          type: string
+          description: The timestamp associated with the raw trace.
+        objectUri:
+          type: string
+          description: The URI of the decision associated with the raw trace.
+        processorNote:
+          type: string
+          description: The history of the processing of the raw trace and other information.
+            The note is composed in YAML format.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Timestamp when the trace is recorded. This field is a derived
+            field.
+        createdBy:
+          type: string
+          readOnly: true
+          description: ID of the user who recorded this trace. This field is a derived
+            field.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp when this trace's processorNote field is last modified.
+            This field is a derived field.
+        modifiedBy:
+          type: string
+          description: ID of the user who last modified this trace. This field is
+            a derived field.
+        links:
+          type: array
+          readOnly: true
+          description: Zero or more link objects.
+          items:
+            $ref: "#/components/schemas/link"
+    traceReport:
+      title: Decision Trace Report
+      description: Convey the result of processing a raw trace.
+      required:
+      - traceId
+      - traceTimeStamp
+      - reportUri
+      - objectUri
+      properties:
+        traceId:
+          type: string
+          description: The ID of the raw trace. This is provided by the user of the
+            API when a raw trace is submitted to the service for recording.
+        traceTimeStamp:
+          type: string
+          description: The timestamp associated with the raw trace.
+        processedTimeStamp:
+          type: string
+          description: The timestamp associated with the processing of the raw trace.
+        reportUri:
+          type: string
+          description: The Files Service URI of the file resource in which the report
+            is stored.
+        objectUri:
+          type: string
+          description: The URI of the decision associated with the raw trace.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    summary:
+      title: Resource Summary
+      type: object
+      description: The summarized representation of a resource. Often used in collection
+        responses when more specific details aren't needed.
+      x-sas-media-type:
+        name: application/vnd.sas.summary
+        version: 2
+      required:
+      - id
+      - links
+      - version
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the resource.
+        name:
+          type: string
+          description: The name of the resource.
+        type:
+          type: string
+          description: The type of the resource.
+        description:
+          type: string
+          description: The description of the resource.
+        typeDefName:
+          type: string
+          description: (version 2) The name of the type definition that describes
+            the contents of this resource.
+        iconUri:
+          type: string
+          description: (version 2) The URI of an icon assigned to this resource, overrides
+            default icons for the type.
+        createdBy:
+          type: string
+          description: The user who created the resource.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was created.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the resource.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was last modified.
+        links:
+          type: array
+          description: The links that apply to the resource.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the resource. This representation is
+            version 2.
+  examples:
+    subjectContactCollection:
+      description: Subject contact collection.
+      value:
+        name: contacts
+        accept: application/vnd.sas.decision.subject.contact
+        count: 2
+        start: 0
+        limit: 5
+        items:
+        - creationTimeStamp: "2018-05-13T15:02:40.719Z"
+          modifiedTimeStamp: "2018-05-13T18:32:40.719Z"
+          createdBy: joeMarket
+          modifiedBy: joeMarket
+          id: 5195ceb6-228e-439d-b3df-307197f1e7a7
+          subjectId: Francis.Albert.Bacon.19195313421
+          subjectLevel: household
+          objectUri: "/decisions/flows/5c5bc46a-cea0-4102-a88c-71cf1506e2c5"
+          objectRevisionId: afb62877-64cb-4ae6-bf0c-4e2783a38d3a
+          objectType: decision
+          objectVariables:
+          - id: a4722451-fb6f-4c9a-8bb8-4cf1eaba73c0
+            name: ov1
+            value: A
+            dataType: string
+          - id: 395aebd9-1646-4d84-9c05-d8e80efe72b7
+            name: ov2
+            value: B
+            dataType: string
+          treatmentsForConsideration:
+          - id: f025ee1f-a60a-4bb5-8236-0c697562653e
+            treatmentId: 4f3f14cf-69ed-4d59-9ea2-ecfb525cfa83
+            treatmentRevisionId: 7aa86c12-55cf-4e99-8060-5b516314dc44
+            treatmentGroupId: bc912f15-96a0-4991-ba2a-9f12491cefc0
+            treatmentGroupRevisionId: 9d2fccaa-428a-4604-a242-4f259ab8a553
+            objectNodeId: 6bf8f1b3-9910-40ad-8146-6affd4f49a1f
+            presented: true
+            presentedTimeStamp: "2018-05-13T15:02:40.719Z"
+            subjectContactId: 5195ceb6-228e-439d-b3df-307197f1e7a7
+          - id: 383bebdf-9378-4ed9-a2f3-127f53acfd22
+            treatmentId: 826c9635-809a-44cf-a982-63e374846087
+            treatmentRevisionId: d14e393d-c21c-4654-8095-376909edace5
+            treatmentGroupId: 1ba80181-7996-4ed5-8d58-66be8d2204e3
+            treatmentGroupRevisionId: f38725dc-cb53-4f09-b69c-661a7d675dac
+            objectNodeId: cf328b78-81b3-465e-b86b-2eb71876a66a
+            presented: true
+            presentedTimeStamp: "2018-05-13T15:02:40.719Z"
+            responseValue: accepted
+            responseType: rt_1
+            respondedTimeStamp: "2018-05-13T18:11:10.687Z"
+            responseChannel: web
+            subjectContactId: 5195ceb6-228e-439d-b3df-307197f1e7a7
+          - id: 23c1ebb8-7df8-4555-92d7-226ad88ad734
+            treatmentId: 2826de5a-d0d6-4bd1-8a80-08c12ba2ad81
+            treatmentRevisionId: f14c3aa2-98a4-4a42-8b29-c99ad3cc02a8
+            treatmentGroupId: 1ba80181-7996-4ed5-8d58-66be8d2204e3
+            treatmentGroupRevisionId: f38725dc-cb53-4f09-b69c-661a7d675dac
+            objectNodeId: f7d361a9-d488-47f6-a579-e4cf28fb7324
+            presented: true
+            presentedTimeStamp: "2018-05-13T15:02:40.719Z"
+            subjectContactId: 5195ceb6-228e-439d-b3df-307197f1e7a7
+          ruleFired: "00010"
+          pathTraversed: "/9e4e324b-de68-4035-b511-84cd558d5408/2541ab6e-3e7d-4ba0-8f04-7fc13a8e9794/509c4d2d-dc2c-4cb3-a094-5628e1ec879d"
+          abTests:
+          - id: f025ee1f-a60a-4bb5-8236-0c697562653f
+            nodeId: 4f3f14cf-69ed-4d59-9ea2-ecfb525cfa86
+            champion: true
+            pathName: Champion
+            pathId: 9d2fccaa-428a-4604-a242-4f259ab8a555
+            pathKey: term1Name
+            pathType: Champion/Challenger
+          responseTrackingCode: GreatCustomer.07f16e7a-db89-400a-91d9-8b6868f07b7b
+          receiverId: Francis.Albert.Bacon.19195313421
+          receiverRole: customer
+          excludeFromContactRule: false
+          channel: web
+          conclusionResponseValue: ""
+          conclusionResponseType: crt_x
+          version: 1
+          links:
+          - method: GET
+            rel: self
+            href: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+            uri: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+            type: application/vnd.sas.decision.subject.contact
+          - method: PUT
+            rel: update
+            href: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+            uri: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+            type: application/vnd.sas.decision.subject.contact
+            responseType: application/vnd.sas.decision.subject.contact
+          - method: POST
+            rel: create
+            href: "/subjectContacts/contacts"
+            uri: "/subjectContacts/contacts"
+            type: application/vnd.sas.decision.subject.contact
+            responseType: application/vnd.sas.decision.subject.contact
+          - method: PATCH
+            rel: patch
+            href: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+            uri: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+            type: application/vnd.sas.decision.subject.contact
+            responseType: application/vnd.sas.decision.subject.contact
+          - method: DELETE
+            rel: delete
+            href: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+            uri: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+          - method: GET
+            rel: up
+            href: "/subjectContacts/contacts"
+            uri: "/subjectContacts/contacts"
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.decision.subject.contact
+        - creationTimeStamp: "2018-05-13T18:01:01.203Z"
+          modifiedTimeStamp: "2018-05-13T18:01:01.203Z"
+          createdBy: joeMarket
+          modifiedBy: joeMarket
+          id: 39657793-736b-462f-8d37-31c04b680657
+          objectUri: "/decisions/flows/525b199b-9073-4359-a521-ff1bc8a59145"
+          objectRevisionId: e4728fe2-35ce-4ac6-84e0-fd0cad3f0e80
+          objectType: decision
+          objectVariables:
+          - 
+          - name: ov1
+            value: A
+            dataType: string
+          - name: ov2
+            value: B
+            dataType: string
+          subjectId: Francis.Albert.Bacon.19195313421
+          subjectLevel: household
+          ruleFired: "111101"
+          pathTraversed: "/ddc3f087-e313-4f63-8404-45a51257df0b/5cb79bb7-1ba2-4c1d-a17c-5d0894ebc046/1111ee7e-7135-4397-bb1d-2aa0a680b9aa"
+          responseTrackingCode: BigSaver.08c3f2f6-2d1f-45ed-9cd4-511fa7b40054
+          receiverId: CallCenter.71.310
+          receiverRole: agent
+          conclusionResponseValue: ""
+          conclusionResponseType: crt_x
+          treatmentsForConsideration:
+          - id: 7b34d631-2f16-4d7a-ac55-3cbe9a661a6c
+            subjectContactId: 39657793-736b-462f-8d37-31c04b680657
+            treatmentId: 29ed1a67-e3be-412c-ae2f-567edd38e086
+            treatmentRevisionId: efb511c1-ad37-4a3d-8a8f-e259d8dc2812
+            treatmentGroupId: 82d4e377-16ab-4165-a923-c38c45cd3a01
+            treatmentGroupRevisionId: 2c72fe78-09df-44ff-9039-23f1272390b9
+            objectNodeId: 3670f308-fe1a-46b0-96de-b97a09db0be5
+            presented: false
+          abTests:
+          - id: f025ee1f-a60a-4bb5-8236-0c6975626531
+            nodeId: 4f3f14cf-69ed-4d59-9ea2-ecfb525cfa82
+            champion: false
+            pathName: challenger
+            pathId: 9d2fccaa-428a-4604-a242-4f259ab8a559
+            pathKey: term1Name
+            pathType: Champion/Challenger
+          excludeFromContactRule: false
+          channel: phone
+          version: 1
+          links:
+          - method: GET
+            rel: self
+            href: "/subjectContacts/contacts/39657793-736b-462f-8d37-31c04b680657"
+            uri: "/subjectContacts/contacts/39657793-736b-462f-8d37-31c04b680657"
+            type: application/vnd.sas.decision.subject.contact
+          - method: PUT
+            rel: update
+            href: "/subjectContacts/contacts/39657793-736b-462f-8d37-31c04b680657"
+            uri: "/subjectContacts/contacts/39657793-736b-462f-8d37-31c04b680657"
+            type: application/vnd.sas.decision.subject.contact
+            responseType: application/vnd.sas.decision.subject.contact
+          - method: POST
+            rel: create
+            href: "/subjectContacts/contacts"
+            uri: "/subjectContacts/contacts"
+            type: application/vnd.sas.decision.subject.contact
+            responseType: application/vnd.sas.decision.subject.contact
+          - method: PATCH
+            rel: patch
+            href: "/subjectContacts/contacts/39657793-736b-462f-8d37-31c04b680657"
+            uri: "/subjectContacts/contacts/39657793-736b-462f-8d37-31c04b680657"
+            type: application/vnd.sas.decision.subject.contact
+            responseType: application/vnd.sas.decision.subject.contact
+          - method: DELETE
+            rel: delete
+            href: "/subjectContacts/contacts/39657793-736b-462f-8d37-31c04b680657"
+            uri: "/subjectContacts/contacts/39657793-736b-462f-8d37-31c04b680657"
+          - method: GET
+            rel: up
+            href: "/subjectContacts/contacts"
+            uri: "/subjectContacts/contacts"
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.decision.subject.contact
+        links:
+        - method: GET
+          rel: collection
+          href: "/subjectContacts/contacts"
+          uri: "/subjectContacts/contacts"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.decision.subject.contact
+        - method: GET
+          rel: self
+          href: "/subjectContacts/contacts?limit=5&filter=and(eq(subjectId,'Francis.Albert.Bacon.19195313421'),eq(subjectLevel,'household'))&sortBy=creationTimeStamp:ascending&start=0"
+          uri: "/subjectContacts/contacts?limit=5&filter=and(eq(subjectId,'Francis.Albert.Bacon.19195313421'),eq(subjectLevel,'household'))&sortBy=creationTimeStamp:ascending&start=0"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.decision.subject.contact
+        - method: GET
+          rel: up
+          href: "/subjectContacts/"
+          uri: "/subjectContacts/"
+          type: application/vnd.sas.api
+        - method: POST
+          rel: create
+          href: "/subjectContacts/contacts"
+          uri: "/subjectContacts/contacts"
+          type: application/vnd.sas.decision.subject.contact
+          responseType: application/vnd.sas.decision.subject.contact
+        version: 2
+    subjectContactAsynchronous:
+      description: Subject contact recorded asynchronously.
+      value:
+        id: 39657793-736b-462f-8d37-31c04b680657
+        objectUri: "/decisions/flows/525b199b-9073-4359-a521-ff1bc8a59145"
+        objectRevisionId: e4728fe2-35ce-4ac6-84e0-fd0cad3f0e80
+        objectType: decision
+        objectVariables:
+        - name: ov1
+          value: A
+          dataType: string
+        - name: ov2
+          value: B
+          dataType: string
+        subjectId: Francis.Albert.Bacon.19195313421
+        subjectLevel: household
+        ruleFired: "111101"
+        pathTraversed: "/ddc3f087-e313-4f63-8404-45a51257df0b/5cb79bb7-1ba2-4c1d-a17c-5d0894ebc046/1111ee7e-7135-4397-bb1d-2aa0a680b9aa"
+        responseTrackingCode: BigSaver.08c3f2f6-2d1f-45ed-9cd4-511fa7b40054
+        receiverId: CallCenter.71.310
+        receiverRole: agent
+        conclusionResponseValue: ""
+        conclusionResponseType: crt_x
+        treatmentsForConsideration:
+        - treatmentId: 29ed1a67-e3be-412c-ae2f-567edd38e086
+          treatmentRevisionId: efb511c1-ad37-4a3d-8a8f-e259d8dc2812
+          treatmentGroupId: 82d4e377-16ab-4165-a923-c38c45cd3a01
+          treatmentGroupRevisionId: 2c72fe78-09df-44ff-9039-23f1272390b9
+          objectNodeId: 3670f308-fe1a-46b0-96de-b97a09db0be5
+          presented: false
+        excludeFromContactRule: false
+        channel: phone
+    notAcceptable:
+      description: Not acceptable.
+      value:
+        httpStatusCode: 406
+        version: 2
+    badRequest:
+      description: Bad request.
+      value:
+        httpStatusCode: 400
+        version: 2
+    conflict:
+      description: The request conflicts with the current state.
+      value:
+        httpStatusCode: 409
+        version: 2
+    aggregationSpecification:
+      description: An aggregate specification.
+      value:
+        subjectId: string
+        subjectLevel: string
+    traceReport:
+      description: Trace collection.
+      value:
+        version: 1
+        traceId: 6d707a51-62b3-40a4-4973-b2d9f12d20fe
+        traceTimeStamp: "2020-09-08T14:29:30.000Z"
+        processedTimeStamp: "2020-09-08T14:35:27.000Z"
+        reportUri: "/files/files/b8bc8dd8-6747-4194-8b64-6f574f0f1f42"
+        objectUri: "/decisions/flows/501fa196-6d6e-4515-ac8f-3840ba576b56/revisions/37f0e7af-d27d-453c-b3a0-546f29c26a94"
+        links:
+        - method: POST
+          rel: self
+          href: "/subjectContacts/traces/6d707a51-62b3-40a4-4973-b2d9f12d20fe/process?scope=step"
+          uri: "/subjectContacts/traces/6d707a51-62b3-40a4-4973-b2d9f12d20fe/process?scope=step"
+          type: application/vnd.sas.decision.trace.report
+        - method: GET
+          rel: reportContent
+          href: "/files/files/b8bc8dd8-6747-4194-8b64-6f574f0f1f42/content"
+          uri: "/files/files/b8bc8dd8-6747-4194-8b64-6f574f0f1f42/content"
+        - method: GET
+          rel: rawContent
+          href: "/subjectContacts/traces?filter=eq(traceId,'6d707a51-62b3-40a4-4973-b2d9f12d20fe')&scope=step"
+          uri: "/subjectContacts/traces?filter=eq(traceId,'6d707a51-62b3-40a4-4973-b2d9f12d20fe')&scope=step"
+          type: text/tab-separated-values
+    subjectContactTreatmentAggregate:
+      description: Subject contact treatment aggregation.
+      value:
+        subjectId: string
+        subjectLevel: string
+        beginTimeStamp: "2019-08-24T14:15:22Z"
+        endTimeStamp: "2019-08-24T14:15:22Z"
+        contactedTimeStampAggregation:
+        - periodLength: string
+          periodUnit: hour
+          timeStampType: contacted
+          beginTimeStamp: "2019-08-24T14:15:22Z"
+          endTimeStamp: "2019-08-24T14:15:22Z"
+          contactedTreatments:
+          - string
+          presentedTreatments:
+          - string
+          respondedTreatments:
+          - string
+          channels:
+          - name: string
+            channelType: contact
+            contactedTreatments:
+            - string
+            presentedTreatments:
+            - string
+            respondedTreatments:
+            - string
+        respondedTimeStampAggregation:
+        - periodLength: string
+          periodUnit: hour
+          timeStampType: contacted
+          beginTimeStamp: "2019-08-24T14:15:22Z"
+          endTimeStamp: "2019-08-24T14:15:22Z"
+          contactedTreatments:
+          - string
+          presentedTreatments:
+          - string
+          respondedTreatments:
+          - string
+          channels:
+          - name: string
+            channelType: contact
+            contactedTreatments:
+            - string
+            presentedTreatments:
+            - string
+            respondedTreatments:
+            - string
+        contactChannelAggregation:
+        - name: string
+          channelType: contact
+          contactedTreatments:
+          - string
+          presentedTreatments:
+          - string
+          respondedTreatments:
+          - string
+          beginTimeStamp: "2019-08-24T14:15:22Z"
+          endTimeStamp: "2019-08-24T14:15:22Z"
+          periods:
+          - periodLength: string
+            periodUnit: hour
+            timeStampType: contacted
+            beginTimeStamp: "2019-08-24T14:15:22Z"
+            endTimeStamp: "2019-08-24T14:15:22Z"
+            contactedTreatments:
+            - string
+            presentedTreatments:
+            - string
+            respondedTreatments:
+            - string
+        responseChannelAggregation:
+        - name: string
+          channelType: contact
+          contactedTreatments:
+          - string
+          presentedTreatments:
+          - string
+          respondedTreatments:
+          - string
+          beginTimeStamp: "2019-08-24T14:15:22Z"
+          endTimeStamp: "2019-08-24T14:15:22Z"
+          periods:
+          - periodLength: string
+            periodUnit: hour
+            timeStampType: contacted
+            beginTimeStamp: "2019-08-24T14:15:22Z"
+            endTimeStamp: "2019-08-24T14:15:22Z"
+            contactedTreatments:
+            - string
+            presentedTreatments:
+            - string
+            respondedTreatments:
+            - string
+    subjectContactMultipartMixed:
+      description: Subject contacts recorded using CSV text.
+      value:
+        part1:
+          contentType: 'text/csv; charset="utf-8"'
+          contentId: "Accepted-CSV"
+          body: "4,8815ef75-e45e-4a78-a277-ba8af53c303c,2018-05-13T22:32:30.712Z,VIP.9ea6417c-25d5-4dd7-9377-69881d6563ef,Betty.Monroe.Galloway.18174362195,individual,false,,crt_x,/decisions/flows/525b199b-9073-4359-a521-ff1bc8a59145,e4728fe2-35ce-4ac6-84e0-fd0cad3f0e80,decision,ov1~~~A~~~string;ov2~~~B~~~string,CallCenter.71.310,agent,phone,111101,/ddc3f087-e313-4f63-8404-45a51257df0b/5cb79bb7-1ba2-4c1d-a17c-5d0894ebc046/1111ee7e-7135-4397-bb1d-2aa0a680b9aa,,,29ed1a67-e3be-412c-ae2f-567edd38e086,efb511c1-ad37-4a3d-8a8f-e259d8dc2812,82d4e377-16ab-4165-a923-c38c45cd3a01,2c72fe78-09df-44ff-9039-23f1272390b9,3670f308-fe1a-46b0-96de-b97a09db0be5,false,,,,,"
+        part2:
+          contentType: 'text/csv; charset="utf-8"'
+          contentId: "Rejected-CSV"
+          body: "1,2018-05-13T15:02:40.719Z,GreatCustomer.07f16e7a-db89-400a-91d9-8b6868f07b7b,Francis.Albert.Bacon.19195313421,household,false,,crt_x,/decisions/flows/5c5bc46a-cea0-4102-a88c-71cf1506e2c5,afb62877-64cb-4ae6-bf0c-4e2783a38d3a,decision,ov1~~~A;ov2~~~B,Francis.Albert.Bacon.19195313421,customer,web,00010,/9e4e324b-de68-4035-b511-84cd558d5408/2541ab6e-3e7d-4ba0-8f04-7fc13a8e9794/509c4d2d-dc2c-4cb3-a094-5628e1ec879d,,4f3f14cf-69ed-4d59-9ea2-ecfb525cfa83,7aa86c12-55cf-4e99-8060-5b516314dc44,bc912f15-96a0-4991-ba2a-9f12491cefc0,9d2fccaa-428a-4604-a242-4f259ab8a553,6bf8f1b3-9910-40ad-8146-6affd4f49a1f,true,2018-05-13T15:02:40.719Z,,,,,The\
+            \ value for the objectVariables column is not proper. It must be zero\
+            \ or more groups of name~~~value~~~dataType tuple using semicolon as the\
+            \ delimiter."
+        part3:
+          contentType: 'text/csv; charset="utf-8"'
+          contentId: "Global-Issue"
+          body: ""
+    root:
+      description: SubjectContacts root content.
+      value:
+        version: 1
+        links:
+        - method: GET
+          rel: contacts
+          href: /subjectContacts/contacts
+          uri: /subjectContacts/contacts
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.decision.subject.contact
+        - method: POST
+          rel: createContact
+          href: /subjectContacts/contacts
+          uri: /subjectContacts/contacts
+          type: application/vnd.sas.business.rule.set
+          responseType: application/vnd.sas.decision.subject.contact
+    traceCollectionMultipartMixed:
+      description: Trace updated using CSV text.
+      value:
+        part1:
+          contentType: 'text/csv; charset="utf-8"'
+          contentId: "Accepted-CSV"
+          body: '3d4120b3-1fe7-4fce-b333-0ae1b93aa03c,The record with the trace ID
+            "3d4120b3-1fe7-4fce-b333-0ae1b93aa03c" is updated.'
+        part2:
+          contentType: 'text/csv; charset="utf-8"'
+          contentId: "Rejected-CSV"
+          body: ""
+        part3:
+          contentType: 'text/csv; charset="utf-8"'
+          contentId: "Global-Issue"
+          body: ""
+    traceCollection:
+      description: Trace collection.
+      value:
+        links:
+        - method: GET
+          rel: collection
+          href: "/subjectContacts/traces"
+          uri: "/subjectContacts/traces"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.decision.trace
+        - method: GET
+          rel: self
+          href: "/subjectContacts/traces?filter=eq(sequenceNumber,1)&sortBy=traceTimeStamp:ascending,sequenceNumber:ascending:secondary&start=0&limit=10"
+          uri: "/subjectContacts/traces?filter=eq(sequenceNumber,1)&sortBy=traceTimeStamp:ascending,sequenceNumber:ascending:secondary&start=0&limit=10"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.decision.trace
+        - method: GET
+          rel: up
+          href: "/subjectContacts/"
+          uri: "/subjectContacts/"
+          type: application/vnd.sas.api
+        - method: GET
+          rel: next
+          href: "/subjectContacts/traces?filter=eq(sequenceNumber,1)&sortBy=traceTimeStamp:ascending,sequenceNumber:ascending:secondary&start=10&limit=10"
+          uri: "/subjectContacts/traces?filter=eq(sequenceNumber,1)&sortBy=traceTimeStamp:ascending,sequenceNumber:ascending:secondary&start=10&limit=10"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.decision.trace
+        - method: GET
+          rel: last
+          href: "/subjectContacts/traces?filter=eq(sequenceNumber,1)&sortBy=traceTimeStamp:ascending,sequenceNumber:ascending:secondary&start=210&limit=10"
+          uri: "/subjectContacts/traces?filter=eq(sequenceNumber,1)&sortBy=traceTimeStamp:ascending,sequenceNumber:ascending:secondary&start=210&limit=10"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.decision.trace
+        - method: POST
+          rel: create
+          href: "/subjectContacts/traces"
+          uri: "/subjectContacts/traces"
+          type: text/tab-separated-values
+          responseType: multipart/mixed
+        name: items
+        start: 0
+        count: 1
+        items:
+        - traceId: 3d4120b3-1fe7-4fce-b333-0ae1b93aa03c
+          traceTimeStamp: "2020-08-07T18:02:23Z"
+          processorNote: ""
+          objectUri: "/decisions/flows/835b0890-bca3-42f1-8a50-9dcce2c4a377/revisions/6f5c045a-94a6-4f9b-9adc-cc1dde33558"
+          links:
+          - method: GET
+            rel: self
+            href: "/subjectContacts/traces?filter=eq(traceId,'3d4120b3-1fe7-4fce-b333-0ae1b93aa03c')"
+            uri: "/subjectContacts/traces?filter=eq(traceId,'3d4120b3-1fe7-4fce-b333-0ae1b93aa03c')"
+            type: application/vnd.sas.decision.trace
+          - method: GET
+            rel: completeWithTraceText
+            href: "/subjectContacts/traces?filter=eq(traceId,'3d4120b3-1fe7-4fce-b333-0ae1b93aa03c')"
+            uri: "/subjectContacts/traces?filter=eq(traceId,'3d4120b3-1fe7-4fce-b333-0ae1b93aa03c')"
+            type: text/tab-separated-values
+          - method: POST
+            rel: update
+            href: "/subjectContacts/traces"
+            uri: "/subjectContacts/traces"
+            type: text/tab-separated-values
+            responseType: multipart/mixed
+          - method: DELETE
+            rel: delete
+            href: "/subjectContacts/traces?filter=eq(traceId,'3d4120b3-1fe7-4fce-b333-0ae1b93aa03c')"
+            uri: "/subjectContacts/traces?filter=eq(traceId,'3d4120b3-1fe7-4fce-b333-0ae1b93aa03c')"
+    subjectContact:
+      description: The full representation of a subject contact.
+      value:
+        creationTimeStamp: "2018-05-13T15:02:40.719Z"
+        modifiedTimeStamp: "2018-05-13T15:02:40.719Z"
+        createdBy: joeMarket
+        modifiedBy: joeMarket
+        id: 5195ceb6-228e-439d-b3df-307197f1e7a7
+        subjectId: Francis.Albert.Bacon.19195313421
+        subjectLevel: household
+        objectUri: "/decisions/flows/5c5bc46a-cea0-4102-a88c-71cf1506e2c5"
+        objectRevisionId: afb62877-64cb-4ae6-bf0c-4e2783a38d3a
+        objectType: decision
+        objectVariables:
+        - id: a4722451-fb6f-4c9a-8bb8-4cf1eaba73c0
+          name: ov1
+          value: A
+          dataType: string
+        - id: 395aebd9-1646-4d84-9c05-d8e80efe72b7
+          name: ov2
+          value: B
+          dataType: string
+        treatmentsForConsideration:
+        - id: f025ee1f-a60a-4bb5-8236-0c697562653e
+          treatmentId: 4f3f14cf-69ed-4d59-9ea2-ecfb525cfa83
+          treatmentRevisionId: 7aa86c12-55cf-4e99-8060-5b516314dc44
+          treatmentGroupId: bc912f15-96a0-4991-ba2a-9f12491cefc0
+          treatmentGroupRevisionId: 9d2fccaa-428a-4604-a242-4f259ab8a553
+          objectNodeId: 6bf8f1b3-9910-40ad-8146-6affd4f49a1f
+          presented: true
+          presentedTimeStamp: "2018-05-13T15:02:40.719Z"
+          subjectContactId: 5195ceb6-228e-439d-b3df-307197f1e7a7
+        - id: 383bebdf-9378-4ed9-a2f3-127f53acfd22
+          treatmentId: 826c9635-809a-44cf-a982-63e374846087
+          treatmentRevisionId: d14e393d-c21c-4654-8095-376909edace5
+          treatmentGroupId: 1ba80181-7996-4ed5-8d58-66be8d2204e3
+          treatmentGroupRevisionId: f38725dc-cb53-4f09-b69c-661a7d675dac
+          objectNodeId: cf328b78-81b3-465e-b86b-2eb71876a66a
+          presented: true
+          presentedTimeStamp: "2018-05-13T15:02:40.719Z"
+          subjectContactId: 5195ceb6-228e-439d-b3df-307197f1e7a7
+        - id: 23c1ebb8-7df8-4555-92d7-226ad88ad734
+          treatmentId: 2826de5a-d0d6-4bd1-8a80-08c12ba2ad81
+          treatmentRevisionId: f14c3aa2-98a4-4a42-8b29-c99ad3cc02a8
+          treatmentGroupId: 1ba80181-7996-4ed5-8d58-66be8d2204e3
+          treatmentGroupRevisionId: f38725dc-cb53-4f09-b69c-661a7d675dac
+          objectNodeId: f7d361a9-d488-47f6-a579-e4cf28fb7324
+          presented: true
+          presentedTimeStamp: "2018-05-13T15:02:40.719Z"
+          subjectContactId: 5195ceb6-228e-439d-b3df-307197f1e7a7
+        ruleFired: "00010"
+        pathTraversed: "/9e4e324b-de68-4035-b511-84cd558d5408/2541ab6e-3e7d-4ba0-8f04-7fc13a8e9794/509c4d2d-dc2c-4cb3-a094-5628e1ec879d"
+        abTests:
+        - id: f025ee1f-a60a-4bb5-8236-0c697562653f
+          nodeId: 4f3f14cf-69ed-4d59-9ea2-ecfb525cfa86
+          champion: true
+          pathName: Champion
+          pathId: 9d2fccaa-428a-4604-a242-4f259ab8a555
+          pathKey: term1Name
+          pathType: Champion/Challenger
+        responseTrackingCode: GreatCustomer.07f16e7a-db89-400a-91d9-8b6868f07b7b
+        receiverId: Francis.Albert.Bacon.19195313421
+        receiverRole: customer
+        channel: web
+        excludeFromContactRule: false
+        conclusionResponseValue: ""
+        conclusionResponseType: crt_x
+        version: 1
+        links:
+        - method: GET
+          rel: self
+          href: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+          uri: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+          type: application/vnd.sas.decision.subject.contact
+        - method: PUT
+          rel: update
+          href: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+          uri: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+          type: application/vnd.sas.decision.subject.contact
+          responseType: application/vnd.sas.decision.subject.contact
+        - method: POST
+          rel: create
+          href: "/subjectContacts/contacts"
+          uri: "/subjectContacts/contacts"
+          type: application/vnd.sas.decision.subject.contact
+          responseType: application/vnd.sas.decision.subject.contact
+        - method: PATCH
+          rel: patch
+          href: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+          uri: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+          type: application/vnd.sas.decision.subject.contact
+          responseType: application/vnd.sas.decision.subject.contact
+        - method: DELETE
+          rel: delete
+          href: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+          uri: "/subjectContacts/contacts/5195ceb6-228e-439d-b3df-307197f1e7a7"
+        - method: GET
+          rel: up
+          href: "/subjectContacts/contacts"
+          uri: "/subjectContacts/contacts"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.decision.subject.contact
+    preConditionFailed:
+      description: Pre-condition failed.
+      value:
+        httpStatusCode: 412
+        version: 2
+    subjectContactSummary:
+      description: Subject contact summary representation.
+      value:
+        creationTimeStamp: "2023-01-19T22:20:44.844Z"
+        modifiedTimeStamp: "2023-01-19T22:20:44.844Z"
+        createdBy: anonymousUser
+        modifiedBy: anonymousUser
+        id: f178fe4a-be95-40c7-aed1-06bcfaa45518
+        type: subjectContact
+        name: fd220146-bc31-3148-8329-3347439a4792
+        links:
+        - method: GET
+          rel: self
+          href: "/subjectContacts/contacts/f178fe4a-be95-40c7-aed1-06bcfaa45518"
+          uri: "/subjectContacts/contacts/f178fe4a-be95-40c7-aed1-06bcfaa45518"
+          type: application/vnd.sas.decision.subject.contact
+        - method: DELETE
+          rel: delete
+          href: "/subjectContacts/contacts/f178fe4a-be95-40c7-aed1-06bcfaa45518"
+          uri: "/subjectContacts/contacts/f178fe4a-be95-40c7-aed1-06bcfaa45518"
+        - method: GET
+          rel: up
+          href: "/subjectContacts/contacts"
+          uri: "/subjectContacts/contacts"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.summary
+        version: 2
+    notFound:
+      description: Not found.
+      value:
+        httpStatusCode: 404
+        version: 2
+    preConditionRequired:
+      description: Pre-condition required.
+      value:
+        httpStatusCode: 428
+        version: 2
+    subjectContactCSV:
+      description: Subject contact records exported as CSV.
+      value: |
+        f178fe4a-be95-40c7-aed1-06bcfaa45518,2023-01-19T22:20:44.844Z,fd220146-bc31-3148-8329-3347439a4792,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~0~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,9c533959-8a59-4bed-afbb-d9489b8b4488~~~true~~~962c9e4f-8ea1-4ba9-920a-6e7c75d2a76a~~~Champion~~~term1Name,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        9dfc65c7-20e1-48cf-ba44-b129fe74cf25,2023-01-19T22:20:44.844Z,a86cf069-de97-174e-921e-31a738b9ca52,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        9029979e-421b-4990-b6f0-81e3804964d7,2023-01-19T22:20:44.844Z,156546fe-0c27-f641-8e99-868c682ec8bc,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,9c533959-8a59-4bed-afbb-d9489b8b4488~~~true~~~962c9e4f-8ea1-4ba9-920a-6e7c75d2a76a~~~Champion~~~term1Name,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        9dbbd13f-2a3a-45d5-90a2-5d0d6d635826,2023-01-19T22:20:46.877Z,fecb4d6e-1b46-6f46-8e6d-6eb14573d263,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        86977de5-a261-446a-b4f2-3817f237fb4e,2023-01-19T22:20:46.879Z,16fc2cbd-dfe7-dd45-ab09-3d165ff8864e,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~~~~string,,,,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        09fae23c-df4e-463d-a7b3-9acae6970273,2023-01-19T22:20:46.884Z,0dd0416d-1c26-2b4e-b87a-1ecd89971592,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        01b04385-4d3b-44ab-8b71-b54052893a20,2023-01-19T22:20:46.886Z,7f0b15bb-b990-9242-a324-dfc145f48ba7,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~~~~string,,,,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        6fe2794a-58da-4aae-9b44-35b2bc8c3331,2023-01-19T22:20:46.886Z,3139de31-c2a6-1f4d-99f2-5e370c6814ce,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        f0e9e4aa-2ca5-4ce1-89c2-c889a2695b62,2023-01-19T22:20:49.703Z,20fce0a2-a44a-2b4c-8f61-7ee1d7c63516,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        8d4d8f18-549f-4dfe-a72b-b87241c2ca8d,2023-01-19T22:20:49.705Z,db9fec78-ade4-4f43-b4de-92f7eaa6cd63,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        ac82a027-bdf0-45e8-b54f-40cef2e23d8e,2024-04-19T06:20:32.020Z,1b02b0e5-86ea-2448-8ded-a468e13e26ab,NONE,NONE,false,,,/decisions/flows/b79b026c-585f-41a7-9065-ffb2be988a50,e1b08f7e-180e-4ce9-9c14-b7123be33b28,decision,bad~~~1~~~boolean;Job~~~null~~~string;Ninq~~~.~~~decimal,,,,,/386b3a99-6084-4045-9dc7-a4cf9960906b/631e173e-a368-4869-a6c0-d06a1fec432d,9c533959-8a59-4bed-afbb-d9489b8b4488~~~true~~~962c9e4f-8ea1-4ba9-920a-6e7c75d2a76a~~~Champion~~~term1Name,21cbe692-fdd4-4455-ba9c-795401426520,cd031589-2b3c-467e-a4bf-f9991b922704,8005e293-82b2-40b7-aa19-575f977c8747,44c12d7e-f74c-47ef-aa3b-b4d3a737eed2,386b3a99-6084-4045-9dc7-a4cf9960906b,false,,,,,
+    traceCollectionTSV:
+      description: A trace collection as tab-separated values.
+      value: |
+        traceid	seqno	tracetimestamp	objecturi	processornote	text
+        3d4120b3-1fe7-4fce-b333-0ae1b93aa03c	1	2020-08-07T18:02:23Z	/decisions/flows/835b0890-bca3-42f1-8a50-9dcce2c4a377/revisions/6f5c045a-94a6-4f9b-9adc-cc1dde33558		VVCT#STARTING_NODE_TRACE#3d4120b3-1fe7-4fce-b333-0ae1b93aa03c
+        VVCT#3d4120b3-1fe7-4fce-b333-0ae1b93aa03c#/decisions/flows/835b0890-bca3-42f1-8a50-9dcce2c4a377/revisions/6f5c045a-94a6-4f9b-9adc-cc1dde33558#Start
+        VVCT#3d4120b3-1fe7-4fce-b333-0ae1b93aa03c#a=6
+        VVCT#3d4120b3-1fe7-4fce-b333-0ae1b93aa03c#b=Bond Park
+        VVCT#3d4120b3-1fe7-4fce-b333-0ae1b93aa03c#c=Centennial Campus
+        VVCT#3d4120b3-1fe7-4fce-b333-0ae1b93aa03c#temp_dg_out=[{ "metadata": [ { "id_ip": "string" }, { "id_profile": "string" }, { "cd_tp_channel": "decimal" }, { "cd_tp_slot": "decimal" }, { "id_lead": "decimal" }, { "id_offer": "decimal" }, { "id_communication": "decimal" }, { "id_campaign": "decimal" }, { "cd_tp_target": "decimal" }, { "cd_tp_decision": "decimal" }, { "param_1_text": "string" }, { "param_2_text": "string" }, { "param_3_text": "string" }, { "param_4_text": "string" }, { "param_5_text": "string" } ] }, { "data": [ [ "perf_test", "perf_test", 1899, 1899, 1899, 1899, 1899, 1899, 1899, 1899, "perf_test", "perf_test", "perf_test", "perf_test", "perf_test" ] ] }]
+        VVCT#ENDING_NODE_TRACE#3d4120b3-1fe7-4fce-b333-0ae1b93aa03c
+        b1c164de-397c-47ad-8029-2a52bc255f83	1	append	2020-08-07T18:02:23Z	/decisions/flows/835b0890-bca3-42f1-8a50-9dcce2c4a377/revisions/6f5c045a-94a6-4f9b-9adc-cc1dde33558		VVCT#STARTING_NODE_TRACE#b1c164de-397c-47ad-8029-2a52bc255f83
+        VVCT#b1c164de-397c-47ad-8029-2a52bc255f83#/decisions/flows/835b0890-bca3-42f1-8a50-9dcce2c4a377/revisions/6f5c045a-94a6-4f9b-9adc-cc1dde33558#Start
+        VVCT#b1c164de-397c-47ad-8029-2a52bc255f83#a=8
+        VVCT#b1c164de-397c-47ad-8029-2a52bc255f83#b=biometric
+        VVCT#b1c164de-397c-47ad-8029-2a52bc255f83#c=cryptological
+        VVCT#b1c164de-397c-47ad-8029-2a52bc255f83#temp_dg_out=[ { "metadata": [ { "id_ip": "string" }, { "id_profile": "string" }, { "cd_tp_channel": "decimal" }, { "cd_tp_slot": "decimal" }, { "id_lead": "decimal" }, { "id_offer": "decimal" }, { "id_communication": "decimal" }, { "id_campaign": "decimal" }, { "cd_tp_target": "decimal" }, { "cd_tp_decision": "decimal" }, { "param_1_text": "string" }, { "param_2_text": "string" }, { "param_3_text": "string" }, { "param_4_text": "string" }, { "param_5_text": "string" } ] }, { "data": [ [ "perf_test", "perf_test", 1899, 1899, 1899, 1899, 1899, 1899, 1899, 1899, "perf_test", "perf_test", "perf_test", "perf_test", "perf_test" ], [ "perf_test", "perf_test", 1900, 1900, 1900, 1900, 1900, 1900, 1900, 1900, "perf_test", "perf_test", "perf_test", "perf_test", "perf_test" ], [ "perf_test", "perf_test", 1901, 1901, 1901, 1901, 1901, 1901, 1901, 1901, "perf_test", "perf_test", "perf_test", "perf_test", "perf_test" ] ] } ]
+        VVCT#ENDING_NODE_TRACE#b1c164de-397c-47ad-8029-2a52bc255f83
+    createContactsFromCSV:
+      description: The subject contact record as a CSV file.
+      value: |
+        f178fe4a-be95-40c7-aed1-06bcfaa45518,2023-01-19T22:20:44.844Z,fd220146-bc31-3148-8329-3347439a4792,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~0~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        9dfc65c7-20e1-48cf-ba44-b129fe74cf25,2023-01-19T22:20:44.844Z,a86cf069-de97-174e-921e-31a738b9ca52,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        9029979e-421b-4990-b6f0-81e3804964d7,2023-01-19T22:20:44.844Z,156546fe-0c27-f641-8e99-868c682ec8bc,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        9dbbd13f-2a3a-45d5-90a2-5d0d6d635826,2023-01-19T22:20:46.877Z,fecb4d6e-1b46-6f46-8e6d-6eb14573d263,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        86977de5-a261-446a-b4f2-3817f237fb4e,2023-01-19T22:20:46.879Z,16fc2cbd-dfe7-dd45-ab09-3d165ff8864e,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~~~~string,,,,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        09fae23c-df4e-463d-a7b3-9acae6970273,2023-01-19T22:20:46.884Z,0dd0416d-1c26-2b4e-b87a-1ecd89971592,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        01b04385-4d3b-44ab-8b71-b54052893a20,2023-01-19T22:20:46.886Z,7f0b15bb-b990-9242-a324-dfc145f48ba7,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~~~~string,,,,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        6fe2794a-58da-4aae-9b44-35b2bc8c3331,2023-01-19T22:20:46.886Z,3139de31-c2a6-1f4d-99f2-5e370c6814ce,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        f0e9e4aa-2ca5-4ce1-89c2-c889a2695b62,2023-01-19T22:20:49.703Z,20fce0a2-a44a-2b4c-8f61-7ee1d7c63516,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+        8d4d8f18-549f-4dfe-a72b-b87241c2ca8d,2023-01-19T22:20:49.705Z,db9fec78-ade4-4f43-b4de-92f7eaa6cd63,NONE,NONE,false,,,/decisions/flows/2ef26f88-507d-4bff-9216-aaae2d9bd448,ee184379-bea8-4919-b8e5-334506864a43,decision,BAD~~~1~~~decimal;REASON~~~HomeImp~~~string,,,HomeImp,,/224c5137-5a11-468b-a7b8-33e6878a2dc2/189c4ded-a529-417b-b625-a82353fbc79c,,,,,224c5137-5a11-468b-a7b8-33e6878a2dc2,false,,,,,
+    unprocessableEntity:
+      description: Pre-condition required.
+      value:
+        httpStatusCode: 422
+        version: 2

@@ -1,0 +1,979 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: Row Sets
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+  description: "The Row Sets API provides a common way to reference rows of rectangular\
+    \ data that are available in the SAS ecosystem. The URLs for this API are the\
+    \ only canonical form of storing data references for SAS Viya."
+tags:
+- name: Root
+  description: Contains the operations for the Root resource.
+- name: Row Set
+  description: Contains the operations for the row set resource.
+- name: Rows
+  description: Contains the operations for the rows resource.
+paths:
+  /:
+    get:
+      operationId: root
+      summary: Get a collection of top-level links
+      description: Returns a collection of links to the top-level collections that
+        are surfaced through this API.
+      tags:
+      - Root
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/rootLinks"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/rootLinks"
+    head:
+      operationId: headersForRoot
+      summary: Check the availability of the service
+      description: Returns header information and the status.
+      tags:
+      - Root
+      responses:
+        "200":
+          description: The request succeeded. The service is available.
+  "/tables/{tableId}/rows":
+    get:
+      operationId: getRowsForTable
+      summary: Get a collection of rows
+      description: |
+        Returns a collection of rows. Standard paging options are provided.
+        Sorting and filtering options are provider dependent, but the default
+        sort order is ascending by row order (for example, index). If the
+        provider has naturally unordered row data, it must allow for pagination
+        in a consistent manner.
+      tags:
+      - Rows
+      parameters:
+      - $ref: "#/components/parameters/tableId"
+      - $ref: "#/components/parameters/start"
+      - $ref: "#/components/parameters/limit"
+      - name: format
+        in: query
+        description: Use this parameter to format the cells of data. Defaults to true.
+        schema:
+          type: boolean
+      - name: sortBy
+        in: query
+        description: |
+          The sorting criteria for the returned rows of data. The rows can be sorted by any valid column name.
+          The default sort order is ascending by row order (i.e. index).
+          Examples:
+          - Sort ascending by column with id COLUMN_A: /rowSets/tables/{tableId}/rows?sortBy=COLUMN_A:ascending
+          - Sort descending by column with id COLUMN_A: /rowSets/tables/{tableId}/rows?sortBy=COLUMN_A:descending
+        schema:
+          type: string
+          format: sort-criteria
+      - name: includeIndex
+        in: query
+        description: Use this parameter to include the row index as the first item
+          in the row data. Defaults to false.
+        schema:
+          type: boolean
+      - name: excludeItemLinks
+        in: query
+        description: Use this parameter to exclude the links from this collection's
+          items. Defaults to true.
+        schema:
+          type: boolean
+      - name: where
+        in: query
+        description: |
+          The WHERE clause to pass through to the underlying data service.
+          This parameter acts as a filter on the provided data. Example:
+          ?where=Make='Honda'
+        schema:
+          type: string
+      - name: sessionId
+        in: query
+        description: |
+          The unique identifier of the session used to access the data service
+          provider's backing service. When this parameter is not specified,
+          the data service provider will create a temporary session and then
+          delete it after the request is complete. If this parameter is
+          specified, all returned links, except the "self" link, will have the
+          sessionId query parameter added to their respective URIs. Also, they
+          will contain an additional session link to the
+          application/vnd.sas.data.session resource that corresponds to the
+          provided sessionId.
+        schema:
+          type: string
+      - name: preserveSession
+        in: query
+        description: |
+          This string has effect only if the sessionId query parameter is not
+          specified. If this is set to true, and no sessionId is provided, the
+          session created by the data service provider will not be destroyed.
+          All returned links, except the "self" link, will have the sessionId
+          query parameter added to their respective URIs. Also, they will
+          contain an additional session link to the
+          application/vnd.sas.data.session resource that corresponds to the
+          provided sessionId. If set to false, or not specified, the session
+          will be destroyed after the request is complete. Defaults to false.
+        schema:
+          type: boolean
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/rowCollection"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/rowCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/rowCollection"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/rowCollection"
+        "400":
+          description: |
+            The request was invalid. The error might occur in one of the following scenarios:
+            - A negative start value is provided.
+            - A negative limit value is provided.
+            - A non-existent column is specified in the sortBy parameter.
+            - A non-existent resource member is specified in the excludeItemFields parameter.
+          content:
+            application/vnd.sas.error:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: No resource exists at the requested path. The table that is
+            associated with these rows does not exist.
+          content:
+            application/vnd.sas.error:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+      x-sas-provider-contract: true
+    post:
+      operationId: createRowsForTableWithQuery
+      summary: Get a collection of rows by the filter criteria
+      description: |
+        Returns a collection of rows when a
+        application/vnd.sas.data.row.set.criteria resource is provided in the
+        body of the request. Standard paging options are provided. Sorting is
+        provider dependent, but the default sort order is ascending by row order
+        (i.e. index). If the provider has naturally unordered row data, it must
+        allow for pagination in a consistent manner.
+      tags:
+      - Rows
+      parameters:
+      - $ref: "#/components/parameters/tableId"
+      - $ref: "#/components/parameters/start"
+      - $ref: "#/components/parameters/limit"
+      - name: sortBy
+        in: query
+        description: |
+          The sorting criteria for the returned rows of data. The rows sorted by any valid column name.
+          The default sort order is ascending by row order (i.e. index).
+          Examples:
+          - Sort ascending by column with id COLUMN_A: /rowSets/tables/{tableId}/rows?sortBy=COLUMN_A:ascending
+          - Sort descending by column with id COLUMN_A: /rowSets/tables/{tableId}/rows?sortBy=COLUMN_A:descending
+        schema:
+          type: string
+          format: sort-criteria
+      - name: includeIndex
+        in: query
+        description: Includes the row index as the first item in the row data. Defaults
+          to false.
+        schema:
+          type: boolean
+      - name: excludeItemLinks
+        in: query
+        description: Excludes the links from this collection's items. Defaults to
+          true.
+        schema:
+          type: boolean
+      - name: sessionId
+        in: query
+        description: |
+          The unique identifier of the session that is used to access the data
+          service provider's backing service. When this parameter is not
+          specified, the data service provider creates a temporary session and
+          then destroys it after the request is complete. If this parameter is
+          specified, all returned links, except the "self" link, have the
+          sessionId query parameter added to their respective URIs. Also, they
+          will contain an additional session link to the
+          application/vnd.sas.data.session resource that corresponds to the
+          provided sessionId.
+        schema:
+          type: string
+      - name: preserveSession
+        in: query
+        description: |
+          This parameter has effect only if the sessionId query parameter is
+          not specified. If set to true, and no sessionId is provided, the
+          session created by the data service provider is not destroyed. All
+          returned links, except the "self" link, will have the sessionId
+          query parameter added to their respective URIs. Also, they will
+          contain an additional session link to the
+          application/vnd.sas.data.session resource that corresponds to the
+          provided sessionId. If set to false or not specified, the session is
+          deleted after the request is complete. Defaults to false.
+        schema:
+          type: boolean
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              $ref: "#/components/schemas/where"
+            examples:
+              schemaval:
+                $ref: "#/components/examples/where"
+        description: |
+          The WHERE clause to pass through to the underlying data service. This
+          parameter acts as a filter on the provided data.
+        required: true
+      responses:
+        "201":
+          description: Created. The requested row has both been created.
+          headers:
+            Location:
+              description: location of the completed job.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.row+json:
+              schema:
+                $ref: "#/components/schemas/row"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/row"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/row"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/row"
+        "400":
+          description: |
+            The request was invalid. The error might occur in one of the following scenarios:
+            - A negative start value is provided.
+            - A negative limit value is provided.
+            - A non-existent column is specified in the sortBy parameter.
+            - A non-existent resource member is specified in the excludeItemFields parameter.
+          content:
+            application/vnd.sas.error:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: No resource exists at the requested path. The table could not
+            be found at the requested path.
+          content:
+            application/vnd.sas.error:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+  "/tables/{tableId}/rowSet":
+    get:
+      operationId: getRowSetForTable
+      summary: Get a row set
+      description: |
+        Returns a paginated collection of rows and their cell's corresponding columns. Standard paging options are provided. Sorting and
+        filtering options are provider dependent, but the default sort order is ascending by row
+        order (i.e. index). If the provider has naturally unordered row data, it must allow for
+        pagination in a consistent manner.
+      tags:
+      - Row Set
+      parameters:
+      - $ref: "#/components/parameters/tableId"
+      - $ref: "#/components/parameters/start"
+      - $ref: "#/components/parameters/limit"
+      - name: format
+        in: query
+        schema:
+          type: boolean
+        description: Formats the cells of data. Defaults to true.
+      - name: sortBy
+        in: query
+        schema:
+          type: string
+          format: sort-criteria
+        description: |
+          The sorting criteria for the returned rows of data. The rows can be sorted by any valid column name.
+          The default sort order is ascending by row order (i.e. index).
+          Example:
+          - Sort ascending by column with name COLUMN_A: /rowSets/tables/{tableId}/rowSet?sortBy=COLUMN_A:ascending
+          - Sort descending by column with name COLUMN_A: /rowSets/tables/{tableId}/rowSet?sortBy=COLUMN_A:descending
+      - name: includeColumns
+        in: query
+        schema:
+          type: string
+        description: Includes the row index as the first item in the row data. The
+          default value is "false".
+      - name: where
+        in: query
+        schema:
+          type: string
+        description: |
+          The WHERE clause to pass through to the underlying data service. This acts as a filter on the provided data. Example: ?where=Make='Honda'
+      - name: columnDetail
+        in: query
+        schema:
+          type: string
+          enum:
+          - summary
+          - detail
+          - names
+        required: false
+        description: |
+          The desired column representation.
+          The columnDetail options yield the following in the columns member:
+          - summary - application/vnd.sas.data.column.summary
+          - detail - application/vnd.sas.data.column
+          - names - the column name as a string
+          If no value is specified, the default value is 'summary'.
+      - name: columnStart
+        in: query
+        schema:
+          type: integer
+        description: The starting index of the first column in a page. The default
+          value is "0".
+      - name: columnLimit
+        in: query
+        schema:
+          type: integer
+        description: Maximum number of cells per row and columns to return in this
+          page of results. The number of returned columns might be less if the collection
+          has been exhausted. Defaults to 25.
+      - name: columnSortBy
+        in: query
+        schema:
+          type: string
+          format: sort-criteria
+        description: |
+          The sorting criteria for returned columns and cells of data. The columns can be sorted by any valid column name.
+          The default sort order is ascending by column index. Some sample sorts:
+          Examples:
+          - Sort descending by column index descending: /rowSets/tables/{tableId}/rowSet?columnSortBy=index:descending
+          - Sort ascending by column name ascending: /rowSets/tables/{tableId}/rowSet?columnSortBy=name:ascending
+      - name: sessionId
+        in: query
+        schema:
+          type: string
+        description: |
+          The unique identifier of the session used to access the data service provider''s backing service.
+          When this parameter is not specified, the data service provider creates a temporary session.
+          Then deletes the session after the request is complete. If this is specified, all returned links except the "self" link have the sessionId query parameter added to their respective URIs.
+          Also, they will contain an additional session link to the application/vnd.sas.data.session resource that corresponds to the provided sessionId.
+      - name: preserveSession
+        in: query
+        schema:
+          type: boolean
+        description: |
+          This parameter has effect only if the sessionId query parameter is not specified.
+          If this is set to true and no sessionId is provided, the session created by the data service provider is not destroyed.
+          All returned links except the "self" link have the sessionId query parameter added to their respective URIs.
+          Also, they contain an additional session link to the application/vnd.sas.data.session resource that corresponds to the provided sessionId.
+          If set to false or not specified, the session is deleted after the request is complete.
+          The default setting is "false".
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.data.row.set+json:
+              schema:
+                $ref: "#/components/schemas/rowSet"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/rowSet"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/rowSet"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/rowSet"
+        "400":
+          description: |
+            The request was invalid. The error might occur in one of the following scenarios:
+            - A negative start value is provided.
+            - A negative limit value is provided.
+            - A non-existent column is specified in the sortBy or includeColumns parameter.
+            - An invalid value is specified in a parameter (such as columnDetail=doesNotExist).
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: No resource exists at the requested path. The table that is
+            associated with these rows does not exist.
+          content:
+            application/vnd.sas.error:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+    post:
+      operationId: createRowSetForTableWithQuery
+      summary: Get a row set by the filter criteria
+      description: |
+        Returns a paginated collection of rows and their cell's corresponding columns. Standard paging options are provided. Sorting and
+        filtering options are provider dependent, but the default sort order is ascending by row
+        order (i.e. index). If the provider has naturally unordered row data, it must allow pagination in a consistent manner.
+      tags:
+      - Row Set
+      parameters:
+      - $ref: "#/components/parameters/tableId"
+      - $ref: "#/components/parameters/start"
+      - $ref: "#/components/parameters/limit"
+      - name: format
+        in: query
+        schema:
+          type: boolean
+        description: Whether or not to format the cells of data. Defaults to true.
+      - name: sortBy
+        in: query
+        schema:
+          type: string
+          format: sort-criteria
+        description: |
+          The sorting criteria for returned rows of data. The rows can be sorted by any valid column name.
+          The default sort order is ascending by row order (i.e. index). Some sample sorts:
+          Examples:
+          - Sort ascending by column with name COLUMN_A: /rowSets/tables/{tableId}/rowSet?sortBy=COLUMN_A:ascending
+          - Sort descending by column with name COLUMN_A: /rowSets/tables/{tableId}/rowSet?sortBy=COLUMN_A:descending
+      - name: columnDetail
+        in: query
+        schema:
+          type: string
+          enum:
+          - "summary"
+          - "detail"
+          - "names"
+        required: false
+        description: |
+          The desired column representation. The columnDetail options listed below yield the following in the columns member.
+          - summary - application/vnd.sas.data.column.summary
+          - detail - application/vnd.sas.data.column
+          - names - the column name as a string
+          If no value is specified, the default value is 'summary'.
+      - name: includeColumns
+        in: query
+        schema:
+          type: string
+        description: Includes the row index as the first item in the row data. The
+          default value is "false".
+      - name: columnStart
+        in: query
+        schema:
+          type: integer
+        description: The starting index of the first column in a page. The default
+          value is "0".
+      - name: columnLimit
+        in: query
+        schema:
+          type: integer
+        description: Maximum number of cells per row and columns to return in this
+          page of results. The number of returned columns might be less if the collection
+          has been exhausted. Defaults to 25.
+      - name: columnSortBy
+        in: query
+        schema:
+          type: string
+          format: sort-criteria
+        description: |
+          The sorting criteria for returned columns and cells of data. The columns can be sorted by any valid column name.
+          The default sort order is ascending by column index. Some sample sorts:
+          Examples:
+          - Sort descending by column index descending: /rowSets/tables/{tableId}/rowSet?columnSortBy=index:descending
+          - Sort ascending by column name ascending: /rowSets/tables/{tableId}/rowSet?columnSortBy=name:ascending
+      - name: sessionId
+        in: query
+        schema:
+          type: string
+        description: |
+          The unique identifier of the session used to access the data service provider's backing service.
+          When this is not specified the data service provider will create a temporary session, and then destroy it after the request is complete.
+          If this is specified all returned links, except the "self" link, will have the sessionId query parameter added to their respective URIs.
+          Also, they will contain an additional session link to the application/vnd.sas.data.session resource that corresponds to the provided sessionId.
+      - name: preserveSession
+        in: query
+        schema:
+          type: boolean
+        description: |
+          This parameter has effect only if the sessionId query parameter is not specified.
+          If this is set to true and no sessionId is provided, the session created by the data service provider is not destroyed.
+          All returned links except the "self" link have the sessionId query parameter added to their respective URIs.
+          Also, they contain an additional session link to the application/vnd.sas.data.session resource that corresponds to the provided sessionId.
+          If set to false or not specified, the session will be destroyed after the request is complete. Defaults to false.
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              $ref: "#/components/schemas/where"
+            examples:
+              schemaval:
+                $ref: "#/components/examples/where"
+        description: The WHERE clause to pass through to the underlying data service.
+          This parameter acts as a filter on the provided data.
+        required: true
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.data.row.set+json:
+              schema:
+                $ref: "#/components/schemas/rowSet"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/rowSet"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/rowSet"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/rowSet"
+        "400":
+          description: |
+            The request was invalid. An invalid request was made in one of the following scenarios:
+            - A negative start value is provided.
+            - A negative limit value is provided.
+            - A non-existent column is specified in the sortBy or includeColumns parameter.
+            - An invalid value is specified in a parameter (such as columnDetail=doesNotExist).
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: No resource exists at the requested path. The table that is
+            associated with these rows does not exist.
+          content:
+            application/vnd.sas.error:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+servers:
+- url: http://example.com/rowSets
+  description: The row sets server.
+components:
+  parameters:
+    tableId:
+      name: tableId
+      in: path
+      description: |
+        The ID of the table. Its format is 'providerId~fs~sourceId~fs~libraryName~fs~tableName'.
+        The format is a tilda-encoded form composed of the following:
+        - providerId: name of the provider. Examples: cas, Compute Use GET /dataSources/providers to see the list of available providers.
+        - sourceId: refers to server id in case of cas and computeContextId in case of compute.
+                    An example sourceId for cas is cas-shared-default. An example sourceId for Compute is 97751fe6-8313-487f-865a-f941c8a75f8f (SAS Studio Compute Context).
+                    Use GET /dataSources/providers/{providerId}/sources to see the list of available sources.
+        - libraryName: name of the library. Use GET /dataSources/providers/{providerId}/sources/{sourceId}/children to see the list of available libraries.
+        - tableName: name of the table. Use GET /dataTables/dataSources/{dataSourceId}/tables to see the list of available tables in a library.
+        An example tableId for cas is 'cas~fs~cas-shared-default~fs~models~fs~cars'.
+        An example tableId for Compute is 'Compute~fs~97751fe6-8313-487f-865a-f941c8a75f8f~fs~cat-comp~fs~cars'.
+      required: true
+      schema:
+        type: string
+    start:
+      name: start
+      in: query
+      description: Pagination parameter, which specifies the starting index.
+      schema:
+        type: integer
+        format: int32
+        default: 0
+    limit:
+      name: limit
+      in: query
+      description: Pagination parameter, which specifies how many items to return.
+      schema:
+        type: integer
+        format: int32
+        default: 10
+  examples:
+    rootLinks:
+      summary: Root Links
+      description: Root Hateoas links.
+      value: {"version": 1, "links": [{"method": "GET", "rel": "rows", "href": "/rowSets/tables/{tableId}/rows",
+            "uri": "/rowSets/tables/{tableId}/rows", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.row"}, {"method": "POST", "rel": "rowsBasedOnWhereCondition",
+            "href": "/rowSets/tables/{tableId}/rows", "uri": "/rowSets/tables/{tableId}/rows",
+            "type": "text/plain", "responseType": "application/vnd.sas.collection",
+            "responseItemType": "application/vnd.sas.data.row"}, {"method": "GET",
+            "rel": "rowSet", "href": "/rowSets/tables/{tableId}/rowSet", "uri": "/rowSets/tables/{tableId}/rowSet",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.row.set"},
+          {"method": "POST", "rel": "rowSetBasedOnWhereCondition", "href": "/rowSets/tables/{tableId}/rowSet",
+            "uri": "/rowSets/tables/{tableId}/rowSet", "type": "text/plain", "responseType": "application/vnd.sas.data.row.set"}]}
+    row:
+      summary: Row
+      description: Representation of a row summary object.
+      value: {"version": 1, "cells": ["Acura", "MDX", "SUV", "$46,945", "17", "23"],
+        "links": [{"method": "GET", "rel": "up", "href": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~CARS/rows",
+            "uri": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~CARS/rows",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.row"}]}
+    rowCollection:
+      summary: Row Collection
+      description: A pageable collection of row resources.
+      value: {"name": "rows", "accept": "application/vnd.sas.data.row", "start": 0,
+        "limit": 10, "items": [{"version": 1, "cells": ["Acura", "MDX", "SUV", "$46,945",
+              "17", "23"]}, {"version": 1, "cells": ["BMW", "X3 3.0i", "SUV", "$47,000",
+              "16", "24"]}, {"version": 1, "cells": ["Cadillac", "CTS VVT 4dr", "Sedan",
+              "$32,835", "18", "25"]}, {"version": 1, "cells": ["Dodge", "Neon SE\
+                \ 4dr", "Sedan", "$18,670", "29", "36"]}, {"version": 1, "cells": [
+              "Ford", "Focus", "Sedan", "$17,270", "26", "33"]}, {"version": 1, "cells": [
+              "Honda", "Civic Hybrid", "Sedan", "$22,140", "36", "51"]}, {"version": 1,
+            "cells": ["Honda", "CRV", "SUV", "$37,200", "28", "35"]}, {"version": 1,
+            "cells": ["Toyota", "Rav4 Hybrid", "SUV", "$36,945", "36", "42"]}, {"version": 1,
+            "cells": ["Toyota", "Prius", "Hybrid", "$26,500", "45", "57"]}, {"version": 1,
+            "cells": ["Toyota", "Highlander", "SUV", "$41,450", "18", "24"]}], "links": [
+          {"method": "GET", "rel": "collection", "href": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~CARS/rows",
+            "uri": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~CARS/rows",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.row"},
+          {"method": "GET", "rel": "self", "href": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~CARS/rows?start=0&limit=10",
+            "uri": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~CARS/rows?start=0&limit=10",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.row"},
+          {"method": "GET", "rel": "up", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables/CARS",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables/CARS",
+            "type": "application/vnd.sas.data.table"}]}
+    rowSet:
+      summary: Row Set
+      description: A paginated collection of rows and the columns in the cells of
+        the row.
+      value: {"count": 6048, "start": 0, "limit": 10, "columnDetail": "names", "columnStart": 0,
+        "columnLimit": 25, "rows": [["Private flight", "N", "United States"], ["135\
+              \ Airways", "N", "United States"], ["1Time Airline", "N", "South Africa"],
+          ["2 Sqn No 1 Elementary Flying Training School", "N", "United Kingdom"],
+          ["213 Flight Unit", "N", "Russia"], ["223 Flight Unit State Airline", "N",
+            "Russia"], ["224th Flight Unit", "N", "Russia"], ["247 Jet Ltd", "N",
+            "United Kingdom"], ["3D Aviation", "N", "United States"], ["40-Mile Air",
+            "N", "United States"]], "columns": ["NAME", "ALIAS", "COUNTRY"], "version": 1,
+        "links": [{"method": "GET", "rel": "rowSet", "uri": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~AIRLINES/rowSet",
+            "href": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~AIRLINES/rowSet",
+            type: "application/vnd.sas.data.row.set"}, {"method": "GET", "rel": "self",
+            "uri": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~AIRLINES/rowSet?start=0&limit=10&includeColumns=NAME,ALIAS,COUNTRY",
+            "href": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~AIRLINES/rowSet?start=0&limit=10&includeColumns=NAME,ALIAS,COUNTRY",
+            type: "application/vnd.sas.data.row.set"}, {"method": "GET", "rel": "first",
+            "uri": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~AIRLINES/rowSet?start=0&limit=10&includeColumns=NAME,ALIAS,COUNTRY",
+            "href": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~AIRLINES/rowSet?start=0&limit=10&includeColumns=NAME,ALIAS,COUNTRY",
+            type: "application/vnd.sas.data.row.set"}, {"method": "GET", "rel": "next",
+            "uri": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~AIRLINES/rowSet?start=10&limit=10&includeColumns=NAME,ALIAS,COUNTRY",
+            "href": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~AIRLINES/rowSet?start=10&limit=10&includeColumns=NAME,ALIAS,COUNTRY",
+            type: "application/vnd.sas.data.row.set"}, {"method": "GET", "rel": "last",
+            "uri": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~AIRLINES/rowSet?start=6040&limit=10&includeColumns=NAME,ALIAS,COUNTRY",
+            "href": "/rowSets/tables/cas~fs~cas-shared-default~fs~MYCASLIB~fs~AIRLINES/rowSet?start=6040&limit=10&includeColumns=NAME,ALIAS,COUNTRY",
+            type: "application/vnd.sas.data.row.set"}, {"method": "GET", "rel": "up",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables/AIRLINES",
+            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables/AIRLINES",
+            type: "application/vnd.sas.data.table"}]}
+    where:
+      summary: Where
+      description: Example of a where condition.
+      value: Make='Honda'
+    error400:
+      description: This is an example of an error that could be returned for bad requests.
+      summary: Bad Request
+      value: {"errorCode": 12345, "httpStatusCode": 400, "details": ["path": "resource\
+              \ URI", "correlator": "18afd83a-58d7-4b9b-9df8-de99dc821dc5"], "message": "error\
+          \ message explaining what when wrong", "version": 2}
+    error404:
+      description: This is an example of an error that could be returned for resource
+        not found.
+      summary: Not Found
+      value: {"httpStatusCode": 404, "details": ["path": "resource URI", "correlator": "18afd83a-58d7-4b9b-9df8-de99dc821dc5"],
+        "message": "The resource not found", "version": 2}
+  schemas:
+    row:
+      title: Row
+      type: object
+      description: Representation of a row summary object.
+      properties:
+        cells:
+          type: array
+          description: The cells for this row. Values can be number, integer, null,
+            boolean, or string.
+          items: {}
+        version:
+          type: integer
+          description: The row schema version.
+        links:
+          type: array
+          description: The links that apply to this resource.
+          items:
+            $ref: "#/components/schemas/link"
+    rowCollection:
+      title: Row Collection
+      type: object
+      description: A pageable collection of row resources.
+      properties:
+        name:
+          type: string
+          description: The name of the collection "rows" in the context of the request.
+        start:
+          type: integer
+          description: The 0-based index of the result candidates to start returning.
+        limit:
+          type: integer
+          description: The maximum number of results requested.
+        count:
+          type: integer
+          description: The number of results returned in the collection.
+        accept:
+          type: string
+          description: A space-separated list of link types of the items in this collection.
+        links:
+          type: array
+          description: Paging links that apply to this object.
+          items:
+            $ref: "#/components/schemas/link"
+        items:
+          type: array
+          description: The results of a query.
+          items:
+            $ref: "#/components/schemas/row"
+        version:
+          type: integer
+          description: The collection schema version.
+    rowSet:
+      title: Row Set
+      type: object
+      description: A paginated collection of rows and the columns in the cells of
+        the row.
+      properties:
+        columnDetail:
+          type: string
+          description: The level of detail of the columns array member. This value
+            is set by the columnDetail query parameter. The value defaults to summary
+            when none is provided.
+          enum:
+          - summary
+          - detail
+          - names
+        start:
+          type: integer
+          description: The 0-based index of the rows candidates to start returning.
+        limit:
+          type: integer
+          description: The maximum number of rows requested.
+        count:
+          type: integer
+          description: The actual number of rows returned in the collection.
+        columnCount:
+          type: integer
+          description: The number of columns in the collection. Can be omitted if
+            the count is not known.
+        columnStart:
+          type: integer
+          description: The index of the first column in the columns member, 0-based.
+            Defaults to 0. Omitted if the includeColumns query parameter is set.
+        columnLimit:
+          type: integer
+          description: The number of columns to return in each page. Defaults to 25.
+            Omitted if the includeColumns query parameter is set.
+        links:
+          type: array
+          description: Paging links that apply to this object.
+          items:
+            $ref: "#/components/schemas/link"
+        rows:
+          type: array
+          description: The results of this query as an array containing arrays of
+            heterogeneous data.
+          items:
+            type: array
+            items:
+              type: string
+        columns:
+          type: array
+          description: |
+            The rows' corresponding columns. The type of items in this array is determined by the columnDetail query parameter's value, which can be one of the following:
+            - summary - The default if no value is specified. Contains application/vnd.sas.data.column.summary objects.
+            - detail - Contains application/vnd.sas.data.column objects.
+            - names - Contains the column names as JSON strings.
+          items:
+            type: string
+        version:
+          type: integer
+          description: Collection schema version.
+    where:
+      title: WHERE Clause
+      type: string
+      description: |
+        The WHERE clause to pass through to the underlying data service.
+        This acts as a filter on the provided data.
+        example:  Make='Honda'.
+    api:
+      description: A list of links to top level resources available from the root
+        of the API.
+      properties:
+        links:
+          description: The API's top-level links.
+          items:
+            $ref: "#/components/schemas/link"
+          type: array
+        version:
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+          type: integer
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.

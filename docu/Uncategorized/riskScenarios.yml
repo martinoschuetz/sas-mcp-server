@@ -1,0 +1,4572 @@
+---
+openapi: 3.0.3
+info:
+  title: Risk Scenarios
+  description: The Risk Scenarios API manages a shared set of scenarios (value-based
+    scenarios and shock objects), scenario sets and shock sets for all Risk Management
+    solutions.
+  version: "7"
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: devex@sas.com
+servers:
+- url: "https://example.com/riskScenarios"
+  description: an example server for experimentation
+tags:
+- name: Scenario
+  description: The operations for a scenario resource.
+- name: Scenarios
+  description: The operations for the scenarios resource.
+- name: ScenarioSet
+  description: The operations for a scenario set resource.
+- name: ScenarioSets
+  description: The operations for the scenario sets resource.
+- name: ScenarioContext
+  description: ScenarioContext implementation.
+- name: Utility
+  description: Utility operations.
+- name: Root
+  description: The operations for the root resource.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the links for the API
+      description: Returns the links to the top-level resources for the API.
+      operationId: root
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              description: The media type of the response; "application/vnd.sas.api+json"
+              schema:
+                type: string
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              example:
+                $ref: "#/components/examples/rootLinks/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              example:
+                $ref: "#/components/examples/rootLinks/value"
+  /scenarios:
+    get:
+      summary: Get scenarios
+      description: Returns a collection of scenarios based on the specified filtering
+        options. By default, the collection is returned as an 'application/vnd.sas.collection'
+        object whose items of are type `application/vnd.sas.risk.scenario.summary`.
+        The 'Accept-Item' header may be passed to request alternative representations
+        of the collection's items; the supported options are 'application/vnd.sas.risk.scenario'
+        and 'application/vnd.sas.risk.scenario.fixed'. <p> The requested scenarios
+        may also be returned in one of two CSV representations (described in the <a
+        href="#section/Table-Formats">Table Formats</a> section) by specifying 'text/csv'
+        in the 'Accept' header. <p/> Basic filter syntax is supported on all simple
+        properties a scenario.
+      operationId: getScenarios
+      tags:
+      - Scenarios
+      parameters:
+      - name: Accept
+        in: header
+        description: Select the desired collection representation.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.collection+json
+          - application/json
+          - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+          - text/csv
+      - name: Accept-Item
+        in: header
+        description: Select the desired item representation, when the Accept header
+          value is application/json or application/vnd.sas.collection+json
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.risk.scenario.summary+json
+          - application/vnd.sas.risk.scenario.fixed+json
+          - application/vnd.sas.risk.scenario+json
+      - $ref: "#/components/parameters/pagingStart"
+      - $ref: "#/components/parameters/pagingLimit"
+      - $ref: "#/components/parameters/filter"
+      - name: fileName
+        in: query
+        schema:
+          type: string
+        required: false
+        description: only used when returning text/csv or excel, ignored otherwise.  The
+          name of the file to which scenarios will be written and streamed to the
+          client.  If a file extension is included, it must be appropriate for the
+          requested media type -- either .csv or .xlsx.
+      - name: dateBasedFormat
+        in: query
+        schema:
+          type: boolean
+        description: only used when returning text/csv or excel, ignored otherwise.  When
+          true, the scenarios will be written in Date Based format; when false or
+          omitted, the scenarios will be written in Expanded format.  This option
+          is deprecated, being replaced with the tableFormat option that allows for
+          more supported formats.  It will be honored until at least 2025.09.
+      - name: tableFormat
+        in: query
+        schema:
+          type: string
+          enum:
+          - COMBINED
+          - DATEBASED
+          - EXPANDED
+        description: only used when returning text/csv or excel, ignored otherwise.  The
+          name of the format used to return the scenario table.  Defaults to Expanded.
+      - name: fields
+        in: query
+        description: very limited support for projections of the full application/vnd.sas.risk.scenario
+          representation.  The value 'periods' is the only supported value for this
+          parameter, and all fields from application/vnd.sas.risk.scenario.summary
+          will always be included.
+        schema:
+          type: string
+      - name: asOfDate
+        in: query
+        schema:
+          type: string
+          format: date
+        description: only used when returning fixed format, ignored otherwise.  When
+          given, provides the start date from which interval based horizon dates will
+          be computed
+      - name: includeScenarioHistory
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: only used when returning text/csv or excel, ignored otherwise.  When
+          true, include any scenario-specific historical data that was imported into
+          this service.  Historical data is any value in a scenario that occurs before
+          the scenario's asOfDate.  When false, only values associated with dates
+          after the scenario's asOfDate will be included. Note that this option defaults
+          to "true".
+      - name: includeMarketData
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: only used when returning text/csv, ignored otherwise.  When tableFormat=COMBINED,
+          this is always true; this defaults to false for other values of tableFormat.  When
+          true, include historical information from the risk-market-data service for
+          each variable in the scenario, exported on a row where the scenario name
+          and version are empty.  By default, only the most recent historical value
+          for each variable will be included.
+      - name: marketDataStart
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: only used when returning text/csv or excel, and includeMarketData
+          is true; otherwise ignored.  The date of the beginning of exported historical
+          data from the risk-market-data service.  When this parameter is omitted,
+          then only the most recent historical value for each variable will be included.
+      - name: searchString
+        in: query
+        schema:
+          type: string
+        description: when fully or partially matching this string in any tags of this
+          scenario or its attributes (name, description, createdBy, modifiedBy, etc.),
+          it will be included in the results.
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              description: The media type of the response; depending on the Accept
+                header, will be either "application/vnd.sas.collection+json" or "text/csv"
+              schema:
+                type: string
+            Content-Item:
+              description: When Accept="application/vnd.sas.collection+json", will
+                match the Accept-Item header.  When Accept="application/json" or when
+                no Accept-Item header is given, will be "application/vnd.sas.risk.scenario.summary+json"
+              schema:
+                type: string
+            Content-Disposition:
+              description: When Accept="text/csv", the attachment will include the
+                generated name of the CSV file
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSummaryCollection"
+              examples:
+                application/vnd.sas.risk.scenario.summary+json:
+                  $ref: "#/components/examples/scenarioSummaryCollection"
+                application/vnd.sas.risk.scenario+json:
+                  $ref: "#/components/examples/scenarioCollection"
+                application/vnd.sas.risk.scenario.fixed+json:
+                  $ref: "#/components/examples/scenarioCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioSummaryCollection"
+              example:
+                $ref: "#/components/examples/scenarioSummaryCollection/value"
+            "text/csv;tableformat=datebased":
+              schema:
+                $ref: "#/components/schemas/dateBasedFormat"
+              example:
+                $ref: "#/components/examples/dateBasedFormat/value"
+            "text/csv;tableformat=combined":
+              schema:
+                $ref: "#/components/schemas/combinedFormat"
+              example:
+                $ref: "#/components/examples/combinedFormat/value"
+            "text/csv;tableformat=expanded":
+              schema:
+                $ref: "#/components/schemas/expandedFormat"
+              example:
+                $ref: "#/components/examples/expandedFormat/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+    post:
+      summary: Create a scenario
+      description: Creates a new scenario based on the representation in the request
+        body.
+      operationId: createScenario
+      tags:
+      - Scenario
+      parameters:
+      - name: deepCopy
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: whether the underlying scenarios/shocks in the set should be
+          copied or not.
+      requestBody:
+        description: The scenario to be created.
+        required: true
+        content:
+          application/vnd.sas.risk.scenario:
+            schema:
+              $ref: "#/components/schemas/createScenario"
+            example:
+              $ref: "#/components/examples/createScenario/value"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createScenario"
+            example:
+              $ref: "#/components/examples/createScenario/value"
+      responses:
+        "201":
+          description: Returned when one scenario was created.
+          headers:
+            Location:
+              description: the URI of the newly created scenarios
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the scenario was last created.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.scenario:
+              schema:
+                $ref: "#/components/schemas/scenario"
+              example:
+                $ref: "#/components/examples/scenario/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenario"
+              example:
+                $ref: "#/components/examples/scenario/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+    patch:
+      summary: Delete scenarios
+      description: Deletes multiple scenarios (only the patch Remove operation is
+        supported).
+      operationId: patchDeleteMultipleScenarios
+      tags:
+      - Scenarios
+      requestBody:
+        description: A json-patch with one or more remove operations
+        required: true
+        content:
+          application/json-patch:
+            schema:
+              $ref: "#/components/schemas/jsonPatch"
+            example:
+              $ref: "#/components/examples/jsonPatch/value"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSummaryCollection"
+              example:
+                $ref: "#/components/examples/scenarioSummaryCollection/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "409":
+          description: A locked scenario was to be deleted.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  "/scenarios#import":
+    post:
+      summary: Import Scenarios/Shocks/Scenario Sets/Shock Sets
+      description: Creates or updates one or more scenarios, shocks, scenario sets
+        and/or shock sets, based on the representation in the request body or from
+        a server side resource. Scenarios and sets that already exist in the system
+        by name and scenarioVersion (or as of date) will be updated in place, if the
+        user is authorized to do so. <p/> When uploading via multipart/form-data or
+        importing from a server location, the document must be a CSV file, and Excel
+        workbook, a SAS dataset from a SAS 9.4 installation with extension .sas7bdat,
+        or a CAS table from a SAS Viya installation with the extension .sashdat. <p/>
+        If the input file is a CSV file representing a scenario/shock set, the members
+        in the set must exist in the database.  The file name will be the default
+        scenario/shock set to be created or updated. <p/> If the input file is an
+        Excel workbook, each tab could contain scenarios/shocks/scenario set/shock
+        set.  If a scenario/shock set tab is present, all its member scenarios/shocks
+        must be present in the file unless there are no scenario/shock tabs in the
+        file, in which case, they must exist in the database. <p/> The supported formats
+        for tables of all forms are listed in the <a href="#section/Table-Formats">Table
+        Formats</a> section.
+      operationId: importScenarios
+      tags:
+      - Scenarios
+      parameters:
+      - name: Content-Type
+        in: header
+        required: false
+        description: Describes the posted request body.  Omit this header to import
+          from a server side location via the locationType, location, and fileName
+          properties
+        schema:
+          type: string
+          enum:
+          - multipart/form-data
+          - application/vnd.sas.collection+json
+          - application/json
+      - name: Content-Item
+        in: header
+        required: false
+        description: When Content-Type="application/vnd.sas.collection+json", must
+          be "application/vnd.sas.risk.scenario+json"
+        schema:
+          type: string
+      - name: asOfDate
+        in: query
+        schema:
+          type: string
+          format: date
+        description: only used when importing via multipart/form-data or from server
+          resources, otherwise ignored.  When given, provides the asOfDate to be assigned
+          to scenarios in the uploaded document that do not have the property assigned,
+          as it is not included in all input formats.
+      - name: tableFormat
+        in: query
+        schema:
+          type: string
+          enum:
+          - BANKING
+          - COMBINED
+          - DATEBASED
+          - EXPANDED
+        description: The name of the format used to read the imported resource.  If
+          omitted, the service will deduce the format from the columns of the resource
+          -- Expanded format if the ScenarioName, Variable, ChangeType, and ChangeValue
+          columns are all present, otherwise Combined format. BANKING format is deprecated
+          in 2024.12 and replaced by COMBINED format. BANKING format will be removed
+          in a future release.
+      - $ref: "#/components/parameters/dataSourceId"
+      - $ref: "#/components/parameters/locationType"
+      - $ref: "#/components/parameters/location"
+      - $ref: "#/components/parameters/fileName"
+      requestBody:
+        description: The scenarios to be created or updated, if being uploaded or
+          posted and not being read from a server resource.  Should be empty when
+          Content-Type=application/json and the locationType, location, and fileName
+          parameters are given.
+        required: false
+        content:
+          application/vnd.sas.collection:
+            schema:
+              $ref: "#/components/schemas/importScenariosCollection"
+            example:
+              $ref: "#/components/examples/importScenariosCollection/value"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/importScenarios"
+            example:
+              $ref: "#/components/examples/importScenarios/value"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/uploadScenarios"
+            example:
+              $ref: "#/components/examples/uploadScenarios/value"
+      responses:
+        "200":
+          description: All of the scenarios were imported or updated.
+          content:
+            application/vnd.sas.risk.scenario.creation.report+json:
+              schema:
+                $ref: "#/components/schemas/scenarioCreationReport"
+              example:
+                $ref: "#/components/examples/scenarioCreationReport/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "409":
+          description: A locked scenario was to be updated.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  /scenarios/export:
+    post:
+      summary: Export Scenarios
+      description: Export selected scenarios to a file returned to the client or to
+        a server side resource.  The request body may contain a collection of scenarios
+        or a list of id's.  The 'Content-Type' header must be passed to indicate which
+        form is being used, and if it is a collection of scenarios, the 'Content-Item'
+        header must be passed as well. <p/> By default, the selected scenarios will
+        be exported to a server resource as described by the locationType, location,
+        and fileName query parameters. When exporting to a folder, the file extension
+        is used to determine if the exported file is text/csv or an excel workbook.
+        <p/> The selected scenarios may instead be returned as either a text/csv file
+        or an excel workbook in one of three table representations (described in the
+        <a href="#section/Table-Formats">Table Formats</a> section) by specifying
+        'text/csv' or application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+        in the 'Accept' header.
+      operationId: exportScenarios
+      tags:
+      - Scenarios
+      parameters:
+      - name: Accept
+        in: header
+        description: Select the desired collection representation.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.risk.scenario.export.report+json
+          - application/json
+          - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+          - text/csv
+      - name: Content-Type
+        in: header
+        required: true
+        description: Describes the posted request body.  The selected scenarios are
+          either a collection of scenarios or a list of scenario ID's.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.collection+json
+          - application/json
+      - name: Content-Item
+        in: header
+        required: false
+        description: When Content-Type="application/vnd.sas.collection+json", must
+          be "application/vnd.sas.risk.scenario+json"
+        schema:
+          type: string
+      - name: baselineId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: The ID of a value-based scenario that is optionally used when
+          exporting shocks.  The indicated scenario defines a baseline that can be
+          used to compute the value of shocks which are expressed as absolute or relative
+          changes.
+      - name: includeScenarioHistory
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: when true, include any scenario-specific historical data that
+          was imported into this service.  Historical data is any value in a scenario
+          that occurs before the scenario's asOfDate.  When false, only values associated
+          with dates after the scenario's asOfDate will be included.  Note that this
+          option defaults to "true".
+      - name: includeMarketData
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: When tableFormat=COMBINED, this must always be true; this defaults
+          to false for other values of tableFormat.  When true, include historical
+          information from the risk-market-data service for each variable in the scenario,
+          exported on rows where the scenario name and version are empty.  By default,
+          only the most recent historical value for each variable will be included.
+      - name: marketDataStart
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: only used when includeMarketData is true, ignored otherwise.
+          The date of the beginning of exported historical data from the risk-market-data
+          service.  When this parameter is omitted, then only the most recent historical
+          value for each variable will be included.
+      - $ref: "#/components/parameters/locationType"
+      - $ref: "#/components/parameters/location"
+      - $ref: "#/components/parameters/fileName"
+      - name: dateBasedFormat
+        in: query
+        schema:
+          type: boolean
+        description: When true, the scenarios will be written in Date Based format;
+          when false or omitted, the scenarios will be written in Expanded format.  This
+          option is deprecated, being replaced with the tableFormat option that allows
+          for more supported formats.  It will be honored until at least 2025.09.
+      - name: tableFormat
+        in: query
+        schema:
+          type: string
+          enum:
+          - COMBINED
+          - DATEBASED
+          - EXPANDED
+        description: The name of the format used to return the scenario table. Defaults
+          to Expanded.
+      requestBody:
+        description: A collection of scenarios or scenario id's to be exported.  When
+          requesting a text/csv file to be returned, only scenario id's may be specified;
+          when exporting to a server resource, scenarios or scenario id's may be passed.
+        required: true
+        content:
+          application/vnd.sas.collection+json:
+            schema:
+              $ref: "#/components/schemas/scenarioCollection"
+            example:
+              $ref: "#/components/examples/scenarioCollection/value"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/idList"
+            example:
+              $ref: "#/components/examples/idList/value"
+      responses:
+        "200":
+          description: The scenarios were exported successfully.
+          content:
+            application/vnd.sas.risk.scenario.export.report+json:
+              schema:
+                $ref: "#/components/schemas/scenarioExportReport"
+              example:
+                $ref: "#/components/examples/scenarioExportReport/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioExportReport"
+              example:
+                $ref: "#/components/examples/scenarioExportReport/value"
+            "text/csv;tableformat=datebased":
+              schema:
+                $ref: "#/components/schemas/dateBasedFormat"
+              example:
+                $ref: "#/components/examples/dateBasedFormat/value"
+            "text/csv;tableformat=combined":
+              schema:
+                $ref: "#/components/schemas/combinedFormat"
+              example:
+                $ref: "#/components/examples/combinedFormat/value"
+            "text/csv;tableformat=expanded":
+              schema:
+                $ref: "#/components/schemas/expandedFormat"
+              example:
+                $ref: "#/components/examples/expandedFormat/value"
+            text/csv:
+              schema:
+                $ref: "#/components/schemas/expandedFormat"
+              example:
+                $ref: "#/components/examples/expandedFormat/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  /scenarios/report:
+    post:
+      summary: Report Scenarios/Shocks/Scenario Sets/Shock Sets
+      description: Reports the contents of a given resource, ie, what would be included
+        if the resource were to be imported via the <a href="#operation/importScenarios">Import
+        Scenarios</a> operation. <p/> When uploading via multipart/form-data or importing
+        from a server location, the document must be a CSV file, and Excel workbook,
+        a SAS dataset from a SAS 9.4 installation with extension .sas7bdat, or a CAS
+        table from a SAS Viya installation with the extension .sashdat. <p/> If the
+        input file is a CSV file representing a scenario/shock set, the members in
+        the set must exist in the database.  The file name will be the default scenario/shock
+        set to be created or updated. <p/> If the input file is an Excel workbook,
+        each tab could contain scenarios/shocks/scenario set/shock set.  If a scenario/shock
+        set tab is present, all its member scenarios/shocks must be present in the
+        file unless there are no scenario/shock tabs in the file, in which case, they
+        must exist in the database. <p/> The as of date for scenario set will be set
+        using its member scenarios. All member scenarios of a set must have the same
+        as of date. <p/> The supported formats for tables of all forms are listed
+        in the <a href="#section/Table-Formats">Table Formats</a> section.
+      operationId: reportScenarios
+      tags:
+      - Scenarios
+      parameters:
+      - name: Content-Type
+        in: header
+        required: false
+        description: Describes the posted request body.  Omit this header to import
+          from a server side location via the locationType, location, and fileName
+          properties
+        schema:
+          type: string
+          enum:
+          - multipart/form-data
+          - application/vnd.sas.collection+json
+          - application/json
+      - name: asOfDate
+        in: query
+        schema:
+          type: string
+          format: date
+        description: only used when importing via multipart/form-data or from server
+          resources, otherwise ignored.  When given, provides the asOfDate to be assigned
+          to scenarios in the uploaded document that do not have the property assigned,
+          as it is not included in all input formats.
+      - name: tableFormat
+        in: query
+        schema:
+          type: string
+          enum:
+          - BANKING
+          - COMBINED
+          - DATEBASED
+          - EXPANDED
+        description: The name of the format used to read the imported resource.  If
+          omitted, the service will deduce the format from the columns of the resource
+          -- Expanded format if the ScenarioName, Variable, ChangeType, and ChangeValue
+          columns are all present, otherwise Combined format. BANKING format is deprecated
+          in 2024.12 and replaced by COMBINED format. BANKING format will be removed
+          in a future release.
+      - $ref: "#/components/parameters/dataSourceId"
+      - $ref: "#/components/parameters/locationType"
+      - $ref: "#/components/parameters/location"
+      - $ref: "#/components/parameters/fileName"
+      requestBody:
+        description: The scenarios to be reported, if being uploaded or posted and
+          not being read from a server resource.  Should be empty when Content-Type=application/json
+          and the locationType, location, and fileName parameters are given.
+        required: false
+        content:
+          application/vnd.sas.collection:
+            schema:
+              $ref: "#/components/schemas/importScenariosCollection"
+            example:
+              $ref: "#/components/examples/importScenariosCollection/value"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/importScenarios"
+            example:
+              $ref: "#/components/examples/importScenarios/value"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/uploadScenarios"
+            example:
+              $ref: "#/components/examples/uploadScenarios/value"
+      responses:
+        "200":
+          description: All of the scenarios or sets are valid and could be imported.
+          content:
+            application/vnd.sas.risk.scenario.import.report+json:
+              schema:
+                $ref: "#/components/schemas/scenarioImportReport"
+              example:
+                $ref: "#/components/examples/scenarioImportReport/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "409":
+          description: A locked scenario was to be updated.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  "/scenarios/@item":
+    parameters:
+    - $ref: "#/components/parameters/filter"
+    get:
+      summary: Look up a scenario by unique query filter
+      description: Returns the scenario described by the query.  A filter must be
+        specified that uniquely describes only one item in the collection.  By default,
+        the summary representation is returned, but the fully specified scenario may
+        be requested via the 'Accept' header.
+      operationId: getScenarioByFilter
+      tags:
+      - Scenario
+      parameters:
+      - name: Accept
+        in: header
+        description: Select the desired item representation.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.risk.scenario.summary+json
+          - application/vnd.sas.risk.scenario+json
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the scenario was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.scenario.summary+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSummaryV1"
+              example:
+                $ref: "#/components/examples/scenarioSummary/value"
+            application/vnd.sas.risk.scenario+json:
+              schema:
+                $ref: "#/components/schemas/scenario"
+              example:
+                $ref: "#/components/examples/scenario/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioSummaryV1"
+              example:
+                $ref: "#/components/examples/scenarioSummary/value"
+        "400":
+          description: No valid filter describing a unique resource was included in
+            the request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "404":
+          description: No qualifying scenario exists.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  /scenarios/{scenarioId}:
+    parameters:
+    - name: scenarioId
+      in: path
+      schema:
+        type: string
+      required: true
+      description: The unique identifier for the scenario.
+    get:
+      summary: Get a scenario
+      description: Returns the scenario with the specified id.  By default, the summary
+        representation is returned, but the fully specified scenario, a scenario in
+        fixed format, or one of three CSV representations (described in the <a href="#section/Table-Formats">Table
+        Formats</a> section) may be requested via the 'Accept' header.
+      operationId: getScenario
+      tags:
+      - Scenario
+      parameters:
+      - name: Accept
+        in: header
+        description: Select the desired item representation.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.risk.scenario.summary+json
+          - application/vnd.sas.risk.scenario+json
+          - application/vnd.sas.risk.scenario.fixed+json
+          - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+          - text/csv
+      - name: asOfDate
+        in: query
+        schema:
+          type: string
+          format: date
+        description: only used when returning fixed format, text/csv, or excel; ignored
+          otherwise.  When given, provides the start date from which interval based
+          horizon dates will be computed.
+      - name: dateBasedFormat
+        in: query
+        schema:
+          type: boolean
+        description: only used when returning text/csv or excel, ignored otherwise.  When
+          true, the scenario will be written in Date Based format; when false or omitted,
+          the scenario will be written in Expanded format.  This option is deprecated,
+          being replaced with the tableFormat option that allows for more supported
+          formats.  It will be honored until at least 2025.09.
+      - name: tableFormat
+        in: query
+        schema:
+          type: string
+          enum:
+          - COMBINED
+          - DATEBASED
+          - EXPANDED
+        description: only used when returning text/csv or excel, ignored otherwise.  The
+          name of the format used to return the scenario table.  Defaults to Expanded.
+      - name: fileName
+        in: query
+        schema:
+          type: string
+        description: only used when returning text/csv or excel, ignored otherwise.  The
+          name of the file returned to the client.  If a file extension is included,
+          it must be appropriate for the requested media type, either .csv or .xslx.
+      - name: includeScenarioHistory
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: only used when returning text/csv or excel, ignored otherwise.  When
+          true, include any scenario-specific historical data that was imported in
+          this service.  Historical data is any value in a scenario that occurs before
+          the scenario's asOfDate.  When false, only values associated with dates
+          after the scenario's asOfDate will be included. Note that this option defaults
+          to "true".
+      - name: includeMarketData
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: only used when returning text/csv, ignored otherwise.  When tableFormat=COMBINED,
+          this is always true; this defaults to false for other values of tableFormat.  When
+          true, include historical information from the risk-market-data service for
+          each variable in the scenario, exported on a rows where the scenario name
+          and version are empty.  By default, only the most recent historical value
+          for each variable will be included.
+      - name: marketDataStart
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: only used when returning text/csv or excel, and includeMarketData
+          is true; ignored otherwise.  The date of the beginning of exported historical
+          data from the risk-market-data service.  When this parameter is omitted,
+          then only the most recent historical value for each variable will be incuded.
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the scenario was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.scenario.summary+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSummaryV1"
+              example:
+                $ref: "#/components/examples/scenarioSummary/value"
+            application/vnd.sas.risk.scenario+json:
+              schema:
+                $ref: "#/components/schemas/scenario"
+              example:
+                $ref: "#/components/examples/scenario/value"
+            application/vnd.sas.risk.scenario.fixed+json:
+              schema:
+                $ref: "#/components/schemas/scenario"
+              example:
+                $ref: "#/components/examples/scenario/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioSummaryV1"
+              example:
+                $ref: "#/components/examples/scenarioSummary/value"
+            "text/csv;tableformat=datebased":
+              schema:
+                $ref: "#/components/schemas/dateBasedFormat"
+              example:
+                $ref: "#/components/examples/dateBasedFormat/value"
+            "text/csv;tableformat=combined":
+              schema:
+                $ref: "#/components/schemas/combinedFormat"
+              example:
+                $ref: "#/components/examples/combinedFormat/value"
+            "text/csv;tableformat=expanded":
+              schema:
+                $ref: "#/components/schemas/expandedFormat"
+              example:
+                $ref: "#/components/examples/expandedFormat/value"
+            text/csv:
+              schema:
+                $ref: "#/components/schemas/expandedFormat"
+              example:
+                $ref: "#/components/examples/expandedFormat/value"
+        "404":
+          description: No scenario exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+    put:
+      summary: Update a scenario
+      description: Updates the scenario with the specified id to the representation
+        in the request body.
+      operationId: updateScenario
+      tags:
+      - Scenario
+      parameters:
+      - name: If-Unmodified-Since
+        in: header
+        required: true
+        schema:
+          type: string
+        description: The timestamp obtained from the most recent `Last-Modified` response
+          header. Must match the timestamp when the scenario was last modified.
+      requestBody:
+        description: The scenario to be updated
+        required: false
+        content:
+          application/vnd.sas.risk.scenario+json:
+            schema:
+              $ref: "#/components/schemas/updateScenario"
+            example:
+              $ref: "#/components/examples/updateScenario/value"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/updateScenario"
+            example:
+              $ref: "#/components/examples/updateScenario/value"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the scenario was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.scenario+json:
+              schema:
+                $ref: "#/components/schemas/scenario"
+              example:
+                $ref: "#/components/examples/scenario/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenario"
+              example:
+                $ref: "#/components/examples/scenario/value"
+        "400":
+          description: No scenario exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "404":
+          description: No scenario exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "409":
+          description: The item has been locked and cannot be modified.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "412":
+          description: "The `If-Unmodified-Since` request header did not match the\
+            \ resource's last modified timestamp."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "428":
+          description: The request headers did not include an `If-Unmodified-Since`
+            precondition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+    delete:
+      summary: Delete a scenario
+      description: Deletes the specified scenario.  Delete will fail if the scenario
+        is locked.
+      operationId: deleteScenario
+      tags:
+      - Scenario
+      responses:
+        "204":
+          description: The request succeeded; nothing to return
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "409":
+          description: The item has been locked and cannot be modified.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  /scenarios/{scenarioId}/locked:
+    parameters:
+    - name: scenarioId
+      in: path
+      schema:
+        type: string
+      required: true
+      description: The unique identifier for the scenario.
+    put:
+      summary: Lock a scenario
+      description: Toggle the lock state of a scenario based on its current value.
+      operationId: lockScenario
+      tags:
+      - Scenarios
+      parameters:
+      - name: value
+        in: query
+        schema:
+          type: boolean
+        description: When the scenario is unlocked, locks the scenario, blocking any
+          and all attempts to modify or delete the scenario by users; only admins
+          can delete locked scenarios.
+      responses:
+        "200":
+          description: A scenario lock state was updated.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the scenario set was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.scenario.summary+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSummaryV1"
+              example:
+                $ref: "#/components/examples/scenarioSummary/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioSummaryV1"
+              example:
+                $ref: "#/components/examples/scenarioSummary/value"
+        "404":
+          description: No scenario exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "412":
+          description: The `If-Unmodified-Since` request header did not match the
+            resource's last modified timestamp.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "428":
+          description: The request headers did not include an `If-Unmodified-Since`
+            precondition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  /scenarioSets:
+    get:
+      summary: Get scenario sets
+      description: Returns a collection of scenario sets, filtered and paginated as
+        requested. The items in the collection use the 'application/vnd.sas.risk.scenario.set'
+        media type.
+      operationId: getScenarioSets
+      tags:
+      - ScenarioSets
+      parameters:
+      - name: Accept-Item
+        in: header
+        description: Select the desired item representation
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.risk.scenario.set+json
+      - name: searchString
+        in: query
+        schema:
+          type: string
+        description: when fully or partially matching this string in any tags of this
+          scenario set or its attributes (name, description, createdBy, modifiedBy,
+          etc.), it will be included in the results.
+      - name: stressTypes
+        in: query
+        schema:
+          type: string
+        description: possible values are instantaneous_risk_factor | instrument_variable
+          | temporal_shock.
+      - name: horizonsOfRiskFactorStresses
+        in: query
+        schema:
+          type: string
+        description: possible values are date_based | interval_based.
+      - name: systemGenerator
+        in: query
+        schema:
+          type: string
+        description: filter by systemGenerator, currently the possible non-empty value
+          is irrbb.
+      - name: requireSameHorizon
+        in: query
+        schema:
+          type: boolean
+        description: Whether all scenarios in the returned sets must have the same
+          horizons.
+      - $ref: "#/components/parameters/pagingStart"
+      - $ref: "#/components/parameters/pagingLimit"
+      - $ref: "#/components/parameters/filter"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSetCollection"
+              example:
+                json:
+                  $ref: "#/components/examples/scenarioSetCollection/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioSetCollection"
+              example:
+                json:
+                  $ref: "#/components/examples/scenarioSetCollection/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+    post:
+      summary: Create a new scenario set
+      description: Creates a new scenario set based on the representation in the request
+        body.
+      operationId: createScenarioSet
+      tags:
+      - ScenarioSets
+      requestBody:
+        description: The representation of a scenario set.
+        required: true
+        content:
+          application/vnd.sas.risk.scenario.set+json:
+            schema:
+              $ref: "#/components/schemas/createScenarioSet"
+            example:
+              $ref: "#/components/examples/createScenarioSet/value"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createScenarioSet"
+            example:
+              $ref: "#/components/examples/createScenarioSet/value"
+      responses:
+        "201":
+          description: A scenario set was created.
+          headers:
+            Location:
+              description: the URI of the newly created scenario set
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the scenario set was created.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.scenario.set+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSet"
+              example:
+                $ref: "#/components/examples/scenarioSet/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioSet"
+              example:
+                $ref: "#/components/examples/scenarioSet/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+    patch:
+      summary: Delete scenario sets
+      description: Deletes multiple scenario sets (only the patch Remove operation
+        is supported).
+      operationId: patchDeleteMultipleScenarioSets
+      tags:
+      - ScenarioSets
+      requestBody:
+        description: A json-patch with one or more remove operations
+        required: true
+        content:
+          application/json-patch:
+            schema:
+              $ref: "#/components/schemas/jsonPatch"
+            example:
+              $ref: "#/components/examples/jsonPatch/value"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSetCollection"
+              example:
+                $ref: "#/components/examples/scenarioSetCollection/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "409":
+          description: A locked scenario set was to be deleted.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  /scenarioSets/export:
+    post:
+      summary: Export Scenario Sets
+      description: Export selected scenario sets to a file returned to the client
+        or to a server side resource.  The request body is a list of scenario set
+        id's. <p/> By default, the selected scenario sets will be exported to a server
+        resource as described by the locationType, location, and fileName query parameters.  When
+        exporting to a folder, the file extension is used to determine if the exported
+        file is text/csv or an excel workbook. <p/> The selected scenario sets may
+        instead be returned as either a text/csv file or an excel workbook.  When
+        exporting in excel, the scenarios that are members of the sets are also exported
+        on a separate tab from the scenario sets, in one of three table representations
+        (described in the <a href="#section/Table-Formats">Table Formats</a> section).
+      operationId: exportScenarioSets
+      tags:
+      - ScenarioSets
+      parameters:
+      - name: Accept
+        in: header
+        description: Select the desired result representation.  For exporting to a
+          server location, select one of the json options; for streaming the scenario
+          set to the client, select one of the document options (text/csv or excel).
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.risk.scenario.export.report+json
+          - application/json
+          - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+          - text/csv
+      - name: baselineId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: The ID of a value-based scenario that is optionally used when
+          exporting sets containing shocks.  The indicated scenario defines a baseline
+          that can be used to compute the value of shocks which are expressed as absolute
+          or relative changes.
+      - name: includeScenarioHistory
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: when true, include any scenario specific historical data that
+          was imported into this service with the sets' members.  Historical data
+          is any value in a scenario that occurs before the scenario's asOfDate.  When
+          false, only values associated with dates after the scenario's asOfDate will
+          be included.  Note that this option defaults to "true".
+      - name: includeMarketData
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: when true, include historical information from the risk-market-data
+          service for each variable in the sets' members, exported on a row where
+          the scenario name and version are empty.  By default, only the most recent
+          historical value for each variable will be included.
+      - name: marketDataStart
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: only used when includeMarketData is true, ignored otherwise.
+          The date of the beginning of exported historical data from the risk-market-data
+          service. When this parameter is omitted, then only the most recent historical
+          value for each variable will be incuded.
+      - $ref: "#/components/parameters/locationType"
+      - $ref: "#/components/parameters/location"
+      - $ref: "#/components/parameters/fileName"
+      - name: dateBasedFormat
+        in: query
+        schema:
+          type: boolean
+        description: When true, the sets' members will be written in Date Based format;
+          when false or omitted, the set's members will be written in Expanded format.  This
+          option is deprecated, being replaced with the tableFormat option that allows
+          for more supported formats.  It will be honored until at least 2025.09.
+      - name: tableFormat
+        in: query
+        schema:
+          type: string
+          enum:
+          - COMBINED
+          - DATEBASED
+          - EXPANDED
+        description: The name of the format used on the Scenarios tab. Defaults to
+          Expanded.
+      requestBody:
+        description: An array of scenario set id's to be exported.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/idList"
+            example:
+              $ref: "#/components/examples/idList/value"
+      responses:
+        "200":
+          description: The scenario sets were exported successfully.
+          content:
+            application/vnd.sas.risk.scenario.export.report+json:
+              schema:
+                $ref: "#/components/schemas/scenarioExportReport"
+              example:
+                $ref: "#/components/examples/scenarioExportReport/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioExportReport"
+              example:
+                $ref: "#/components/examples/scenarioExportReport/value"
+            "text/csv;tableformat=datebased":
+              schema:
+                $ref: "#/components/schemas/dateBasedFormat"
+              example:
+                $ref: "#/components/examples/dateBasedFormat/value"
+            "text/csv;tableformat=combined":
+              schema:
+                $ref: "#/components/schemas/combinedFormat"
+              example:
+                $ref: "#/components/examples/combinedFormat/value"
+            "text/csv;tableformat=expanded":
+              schema:
+                $ref: "#/components/schemas/expandedFormat"
+              example:
+                $ref: "#/components/examples/expandedFormat/value"
+            text/csv:
+              schema:
+                $ref: "#/components/schemas/expandedFormat"
+              example:
+                $ref: "#/components/examples/expandedFormat/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  "/scenarioSets/{scenarioSetId}/members/export":
+    post:
+      summary: Export scenarios within a set
+      description: Returns the scenarios within the given set based on the set id.
+        Exports to streams as a csv to the client.
+      operationId: getScenariosBySetId
+      tags:
+      - ScenarioSet
+      parameters:
+      - name: scenarioSetId
+        in: path
+        schema:
+          type: string
+        required: true
+        description: The unique identifier for the scenario set.
+      - name: Accept
+        in: header
+        description: Select the desired collection representation.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.risk.scenario.export.report+json
+          - application/json
+          - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+          - text/csv
+      - name: baselineId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: The ID of a value-based scenario that is optionally used when
+          exporting shocks.  The indicated scenario defines a baseline that can be
+          used to compute the value of shocks which are expressed as absolute or relative
+          changes.
+      - $ref: "#/components/parameters/locationType"
+      - $ref: "#/components/parameters/location"
+      - $ref: "#/components/parameters/fileName"
+      - $ref: "#/components/parameters/dataSourceId"
+      responses:
+        "200":
+          description: The scenarios were exported successfully.
+          content:
+            application/vnd.sas.risk.scenario.export.report+json:
+              schema:
+                $ref: "#/components/schemas/scenarioExportReport"
+              example:
+                $ref: "#/components/examples/scenarioExportReport/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioExportReport"
+              example:
+                $ref: "#/components/examples/scenarioExportReport/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "404":
+          description: No qualifying scenario set exists.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  "/scenarioSets/{scenarioSetId}/members":
+    get:
+      summary: Export scenarios within a set
+      description: Returns the scenarios within the given set based on the set id.
+        Exports to location as a csv.
+      operationId: getScenariosBySetId
+      tags:
+      - ScenarioSet
+      parameters:
+      - name: scenarioSetId
+        in: path
+        schema:
+          type: string
+        required: true
+        description: The unique identifier for the scenario set.
+      - name: Accept
+        in: header
+        description: Select the desired collection representation.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.risk.scenario.export.report+json
+          - application/json
+          - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+          - text/csv
+      - name: baselineId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: The ID of a value-based scenario that is optionally used when
+          exporting shocks.  The indicated scenario defines a baseline that can be
+          used to compute the value of shocks which are expressed as absolute or relative
+          changes.
+      - name: dataSourceName
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Name of a resource that contains information used to interpret
+          the scenario.
+      - $ref: "#/components/parameters/locationType"
+      - $ref: "#/components/parameters/location"
+      - $ref: "#/components/parameters/fileName"
+      - $ref: "#/components/parameters/dataSourceId"
+      responses:
+        "200":
+          description: The scenarios were exported successfully.
+          content:
+            application/vnd.sas.risk.scenario.export.report+json:
+              schema:
+                $ref: "#/components/schemas/scenarioExportReport"
+              example:
+                $ref: "#/components/examples/scenarioExportReport/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioExportReport"
+              example:
+                $ref: "#/components/examples/scenarioExportReport/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "404":
+          description: No qualifying scenario set exists.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  "/scenarioSets/@item":
+    get:
+      summary: Look up a scenario set by unique query filter
+      description: Returns the scenario set described by the query.  A filter must
+        be specified that uniquely describes only one item in the collection.  By
+        default, the json representation is returned, but text/csv or excel may be
+        requested via the 'Accept' header.
+      operationId: getScenarioSetByFilter
+      tags:
+      - ScenarioSet
+      parameters:
+      - $ref: "#/components/parameters/filter"
+      - name: Accept
+        in: header
+        required: false
+        description: The desired scenario set representation.  The default is 'application/vnd.sas.risk.scenario.set+json'.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.risk.scenario.set+json
+          - application/json
+          - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+          - application/vnd.sas.risk.scenario.set+csv
+          - text/csv
+      - name: includeScenarioHistory
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: only used when returning excel, ignored otherwise.  When true,
+          include any scenario specific historical data that was imported into this
+          service with the set's members. The history data will be included on the
+          'Scenarios' tab unless all the scenarios share the exact same history, in
+          which case it will appear on a separate tab.  Historical data is any value
+          in a scenario that occurs before the scenario's asOfDate.  When false, only
+          values associated with dates after the scenario's asOfDate will be included.
+          Note that this option defaults to "true".
+      - name: includeMarketData
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: only used when returning excel, ignored otherwise.  When true,
+          include historical information from the risk-market-data service for each
+          variable in the set's member' scenarios, exported on a row of the 'Scenarios'
+          tab where the scenario name and version are empty.  By default, only the
+          most recent historical value for each variable will be included.
+      - name: marketDataStart
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: only used when returning excel, and includeMarketData is true;
+          otherwise ignored.  The date of the beginning of exported historical data
+          from the risk-market-data service. When this parameter is omitted, then
+          only the most recent historical value for each variable will be included.
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the scenario set was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.scenario.set+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSet"
+              example:
+                $ref: "#/components/examples/scenarioSet/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioSet"
+              example:
+                $ref: "#/components/examples/scenarioSet/value"
+            text/csv:
+              example:
+                $ref: "#/components/examples/scenarioSetReport/value"
+            application/vnd.sas.risk.scenario.set+csv:
+              example:
+                $ref: "#/components/examples/scenarioSetReport/value"
+        "400":
+          description: No valid filter describing a unique resource was included in
+            the request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "404":
+          description: No qualifying scenario set exists.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  /scenarioSets/{scenarioSetId}:
+    parameters:
+    - name: scenarioSetId
+      in: path
+      schema:
+        type: string
+      required: true
+      description: The unique identifier for the scenario set.
+    get:
+      summary: Get a scenario set
+      description: Returns the specified scenario set.
+      operationId: getScenarioSet
+      tags:
+      - ScenarioSet
+      parameters:
+      - name: Accept
+        in: header
+        required: false
+        description: The desired scenario set representation.  The default is 'application/vnd.sas.risk.scenario.set+json'.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.risk.scenario.set+json
+          - application/json
+          - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+          - application/vnd.sas.risk.scenario.set+csv
+          - text/csv
+      - name: includeScenarioHistory
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: only used when returning excel, ignored otherwise.  When true,
+          include any scenario specific historical data that was imported into this
+          service with the set's members. The history data will be included on the
+          'Scenarios' tab unless all the scenarios share the exact same history, in
+          which case it will appear on a separate tab.  Historical data is any value
+          in a scenario that occurs before the scenario's asOfDate.  When false, only
+          values associated with dates after the scenario's asOfDate will be included.
+          Note that this option defaults to "true".
+      - name: includeMarketData
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: only used when returning excel, ignored otherwise.  When true,
+          include historical information from the risk-market-data service for each
+          variable in the set's member' scenarios, exported on a row of the 'Scenarios'
+          tab where the scenario name and version are empty.  By default, only the
+          most recent historical value for each variable will be included.
+      - name: marketDataStart
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: only used when returning excel, and includeMarketData is true;
+          otherwise ignored.  The date of the beginning of exported historical data
+          from the risk-market-data service. When this parameter is omitted, then
+          only the most recent historical value for each variable will be included.
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the scenario set was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.scenario.set+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSet"
+              example:
+                $ref: "#/components/examples/scenarioSet/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioSet"
+              example:
+                $ref: "#/components/examples/scenarioSet/value"
+            text/csv:
+              example:
+                $ref: "#/components/examples/scenarioSetReport/value"
+            application/vnd.sas.risk.scenario.set+csv:
+              example:
+                $ref: "#/components/examples/scenarioSetReport/value"
+        "404":
+          description: No scenario set exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+    put:
+      summary: Update a set
+      description: Updates a new scenario set based on the representation in the request
+        body.
+      operationId: updateScenarioSet
+      tags:
+      - ScenarioSets
+      requestBody:
+        description: The representation of a scenario set.
+        required: true
+        content:
+          application/vnd.sas.risk.scenario.set+json:
+            schema:
+              $ref: "#/components/schemas/updateScenarioSet"
+            example:
+              $ref: "#/components/examples/updateScenarioSet/value"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/updateScenarioSet"
+            example:
+              $ref: "#/components/examples/updateScenarioSet/value"
+      responses:
+        "200":
+          description: A scenario set was updated.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the scenario set was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.scenario.set+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSet"
+              example:
+                $ref: "#/components/examples/scenarioSet/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioSet"
+              example:
+                $ref: "#/components/examples/scenarioSet/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "404":
+          description: No scenario set exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "412":
+          description: The `If-Unmodified-Since` request header did not match the
+            resource's last modified timestamp.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "428":
+          description: The request headers did not include an `If-Unmodified-Since`
+            precondition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+    delete:
+      summary: Delete a scenario set
+      description: Deletes a scenario set
+      operationId: deleteScenarioSet
+      tags:
+      - ScenarioSet
+      responses:
+        "204":
+          description: The request succeeded; nothing to return
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  /scenarioSets/{scenarioSetId}/locked:
+    parameters:
+    - name: scenarioSetId
+      in: path
+      schema:
+        type: string
+      required: true
+      description: The unique identifier for the scenario set.
+    put:
+      summary: Lock a scenario set
+      description: Toggle the lock state of a scenario set based on its current value.
+      operationId: lockScenarioSet
+      tags:
+      - ScenarioSets
+      parameters:
+      - name: value
+        in: query
+        schema:
+          type: boolean
+        description: When the set is unlocked, locks the set, blocking any and all
+          attempts to modify or delete the scenario set by users; only admins can
+          delete locked sets.
+      responses:
+        "200":
+          description: A scenario set lock state was updated.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the scenario set was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.scenario.set+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSet"
+              example:
+                $ref: "#/components/examples/scenarioSet/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioSet"
+              example:
+                $ref: "#/components/examples/scenarioSet/value"
+        "404":
+          description: No scenario set exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "412":
+          description: The `If-Unmodified-Since` request header did not match the
+            resource's last modified timestamp.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "428":
+          description: The request headers did not include an `If-Unmodified-Since`
+            precondition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  /scenarioSets/irrbb:
+    post:
+      summary: Create an IRRBB shock set
+      description: Returns an IRRBB shock set based on the input curve info
+      operationId: createIRRBBShockSet
+      tags:
+      - ScenarioSet
+      requestBody:
+        description: A list of names of the curves to create the shock set and other
+          related info
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/irrbbShockSetInput"
+            example:
+              $ref: "#/components/examples/curveNameList/value"
+      responses:
+        "201":
+          description: An IRRBB shock set was created.
+          headers:
+            Location:
+              description: the URI of the newly created IRRBB shock set
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the scenario set was created.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.scenario.set+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSet"
+              example:
+                $ref: "#/components/examples/createIRRBBShockSet/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioSet"
+              example:
+                $ref: "#/components/examples/createIRRBBShockSet/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  /scenarioContext:
+    get:
+      summary: Get Scenario Context
+      description: Returns a default Scenario Context for use when interpreting scenarios.
+        <p/> The scenario context is a set of information or links to information
+        that is necessary to interpret scenarios.  This information includes the definitions,
+        the market state, and historical information about any variables that may
+        be included, the asOfDate and horizon alignment. <p/> This service provides
+        a default scenario context by referencing the risk-market and risk-portfolios
+        services.
+      operationId: getScenarioContext
+      tags:
+      - ScenarioContext
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.risk.scenario.context+json:
+              schema:
+                $ref: "#/components/schemas/scenarioContext"
+              example:
+                $ref: "#/components/examples/scenarioContext/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioContext"
+              example:
+                $ref: "#/components/examples/scenarioContext/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  /util/intervals/{intervalType}:
+    get:
+      summary: Compute intervals
+      description: Computes dates from a given interval type, a starting date, and
+        set of interval values
+      operationId: computeIntervals
+      tags:
+      - Utility
+      parameters:
+      - name: intervalType
+        in: path
+        schema:
+          type: string
+        required: true
+        description: a [SAS Interval name](http://support.sas.com/documentation/cdl/en/lefunctionsref/67960/HTML/default/viewer.htm#p0syn64amroombn14vrdzksh459w.htm)
+          for which dates will be computed.
+      - name: asOfDate
+        in: query
+        schema:
+          type: string
+          format: date
+        description: Provides the start date from which interval based horizon dates
+          will be computed
+      - name: start
+        in: query
+        schema:
+          type: integer
+          format: int32
+          default: 1
+        description: First interval to compute
+      - name: end
+        in: query
+        schema:
+          type: integer
+          format: int32
+          default: 10
+        description: Last interval to compute
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          format: int32
+          default: 10
+        description: Number of intervals to compute if end is not specified
+      - name: alignment
+        in: query
+        schema:
+          type: string
+          enum: [S, B, M, E]
+          default: S
+        description: code used to compute horizon dates from the runDate. One of 'S'|'B'|'M'|'E',
+          indicating 'SAME','BEGINNING','MIDDLE','END'.  If the asOfDate is 2020-01-08
+          and we're computing MONTH intervals, the code determines which day of the
+          resulting month is returned.  For a 1 month computation, the results would
+          be 2020-02-08, 2020-02-01, 2020-02-15, or 2020-02-28 respectively.
+      responses:
+        "200":
+          description: The request succeeded.  An ordered list of dates is returned,
+            corresponding to the intervals requested
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/dateCollection"
+              example:
+                $ref: "#/components/examples/dateCollection/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/dateCollection"
+              example:
+                $ref: "#/components/examples/dateCollection/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+components:
+  parameters:
+    dataSourceId:
+      name: dataSourceId
+      description: ID of a riskEnvironment that contains information used to interpret
+        the scenario.  The environment must define a Link with the rel 'scenarioContext'
+        that returns an object of type 'application/vnd.sas.risk.scenario.context'.
+      in: query
+      schema:
+        type: string
+    filter:
+      name: filter
+      in: query
+      description: "The criteria for filtering the items in a collection. See [SAS\
+        \ REST APIs&colon; Filtering](https://developer.sas.com/rest-apis/riskScenarios-v7/docs/getting-started/usage-notes#filtering)."
+      schema:
+        type: string
+    locationType:
+      name: locationType
+      in: query
+      schema:
+        type: string
+        enum:
+        - LIBNAME
+        - FOLDER
+      required: true
+      description: The type of server location from which scenarios will be read.
+    location:
+      name: location
+      in: query
+      schema:
+        type: string
+      required: true
+      description: the server location to|from which scenarios will be written|read.  Varies
+        based on locationType.  When LIBNAME, the name of the cas library containing
+        the table to be written|read.  When FOLDER, the display path of a SAS Drive
+        folder containing the document to be written|read.
+    fileName:
+      name: fileName
+      in: query
+      schema:
+        type: string
+      required: true
+      description: name of the File or Table from which scenarios will be written|read
+    pagingStart:
+      name: start
+      in: query
+      description: "pagination parameter, what is the starting index."
+      schema:
+        type: integer
+        format: int32
+        default: 0
+    pagingLimit:
+      name: limit
+      in: query
+      description: "pagination parameter, how many items to return."
+      schema:
+        type: integer
+        format: int32
+        default: 20
+  schemas:
+    combinedFormat:
+      title: Combined Format
+      description: A simplified table format for scenarios, allowing only date based
+        horizons and value perturbations.  In addition, a classifier column is used
+        to reduce the number variables for cases where a set of values are manipulated
+        across a set of reporting areas.  For example, if there are a set of common
+        economic statistics reported across the 50 US States, this format reduces
+        the number of variables by removing the state component of the variable name.
+      properties:
+        Scenario_Name:
+          type: string
+          description: the name of a scenario within the table.  If omitted, then
+            the table is read as a single scenario, whose name is the external name
+            of the table (for example, the file name of the file that contains the
+            table.
+        Classifier:
+          type: string
+          description: The first string column whose name is not a known scenario
+            property will be the classifier column; the actual name of the column
+            can be anything.  The value of the classifier is appended to each of the
+            variable columns to form the variable names in the scenario.
+        Date:
+          type: string
+          format: date
+          description: The date of a horizon within the scenario.
+        Variables (1-n):
+          type: number
+          format: float
+          description: The actual column names will be the root names of the variables
+            in the scenario with the value of the classifier column appended. the
+            value in the body of the table will be the final value of the variable
+            for the horizon described in the Date column.
+    createScenario:
+      title: Create a scenario
+      description: The representation used to create a new scenario.
+      required:
+      - periods
+      allOf:
+      - $ref: "#/components/schemas/scenarioSummary"
+      - type: object
+        properties:
+          classificationName:
+            description: a system-maintained property, set when importing scenarios
+              in combined format; the name of the classification column from the input
+              file.
+          periods:
+            description: a non-empty ordered list of periods
+            type: array
+            items:
+              $ref: "#/components/schemas/period"
+          stresses:
+            description: an ordered list of stresses describing the risk factors and
+              their perturbations by period.  One of stresses | variableStresses |
+              temporalVariableShocks is required.
+            type: array
+            items:
+              $ref: "#/components/schemas/riskFactorStress"
+          variableStresses:
+            description: an ordered list of variableStresses describing the instrument
+              variables perturbations across all periods.  One of stresses | variableStresses
+              | temporalVariableShocks is required.
+            type: array
+            items:
+              $ref: "#/components/schemas/variableStress"
+          temporalVariableShocks:
+            description: an ordered list of temporalVariableShocks describing the
+              risk factor variables with a single shock value applied across all periods
+              per the cap, floor and fading specifications.  One of stresses | variableStresses
+              | temporalVariableShocks is required.
+            type: array
+            items:
+              $ref: "#/components/schemas/temporalVariableShock"
+          scenarioHistory:
+            description: Scenario-specific historical information, to be used in place
+              of any global history data when evaluating a scenario.
+            allOf:
+            - $ref: "#/components/schemas/historyBlock"
+    createScenarioV1:
+      title: Create a scenario
+      description: The representation used to create a new scenario.
+      required:
+      - periods
+      allOf:
+      - $ref: "#/components/schemas/createScenario"
+      - type: object
+        properties:
+          version:
+            type: integer
+            format: int32
+            description: The version number of the scenario representation. This representation
+              is version 1.
+    createScenarioV2:
+      title: Create a scenario
+      description: The representation used to create a new scenario.
+      required:
+      - periods
+      allOf:
+      - $ref: "#/components/schemas/createScenario"
+      - type: object
+        properties:
+          factorStresses:
+            description: an ordered list of objects describing the pages of a scenario.  Each
+              page has a unique name, an optional list of stresses, and an optional
+              history block, though at least one of the two structures must be present.
+            type: array
+            items:
+              $ref: "#/components/schemas/scenarioPage"
+          version:
+            type: integer
+            format: int32
+            description: The version number of the scenario representation. This representation
+              is version 2.
+    createScenarioSet:
+      title: Create a Scenario Set or Shock Set
+      description: A representation needed to create a Scenario Set or Shock Set
+      required:
+      - name
+      - asOfDate
+      - scenarios
+      properties:
+        name:
+          type: string
+          description: The name of the scenario set or shock set.
+        description:
+          type: string
+        asOfDate:
+          type: string
+          format: date
+          description: The 'as-of-date' associated with this object in the ISO format
+            (e.g. 2020-03-31)
+        alignment:
+          type: string
+          description: The date alignment for asOfDate. Allowed values begin, end,
+            middle, same.
+        riskShiftType:
+          type: string
+          description: How the tenors not in the risk set should be handled
+        applyTime:
+          type: string
+          description: When to apply the scenario or shock set
+        regulationId:
+          type: string
+          description: For scenario set created per regulation such as IRRBB.
+        customAttributes:
+          type: object
+          additionalProperties:
+            type: string
+          description: User defined name/string value pairs as custom attributes
+        shockSet:
+          type: boolean
+          description: Indication of whether this object is a 'shock set' object.  Shock
+            sets are composed of shock objects.  Scenario sets are composed of value-based
+            scenarios.
+        scenarios:
+          type: array
+          items:
+            $ref: "#/components/schemas/scenarioSetMember"
+          description: The IDs and weights of value-based scenarios when this is a
+            scenario set object or IDs and weights of shock objects when this is a
+            shock set object.
+        version:
+          type: integer
+          format: int32
+          description: The version number of the scenario set representation. This
+            representation is version 2.
+        links:
+          description: The links that apply to this object.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    dateBasedFormat:
+      title: Date Based Format
+      description: A simplified table format for scenarios, allowing only date based
+        horizons and value perturbations.
+      properties:
+        Scenario_Name:
+          type: string
+          description: the name of a scenario within the table.  If omitted, then
+            the table is read as a single scenario, whose name is the external name
+            of the table (for example, the file name of the file that contains the
+            table.
+        Date:
+          type: string
+          format: date
+          description: The date of a horizon within the scenario.
+        Variables (1-n):
+          type: number
+          format: float
+          description: The actual column names will be the names of the variables
+            that the scenario modifies; the value in the body of the table will be
+            the final value of the variable for the horizon described in the Date
+            column.
+    dateCollection:
+      description: An ordered collection of dates
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            description: The array of dates.
+            type: array
+            items:
+              type: string
+              format: date
+    expandedFormat:
+      title: Expanded Format
+      description: The default table format for scenarios, based on SAS High-Performance
+        Risk's (Scenario Analysis Data Set)[https://go.documentation.sas.com/?cdcId=riskcdc&cdcVersion=6.12&docsetId=riskds&docsetTarget=p1i2siid8wnissn1t8h3j7q5y8bk.htm&locale=en#n177jr1afjfv6an13hvkf7tohyeu]
+        format.  Each row of this format describes a single variable perturbation;
+        the columns represent properties of the scenario or the specific variable
+        or horizon of the perturbation.
+      properties:
+        Scenario_ID:
+          type: string
+        Scenario_Name:
+          type: string
+        Label:
+          type: string
+        Scenario_Version:
+          type: string
+        Variable_Name:
+          type: string
+          description: alias - "\_name\_".
+        Horizon:
+          type: integer
+        Interval:
+          type: string
+        Date:
+          type: string
+          format: date
+        Change_Type:
+          type: string
+          enum:
+          - VALUE
+          - ABS
+          - REL
+          - ABS_TM
+          - REL_TM
+          - STD
+          description: alias - "\_type\_"
+        Change_Value:
+          type: number
+          format: float
+          description: alias - "\_value\_"
+        Change_Value_Char:
+          type: string
+          description: alias - "\_char_value\_"
+        Rule_Type:
+          type: string
+          description: alias - "\_rule_type\_"
+          enum:
+          - INSTID
+          - INSTTYPE
+          - FILTER
+        Rule_Value:
+          type: string
+          description: alias - "\_rule_value\_"
+        Longlabel:
+          type: string
+        Datasource_Name:
+          type: string
+        Datasource_Id:
+          type: string
+        As_Of_Date:
+          type: string
+          format: date
+          description: alias - "history_date"
+        Change_Order:
+          type: integer
+        Fade_In_Start:
+          type: integer
+        Fade_In_End:
+          type: integer
+        Fade_Out_Start:
+          type: integer
+        Fade_Out_End:
+          type: integer
+        Cap:
+          type: number
+          format: float
+        Floor:
+          type: number
+          format: float
+        Shock_Type:
+          type: string
+        Shock_Direction:
+          type: string
+          enum:
+          - Up
+          - Down
+          - Mixed
+    idList:
+      title: Scenario ID List
+      description: A list of scenario ids
+      properties:
+        items:
+          description: A list of scenario ids
+          type: array
+          items:
+            type: string
+    historyBlock:
+      title: A set of historical risk factor data
+      description: A block of historical risk factor data for a scenario.
+      properties:
+        dates:
+          type: array
+          items:
+            type: string
+            format: date
+        variableValues:
+          type: array
+          items:
+            $ref: "#/components/schemas/historyData"
+    historyData:
+      title: A set of historical data for a risk factor
+      description: Historical values of a named risk factor.  The number of values
+        must be the same as the number of dates in the dates array, though empty values
+        are allowed.
+      properties:
+        variable:
+          description: the name of a risk factor
+          type: string
+        values:
+          description: the list of historical values
+          type: array
+          items:
+            type: number
+            format: double
+    importScenarios:
+      description: An array of scenarios to be created/updated
+      type: array
+      items:
+        $ref: "#/components/schemas/createScenario"
+    importScenariosCollection:
+      description: A collection of scenarios to be created/updated
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            description: The array of `application/vnd.sas.risk.scenario` representations.
+            type: array
+            items:
+              $ref: "#/components/schemas/createScenario"
+    jsonPatch:
+      description: A [JSON Patch](https://tools.ietf.org/html/rfc6902) resource.
+      type: array
+      items:
+        description: A JSON Remove Operation.
+        type: object
+        properties:
+          op:
+            type: string
+            description: The operation.
+            enum:
+            - remove
+          path:
+            type: string
+            description: The path to the ID of the object to remove.
+    period:
+      title: Period (or Horizon)
+      description: A day in the future where predictions are made about risk factor
+        values, or a fixed date in the past with historical information.
+      properties:
+        date:
+          type: string
+          format: date
+          description: when horizon is negative, a specific date that defines the
+            period.  May be present when horizon is not negative, in cases where the
+            system has computed the date from the horizon, periodType and a context
+            date (typically either the scenario's asOfDateDate or the dataSource's
+            runDate) but is not definitive in such cases.
+        periodType:
+          type: string
+          description: The interval size of the scenario's horizons.  Must be either
+            'IMPLICIT' or a [SAS Interval](http://support.sas.com/documentation/cdl/en/lefunctionsref/67960/HTML/default/viewer.htm#p0syn64amroombn14vrdzksh459w.htm).  This
+            value must be the same across all periods, but for date-based scenarios
+            (ie, those whose periods have a negative horizon), this value may be derived
+            heuristically and is not definitive
+        horizon:
+          type: integer
+          description: negative if the scenario is based on fixed dates, non-negative
+            otherwise. When not negative, the horizon designates how many intervals
+            of 'periodType' into the future the period defines, relative to the scenario's
+            historyDate or the dataSource's runDate
+    scenario:
+      title: Scenario
+      description: The representation of a scenario.
+      allOf:
+      - $ref: "#/components/schemas/updateScenario"
+      - type: object
+        properties:
+          createdBy:
+            type: string
+            description: The id of the user who created the scenario.
+          createdByName:
+            type: string
+            description: The name of the user who created the scenario.
+          creationTimeStamp:
+            type: string
+            description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+              scenario was created.
+            format: date-time
+          modifiedBy:
+            type: string
+            description: The id of the user who most recently modified the scenario.
+          modifiedByName:
+            type: string
+            description: The name of the user who most recently modified the scenario.
+          modifiedTimeStamp:
+            type: string
+            description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+              scenario was last modified.
+            format: date-time
+    scenarioCreationReport:
+      title: Scenario Creation Report
+      description: A report on the effects of importing a set of scenarios.
+      properties:
+        scenarios:
+          description: A list of scenarios that were either added or updated as part
+            of an operation.
+          type: array
+          items:
+            $ref: "#/components/schemas/scenarioSummary"
+        scenarioSets:
+          description: A list of scenario sets that were either added or updated as
+            part of an operation.
+          type: array
+          items:
+            $ref: "#/components/schemas/scenarioSet"
+        scenarioSet:
+          type: object
+          properties:
+            id:
+              type: string
+              description: The unique ID of the scenario set or shock set within the
+                deployment.
+            name:
+              type: string
+              description: The name of the scenario set or shock set.
+            description:
+              type: string
+              description: The description of the scenario set.
+            asOfDate:
+              type: string
+              format: date
+              description: The 'as-of-date' associated with this object in the ISO
+                format (e.g. 2020-03-31)
+            shockSet:
+              type: boolean
+              description: Indication of whether this object is a 'shock set' object.  Shock
+                sets are composed of shock objects.  Scenario sets are composed of
+                value-based scenarios.
+            scenarios:
+              type: array
+              items:
+                $ref: "#/components/schemas/scenarioSetMember"
+              description: The IDs and weights of value-based scenarios when this
+                is a scenario set object or IDs and weights of shock objects when
+                this is a shock set object.
+            createdBy:
+              type: string
+              description: The id of the user who created the scenario.
+            creationTimeStamp:
+              type: string
+              format: date-time
+              description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when
+                the scenario was created.
+            modifiedBy:
+              type: string
+              description: The id of the user who most recently modified the scenario.
+            modifiedTimeStamp:
+              type: string
+              format: date-time
+              description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when
+                the scenario was last modified.
+        version:
+          type: integer
+          format: int32
+          description: This representation is version 1.
+        links:
+          description: The links that apply to this object.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    scenarioCollection:
+      title: Scenario Collection
+      description: A collection of scenarios
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            description: The array of `application/vnd.sas.risk.scenario` representations.
+            type: array
+            items:
+              $ref: "#/components/schemas/scenario"
+    scenarioExportReport:
+      title: Scenario Export Report
+      description: A report of scenarios that have been exported to a location in
+        SASDrive or to a CAS server.
+      properties:
+        locationType:
+          type: string
+          description: either 'FOLDER' or 'LIBNAME', indicating a folder path in SASDrive
+            or a CAS library
+        location:
+          type: string
+          description: The location to which scenarios were exported.  When locationType
+            = 'FOLDER', this will be the SASDrive path to the folder.   When locationType
+            = 'LIBNAME', the this will be the name of the CAS library.
+        fileName:
+          type: string
+          description: The name of the file or table to which scenarios were exported.
+        statusMesasge:
+          type: string
+          description: A mesasge describing the outcome of the export.
+        scenariosExported:
+          description: The scenarios that were exported.
+          type: array
+          items:
+            $ref: "#/components/schemas/scenario"
+        scenariosFailed:
+          description: The scenarios that could not be exported, if any.
+          type: array
+          items:
+            $ref: "#/components/schemas/scenario"
+    scenarioImportReport:
+      title: Scenario Import Report
+      description: A report on the effects of importing a set of scenarios/shocks/scenario
+        sets/shock sets. The report includes 4 lists of scenarios/shocks/scenario
+        sets/shock sets to be created or updated; See details below.
+      properties:
+        scenariosToAdd:
+          type: array
+          items:
+            $ref: "#/components/schemas/scenario"
+        scenariosToUpdate:
+          type: array
+          items:
+            $ref: "#/components/schemas/scenario"
+        scenarioSetsToAdd:
+          type: array
+          items:
+            $ref: "#/components/schemas/scenarioSet"
+        scenarioSetsToUpdate:
+          type: array
+          items:
+            $ref: "#/components/schemas/scenarioSet"
+    scenarioPage:
+      title: A page of risk factor data
+      description: "A named page of risk factor perturbations and/or historical data\
+        \ within a scenario. A risk factor may only appear on one page within a scenario;\
+        \ its future perturbations and its historical data must appear on the same\
+        \ page.  Additionally, the use of reference key values is also restricted\
+        \ such that risk factors that share the same reference mapping must be listed\
+        \ on the same page.\nFor this version 8 of the service an version 2 of the\
+        \ scenario media type, a page will not include full stresses in either the\
+        \ stresses or history blocks; it will contain only risk factor names and reference\
+        \ mapping information.  The perturbations will be found in the stresses and\
+        \ scenarioHistory blocks, maintaining backward compatability with version\
+        \ 1 of the media type and previous versions of the service."
+      properties:
+        name:
+          type: string
+          description: The name of the scenario page.  Each page of a scenario must
+            have a unique name, and the value '_DEFAULT_PAGE_' is reserved for system
+            use.  The name must be fewer than 32 characters.
+        stresses:
+          description: the risk factor names and reference mapping information from
+            the stresses block for the risk factors assigned to this page.
+          type: array
+          items:
+            $ref: "#/components/schemas/riskFactorStress"
+        history:
+          description: Scenario-specific historical information, to be used in place
+            of any global history data when evaluating a scenario.
+          allOf:
+          - $ref: "#/components/schemas/historyBlock"
+    scenarioSet:
+      title: Value-based scenario set or shock set
+      description: A managed set of value-based scenarios or shock objects.
+      allOf:
+      - $ref: "#/components/schemas/updateScenarioSet"
+      - type: object
+        properties:
+          createdBy:
+            type: string
+            description: The id of the user who created the scenario.
+          creationTimeStamp:
+            type: string
+            description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+              scenario was created.
+            format: date-time
+          modifiedBy:
+            type: string
+            description: The id of the user who most recently modified the scenario.
+          modifiedTimeStamp:
+            type: string
+            description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+              scenario was last modified.
+            format: date-time
+          stressTypes:
+            type: array
+            items:
+              enum:
+              - INSTANTANEOUS_RISK_FACTOR_STRESS
+              - INSTANTANEOUS_VARIABLE_STRESS
+              - TEMPORAL_SHOCK
+            description: All scenarios in the set have these stress types.
+          horizonTypesOfRiskFactorStresses:
+            type: string
+            enum:
+            - DATE_BASED
+            - INTERVAL_BASED
+            - MIXED
+            description: The horizon types of scenarios in the set. The value 0 means
+              this property is not calculated.
+          riskShiftType:
+            type: string
+            enum:
+            - applyZeroShock
+            - excludeFromShifts
+            - applyVolatilitiesAndCorrelations
+            description: how to handle non-stressed risk factors.
+          applyTime:
+            type: string
+            enum:
+            - onRawData
+            - afterSmoothing
+            description: when to apply the scenrio or shock set.
+          regulationId:
+            type: string
+            description: The optional regulation ID that the shock set was created
+              for
+          sameHorizon:
+            type: boolean
+            description: When true, all scenarios in the set have same horizons.
+          version:
+            type: integer
+            format: int32
+            description: The version number of the scenario set representation. This
+              representation is version 1.
+          links:
+            description: The links that apply to this object.
+            type: array
+            items:
+              $ref: "#/components/schemas/link"
+    scenarioSetMember:
+      title: Member of a scenario set
+      description: A member of a scenario set
+      properties:
+        scenarioId:
+          type: string
+          description: The unique identifier of the member scenario.
+        weight:
+          type: number
+          format: float
+          description: An optional weighting factor for the member scenario.
+    irrbbShockSetInput:
+      title: The input to creating an IRRBB shock set
+      description: The wrapper object for creating IRRBB shock set inputs.
+      properties:
+        regId:
+          type: string
+          description: regulation id
+        curveNames:
+          type: array
+          items:
+            type: string
+        shockSet:
+          $ref: "#/components/schemas/scenarioSet"
+    scenarioSummary:
+      title: Scenario Summary
+      description: The summary representation of a scenario.
+      properties:
+        name:
+          type: string
+          description: The name of the scenario.  This field is generally used in
+            code and server side procedures, and was at one time restricted to unquoted
+            SAS names.  One of name or label is required, and if only one is specified,
+            the other will be set to the same value.
+        label:
+          type: string
+          description: An alternate name for the scenario, typically friendlier for
+            use than the name.  One of name or label is required, and if only one
+            is specified, the other will be set to the same value.
+        scenarioVersion:
+          type: string
+          description: A qualifier applied to the scenario's name and/or label.  The
+            combinations of name & scenarioVersion and label & scenarioVersion are
+            each unique.
+        description:
+          type: string
+          description: The description of the scenario.
+        periodType:
+          type: string
+          description: The interval size of the scenario's horizons.  Must be either
+            'IMPLICIT' or a [SAS Interval](http://support.sas.com/documentation/cdl/en/lefunctionsref/67960/HTML/default/viewer.htm#p0syn64amroombn14vrdzksh459w.htm).
+            This value must be the same across all periods, but for date-based scenarios
+            (ie, those whose periods have horizon < 0), this value may be derived
+            heuristically and is not definitive.
+        asOfDate:
+          type: string
+          format: date
+          description: The current date for a scenario.  Note that when a risk-environment
+            is used as a data source, it's runDate will override the scenario's asOfDateDate.
+        alignment:
+          type: string
+          description: The date alignment for asOfDate. Allowed values begin, end,
+            middle, same.
+        dataSourceName:
+          type: string
+          description: Name of a resource that contains information used to interpret
+            the scenario.
+        dataSourceId:
+          type: string
+          description: ID of a resource that contains information used to interpret
+            the scenario.
+        filename:
+          type: string
+          description: The name of a file to which this scenario has been exported.  This
+            field is assigned as needed by the service.
+        deprecated:
+          type: boolean
+          description: Indicates that a scenario is no longer to be used
+        reason:
+          type: string
+          description: the reason for the last modification of the scenario
+        shock:
+          type: boolean
+          description: Indicates whether this scenario is a shock object or a value-based
+            scenario.
+        shockDirection:
+          type: string
+          description: For shock objects, the direction of the shock (UP, DOWN or
+            MIXED)
+        stressTypes:
+          type: array
+          items:
+            type: string
+          description: an array of values that indicate which of the types of stresses
+            are contained within this scenario.  Valid values are TEMPORAL_SHOCK,
+            INSTANTANEOUS_RISK_FACTOR_STRESS, INSTANTANEOUS_VARIABLE_STRESS.
+        historyId:
+          type: integer
+          format: int32
+          description: "An ID within the service that uniquely identifies the history\
+            \ data for this scenario. Scenarios that have exactly the same history\
+            \ data have the same historyId.\nAs of version 8 of this service, with\
+            \ the introduction of scenario pages and v2 of the scenario media type,\
+            \ this field is deprecated, and will be removed in v3 of the scenario\
+            \ media type.  This field will only be populated if scenario pages are\
+            \ not in use; it will be omitted or will carry -1 if multiple pages are\
+            \ in use (as each scenario page can have its own history block and historyId)."
+        firstHistoryDate:
+          type: string
+          format: date
+          description: If the scenario has historical information, the oldest date
+            in the history
+        lastHistoryDate:
+          type: string
+          format: date
+          description: If the scenario has historical information, the most recent
+            date in the history
+        customAttributes:
+          type: object
+          additionalProperties:
+            type: string
+          description: User defined name/string value pairs as custom attributes
+        version:
+          type: integer
+          format: int32
+          description: The version number of the scenario representation. This representation
+            is version 1.
+        links:
+          description: The links that apply to the scenario.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    scenarioSummaryV1:
+      title: Scenario Summary Version 1
+      description: The v1 summary representation of a scenario.
+      allOf:
+      - $ref: "#/components/schemas/scenarioSummary"
+      - type: object
+        properties:
+          version:
+            type: integer
+            format: int32
+            description: The version number of the scenario summary representation.
+              This representation is version 1.
+    scenarioSetCollection:
+      title: Scenario Set Collection
+      description: A collection of scenario sets
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            description: The array of `application/vnd.sas.risk.scenario.set` representations.
+            type: array
+            items:
+              $ref: "#/components/schemas/scenarioSet"
+    scenarioSummaryCollection:
+      description: A collection of scenario summaries
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            description: The array of `application/vnd.sas.risk.scenario.summary`
+              representations.
+            type: array
+            items:
+              $ref: "#/components/schemas/scenarioSummaryV1"
+    scenarioContext:
+      title: Scenario Context
+      description: Information required for the evaluation of risk scenarios.
+      required:
+      - runDate
+      properties:
+        name:
+          type: string
+          description: name of the scenario context
+        label:
+          type: string
+          description: human readable label of the scenario context
+        runDate:
+          type: string
+          format: date
+          description: date to be used to interpret scenario horizons and variable
+            history
+        alignment:
+          type: string
+          enum:
+          - S
+          - B
+          - M
+          - E
+          description: code used to compute horizon dates from the runDate.  One of
+            'S'|'B'|'M'|'E', indicating 'SAME','BEGINNING','MIDDLE','END'.  Default
+            is 'S'.  If the runDate is 2020-01-08 and we're computing month intervals,
+            the code determines which day of the resulting month is returned.  For
+            a 1 month computation, the results would be 2020-02-08, 2020-02-01, 2020-02-15,
+            and 2020-02-28 respectively.
+    riskFactorStress:
+      title: Risk Factor Stress
+      description: a risk factor variable and its perturbations for each period
+      properties:
+        variable:
+          type: string
+          description: The name of the risk factor being shocked.
+        perturbType:
+          type: string
+          enum:
+          - value
+          - abs
+          - rel
+          - abs_time
+          - rel_time
+          - std
+          description: A code that controls how the numeric perturbations are interpreted.  'value'
+            indicates that each perturbation's value is the number provided in the
+            perturbations list; all others indicate functions that are applied to
+            the number in the perturbation list and evaluated in the context of the
+            scenario's baseline and market state data provided by the dataSource
+        cap:
+          type: number
+          format: double
+          description: The optional maximum value to allow the shocked value to take
+            on.
+        floor:
+          type: number
+          format: double
+          description: The optional minimum value to allow the shocked value to take
+            on.
+        perturbations:
+          description: A list of perturbation values.  Thie size of this list must
+            be the same as the size of the periods list, but empty values are allowed
+            in the list.
+          type: array
+          items:
+            type: number
+            format: double
+        rootVariable:
+          type: string
+          description: When the scenario was imported from combined format, the original
+            name of the variable that was shocked in the input file.  The variable
+            name in this structure was synthesized from the root variable and the
+            classification value.
+        referenceKey:
+          type: string
+          description: When the scenario was imported from combined format, the value
+            that was originally stored in the classification column for this variable.
+    temporalVariableShock:
+      title: Temporal Variable Shock
+      description: A risk factor variable, a perturbation, and a specification of
+        how the perturbation is to be applied across all horizons.
+      properties:
+        variable:
+          type: string
+          description: The name of the risk factor variable being shocked.
+        perturbType:
+          type: string
+          description: A code that controls how the perturbations are interpreted.  Must
+            be one of 'val'|'abs'|'rel'.  'val' indicates that perturbation value
+            is given directly in the changeValue; all others indicate functions that
+            are applied to the changeValue and evaluated in the context of the shock's
+            baseline.
+        changeValue:
+          type: number
+          format: double
+          description: A shock value to be applied to the risk factor variable
+        fadeInStart:
+          type: integer
+          format: int32
+          description: The optional horizon number of when to start fading in changeValue.
+        fadeInEnd:
+          type: integer
+          format: int32
+          description: The optional horizon number of when the complete changeValue
+            has been applied (faded-in).
+        fadeOutStart:
+          type: integer
+          format: int32
+          description: The optional horizon number of when to start fading out changeValue.
+        fadeOutEnd:
+          type: integer
+          format: int32
+          description: The optional horizon number of when the changeValue has been
+            completely faded-out.
+        cap:
+          type: number
+          format: double
+          description: The optional maximum value to allow the shocked value to take
+            on.
+        floor:
+          type: number
+          format: double
+          description: The optional minimum value to allow the shocked value to take
+            on.
+    updateScenario:
+      title: Update Scenario
+      description: The representation used to update a scenario.
+      required:
+      - id
+      - periods
+      allOf:
+      - $ref: "#/components/schemas/createScenario"
+      - type: object
+        properties:
+          id:
+            type: string
+            description: The unique identifier for the scenario.
+          readOnly:
+            type: boolean
+            description: when true, indicates that the scenario may not be modified
+              by any user or process.  Controlled by the lock/unlock operations.
+    updateScenarioV1:
+      title: Update Scenario
+      description: The representation used to update a scenario.
+      required:
+      - id
+      - periods
+      allOf:
+      - $ref: "#/components/schemas/createScenarioV1"
+      - type: object
+        properties:
+          id:
+            type: string
+            description: The unique identifier for the scenario.
+          readOnly:
+            type: boolean
+            description: when true, indicates that the scenario may not be modified
+              by any user or process.  Controlled by the lock/unlock operations.
+          version:
+            type: integer
+            format: int32
+            description: The version number of the scenario representation. This representation
+              is version 1.
+    updateScenarioV2:
+      title: Update Scenario
+      description: The representation used to update a scenario.
+      required:
+      - id
+      - periods
+      allOf:
+      - $ref: "#/components/schemas/createScenarioV2"
+      - type: object
+        properties:
+          id:
+            type: string
+            description: The unique identifier for the scenario.
+          readOnly:
+            type: boolean
+            description: when true, indicates that the scenario may not be modified
+              by any user or process.  Controlled by the lock/unlock operations.
+          version:
+            type: integer
+            format: int32
+            description: The version number of the scenario representation. This representation
+              is version 2.
+    updateScenarioSet:
+      title: Update a scenario set or shock set
+      description: A representation needed to update a scenario set or shock set
+      required:
+      - id
+      allOf:
+      - $ref: "#/components/schemas/createScenarioSet"
+      - type: object
+        properties:
+          id:
+            type: string
+            description: The unique ID of the scenario set or shock set within the
+              deployment.
+    uploadScenarios:
+      title: Upload Scenarios
+      description: The multipart/form-data carrying a supported import document
+      properties:
+        file:
+          title: uploaded file
+          type: object
+          description: the uploaded file containing one or more scenarios
+    variableStress:
+      title: Variable Stress
+      description: An instrument variable, a perturbation, and a description of how
+        the perturbation is to be applied to portfolio information provided by the
+        data source.
+      properties:
+        variable:
+          type: string
+          description: The name of the instrument variable being shocked.
+        perturbType:
+          type: string
+          description: A code that controls how the perturbations are interpreted.  Must
+            be one of 'val'|'abs'|'rel'.  'val' indicates that perturbation value
+            is given directly in the changeValue; all others indicate functions that
+            are applied to the changeValue and evaluated in the context of the scenario's
+            baseline and portfolio data provided by the dataSource.  Note that for
+            instrumentVariables that are not numeric types, only 'val' is meaningful
+            although this cannot be enforced by the service.
+        changeValue:
+          type: string
+          description: A shock value for the instrument variable.
+        ruleType:
+          type: string
+          description: A code that controls how the perturbation is applied to the
+            portofilio. Must be one of 'instid'|'insttype'|'filter'.  'instid' describes
+            a specific financial instrument in the portfolio.  'insttype' describes
+            a type of financial instrument in the portfolio.  'filter' describes a
+            portfolio filter supplied by the data source
+        ruleValue:
+          type: string
+          description: Name associated with the ruleType field that indicates how
+            the perturbation is applied to the portfolio
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+  examples:
+    combinedFormat:
+      description: A simplfied scenario table format
+      value: |-
+        Scenario_Name,  State,  Date,      GDP
+        State GDP,      AL,     Q1 2020,   2.1
+        State GDP,      WY,     Q1 2020,   2.4
+    createScenario:
+      description: A scenario to be created
+      value:
+        name: Two Qtr GDP
+        label: Two Qtr GDP
+        periodType: QUARTER
+        shock: false
+        stressTypes:
+        - INSTANTANEOUS_RISK_FACTOR_STRESS
+        asOfDate: "2020-01-01"
+        alignment: "S"
+        customAttributes:
+          name: Foo
+          count: "1"
+        periods:
+        - horizon: -1
+          periodType: QUARTER
+          date: "2020-01-01"
+        - horizon: -1
+          periodType: QUARTER
+          date: "2020-04-01"
+        stresses:
+        - variable: Real GDP Growth
+          perturbType: value
+          perturbations:
+          - 2.1
+          - 2.4
+        - variable: Nominal GDP Growth
+          perturbType: value
+          perturbations:
+          - 3.9
+          - 4.1
+    createScenarioSet:
+      description: A scenario set to be created
+      value:
+        name: Sample Set
+        asOfDate: "2020-01-01"
+        alignment: "S"
+        shockSet: false
+        scenarios:
+        - scenarioId: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+    createIRRBBShockSet:
+      description: An IRRBB shock set
+      value:
+        id: 12345678-1234-1234-1234-1234567890ab
+        name: IRRBB Shock Set
+        asOfDate: "2020-01-01"
+        alignment: "S"
+        shockSet: true
+        readOnly: true
+        systemGenerator: irrbb
+        applyTime: afterSmoothing
+        regulationId: IRRBB_US
+        scenarios:
+        - scenarioId: 090fb04a-3fd1-4ad0-b922-20e85f0d0933
+          scenarioName: IRRBB_STD1
+          scenarioVersion: Parallel Up
+        - scenarioId: e512e272-5f06-4b3e-8179-87b24a4ae5d6
+          scenarioName: IRRBB_STD2
+          scenarioVersion: Parallel Down
+        - scenarioId: ff00c5bf-a885-4d4b-991d-cc3fe37ea50c
+          scenarioName: IRRBB_STD3
+          scenarioVersion: Steepener
+        - scenarioId: 4767e227-015a-466e-8edf-48a73e4f5603
+          scenarioName: IRRBB_STD4
+          scenarioVersion: Flattener
+        - scenarioId: 4aa62cd1-8c91-474d-afb9-7de879f38f04
+          scenarioName: IRRBB_STD5
+          scenarioVersion: Short Up
+        - scenarioId: fe58de1b-e19b-403f-bd8c-7b0712e94119
+          scenarioName: IRRBB_STD6
+          scenarioVersion: Short Down
+    curveNameList:
+      description: A list of curve names
+      value:
+      - USD_GOVT_IR
+      - EUR_GOVT_IR
+      - UK_GOVT_IR
+    dateBasedFormat:
+      description: A simplfied scenario table format
+      value: |-
+        Scenario_Name, Date,    Real GDP growth, Nominal GDP growth
+        Two Qtr GDP,   Q1 2020,             2.1,                3.9
+        Two Qtr GDP,   Q2 2020,             2.4,                4.1
+    dateCollection:
+      description: An ordered collection of dates
+      value:
+        name: dates
+        accept: text/plain
+        start: 0
+        count: 2
+        limit: 2
+        items:
+        - "2020-01-01"
+        - "2020-03-01"
+    error:
+      value:
+        message: An error message
+        errorCode: 1234567
+        httpStatusCode: 4xx
+        version: 2
+      description: a typical error response
+    expandedFormat:
+      description: Default scenario table format
+      value: |-
+        Scenario_Name, Date,       Variable,           Change_Type, Change
+        Two Qtr GDP,   2020-01-01, Real GDP growth,    VALUE,          2.1
+        Two Qtr GDP,   2020-01-01, Nominal GDP growth, VALUE,          3.9
+        Two Qtr GDP,   2020-04-01, Real GDP growth,    VALUE,          2.4
+        Two Qtr GDP,   2020-04-01, Nominal GDP growth, VALUE,          4.1
+    idList:
+      description: a list of scenario id's
+      value:
+      - 11111111-1111-1111-1111-111111111111
+      - 22222222-2222-2222-2222-222222222222
+      - 33333333-3333-3333-3333-333333333333
+    importScenarios:
+      description: An array of scenarios to be created/updated.
+      value:
+      - name: Two Qtr GDP
+        label: Two Qtr GDP
+        periodType: QUARTER
+        stressTypes:
+        - INSTANTANEOUS_RISK_FACTOR_STRESS
+        asOfDate: "2020-01-01"
+        alignment: "S"
+        customAttributes:
+          name: Foo
+          count: "1"
+        periods:
+        - horizon: -1
+          periodType: QUARTER
+          date: "2020-01-01"
+        - horizon: -1
+          periodType: QUARTER
+          date: "2020-04-01"
+        stresses:
+        - variable: Real GDP Growth
+          perturbType: value
+          perturbations:
+          - 2.1
+          - 2.4
+        - variable: Nominal GDP Growth
+          perturbType: value
+          perturbations:
+          - 3.9
+          - 4.1
+    importScenariosCollection:
+      description: A collection of scenarios to be created/updated.
+      value:
+        items:
+        - name: Two Qtr GDP
+          label: Two Qtr GDP
+          periodType: QUARTER
+          stressTypes:
+          - INSTANTANEOUS_RISK_FACTOR_STRESS
+          asOfDate: "2020-01-01"
+          alignment: "S"
+          customAttributes:
+            name: Foo
+            count: "1"
+          periods:
+          - horizon: -1
+            periodType: QUARTER
+            date: "2020-01-01"
+          - horizon: -1
+            periodType: QUARTER
+            date: "2020-04-01"
+          stresses:
+          - variable: Real GDP Growth
+            perturbType: value
+            perturbations:
+            - 2.1
+            - 2.4
+          - variable: Nominal GDP Growth
+            perturbType: value
+            perturbations:
+            - 3.9
+            - 4.1
+    jsonPatch:
+      description: Patch delete scenarios
+      value:
+      - op: remove
+        path: /11111111-1111-1111-1111-111111111111
+      - op: remove
+        path: /22222222-2222-2222-2222-222222222222
+      - op: remove
+        path: /33333333-3333-3333-3333-333333333333
+    rootLinks:
+      description: The root links of the Risk Business Evolution Plans API.
+      value:
+        links:
+        - method: GET
+          rel: scenarioSummaries
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+        - method: GET
+          rel: scenarios
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.scenario
+        - method: GET
+          rel: fixedFormatScenarios
+          href: /riskScenarios/scenarios?asOfDate={asOfDate}
+          uri: /riskScenarios/scenarios?asOfDate={asOfDate}
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.scenario.fixed
+        - method: GET
+          rel: scenariosAsCsv
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: text/csv
+        - method: POST
+          rel: createScenario
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/vnd.sas.risk.scenario
+          responseType: application/vnd.sas.risk.scenario
+        - method: POST
+          rel: importScenariosFromMultipartFile
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: multipart/form-data
+          responseType: application/vnd.sas.risk.scenario.creation.report
+        - method: POST
+          rel: importScenariosFromLocation
+          href: /riskScenarios/scenarios?locationType={0}&location={1}&fileName={2}
+          uri: /riskScenarios/scenarios?locationType={0}&location={1}&fileName={2}
+          responseType: application/vnd.sas.risk.scenario.creation.report
+        - method: POST
+          rel: importScenariosFromCollection
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/vnd.sas.collection
+          responseType: application/vnd.sas.risk.scenario.creation.report
+          itemType: application/vnd.sas.risk.scenario
+        - method: POST
+          rel: importScenariosFromJson
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/json
+          responseType: application/vnd.sas.risk.scenario.creation.report
+        - method: PATCH
+          rel: multiDelete
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/json-patch+json
+          responseType: application/vnd.sas.collection
+        - method: POST
+          rel: reportScenariosInMultipartFile
+          href: /riskScenarios/scenarios/report
+          uri: /riskScenarios/scenarios/report
+          type: multipart/form-data
+          responseType: application/vnd.sas.risk.scenario.import.report
+        - method: POST
+          rel: reportScenariosInJson
+          href: /riskScenarios/scenarios/report
+          uri: /riskScenarios/scenarios/report
+          type: application/json
+          responseType: application/vnd.sas.risk.scenario.import.report
+        - method: POST
+          rel: reportScenariosAtLocation
+          href: /riskScenarios/scenarios/report?locationType={0}&location={1}&fileName={2}
+          uri: /riskScenarios/scenarios/report?locationType={0}&location={1}&fileName={2}
+          responseType: application/vnd.sas.risk.scenario.import.report
+        - method: POST
+          rel: exportScenariosCollectionToLocation
+          href: /riskScenarios/scenarios/export?locationType={0}&location={1}&fileName={2}
+          uri: /riskScenarios/scenarios/export?locationType={0}&location={1}&fileName={2}
+          type: application/vnd.sas.collection
+          responseType: application/vnd.sas.risk.scenario.export.report
+          itemType: application/vnd.sas.risk.scenario
+        - method: POST
+          rel: exportScenariosToLocation
+          href: /riskScenarios/scenarios/export?locationType={0}&location={1}&fileName={2}
+          uri: /riskScenarios/scenarios/export?locationType={0}&location={1}&fileName={2}
+          type: application/json
+          responseType: application/vnd.sas.risk.scenario.export.report
+        - method: POST
+          rel: exportScenariosAsCsv
+          href: /riskScenarios/scenarios/export?fileName={0}
+          uri: /riskScenarios/scenarios/export?fileName={0}
+          type: application/json
+          responseType: text/csv
+        - method: GET
+          rel: scenarioContext
+          href: /riskScenarios/scenarioContext
+          uri: /riskScenarios/scenarioContext
+        - method: GET
+          rel: computeIntervals
+          href: /riskScenarios/util/intervals/{intervalType}?asOfDate={asOfDate}&start={start}&end={end}&alignment={alignment}
+          uri: /riskScenarios/util/intervals/{intervalType}?asOfDate={asOfDate}&start={start}&end={end}&alignment={alignment}
+          type: application/vnd.sas.collection
+          itemType: text/plain
+        - method: GET
+          rel: scenarioSets
+          href: /riskScenarios/scenarioSets
+          uri: /riskScenarios/scenarioSets
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.scenario.set
+        - method: POST
+          rel: createScenarioSet
+          href: /riskScenarios/scenarioSets
+          uri: /riskScenarios/scenarioSets
+          type: application/vnd.sas.risk.scenario.set
+          responseType: application/vnd.sas.risk.scenario.set
+        - method: POST
+          rel: materializedScenarioData
+          href: /riskScenarios/scenarioSets/materializedScenarioData
+          uri: /riskScenarios/scenarioSets/materializedScenarioData
+          type: application/vnd.sas.risk.scenario.materialized.data.request
+        version: 1
+    scenario:
+      description: A fully specified scenario
+      value:
+        id: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+        name: Two Qtr GDP
+        label: Two Qtr GDP
+        periodType: QUARTER
+        shock: false
+        stressTypes:
+        - INSTANTANEOUS_RISK_FACTOR_STRESS
+        asOfDate: "2020-01-01"
+        alignment: "S"
+        customAttributes:
+          name: Foo
+          count: "1"
+        periods:
+        - horizon: -1
+          periodType: QUARTER
+          date: "2020-01-01"
+        - horizon: -1
+          periodType: QUARTER
+          date: "2020-04-01"
+        stresses:
+        - variable: Real GDP Growth
+          perturbType: value
+          perturbations:
+          - 2.1
+          - 2.4
+        - variable: Nominal GDP Growth
+          perturbType: value
+          perturbations:
+          - 3.9
+          - 4.1
+        modifiedBy: riskuser
+        modifiedByName: Risk User
+        modifiedTimeStamp: "2021-09-27T19:05:33.989Z"
+        createdBy: riskuser
+        createdByName: Risk User
+        creationTimeStamp: "2021-09-27T19:05:33.989Z"
+        version: 1
+        links:
+        - method: GET
+          rel: up
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: self
+          href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          type: application/vnd.sas.risk.scenario
+        - method: GET
+          rel: alternate
+          href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          type: application/vnd.sas.risk.scenario.summary
+        - method: GET
+          rel: fixedFormatScenario
+          href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+          uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+          type: application/vnd.sas.risk.scenario.fixed
+        - method: GET
+          rel: scenarioAsCsv
+          href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          type: text/csv
+        - method: PUT
+          rel: lock
+          href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+          uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+        - method: DELETE
+          rel: delete
+          href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+        - method: GET
+          rel: scenarioContext
+          href: /riskScenarios/scenarioContext
+          uri: /riskScenarios/scenarioContext
+    scenarioCreationReport:
+      description: A report on the effects of importing a set of scenarios.
+      value:
+        scenarios:
+        - id: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          name: Two Qtr GDP
+          label: Two Qtr GDP
+          periodType: QUARTER
+          shock: false
+          stressTypes:
+          - INSTANTANEOUS_RISK_FACTOR_STRESS
+          asOfDate: "2020-01-01"
+          modifiedBy: riskuser
+          modifiedByName: Risk User
+          modifiedTimeStamp: "2021-09-27T19:05:33.989Z"
+          createdBy: riskuser
+          createdByName: Risk User
+          creationTimeStamp: "2021-09-27T19:05:33.989Z"
+          version: 1
+          links:
+          - method: GET
+            rel: up
+            href: /riskScenarios/scenarios
+            uri: /riskScenarios/scenarios
+            type: application/vnd.sas.collection
+          - method: GET
+            rel: self
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: application/vnd.sas.risk.scenario
+          - method: GET
+            rel: alternate
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: application/vnd.sas.risk.scenario.summary
+          - method: GET
+            rel: fixedFormatScenario
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+            type: application/vnd.sas.risk.scenario.fixed
+          - method: GET
+            rel: scenarioAsCsv
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: text/csv
+          - method: PUT
+            rel: lock
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+          - method: DELETE
+            rel: delete
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          - method: GET
+            rel: scenarioContext
+            href: /riskScenarios/scenarioContext
+            uri: /riskScenarios/scenarioContext
+        scenarioSets:
+        - id: 92f95bcd-3bfe-4086-9026-bb34070451de
+          name: Sample Set
+          asOfDate: "2020-01-01"
+          alignment: "S"
+          shockSet: false
+          scenarios:
+          - scenarioIds: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          customAttributes:
+            name: Foo
+            count: "1"
+          modifiedBy: riskuser
+          modifiedTimeStamp: "2021-09-27T19:05:33.989Z"
+          createdBy: riskuser
+          creationTimeStamp: "2021-09-27T19:05:33.989Z"
+        scenarioSet:
+          id: 92f95bcd-3bfe-4086-9026-bb34070451de
+          name: Sample Set
+          asOfDate: "2020-01-01"
+          alignment: "S"
+          shockSet: false
+          scenarios:
+          - scenarioIds: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          customAttributes:
+            name: Foo
+            count: "1"
+          modifiedBy: riskuser
+          modifiedTimeStamp: "2021-09-27T19:05:33.989Z"
+          createdBy: riskuser
+          creationTimeStamp: "2021-09-27T19:05:33.989Z"
+        version: 1
+        links:
+        - method: GET
+          rel: scenarios
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.scenario.summary
+    scenarioCollection:
+      description: A collection of scenario representations
+      value:
+        name: scenarios
+        accept: application/vnd.sas.risk.scenario+json
+        start: 0
+        count: 1
+        limit: 1
+        items:
+        - id: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          name: Two Qtr GDP
+          label: Two Qtr GDP
+          periodType: QUARTER
+          shock: false
+          stressTypes:
+          - INSTANTANEOUS_RISK_FACTOR_STRESS
+          asOfDate: "2020-01-01"
+          alignment: "S"
+          customAttributes:
+            name: Foo
+            count: "1"
+          periods:
+          - horizon: -1
+            periodType: QUARTER
+            date: "2020-01-01"
+          - horizon: -1
+            periodType: QUARTER
+            date: "2020-04-01"
+          stresses:
+          - variable: Real GDP Growth
+            perturbType: value
+            perturbations:
+            - 2.1
+            - 2.4
+          - variable: Nominal GDP Growth
+            perturbType: value
+            perturbations:
+            - 3.9
+            - 4.1
+          modifiedBy: riskuser
+          modifiedByName: Risk User
+          modifiedTimeStamp: "2021-09-27T19:05:33.989Z"
+          createdBy: riskuser
+          createdByName: Risk User
+          creationTimeStamp: "2021-09-27T19:05:33.989Z"
+          version: 1
+          links:
+          - method: GET
+            rel: up
+            href: /riskScenarios/scenarios
+            uri: /riskScenarios/scenarios
+            type: application/vnd.sas.collection
+          - method: GET
+            rel: self
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: application/vnd.sas.risk.scenario
+          - method: GET
+            rel: alternate
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: application/vnd.sas.risk.scenario.summary
+          - method: GET
+            rel: fixedFormatScenario
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+            type: application/vnd.sas.risk.scenario.fixed
+          - method: GET
+            rel: scenarioAsCsv
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: text/csv
+          - method: PUT
+            rel: lock
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+          - method: DELETE
+            rel: delete
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          - method: GET
+            rel: scenarioContext
+            href: /riskScenarios/scenarioContext
+            uri: /riskScenarios/scenarioContext
+        version: 2
+        links:
+        - method: GET
+          rel: scenarios
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.scenario
+        - method: GET
+          rel: fixedFormatScenarios
+          href: /riskScenarios/scenarios?asOfDate={asOfDate}
+          uri: /riskScenarios/scenarios?asOfDate={asOfDate}
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.scenario.fixed
+        - method: GET
+          rel: scenariosAsCsv
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: text/csv
+        - method: POST
+          rel: createScenario
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/vnd.sas.risk.scenario
+          responseType: application/vnd.sas.risk.scenario
+        - method: POST
+          rel: importScenariosFromMultipartFile
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: multipart/form-data
+          responseType: application/vnd.sas.risk.scenario.creation.report
+        - method: POST
+          rel: importScenariosFromLocation
+          href: /riskScenarios/scenarios?locationType={0}&location={1}&fileName={2}
+          uri: /riskScenarios/scenarios?locationType={0}&location={1}&fileName={2}
+          responseType: application/vnd.sas.risk.scenario.creation.report
+        - method: POST
+          rel: importScenariosFromCollection
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/vnd.sas.collection
+          responseType: application/vnd.sas.risk.scenario.creation.report
+          itemType: application/vnd.sas.risk.scenario
+        - method: POST
+          rel: importScenariosFromJson
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/json
+          responseType: application/vnd.sas.risk.scenario.creation.report
+        - method: POST
+          rel: reportScenariosInMultipartFile
+          href: /riskScenarios/scenarios/report
+          uri: /riskScenarios/scenarios/report
+          type: multipart/form-data
+          responseType: application/vnd.sas.risk.scenario.import.report
+        - method: POST
+          rel: reportScenariosInJson
+          href: /riskScenarios/scenarios/report
+          uri: /riskScenarios/scenarios/report
+          type: application/json
+          responseType: application/vnd.sas.risk.scenario.import.report
+        - method: POST
+          rel: reportScenariosAtLocation
+          href: /riskScenarios/scenarios/report?locationType={0}&location={1}&fileName={2}
+          uri: /riskScenarios/scenarios/report?locationType={0}&location={1}&fileName={2}
+          responseType: application/vnd.sas.risk.scenario.import.report
+        - method: POST
+          rel: exportScenariosCollectionToLocation
+          href: /riskScenarios/scenarios/export?locationType={0}&location={1}&fileName={2}
+          uri: /riskScenarios/scenarios/export?locationType={0}&location={1}&fileName={2}
+          type: application/vnd.sas.collection
+          responseType: application/vnd.sas.risk.scenario.export.report
+          itemType: application/vnd.sas.risk.scenario
+        - method: POST
+          rel: exportScenariosToLocation
+          href: /riskScenarios/scenarios/export?locationType={0}&location={1}&fileName={2}
+          uri: /riskScenarios/scenarios/export?locationType={0}&location={1}&fileName={2}
+          type: application/json
+          responseType: application/vnd.sas.risk.scenario.export.report
+        - method: POST
+          rel: exportScenariosAsCsv
+          href: /riskScenarios/scenarios/export?fileName={0}
+          uri: /riskScenarios/scenarios/export?fileName={0}
+          type: application/json
+          responseType: text/csv
+    scenarioContext:
+      description: Information required for the evaluation of risk scenarios.
+      value:
+        name: Scenario Repository
+        label: Scenario Repository
+        runDate: "2021-10-20"
+        alignment: S
+        version: 2
+        links:
+        - method: GET
+          rel: self
+          href: /riskScenarios/scenarioContext
+          uri: /riskScenarios/scenarioContext
+          type: application/vnd.sas.risk.scenario.context
+        - method: POST
+          rel: queryHistory
+          href: /riskMarket/variables/history
+          uri: /riskMarket/variables/history
+          type: application/json
+          responseType: application/vnd.sas.data.row.set
+        - method: GET
+          rel: riskFactorTree
+          href: /riskMarket/riskFactorTree/members
+          uri: /riskMarket/riskFactorTree/members
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: instrumentVariableTree
+          href: /riskMarket/instrumentVariableTree/members
+          uri: /riskMarket/instrumentVariableTree/members
+          type: application/vnd.sas.collection
+        - method: POST
+          rel: variableDefinitions
+          href: /riskMarket/variables
+          uri: /riskMarket/variables
+          type: application/json
+          responseType: application/json
+    scenarioExportReport:
+      description: A report of scenarios that have been exported to a location in
+        SASDrive or to a CAS server.
+      value:
+        location: public
+        fileName: ScenarioTable
+        locationType: LIBNAME
+        scenariosExported:
+        - id: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          name: Two Qtr GDP
+          label: Two Qtr GDP
+          periodType: QUARTER
+          shock: false
+          stressTypes:
+          - INSTANTANEOUS_RISK_FACTOR_STRESS
+          asOfDate: "2020-01-01"
+          alignment: "S"
+          customAttributes:
+            name: Foo
+            count: "1"
+          periods:
+          - horizon: -1
+            periodType: QUARTER
+            date: "2020-01-01"
+          - horizon: -1
+            periodType: QUARTER
+            date: "2020-04-01"
+          stresses:
+          - variable: Real GDP Growth
+            perturbType: value
+            perturbations:
+            - 2.1
+            - 2.4
+          - variable: Nominal GDP Growth
+            perturbType: value
+            perturbations:
+            - 3.9
+            - 4.1
+          modifiedBy: riskuser
+          modifiedByName: Risk User
+          modifiedTimeStamp: "2021-09-27T19:05:33.989Z"
+          createdBy: riskuser
+          createdByName: Risk User
+          creationTimeStamp: "2021-09-27T19:05:33.989Z"
+          version: 1
+          links:
+          - method: GET
+            rel: up
+            href: /riskScenarios/scenarios
+            uri: /riskScenarios/scenarios
+            type: application/vnd.sas.collection
+          - method: GET
+            rel: self
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: application/vnd.sas.risk.scenario
+          - method: GET
+            rel: alternate
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: application/vnd.sas.risk.scenario.summary
+          - method: GET
+            rel: fixedFormatScenario
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+            type: application/vnd.sas.risk.scenario.fixed
+          - method: GET
+            rel: scenarioAsCsv
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: text/csv
+          - method: PUT
+            rel: lock
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+          - method: DELETE
+            rel: delete
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          - method: GET
+            rel: scenarioContext
+            href: /riskScenarios/scenarioContext
+            uri: /riskScenarios/scenarioContext
+    scenarioImportReport:
+      description: A report contents of an importable resource.
+      value:
+      - - id: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          name: Two Qtr GDP
+          label: Two Qtr GDP
+          periodType: QUARTER
+          shock: false
+          stressTypes:
+          - INSTANTANEOUS_RISK_FACTOR_STRESS
+          asOfDate: "2020-01-01"
+          alignment: "S"
+          customAttributes:
+            name: Foo
+            count: "1"
+          periods:
+          - horizon: -1
+            periodType: QUARTER
+            date: "2020-01-01"
+          - horizon: -1
+            periodType: QUARTER
+            date: "2020-04-01"
+          stresses:
+          - variable: Real GDP Growth
+            perturbType: value
+            perturbations:
+            - 2.1
+            - 2.4
+          - variable: Nominal GDP Growth
+            perturbType: value
+            perturbations:
+            - 3.9
+            - 4.1
+          modifiedBy: riskuser
+          modifiedByName: Risk User
+          modifiedTimeStamp: "2021-09-27T19:05:33.989Z"
+          createdBy: riskuser
+          createdByName: Risk User
+          creationTimeStamp: "2021-09-27T19:05:33.989Z"
+          version: 1
+          links:
+          - method: GET
+            rel: up
+            href: /riskScenarios/scenarios
+            uri: /riskScenarios/scenarios
+            type: application/vnd.sas.collection
+          - method: GET
+            rel: self
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: application/vnd.sas.risk.scenario
+          - method: GET
+            rel: alternate
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: application/vnd.sas.risk.scenario.summary
+          - method: GET
+            rel: fixedFormatScenario
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+            type: application/vnd.sas.risk.scenario.fixed
+          - method: GET
+            rel: scenarioAsCsv
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: text/csv
+          - method: PUT
+            rel: lock
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+          - method: DELETE
+            rel: delete
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          - method: GET
+            rel: scenarioContext
+            href: /riskScenarios/scenarioContext
+            uri: /riskScenarios/scenarioContext
+    scenarioSet:
+      description: A scenario set
+      value:
+        id: 92f95bcd-3bfe-4086-9026-bb34070451de
+        name: Sample Set
+        asOfDate: "2020-01-01"
+        alignment: "S"
+        customAttributes:
+          name: Foo
+          count: "1"
+        shockSet: false
+        riskShiftType: applyZeroShock
+        applyTime: onRawData
+        regulationId: IRRBB_US
+        scenarios:
+        - scenarioIds: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+        modifiedBy: riskuser
+        modifiedTimeStamp: "2021-09-27T19:05:33.989Z"
+        createdBy: riskuser
+        creationTimeStamp: "2021-09-27T19:05:33.989Z"
+        version: 1
+        links:
+        - method: GET
+          rel: up
+          href: /riskScenarios/scenarioSets
+          uri: /riskScenarios/scenarioSets
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.scenario.set
+        - method: GET
+          rel: self
+          href: /riskScenarios/scenarioSets/92f95bcd-3bfe-4086-9026-bb34070451de
+          uri: /riskScenarios/scenarioSets/92f95bcd-3bfe-4086-9026-bb34070451de
+          type: application/vnd.sas.risk.scenario.set
+    scenarioSetReport:
+      description: A list of scenarios in the scenario set
+      value: |-
+        Content-Disposition: form-data; name="file"; filename="scenarioSet.csv"
+        ScenarioName,Scenario_Version,Weight
+        Sce1,v1,0.5
+    scenarioSummary:
+      description: A scenario in summary form
+      value:
+        id: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+        name: Two Qtr GDP
+        label: Two Qtr GDP
+        periodType: QUARTER
+        shock: false
+        stressTypes:
+        - INSTANTANEOUS_RISK_FACTOR_STRESS
+        asOfDate: "2020-01-01"
+        alignment: "S"
+        customAttributes:
+          name: Foo
+          count: "1"
+        modifiedBy: riskuser
+        modifiedByName: Risk User
+        modifiedTimeStamp: "2021-09-27T19:05:33.989Z"
+        createdBy: riskuser
+        createdByName: Risk User
+        creationTimeStamp: "2021-09-27T19:05:33.989Z"
+        version: 1
+        links:
+        - method: GET
+          rel: up
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: self
+          href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          type: application/vnd.sas.risk.scenario
+        - method: GET
+          rel: alternate
+          href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          type: application/vnd.sas.risk.scenario.summary
+        - method: GET
+          rel: fixedFormatScenario
+          href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+          uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+          type: application/vnd.sas.risk.scenario.fixed
+        - method: GET
+          rel: scenarioAsCsv
+          href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          type: text/csv
+        - method: PUT
+          rel: lock
+          href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+          uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+        - method: DELETE
+          rel: delete
+          href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+        - method: GET
+          rel: scenarioContext
+          href: /riskScenarios/scenarioContext
+          uri: /riskScenarios/scenarioContext
+    scenarioSetCollection:
+      description: A collection of scenario sets
+      value:
+        name: scenario sets
+        accept: application/vnd.sas.risk.scenario.set+json
+        start: 0
+        limit: 1
+        count: 1
+        items:
+        - id: 92f95bcd-3bfe-4086-9026-bb34070451de
+          name: Sample Set
+          asOfDate: "2020-01-01"
+          alignment: "S"
+          customAttributes:
+            name: Foo
+            count: "1"
+          shockSet: false
+          riskShiftType: excludeFromShifts
+          applyTime: afterSmoothing
+          regulationId: IRRBB_US
+          scenarios:
+          - scenarioIds: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          modifiedBy: riskuser
+          modifiedTimeStamp: "2021-09-27T19:05:33.989Z"
+          createdBy: riskuser
+          creationTimeStamp: "2021-09-27T19:05:33.989Z"
+          version: 1
+          links:
+          - method: GET
+            rel: up
+            href: /riskScenarios/scenarioSets
+            uri: /riskScenarios/scenarioSets
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.risk.scenario.set
+          - method: GET
+            rel: self
+            href: /riskScenarios/scenarioSets/92f95bcd-3bfe-4086-9026-bb34070451de
+            uri: /riskScenarios/scenarioSets/92f95bcd-3bfe-4086-9026-bb34070451de
+            type: application/vnd.sas.risk.scenario.set
+        version: 2
+        links:
+        - method: GET
+          rel: self
+          href: /riskScenarios/scenarioSets
+          uri: /riskScenarios/scenarioSets
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.scenario.set
+        - method: GET
+          rel: scenarioSets
+          href: /riskScenarios/scenarioSets
+          uri: /riskScenarios/scenarioSets
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.scenario.set
+        - method: POST
+          rel: createScenarioSet
+          href: /riskScenarios/scenarioSets
+          uri: /riskScenarios/scenarioSets
+          type: application/vnd.sas.risk.scenario.set
+          responseType: application/vnd.sas.risk.scenario.set
+    scenarioSummaryCollection:
+      description: A collection of scenario summary representations.
+      value:
+        name: scenarios
+        accept: application/vnd.sas.risk.scenario.summary+json
+        start: 0
+        count: 1
+        limit: 1
+        items:
+        - id: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          name: Two Qtr GDP
+          label: Two Qtr GDP
+          periodType: QUARTER
+          shock: false
+          stressTypes:
+          - INSTANTANEOUS_RISK_FACTOR_STRESS
+          asOfDate: "2020-01-01"
+          modifiedBy: riskuser
+          modifiedByName: Risk User
+          modifiedTimeStamp: "2021-09-27T19:05:33.989Z"
+          createdBy: riskuser
+          createdByName: Risk User
+          creationTimeStamp: "2021-09-27T19:05:33.989Z"
+          version: 1
+          links:
+          - method: GET
+            rel: up
+            href: /riskScenarios/scenarios
+            uri: /riskScenarios/scenarios
+            type: application/vnd.sas.collection
+          - method: GET
+            rel: self
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: application/vnd.sas.risk.scenario
+          - method: GET
+            rel: alternate
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: application/vnd.sas.risk.scenario.summary
+          - method: GET
+            rel: fixedFormatScenario
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888?asOfDate={asOfDate}
+            type: application/vnd.sas.risk.scenario.fixed
+          - method: GET
+            rel: scenarioAsCsv
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            type: text/csv
+          - method: PUT
+            rel: lock
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888/locked?value=true
+          - method: DELETE
+            rel: delete
+            href: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+            uri: /riskScenarios/scenarios/d04da0d8-30d1-42e1-a8c4-b52a3804e888
+          - method: GET
+            rel: scenarioContext
+            href: /riskScenarios/scenarioContext
+            uri: /riskScenarios/scenarioContext
+        version: 2
+        links:
+        - method: GET
+          rel: scenarios
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.scenario
+        - method: GET
+          rel: fixedFormatScenarios
+          href: /riskScenarios/scenarios?asOfDate={asOfDate}
+          uri: /riskScenarios/scenarios?asOfDate={asOfDate}
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.scenario.fixed
+        - method: GET
+          rel: scenariosAsCsv
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: text/csv
+        - method: POST
+          rel: createScenario
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/vnd.sas.risk.scenario
+          responseType: application/vnd.sas.risk.scenario
+        - method: POST
+          rel: importScenariosFromMultipartFile
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: multipart/form-data
+          responseType: application/vnd.sas.risk.scenario.creation.report
+        - method: POST
+          rel: importScenariosFromLocation
+          href: /riskScenarios/scenarios?locationType={0}&location={1}&fileName={2}
+          uri: /riskScenarios/scenarios?locationType={0}&location={1}&fileName={2}
+          responseType: application/vnd.sas.risk.scenario.creation.report
+        - method: POST
+          rel: importScenariosFromCollection
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/vnd.sas.collection
+          responseType: application/vnd.sas.risk.scenario.creation.report
+          itemType: application/vnd.sas.risk.scenario
+        - method: POST
+          rel: importScenariosFromJson
+          href: /riskScenarios/scenarios
+          uri: /riskScenarios/scenarios
+          type: application/json
+          responseType: application/vnd.sas.risk.scenario.creation.report
+        - method: POST
+          rel: reportScenariosInMultipartFile
+          href: /riskScenarios/scenarios/report
+          uri: /riskScenarios/scenarios/report
+          type: multipart/form-data
+          responseType: application/vnd.sas.risk.scenario.import.report
+        - method: POST
+          rel: reportScenariosInJson
+          href: /riskScenarios/scenarios/report
+          uri: /riskScenarios/scenarios/report
+          type: application/json
+          responseType: application/vnd.sas.risk.scenario.import.report
+        - method: POST
+          rel: reportScenariosAtLocation
+          href: /riskScenarios/scenarios/report?locationType={0}&location={1}&fileName={2}
+          uri: /riskScenarios/scenarios/report?locationType={0}&location={1}&fileName={2}
+          responseType: application/vnd.sas.risk.scenario.import.report
+        - method: POST
+          rel: exportScenariosCollectionToLocation
+          href: /riskScenarios/scenarios/export?locationType={0}&location={1}&fileName={2}
+          uri: /riskScenarios/scenarios/export?locationType={0}&location={1}&fileName={2}
+          type: application/vnd.sas.collection
+          responseType: application/vnd.sas.risk.scenario.export.report
+          itemType: application/vnd.sas.risk.scenario
+        - method: POST
+          rel: exportScenariosToLocation
+          href: /riskScenarios/scenarios/export?locationType={0}&location={1}&fileName={2}
+          uri: /riskScenarios/scenarios/export?locationType={0}&location={1}&fileName={2}
+          type: application/json
+          responseType: application/vnd.sas.risk.scenario.export.report
+        - method: POST
+          rel: exportScenariosAsCsv
+          href: /riskScenarios/scenarios/export?fileName={0}
+          uri: /riskScenarios/scenarios/export?fileName={0}
+          type: application/json
+          responseType: text/csv
+    updateScenario:
+      description: A scenario being updated
+      value:
+        id: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+        name: Two Qtr GDP
+        label: Two Qtr GDP
+        periodType: QUARTER
+        shock: false
+        stressTypes:
+        - INSTANTANEOUS_RISK_FACTOR_STRESS
+        asOfDate: "2020-01-01"
+        alignment: "S"
+        customAttributes:
+          name: Foo
+          count: "1"
+        periods:
+        - horizon: -1
+          periodType: QUARTER
+          date: "2020-01-01"
+        - horizon: -1
+          periodType: QUARTER
+          date: "2020-04-01"
+        stresses:
+        - variable: Real GDP Growth
+          perturbType: value
+          perturbations:
+          - 2.1
+          - 2.4
+        - variable: Nominal GDP Growth
+          perturbType: value
+          perturbations:
+          - 3.9
+          - 4.1
+    updateScenarioSet:
+      description: A scenario set to be updated
+      value:
+        id: 92f95bcd-3bfe-4086-9026-bb34070451de
+        name: Sample Set
+        asOfDate: "2020-01-01"
+        alignment: "S"
+        customAttributes:
+          name: Foo
+          count: "1"
+        shockSet: false
+        scenarios:
+        - scenarioIds: d04da0d8-30d1-42e1-a8c4-b52a3804e888
+    uploadScenarios:
+      description: The multipart/form-data carrying one or more scenarios
+      value: |-
+        ----------------------------650899151701838879636172
+        Content-Disposition: form-data; name="file"; filename="scenarios.csv"
+        <scenarios.csv>
+        ----------------------------650899151701838879636172--

@@ -1,0 +1,445 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: Links
+  description: >
+    The Links API facilitates building and executing common resource
+    links that will work across both Web and Mobile platforms. If the mobile
+    application is not installed the user is forwarded to the app store.
+    No authentication is required for the /resources and /mobileApps endpoints -
+    Users will be authenticated after redirection to the web or mobile target
+    application.
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+tags:
+- name: Root
+  description: The root operations for the service.
+- name: Resources
+  description: The operations for accessing a resource through the service.
+- name: MobileApps
+  description: The operations for accessing the mobile applications through the service.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: API top level root resource
+      operationId: root
+      description: Returns the set of links the service responds to.
+      responses:
+        "200":
+          headers:
+            Content-Type:
+              description: The content type of the file.
+              schema:
+                type: string
+          description: Version information about the API, as well as top level API
+            entry points.
+          content:
+            "application/vnd.sas.api+json":
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/linksroot"
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/linksroot"
+  /resources/{type}:
+    get:
+      tags:
+      - Resources
+      summary: Open resources for mobile or web app
+      operationId: getResourceRedirect
+      description: Used to open a particular resource for the object specific type
+        on mobile app or webb app. Service supports other object request parameters
+        and all other parameters will be passed on as is.
+      parameters:
+      - name: type
+        in: path
+        description: The object type of the resource (e.g. "report")
+        required: true
+        schema:
+          type: string
+      - name: uri
+        in: query
+        description: Resource uri
+        required: true
+        schema:
+          type: string
+          format: uri
+      responses:
+        "200":
+          headers:
+            Content-Type:
+              description: The content type of the file.
+              schema:
+                type: string
+          description: For platforms that don't require a redirect, the resource has
+            been opened.
+        "302":
+          description: Redirect to the correct URL to access the resource.
+          headers:
+            Location:
+              description: The URL for accessing the requested resource.
+              schema:
+                type: string
+        "400":
+          description: A required parameter was missing or invalid.
+          content:
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                missingUri:
+                  $ref: "#/components/examples/resourceMissingParameter"
+                invalidUri:
+                  $ref: "#/components/examples/resourceInvalidParameter"
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                missingUri:
+                  $ref: "#/components/examples/resourceMissingParameter"
+                invalidUri:
+                  $ref: "#/components/examples/resourceInvalidParameter"
+        "404":
+          description: The requested resource type is not supported.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                unknownResourceType:
+                  $ref: "#/components/examples/resourceNotSupported"
+                couldNotLocateApplication:
+                  $ref: "#/components/examples/resourceNoApplication"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                unknownResourceType:
+                  $ref: "#/components/examples/resourceNotSupported"
+                couldNotLocateApplication:
+                  $ref: "#/components/examples/resourceNoApplication"
+    head:
+      tags:
+      - Resources
+      summary: Open resources for mobile or web app
+      operationId: headersForResourceRedirect
+      description: Used to open a particular resource for the object specific type
+        on mobile app or webb app. Service supports other object request parameters
+        and all other parameters will be passed on as is.
+      parameters:
+      - name: type
+        in: path
+        description: The object type of the resource (e.g. "report")
+        required: true
+        schema:
+          type: string
+      - name: uri
+        in: query
+        description: Resource uri
+        required: true
+        schema:
+          type: string
+          format: uri
+      responses:
+        "200":
+          headers:
+            Content-Type:
+              description: The content type of the file.
+              schema:
+                type: string
+          description: For platforms that don't require a redirect, the resource has
+            been opened.
+        "302":
+          description: Redirect to the correct URL to access the resource.
+          headers:
+            Location:
+              description: The URL for accessing the requested resource.
+              schema:
+                type: string
+        "400":
+          description: A required parameter was missing or invalid.
+          content:
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                missingUri:
+                  $ref: "#/components/examples/resourceMissingParameter"
+                invalidUri:
+                  $ref: "#/components/examples/resourceInvalidParameter"
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                missingUri:
+                  $ref: "#/components/examples/resourceMissingParameter"
+                invalidUri:
+                  $ref: "#/components/examples/resourceInvalidParameter"
+        "404":
+          description: The requestede resource was not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                error:
+                  $ref: "#/components/examples/resourceNotSupported"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                error:
+                  $ref: "#/components/examples/resourceNotSupported"
+  /mobileApps/{appName}:
+    get:
+      tags:
+      - MobileApps
+      summary: Mobile app install and configure
+      operationId: getMobileApp
+      description: Facilitates installing and configuring registered mobile applications.
+        If not installed, it will link to the AppStore. Once installed, it will prompt
+        the user to establish a connection profile for the current server. For Version
+        1 the only supported appName is SASMobileBI.
+      parameters:
+      - name: appName
+        in: path
+        description: Mobile app
+        required: true
+        schema:
+          type: string
+          pattern: "^SASMobileBI$"
+      responses:
+        "200":
+          description: For platforms that don't require a redirect, the request succeeded.
+          headers:
+            Content-Type:
+              description: The content type of the file.
+              schema:
+                type: string
+        "302":
+          description: Redirect to the correct URL for accessing the mobile app.
+          headers:
+            Location:
+              description: The URL for accessing the mobile app.
+              schema:
+                type: string
+        "404":
+          description: Not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                error:
+                  $ref: "#/components/examples/mobileAppNotSupported"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                error:
+                  $ref: "#/components/examples/mobileAppNotSupported"
+    head:
+      tags:
+      - MobileApps
+      summary: Mobile app install and configure
+      operationId: headersForMobileApp
+      description: Facilitates installing and configuring registered mobile applications.
+        If not installed, it will link to the AppStore. Once installed, it will prompt
+        the user to establish a connection profile for the current server. For Version
+        1 the only supported appName is SASMobileBI.
+      parameters:
+      - name: appName
+        in: path
+        description: Mobile app
+        required: true
+        schema:
+          type: string
+          pattern: "^SASMobileBI$"
+      responses:
+        "200":
+          description: For platforms that don't require a redirect, the request succeeded.
+          headers:
+            Content-Type:
+              description: The content type of the file.
+              schema:
+                type: string
+        "302":
+          description: Redirect to the correct URL for accessing the mobile app.
+          headers:
+            Location:
+              description: The URL for accessing the mobile app.
+              schema:
+                type: string
+        "404":
+          description: Not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                error:
+                  $ref: "#/components/examples/mobileAppNotSupported"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                error:
+                  $ref: "#/components/examples/mobileAppNotSupported"
+servers:
+- url: http://example.com/links
+  description: local mock server
+components:
+  schemas:
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    error:
+      $ref: "#/components/schemas/error2"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+  examples:
+    linksroot:
+      description: List of endpoints for the links service.
+      value: {"version": 1, "links": [{"method": "GET", "rel": "getResourceRedirect",
+            "href": "/links/resources/{type}", "uri": "/links/resources/{type}", "type": "text/plain"},
+          {"method": "GET", "rel": "getMobileApp", "href": "/links/mobileApps/{appName}",
+            "uri": "/links/mobileApps/{appName}", "type": "text/plain"}]}
+    resourceMissingParameter:
+      description: An example response body for a resource request that was missing
+        a parameter.
+      value: {"version": 2, "httpStatusCode": 400, "message": "Bad Request", "details": [
+          "A URI parameter is required.", "path: /links/resources/report", "correlator:\
+            \ 5b05e2b7-9c1c-4b6e-8859-69712c919d67"]}
+    resourceInvalidParameter:
+      description: An example response body for a resource request that has an invalid
+        parameter.
+      value: {"version": 2, "httpStatusCode": 400, "message": "Bad Request", "details": [
+          "The URI parameter is invalid.", "path: /links/resources/report", "correlator:\
+            \ 3aa3634f-2b5a-47ec-89a2-c52196a35d4c"]}
+    resourceNoApplication:
+      description: An example response body for a resource request for an unsupported
+        resource type from a desktop agent.
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 10213, "message": "The\
+          \ following resource type is not supported: badResource", "details": ["path:\
+            \ /links/resources/badResource", "correlator: 8956acc0-1e6a-41c0-8e15-36ee09fd6eda"]}
+    resourceNotSupported:
+      description: An example response body for a resource request for an unsupported
+        resource type from a mobile agent.
+      value: {"version": 1, "httpStatusCode": 404, "errorCode": 15501, "message": "The\
+          \ following resource type is not supported: badResource", "details": ["path:\
+            \ /links/resources/badResource", "correlator: 8956acc0-1e6a-41c0-8e15-36ee09fd6eda"]}
+    mobileAppNotSupported:
+      description: An example response body for a mobile app request for an unsupported
+        mobile app.
+      value: {"version": 1, "httpStatusCode": 404, "errorCode": 15502, "message": "The\
+          \ following mobile app is not supported: badApp", "details": ["path: /links/mobileApps/badApp",
+          "correlator: 6b29aaed-5dec-4f19-a0e2-514d27ee564b"]}

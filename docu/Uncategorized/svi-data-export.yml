@@ -1,0 +1,617 @@
+---
+openapi: 3.0.3
+info:
+  version: '1'
+  title: Visual Investigator Data Export
+  description: >
+    The VI Data Export API supports exporting data from workspaces within VI to CAS
+    tables which can be submitted to VA to produce reports.  The API covers starting
+    and returning export jobs that have been supplied with any additional data, the
+    target server CASLib and name.  The API can also return the state of a given job.
+  license:
+    name: Terms of Use
+    url: 'https://www.sas.com/en_us/legal/copyright.html'
+  contact:
+    name: "SAS Developers"
+    email: "devex@sas.com"
+    url: "https://developer.sas.com"
+tags:
+- name: Root
+  description: The root of the API.
+- name: Export Job
+  description: Export Job related endpoints.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      operationId: root
+      summary: Get a list of top-level links
+      description: >
+        Returns a list of links to the top-level resources surfaced through this API.
+        This will include access to the "exportJob" resource which provides access
+        to get current jobs being run, and the ability to filter and sort these results.
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: '#/components/schemas/api'
+              examples:
+                api:
+                  $ref: '#/components/examples/api'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/api'
+              examples:
+                api:
+                  $ref: '#/components/examples/api'
+        "404":
+          description: Service is not available
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response404:
+                  $ref: '#/components/examples/error2Response404'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response404:
+                  $ref: '#/components/examples/error2Response404'
+    head:
+      tags:
+      - Root
+      summary: Get the headers for the API
+      description: Returns the headers for the API. Also used to determine whether
+        the service provided by the API is available.
+      operationId: headersForRoot
+      responses:
+        '200':
+          description: The request succeeded.
+  /exportJobs:
+    get:
+      tags:
+      - Export Job
+      operationId: getExportJob
+      summary: Get the current jobs within the service
+      description: >
+        Returns all jobs currently within the data-export service. The user can specify
+        start and limit for the number of jobs they wish to have returned from a given
+        query. The job can be sorted and filtered by passing in a string.
+      parameters:
+      - name: start
+        description: The index of the first path to include in the current page.
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        description: The index of the first path to include in the current page.
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+      - name: sortBy
+        description: The criteria by which to sort the export jobs
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: filter
+        description: The criteria by which to filter the export jobs
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: '#/components/schemas/exportJobCollection'
+              examples:
+                api:
+                  $ref: '#/components/examples/exportJobCollection'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/exportJobCollection'
+              examples:
+                api:
+                  $ref: '#/components/examples/exportJobCollection'
+        "404":
+          description: Service is not available.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response404:
+                  $ref: '#/components/examples/error2Response404'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response404:
+                  $ref: '#/components/examples/error2Response404'
+    head:
+      tags:
+      - Export Job
+      summary: Get the headers for the export job endpoint
+      description: Returns the headers for the export job endpoint. Also used to determine
+        whether the service provided by the export job is available.
+      operationId: headersForExportJob
+      parameters:
+      - name: start
+        description: The index of the first path to include in the current page.
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        description: The index of the first path to include in the current page.
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+      - name: sortBy
+        description: The criteria by which to sort the export jobs
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: filter
+        description: The criteria by which to filter the export jobs
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The request succeeded.
+    post:
+      tags:
+      - Export Job
+      operationId: startJob
+      summary: Start job from given request object
+      description: >
+        Start export job for given request object passed in as a request object. This
+        will return a export job in the response which will contain the current jobs
+        state and id so it can be tracked.
+      parameters:
+      - name: request
+        description: The object which will used within the export job.
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/exportRequest'
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/vnd.sas.investigation.data.export.job+json:
+              schema:
+                $ref: '#/components/schemas/exportJob'
+              examples:
+                exportJobSuccess:
+                  $ref: '#/components/examples/exportJobSuccess'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/exportJob'
+              examples:
+                exportJobSuccess:
+                  $ref: '#/components/examples/exportJobSuccess'
+  '/exportJobs/{jobId}':
+    get:
+      summary: Get the current export job by id
+      tags:
+      - Export Job
+      operationId: getExportJobById
+      description: >
+        Return current export job by given ID.
+      parameters:
+      - name: jobId
+        description: Id of the export job to return.
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.investigation.data.export.job+json:
+              schema:
+                $ref: '#/components/schemas/exportJob'
+              examples:
+                exportJobSuccess:
+                  $ref: '#/components/examples/exportJobSuccess'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/exportJob'
+              examples:
+                exportJobSuccess:
+                  $ref: '#/components/examples/exportJobSuccess'
+    head:
+      tags:
+      - Export Job
+      summary: Get the headers for the API
+      description: Returns the headers for the /exportJobs/{id}. Also used to determine
+        whether the service provided by the /exportJobs/{id} is available.
+      operationId: headersForExportJobId
+      parameters:
+      - name: jobId
+        description: Id of the export job to return.
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The request succeeded.
+  '/exportJobs/{jobId}/state':
+    get:
+      tags:
+      - Export Job
+      summary: GET exportJobs/{id}/state
+      description: When passing in a given export job's id this end point will return
+        the current state of said job.
+      operationId: getExportJobState
+      parameters:
+      - name: jobId
+        description: Id of the export job to return.
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: pending
+    head:
+      tags:
+      - Export Job
+      summary: HEAD exportJobs/{id}/state
+      description: Returns the headers for the /exportJobs/{id}/state. Also used to
+        determine whether the service provided by the /exportJobs/{id}/state is available.
+      operationId: headersForGetExportJobState
+      parameters:
+      - name: jobId
+        in: path
+        description: Id of the export job to return.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+servers:
+- url: 'https://example.com/svi-data-export'
+  description: An example URL including the base path for this API.
+components:
+  parameters:
+    typeNameParameter:
+      name: typeName
+      in: path
+      description: This is the name of the existing object type.
+      required: true
+      schema:
+        type: string
+      example: annotation
+  schemas:
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+        links:
+          type: array
+          description: The API"s top-level links.
+          items:
+            $ref: '#/components/schemas/link'
+    link:
+      description: A link to a related operation or resource.
+      type: object
+      properties:
+        href:
+          description: The URL for the link.
+          type: string
+        itemType:
+          description: 'If this is a link to a container, `itemType` is the media
+            type or link type for the items in the container.'
+          type: string
+        method:
+          description: The HTTP method for the link.
+          type: string
+        rel:
+          description: The relationship of the link to the resource.
+          type: string
+        responseItemType:
+          description: 'The media type or link type of the items in the response body
+            for a PUT`, `POST`, or `PATCH` operation.'
+          type: string
+        responseType:
+          description: 'The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.'
+          type: string
+        title:
+          description: The title for the link.
+          type: string
+        type:
+          description: The media type or link type for the link.
+          type: string
+        uri:
+          description: The relative URI for the link.
+          type: string
+    error2:
+      description: The representation of an error.
+      type: object
+      properties:
+        details:
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+          type: array
+        errorCode:
+          description: The numeric ID for the error.
+          type: integer
+        errors:
+          description: Any additional errors that occurred.
+          items:
+            $ref: '#/components/schemas/error2'
+          type: array
+        httpStatusCode:
+          description: The HTTP status code for the error.
+          type: integer
+        id:
+          description: The string ID for the error.
+          type: string
+        links:
+          description: The links that apply to the error.
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+        message:
+          description: The message for the error.
+          type: string
+        remediation:
+          description: A message that describes how to resolve the error.
+          type: string
+        version:
+          description: The version number of the error representation. This representation
+            is version 2.
+          type: integer
+    exportJobCollection:
+      title: Export Job collection
+      description: A collection of export jobs.
+      allOf:
+      - $ref: '#/components/schemas/baseCollection2'
+      - type: object
+        properties:
+          items:
+            description: Array containing export job.
+            type: array
+            items:
+              $ref: '#/components/schemas/exportJob'
+    exportJob:
+      title: Export Job
+      type: object
+      description: The response from /exportJobs and /exportJobs/{id}, containing
+        the id, state, request, any error codes and result of the job.
+      properties:
+        id:
+          description: The Id of the export job.
+          type: string
+        state:
+          description: The current state of the export job.
+          type: string
+          enum:
+          - pending
+          - running
+          - complete
+          - failed
+        request:
+          $ref: '#/components/schemas/exportRequest'
+        error:
+          $ref: '#/components/schemas/error2'
+        result:
+          description: The result object returns the version of the API representation
+            and the table URI of the job.
+          type: object
+          properties:
+            version:
+              type: integer
+              description: The version number of the API representation. This is version
+                1.
+            tableUri:
+              description: The export tables uri.
+              type: string
+    baseCollection2:
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an "items"
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2).
+      type: object
+      properties:
+        accept:
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+          type: string
+        count:
+          description: If populated indicates the number of items in the collection.
+          format: int64
+          type: integer
+        limit:
+          description: The number of items that were requested for the collection.
+          type: integer
+        links:
+          description: The links that apply to the collection.
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+        name:
+          description: The name of the collection.
+          type: string
+        start:
+          description: The zero-based index of the first item in the collection.
+          format: int64
+          type: integer
+        version:
+          description: The version number of the collection representation. This representation
+            is version 2.
+          type: integer
+    exportField:
+      title: ExportField
+      description: A simple of object containing the names of different within an
+        export request.
+      required:
+      - name
+      properties:
+        name:
+          description: The name of a given field given as part of the export request.
+          type: string
+    exportRequest:
+      title: Export Request
+      type: object
+      required:
+      - type
+      - entityType
+      - objects
+      - fields
+      - caslib
+      - server
+      description: The request to the /exportJob endpoint for starting an export job.
+        Contains the type of export request, entities to export, objects to export,
+        fields to include in the export, target server, target caslib, target table
+        and options for dropping cas tables and promoting. It also includes an option
+        for any additional data to export.
+      properties:
+        type:
+          description: A string enum describing the type of export requested.
+          type: string
+          enum:
+          - objects
+          - childObjects
+          - transactions
+          - relationships
+        entityType:
+          description: A string describing the type of entities to export.
+          type: string
+        objects:
+          description: An array of objects that are to be exported.
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                description: Type of the object that is to be exported.
+                type: string
+              id:
+                description: Id of the object that is to be exported.
+                type: string
+        fields:
+          description: Array of fields to include in the export.
+          type: array
+          items:
+            $ref: '#/components/schemas/exportField'
+        server:
+          description: Target server for the export request. This should not be null
+            and will be checked that if it is accessible/exists.
+          type: string
+        caslib:
+          description: Target caslib for the export request. This should not be null
+            and will be checked if it accessible.
+          type: string
+        table:
+          description: Target table for the export request. This should not be null
+            and check it doesn't exist if dropTableIfExist is set to true. It will
+            also check if the table can be dropped.
+          type: string
+        dropTableIfExists:
+          description: Toggle for dropping the cas table if it exists.
+          type: boolean
+        promote:
+          description: Toggle for enabling promote.
+          type: boolean
+        additional:
+          description: Additional data to export with some kind of relationship.
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                description: Enum for additional data's relationship type.
+                type: string
+                enum:
+                - from
+                - to
+                - parent
+                - child
+              entityType:
+                description: Type of entities to be exported from the additional request.
+                type: string
+              fields:
+                description: Array of fields to be included.
+                type: array
+                items:
+                  $ref: '#/components/schemas/exportField'
+  examples:
+    api:
+      description: 'An example of the response from the /svi-network-analytics listing
+        the top level links'
+      value: {"version": 1, "links": [{"method": "POST", "rel": "centrality", "href": "/svi-network-analytics/centrality",
+            "uri": "/svi-network-analytics/centrality", "type": "application/vnd.sas.network.analytics.network",
+            "responseType": "application/vnd.sas.collection", "responseItemType": "application/vnd.sas.network.analytics.centrality.metrics"}]}
+    error2Response404:
+      description: 'An example of a 404 resource not found Error message.'
+      value: {"errorCode": "95144", "message": "No entity type was found with the\
+          \ name \"example\".", "id": "af180279-0181-44ce-b31e-bb649d0231a0", "links": [],
+        "version": 2, "httpStatusCode": 404}
+    exportJobCollection:
+      description: 'This media type defines the request for the /exportJob endpoint
+        that will return jobs within the service'
+      value: {"links": [{"method": "GET", "rel": "self", "href": "/svi-data-export/exportJobs?start=0&limit=10",
+            "uri": "/svi-data-export/exportJobs?start=0&limit=10", "type": "application/vnd.sas.collection"},
+          {"method": "GET", "rel": "collection", "href": "/svi-data-export/exportJobs",
+            "uri": "/svi-data-export/exportJobs", "type": "application/vnd.sas.collection"}],
+        "name": "exportJobs", "accept": "application/vnd.sas.investigation.data.export.job",
+        "start": 0, "count": 0, "items": [], "limit": 10, "version": 2}
+    exportJobSuccess:
+      description: 'This media type defines an example of a data export job'
+      value: {"links": [{"method": "GET", "rel": "self", "href": "/svi-data-export/exportJobs/09e7d704-958c-4fe3-9033-186fccf106b8",
+            "uri": "/svi-data-export/exportJobs/09e7d704-958c-4fe3-9033-186fccf106b8",
+            "type": "application/vnd.sas.investigation.data.export.job"}, {"method": "GET",
+            "rel": "state", "href": "/svi-data-export/exportJobs/09e7d704-958c-4fe3-9033-186fccf106b8/state",
+            "uri": "/svi-data-export/exportJobs/09e7d704-958c-4fe3-9033-186fccf106b8/state",
+            "type": "text/plain"}, {"method": "GET", "rel": "up", "href": "/svi-data-export/exportJobs",
+            "uri": "/svi-data-export/exportJobs", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.investigation.data.export.job"}, {"method": "GET",
+            "rel": "table", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(videmo)/tables/alerts",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(videmo)/tables/alerts",
+            "type": "application/vnd.sas.data.table"}], "version": 1, "createdBy": "videmo",
+        "creationTimeStamp": "2023-03-07T14:26:00.968Z", "modifiedBy": "videmo", "modifiedTimeStamp": "2023-03-07T14:26:02.046Z",
+        "id": "09e7d704-958c-4fe3-9033-186fccf106b8", "state": "complete", "request": {
+          "links": [], "version": 0, "type": "objects", "entityType": "alerts", "objects": [],
+          "fields": [], "server": "cas-shared-default", "caslib": "CASUSER(videmo)",
+          "table": "alerts", "dropTableIfExists": false, "promote": true, "additional": []},
+        "result": {"links": [], "version": 0, "tableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(videmo)/tables/alerts"}}

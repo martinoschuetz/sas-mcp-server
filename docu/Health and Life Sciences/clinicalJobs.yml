@@ -1,0 +1,2679 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: SAS Clinical Job Management
+  description: >
+    The SAS Clinical Jobs Management API enables you to manage clinical job
+    definitions and submit clinical jobs.
+  termsOfService: https://www.sas.com/en_us/legal/copyright.html
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+servers:
+- url: https://example.com/clinicalJobs
+  description: kubernetes mock server
+tags:
+- name: Root
+  description: The operations for the root resource.
+- name: Clinical Job Definitions
+  description: The operations for defining clinical jobs.
+- name: Clinical Job Submissions
+  description: The operations for submitting clinical jobs and monitoring submission
+    status and results.
+- name: Clinical Job Schedules
+  description: The operations for viewing clinical job schedules.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the links for the API
+      description: Returns the links to the top-level resources for the API.
+      operationId: root
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: Describes the representation of the collection response.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/apiResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/apiResponse"
+        "404":
+          description: The service is not available.
+    head:
+      tags:
+      - Root
+      summary: Get the headers for the API
+      description: >
+        Returns the headers for the API. Also determines whether the service
+        provided by the API is available.
+      operationId: headersForRoot
+      responses:
+        "200":
+          description: The service is running.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        "404":
+          description: The service is not available.
+  /definitions:
+    post:
+      tags:
+      - Clinical Job Definitions
+      summary: Create a new clinical job in the user's workspace
+      description: >
+        Creates a new clinical job with the specified clinical job contents in the
+        user's
+        workspace. The clinical job file is created with a '.cjob' file extension.
+      operationId: createClinicalJob
+      parameters:
+      - name: useRelativePaths
+        in: query
+        description: >
+          Specifies whether the paths referenced within the clinical job should
+          be saved as relative paths. Relative paths are relative to the clinical
+          job's location.  The default is true.
+        schema:
+          type: boolean
+        example: true
+      requestBody:
+        required: true
+        description: |
+          A clinical job with resource and attribute details.
+        content:
+          application/vnd.sas.clinical.job:
+            schema:
+              $ref: "#/components/schemas/clinicalJob"
+            examples:
+              json:
+                $ref: "#/components/schemas/clinicalJob/example"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/clinicalJob"
+            examples:
+              json:
+                $ref: "#/components/schemas/clinicalJob/example"
+      responses:
+        "201":
+          description: The request succeeded and the clinical job was created.
+          content:
+            application/vnd.sas.clinical.job:
+              schema:
+                $ref: "#/components/schemas/clinicalJob"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJob/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalJob"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJob/example"
+        "400":
+          description: Bad Request
+    patch:
+      tags:
+      - Clinical Job Definitions
+      summary: Update clinical job attributes
+      description: >
+        Updates the editable attributes of the specified clinical job definition
+        in the user's workspace.
+      operationId: patchClinicalJob
+      parameters:
+      - name: useRelativePaths
+        in: query
+        description: >
+          Specifies whether the paths referenced within the clinical job should
+          be saved as relative paths. Relative paths are relative to the clinical
+          job's location.  The default is true.
+        schema:
+          type: boolean
+        example: true
+      requestBody:
+        required: true
+        description: The attributes on the clinical job to update.
+        content:
+          application/vnd.sas.clinical.job:
+            schema:
+              $ref: "#/components/schemas/clinicalJob"
+            examples:
+              json:
+                $ref: "#/components/schemas/clinicalJob/example"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/clinicalJob"
+            examples:
+              json:
+                $ref: "#/components/schemas/clinicalJob/example"
+      responses:
+        "200":
+          description: OK - the clinical job was updated.
+          content:
+            application/vnd.sas.clinical.job:
+              schema:
+                $ref: "#/components/schemas/clinicalJob"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJob/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalJob"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJob/example"
+        "400":
+          description: Bad Request
+        "404":
+          description: Not found - the clinical job could not be found.
+  "/definitions/{path}":
+    x-sas-internal: true
+    get:
+      tags:
+      - Clinical Job Definitions
+      summary: Get the specified clinical job definition
+      description: >
+        Returns the specified clinical job definition from the specified
+        resource location. The resource location could be in the WORKSPACE or
+        REPOSITORY. <p><b>Authorization:</b>  The REPOSITORY resource location requires
+        READ permission.
+      operationId: getClinicalJobDefinition
+      parameters:
+      - $ref: '#/components/parameters/pathPathParameter'
+      - $ref: '#/components/parameters/resourceLocationParameter'
+      - $ref: '#/components/parameters/fileVersionParameter'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.clinical.job:
+              schema:
+                $ref: "#/components/schemas/clinicalJob"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJob/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalJob"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJob/example"
+        "404":
+          description: Not found - the specified clinical job could not be found.
+    head:
+      tags:
+      - Clinical Job Definitions
+      summary: Determine whether the specified clinical job exists at the specified
+        location
+      description: >
+        Checks whether the specified clinical job exists at the resource
+        location. <p><b>Authorization:</b> The REPOSITORY resource location requires
+        READ permission.
+      operationId: headersForClinicalJob
+      parameters:
+      - $ref: '#/components/parameters/pathPathParameter'
+      - $ref: '#/components/parameters/resourceLocationParameter'
+      - $ref: '#/components/parameters/fileVersionParameter'
+      responses:
+        "200":
+          description: OK - the clinical job exists.
+        "404":
+          description: Not found - the specified clinical job could not be found.
+  "/repository/definitions/{itemId}":
+    get:
+      tags:
+      - Clinical Job Definitions
+      summary: Get the specified clinical job definition
+      description: >
+        Returns the specified clinical job definition from the repository.
+        <p><b>Authorization:</b> Requires READ permission.
+      operationId: getClinicalRepositoryJob
+      parameters:
+      - $ref: '#/components/parameters/itemIdPathParameter'
+      - $ref: '#/components/parameters/fileVersionParameter'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.clinical.job:
+              schema:
+                $ref: "#/components/schemas/clinicalJob"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJob/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalJob"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJob/example"
+        "404":
+          description: Not found - the specified clinical job could not be found.
+    head:
+      tags:
+      - Clinical Job Definitions
+      summary: Determine whether the clinical job with the specified identifier and
+        version (if specified) exists
+      description: >
+        Checks whether the clinical job exists with the specified identifier and version
+        (if specified).
+        <p><b>Authorization:</b> Requires READ permission.
+      operationId: headersForClinicalRepositoryJob
+      parameters:
+      - $ref: '#/components/parameters/itemIdPathParameter'
+      - $ref: '#/components/parameters/fileVersionParameter'
+      responses:
+        "200":
+          description: OK - the clinical job exists.
+        "404":
+          description: Not found - the specified clinical job could not be found.
+  /manifests/{path}:
+    get:
+      x-sas-internal: true
+      tags:
+      - Clinical Job Submissions
+      summary: Get the specified clinical job manifest
+      description: >
+        Returns the specified clinical job manifest from the specified resource location.
+        The resource location could be in the WORKSPACE or REPOSITORY.
+         <p><b>Authorization:</b>  The REPOSITORY resource location requires READ
+        permission.
+      operationId: getClinicalJobManifest
+      parameters:
+      - $ref: '#/components/parameters/pathPathParameter'
+      - $ref: '#/components/parameters/resourceLocationParameter'
+      - $ref: '#/components/parameters/fileVersionParameter'
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/vnd.sas.clinical.job.manifest:
+              schema:
+                $ref: "#/components/schemas/clinicalJobManifest"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJobManifest/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalJobManifest"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJobManifest/example"
+        '404':
+          description: 'Not found - the specified clinical job manifest could not
+            be found.'
+    head:
+      tags:
+      - Clinical Job Submissions
+      summary: Determine whether the clinical job manifest exists at the specified
+        location
+      description: >
+        Checks whether the specified clinical job manifest exists at the resource
+        location. <p><b>Authorization:</b>  REPOSITORY resource location -
+        Requires READ permission.
+      operationId: headersForClinicalJobManifest
+      parameters:
+      - $ref: '#/components/parameters/pathPathParameter'
+      - $ref: '#/components/parameters/resourceLocationParameter'
+      - $ref: '#/components/parameters/fileVersionParameter'
+      responses:
+        "200":
+          description: OK - the clinical job manifest exists.
+        "404":
+          description: Not found - the specified clinical job manifest could not be
+            found.
+  /submissions:
+    get:
+      tags:
+      - Clinical Job Submissions
+      summary: Get the collection of clinical job submissions
+      description: >
+        Returns a collection of clinical job submissions for the current user. The
+        default sort is
+        submittedTimeStamp:descending:primary.  <p><b>Authorization:</b>  Requires
+        administrative privileges to get clinical job submissions for all or
+        other users.
+      operationId: getClinicalJobSubmissions
+      parameters:
+      - name: Accept
+        in: header
+        description: >
+          The requested representation of the clinical job submissions. Media type
+          'application/vnd.sas.clinical.job.submission.summary+json' is the default.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.clinical.job.submission+json
+          - application/vnd.sas.clinical.job.submission.summary+json
+      - $ref: "#/components/parameters/startParameter"
+      - $ref: "#/components/parameters/limitParameter"
+      - $ref: "#/components/parameters/filterParameter"
+      - $ref: "#/components/parameters/sortByParameter"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/clinicalJobSubmissionSummaryCollection"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJobSubmissionSummaryCollection/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalJobSubmissionSummary"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJobSubmissionSummaryCollection/example"
+    post:
+      tags:
+      - Clinical Job Submissions
+      summary: Run a clinical job
+      description: Performs the run action on the specified clinical job. Clinical
+        jobs can be run in the workspace or repository using this request.
+      operationId: submitClinicalJob
+      requestBody:
+        required: true
+        description: Provides the clinical job resource and run information to perform
+          the action.
+        content:
+          application/vnd.sas.clinical.job.run.info+json:
+            schema:
+              $ref: "#/components/schemas/clinicalJobRunInfo"
+            examples:
+              json:
+                $ref: "#/components/schemas/clinicalJobRunInfo/example"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/clinicalJobRunInfo"
+            examples:
+              json:
+                $ref: "#/components/schemas/clinicalJobRunInfo/example"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.clinical.job.submission+json:
+              schema:
+                $ref: "#/components/schemas/clinicalJobSubmission"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJobSubmission/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalJobSubmission"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJobSubmission/example"
+        "400":
+          description: The specified action is not supported.
+  "/submissions/{jobSubmissionId}":
+    get:
+      tags:
+      - Clinical Job Submissions
+      summary: Get the specific clinical job submission entry
+      description: |
+        Returns the specified clinical job submission item by ID.
+      operationId: getClinicalJobSubmission
+      parameters:
+      - $ref: '#/components/parameters/jobSubmissionIdPathParameter'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.clinical.job.submission+json:
+              schema:
+                $ref: "#/components/schemas/clinicalJobSubmission"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJobSubmission/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalJobSubmission"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJobSubmission/example"
+        "404":
+          description: Not found - the specified clinical job submission could not
+            be found.
+    head:
+      tags:
+      - Clinical Job Submissions
+      summary: Determine whether the specified clinical job submission exists
+      description: |
+        Checks whether the specified clinical job submission exists.
+      operationId: headersForClinicalJobSubmission
+      parameters:
+      - $ref: '#/components/parameters/jobSubmissionIdPathParameter'
+      responses:
+        "200":
+          description: OK - the clinical job submission exists.
+        "404":
+          description: Not found - the specified clinical job submission could not
+            be found.
+  "/submissions/{jobSubmissionId}/manifest":
+    get:
+      tags:
+      - Clinical Job Submissions
+      summary: Get the manifest for the clinical job submission
+      description: |
+        Returns the specified clinical job manifest generated by the clinical job submission with the specified clinical job submission ID.
+      operationId: getManifestByClinicalJobSubmission
+      parameters:
+      - $ref: '#/components/parameters/jobSubmissionIdPathParameter'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.clinical.job.manifest:
+              schema:
+                $ref: "#/components/schemas/clinicalJobManifest"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJobManifest/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalJobManifest"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJobManifest/example"
+        "404":
+          description: Not found - the specified clinical job submission or manifest
+            could not be found.
+  "/submissions/{jobSubmissionId}/state":
+    put:
+      x-sas-internal: true
+      tags:
+      - Clinical Job Submissions
+      summary: Sets the current state of the specified clinical job submission entry
+        You can use this method to set the state to canceled
+      description: >
+        Set the current state of the specified clinical job submission item to
+        the specified state.  <p><b>Authorization:</b> Users can update only the
+        state of their own clinical job submissions. Clinical Job
+        Administrative authorization is required to cancel another user's job
+        submissions.
+      operationId: updateClinicalJobSubmissionState
+      parameters:
+      - $ref: '#/components/parameters/jobSubmissionIdPathParameter'
+      - name: value
+        in: query
+        schema:
+          type: string
+        required: true
+        description: The new state to be applied to the clinical job submission.
+        example: canceled
+      responses:
+        "202":
+          description: Accepted - The request to update the clinical job submission
+            state has been accepted. If the "canceled" value was specified, the clinical
+            job submission is set to the 'Canceling' state while the request is being
+            processed.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: CANCELING
+        "400":
+          description: Bad Request - when the specified value is not in the allowed
+            values list.
+        "404":
+          description: The specified clinical job submission could not be found.
+        "409":
+          description: The set state request conflicts with the current state of the
+            clinical job submission.
+    get:
+      tags:
+      - Clinical Job Submissions
+      summary: Get the current state of the specific clinical job submission entry
+      description: >
+        Returns the current state of the specified clinical job submission item
+        by ID.
+      operationId: getClinicalJobSubmissionState
+      parameters:
+      - $ref: '#/components/parameters/jobSubmissionIdPathParameter'
+      responses:
+        "200":
+          description: OK - The current state of the clinical job submission entry.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: RUNNING_TASKS
+            application/json:
+              schema:
+                type: string
+              example: RUNNING_TASKS
+        "404":
+          description: Not found - the specified clinical job submission could not
+            be found.
+  "/submissions/{jobSubmissionId}/listing":
+    get:
+      x-sas-internal: true
+      tags:
+      - Clinical Job Submissions
+      summary: Get the listing content of an active clinical job submission
+      description: >
+        Returns a collection of clinical listing lines for the provided clinical
+        job submission ID.
+      operationId: getJobSubmissionListingContents
+      parameters:
+      - $ref: '#/components/parameters/jobSubmissionIdPathParameter'
+      - $ref: "#/components/parameters/startParameter"
+      - $ref: "#/components/parameters/limitParameter"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/clinicalListingLineCollection"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalListingLineCollection/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalListingLineCollection"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalListingLineCollection/example"
+        "404":
+          description: >
+            The clinical job submission has completed and the submission listing
+            is no longer available. The completed submission listing can be
+            obtained from the listing location specified in the clinical job definition.
+  "/submissions/{jobSubmissionId}/log/lines":
+    get:
+      x-sas-internal: true
+      tags:
+      - Clinical Job Submissions
+      summary: Get the log contents of an active clinical job submission
+      description: >
+        Returns a collection of clinical log lines for the provided clinical job
+        submission ID.
+      operationId: getJobSubmissionLogContents
+      parameters:
+      - $ref: '#/components/parameters/jobSubmissionIdPathParameter'
+      - $ref: "#/components/parameters/startParameter"
+      - $ref: "#/components/parameters/limitParameter"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/clinicalLogLineCollection"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalLogLineCollection/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalLogLineCollection"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalLogLineCollection/example"
+        "404":
+          description: >
+            The clinical job submission has completed and the submission log is
+            no longer available. The completed submission log can be obtained
+            from the log location specified in the clinical job definition.
+  "/repository/manifests/{itemId}":
+    get:
+      tags:
+      - Clinical Job Submissions
+      summary: Get the specified clinical job manifest
+      description: >
+        Returns the specified clinical job manifest from the repository.
+        <p><b>Authorization:</b> Requires READ permission.
+      operationId: getClinicalRepositoryJobManifest
+      parameters:
+      - $ref: '#/components/parameters/itemIdPathParameter'
+      - $ref: '#/components/parameters/fileVersionParameter'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.clinical.job.manifest:
+              schema:
+                $ref: "#/components/schemas/clinicalJobManifest"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJobManifest/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalJobManifest"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalJobManifest/example"
+        "404":
+          description: Not found - the specified clinical job manifest could not be
+            found.
+    head:
+      tags:
+      - Clinical Job Submissions
+      summary: Determine whether the clinical job manifest with the specified identifier
+        and version (if specified) exists
+      description: >
+        Checks whether the clinical job manifest exists with the specified identifier
+        and version (if specified).
+                location. <p><b>Authorization:</b> Requires READ permission.
+      operationId: headersForClinicalRepositoryJobManifest
+      parameters:
+      - $ref: '#/components/parameters/itemIdPathParameter'
+      - $ref: '#/components/parameters/fileVersionParameter'
+      responses:
+        "200":
+          description: OK - the clinical job manifest exists.
+        "404":
+          description: Not found - the specified clinical job manifest could not be
+            found.
+  /schedules:
+    get:
+      tags:
+      - Clinical Job Schedules
+      summary: Get the collection of clinical job schedules
+      description: >
+        Returns a collection of clinical job schedules for the current user. The default
+        sort is name:ascending:primary
+        <p><b>Authorization:</b>  Requires
+        administrative privileges to get clinical job schedules for all or other
+        users.
+      operationId: getClinicalJobSchedules
+      parameters:
+      - name: limit
+        in: query
+        description: >
+          The maximum number of items to return. The default is 1000 which is the
+          maximum. Paging is not supported but filter
+          and sort are available to customize the schedules that are returned.
+        schema:
+          type: integer
+        example: 1000
+      - $ref: "#/components/parameters/filterParameter"
+      - $ref: "#/components/parameters/sortByParameter"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/clinicalScheduleCollection"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalScheduleCollection/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalScheduleCollection"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalScheduleCollection/example"
+    post:
+      x-sas-internal: true
+      tags:
+      - Clinical Job Schedules
+      summary: Create a clinical job schedule
+      description: Creates a schedule for the specified clinical job. Clinical jobs
+        can be in the workspace or repository.
+      operationId: createClinicalSchedule
+      requestBody:
+        required: true
+        description: Provides the clinical job resource and run information to perform
+          the action.
+        content:
+          application/vnd.sas.clinical.job.schedule.definition+json:
+            schema:
+              $ref: '#/components/schemas/clinicalScheduleDefinition'
+            examples:
+              json:
+                $ref: "#/components/schemas/clinicalScheduleDefinition/example"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/clinicalScheduleDefinition"
+            examples:
+              json:
+                $ref: "#/components/schemas/clinicalScheduleDefinition/example"
+      responses:
+        "201":
+          headers:
+            ETag:
+              $ref: '#/components/headers/Etag'
+            Last-Modified:
+              $ref: '#/components/headers/Last-Modified'
+          description: Schedule created successfully.
+          content:
+            application/vnd.sas.clinical.job.schedule+json:
+              schema:
+                $ref: "#/components/schemas/clinicalSchedule"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalSchedule/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalSchedule"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalSchedule/example"
+        "400":
+          description: The specified action is not supported.
+  "/schedules/{scheduleId}":
+    get:
+      x-sas-internal: true
+      tags:
+      - Clinical Job Schedules
+      summary: Get the specific clinical job schedule
+      description: |
+        Returns the specified clinical job schedule by ID.
+      operationId: getClinicalJobSchedule
+      parameters:
+      - $ref: '#/components/parameters/scheduleIdPathParameter'
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              $ref: '#/components/headers/Etag'
+            Last-Modified:
+              $ref: '#/components/headers/Last-Modified'
+          content:
+            application/vnd.sas.clinical.job.schedule+json:
+              schema:
+                $ref: "#/components/schemas/clinicalSchedule"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalSchedule/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/clinicalSchedule"
+              examples:
+                json:
+                  $ref: "#/components/schemas/clinicalSchedule/example"
+        "404":
+          description: Not found - the specified clinical job schedule could not be
+            found.
+    head:
+      x-sas-internal: true
+      tags:
+      - Clinical Job Schedules
+      summary: Determine whether the specified clinical job schedule exists
+      description: |
+        Checks whether the specified clinical job schedule exists.
+      operationId: headersForClinicalJobSchedule
+      parameters:
+      - $ref: '#/components/parameters/scheduleIdPathParameter'
+      responses:
+        "200":
+          description: OK - the clinical job schedule exists.
+          headers:
+            ETag:
+              $ref: '#/components/headers/Etag'
+            Last-Modified:
+              $ref: '#/components/headers/Last-Modified'
+        "404":
+          description: Not found - the specified clinical job schedule could not be
+            found.
+    delete:
+      x-sas-internal: true
+      tags:
+      - Clinical Job Schedules
+      summary: Delete a clinical job schedule
+      description: Deletes a clinical job schedule.
+      operationId: deleteClinicalJobSchedule
+      parameters:
+      - $ref: '#/components/parameters/scheduleIdPathParameter'
+      responses:
+        "204":
+          description: The schedule was successfully deleted.
+        "404":
+          description: Not found
+  /schedules/{scheduleId}/future:
+    get:
+      tags:
+      - Clinical Job Schedules
+      summary: Get the list of future run times for the clinical job schedule
+      description: >
+        Returns a list of date strings of future run times in client's time zone.
+        <p><b>Authorization:</b>  Requires
+        administrative privileges to get clinical job schedules for all or other
+        users.
+      operationId: getClinicalJobSchedulesFireTimes
+      parameters:
+      - $ref: '#/components/parameters/scheduleIdPathParameter'
+      - $ref: '#/components/parameters/limitParameter'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+              example:
+              - 2025-08-20T20:15:00Z
+              - 2025-08-21T20:15:00Z
+              - 2025-08-22T20:15:00Z
+              - 2025-08-23T20:15:00Z
+        "404":
+          description: Not found - the specified clinical job schedule could not be
+            found.
+components:
+  headers:
+    Etag:
+      description: The E-tag for response
+      schema:
+        type: string
+      example: '"lgdxya1m"'
+    Last-Modified:
+      description: The time at which the resource was last updated.
+      schema:
+        type: string
+      example: '2024-01-26T18:25:43.511Z'
+  parameters:
+    startParameter:
+      name: start
+      in: query
+      description: The 0-based offset of the first item to return. The default is
+        0.
+      schema:
+        type: integer
+      example: 10
+    limitParameter:
+      name: limit
+      in: query
+      description: The maximum number of items to return. The default is 10.
+      schema:
+        type: integer
+      example: 10
+    filterParameter:
+      name: filter
+      in: query
+      description: >
+        Filter criteria for items. See [Filtering in REST
+        APIs](https://developer.sas.com/apis/rest/Topics/#filters) for more information.
+      schema:
+        type: string
+        format: filter-criteria
+      example: eq(name,'ACME')
+    sortByParameter:
+      name: sortBy
+      in: query
+      description: >
+        Sorts the returned items. See [Sorting in REST
+        APIs](https://developer.sas.com/apis/rest/Topics/#sorting) for more information.
+      schema:
+        type: string
+        format: sort-criteria
+        example: name:ascending:primary
+    fileVersionParameter:
+      name: fileVersion
+      in: query
+      schema:
+        type: string
+      required: false
+      description: >
+        The version of the file. This applies only to files in the repository. A dash
+        (-) represents an unversioned file.  If no version is specified, the latest
+        is returned.
+      example: "2.0"
+    itemIdPathParameter:
+      name: itemId
+      in: path
+      schema:
+        type: string
+      required: true
+      description: The unique identifier for the repository clinical job.
+      example: b9b7f939-97cd-4609-a2b3-20a01fbd192d
+    jobSubmissionIdPathParameter:
+      name: jobSubmissionId
+      in: path
+      schema:
+        type: string
+      required: true
+      description: The unique identifier for the clinical job submission.
+      example: d6eefec9-dcc2-4574-8af8-69897038d9c5
+    scheduleIdPathParameter:
+      name: scheduleId
+      in: path
+      schema:
+        type: string
+      required: true
+      description: The unique identifier for the clinical job schedule.
+      example: 0b89ff2c-36ea-4394-8caf-6819c803580a
+    pathPathParameter:
+      name: path
+      in: path
+      schema:
+        type: string
+      required: true
+      description: The file path in the user's workspace or repository
+      example: /Org/study1/jobs/AdverseEventReport.cjob
+    resourceLocationParameter:
+      name: resourceLocation
+      in: query
+      schema:
+        type: string
+      required: false
+      description: >
+        The resource location of the file. Valid values are WORKSPACE and REPOSITORY.
+        The default is WORKSPACE.
+      example: WORKSPACE
+  schemas:
+    clinicalResource:
+      title: Clinical Resource
+      type: object
+      description: >
+        Clinical resource represents a file or container item in the user's workspace
+        or in the clinical repository.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        name:
+          type: string
+          description: The name of the item.
+        path:
+          type: string
+          description: The full path of the item.
+        location:
+          type: string
+          description: The location of the item. This is the parent container path
+            for the item.
+        resourceLocation:
+          description: The resource location of the item.
+          type: string
+          enum:
+          - REPOSITORY
+          - WORKSPACE
+    repositoryResource:
+      title: Repository Resource
+      type: object
+      description: The schema for a repository resource.
+      allOf:
+      - $ref: "#/components/schemas/clinicalResource"
+      - type: object
+        properties:
+          fileVersion:
+            type: string
+            description: The file version of the associated resource. A dash (-) represents
+              an unversioned file.
+          id:
+            type: string
+            description: The ID of the associated resource.
+    workspaceResource:
+      title: Workspace Resource
+      type: object
+      description: The schema for a workspace resource.
+      allOf:
+      - $ref: "#/components/schemas/clinicalResource"
+      - type: object
+        properties:
+          workspace:
+            type: string
+            description: The workspace identifier for the associated resource.
+    clinicalJobParameter:
+      title: Clinical Job Parameter
+      type: object
+      description: Parameter for passing values to a clinical job.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        name:
+          description: The name of the clinical job parameter.
+          type: string
+        label:
+          description: The label for the clinical job parameter.
+          type: string
+        type:
+          description: Describes the type of parameter.
+          type: string
+          enum:
+          - CHARACTER
+          - CHARACTER_MASKED
+          - NUMERIC
+          - DATE
+          - FOLDER
+          - FILE
+        defaultValue:
+          description: The default value of the parameter.
+          type: object
+      example:
+        value:
+          name: char_param
+          label: character-parameter
+          type: CHARACTER
+          defaultValue:
+            value: "This is a test"
+    clinicalJobProgram:
+      title: Clinical Job Program
+      type: object
+      description: A program to be run during the execution of a clinical job.
+      properties:
+        path:
+          description: The full path to the program.
+          type: string
+        location:
+          description: The parent path of the program.
+          type: string
+        name:
+          description: The name of the program.
+          type: string
+        fileVersion:
+          description: The optional file version of the program. If a file version
+            is not specified, the latest version is used.
+          type: string
+    clinicalJobPublishSetup:
+      title: Clinical Job Publish Setup
+      type: object
+      description: The file and folders to be used in the submission of a clinical
+        repository job. This information does not apply to workspace job submissions.
+      properties:
+        files:
+          description: The collection of files for the publish setup.
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobPublishSetupFile"
+        folders:
+          description: The collection of folders for the publish setup.
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobPublishSetupFolder"
+    clinicalJobPublishSetupFile:
+      title: Clinical Job Publish Setup File
+      description: A single publish setup file.
+      type: object
+      properties:
+        path:
+          description: The full path to the file.
+          type: string
+        fileVersion:
+          description: The version of the file to be used.
+          type: string
+    clinicalJobPublishSetupFolder:
+      title: Clinical Job Publish Setup Folder
+      description: A single publish setup folder.
+      type: object
+      properties:
+        path:
+          description: The full path to the folder.
+          type: string
+        includeFiles:
+          description: Indicates whether to include the files inside of the folder.
+          type: boolean
+        includeSubfolders:
+          description: Indicates whether to include the subfolders of the folder.
+          type: boolean
+    clinicalJobPublishCheckin:
+      title: Clinical Job Publish Checkin
+      type: object
+      description: >
+        Check-in specification for output files from the clinical repository job submission.
+        This information does not apply  to workspace job submissions.
+      properties:
+        fileVersion:
+          description: >
+            The versioning of any output files from the clinical job
+            execution. This value can be empty, "MAJOR", "MINOR", or a custom
+            version value. If enableVersioningOnNewFiles is false (the default), this
+            value determines how
+            new versions of existing versioned files are generated. The default is
+            "MAJOR".
+          type: string
+        enableVersioningOnNewFiles:
+          type: boolean
+          description: >
+            Specifies whether new files that are checked in from a clinical repository
+            job submission should be versioned. The
+            default is false. If the value is true, the new files are versioned according
+            to the fileVersion value.  The default
+            fileVersion value is "MAJOR"
+        locations:
+          description: The list of locations for output files from the clinical job
+            execution.
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobPublishCheckinLocation"
+    clinicalJobPublishCheckinLocation:
+      title: Clinical Job Publish Check-in Location
+      type: object
+      description: A single check-in location.
+      properties:
+        path:
+          description: The path to the check-in location.
+          type: string
+        includeSubfolders:
+          description: Indicates whether to include subfolders.
+          type: boolean
+    clinicalJob:
+      title: Clinical Job
+      description: >
+        A batch of executable programs and
+        the parameters and inputs required to execute the programs. For
+        repository jobs, the method for handling the check-in of generated outputs
+        can also
+        be specified in the clinical job definition.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        resource:
+          description: >
+            Clinical resource represents a file or container item in the user's
+            workspace or in the clinical repository.
+          oneOf:
+          - $ref: "#/components/schemas/repositoryResource"
+          - $ref: "#/components/schemas/workspaceResource"
+        description:
+          description: Description of the job.
+          type: string
+        logsLocation:
+          description: Location of the log file from the clinical job execution.
+          type: string
+        manifestLocation:
+          description: Location of the manifest file from the clinical job execution.
+          type: string
+        resultsLocation:
+          description: Location of the results file from the clinical job execution.
+          type: string
+        owner:
+          description: User who owns the clinical job file in the repository.
+          type: string
+        ownerDisplayName:
+          description: Display name of clinical job owner in the repository.
+          type: string
+        runAsOwner:
+          description: Indicates whether the clinical job in the repository has been
+            marked to be run as owner.
+          type: boolean
+        programs:
+          description: The programs to be run when the clinical job is executed.
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobProgram"
+        parameters:
+          description: Definition of parameters that can be specified for the clinical
+            job.
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobParameter"
+        publishSetup:
+          $ref: "#/components/schemas/clinicalJobPublishSetup"
+        publishCheckin:
+          $ref: "#/components/schemas/clinicalJobPublishCheckin"
+      example:
+        value:
+          version: 1
+          resource:
+            resourceLocation: WORKSPACE
+            path: /clinical/workspaces/testfad60fd1-9293-41ef-9a8e-4ae0118c078b.cjob
+            workspace:
+          description: Updated clinical job with programs and parameters.
+          logsLocation: ./
+          resultsLocation: ./
+          manifestLocation: ./
+          owner: test1
+          runAsOwner: false
+          programs:
+          - path: ../programs/Test_0.sas
+            version: "1.1"
+          - path: ../programs/Test_1.sas
+            version: "-"
+          - path: ../programs/Test_2.sas
+            version: "-"
+          - path: ../programs/Test_3.sas
+            version: "-"
+          parameters:
+          - name: char_param
+            label: character-parameter
+            type: CHARACTER
+            defaultValue:
+              value: "This is a test"
+          - name: char_param_masked
+            label: character-parameter-mask
+            type: CHARACTER_MASKED
+            defaultValue:
+              value: "*****"
+          - name: file_param
+            label: file-parameter2
+            type: FILE
+            defaultValue:
+              path: /test/Demo/inputs/input.sas7bdat
+          - name: folder_param
+            label: folder-parameter3
+            type: FOLDER
+            defaultValue:
+              path: ../Demo
+              includeSubfolders: false
+          - name: numeric_param
+            label: numeric-parameter4
+            type: NUMERIC
+            defaultValue:
+              value: 999
+          - name: date_param
+            label: date-parameter5
+            type: DATE
+            defaultValue:
+              value: 2023-12-15T05:00:00Z
+          publishSetup:
+            files: []
+            folders: []
+          publishCheckin:
+            enableVersioningOnNewFiles: false
+            fileVersion: "MINOR"
+            locations: []
+    clinicalJobSubmissionSummaryCollection:
+      title: Clinical Job Submission Summary Collection
+      description: Provides a paginated collection of clinical job submission summaries.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/clinicalJobSubmissionSummary"
+      example:
+        value:
+          name: clinicalJobSubmissionSummaries
+          accept: application/vnd.sas.clinical.job.submission.summary+json
+          start: 0
+          count: 2
+          items:
+          - version: 1
+            state: "COMPLETED_SUCCESSFUL"
+            id: b2913000-58fc-4153-91c7-655dc4f675df
+            name: Test.cjob
+            jobRunContext: INTERACTIVE
+            submittedTimeStamp: 2024-05-03T14:04:19.181000Z
+            submittedBy: test1
+            submittedByDisplayName: " Test User (test1)"
+            completedTimeStamp: 2024-05-03T14:04:29.827000Z
+            info: Job completed successfully.
+            runAsUser: test1
+            runAsUserDisplayName: " Test User (test1)"
+            jobName: Test.cjob
+            jobPath: /demo/Test.cjob
+            jobLocation: /demo
+            jobResourceLocation: WORKSPACE
+            jobOwner: test1
+            jobOwnerDisplayName: " Test User (test1)"
+            jobRunAsOwner: false
+            lastSubmittedItem: Prog2.sas
+            type: WORKSPACE
+            manifest:
+              name: Test.cmnf
+              path: /demo/Test.cmnf
+              resourceLocation: WORKSPACE
+          - version: 1
+            state: "COMPLETED_FAILED"
+            id: 389f8686-70d5-4f34-b8a4-be999927a82d
+            name: Test-9.cjob
+            jobRunContext: SCHEDULER
+            submittedTimeStamp: 2024-05-03T03:33:16.759000Z
+            submittedBy: test1
+            submittedByDisplayName: " Test User (test1)"
+            completedTimeStamp: 2024-05-03T03:33:18.059000Z
+            info: Job run failed because the input file /programs/shortsleep.sas does
+              not exist.
+            runAsUser: test1
+            runAsUserDisplayName: " Test User (test1)"
+            jobId: 1b168ca4-9c15-42b9-be05-7c767fda8c8e
+            jobPath: /demo/Test-9.cjob
+            jobName: Test-9.cjob
+            jobLocation: /demo
+            jobResourceLocation: REPOSITORY
+            jobVersion: "-"
+            jobOwner: test1
+            jobOwnerDisplayName: " Test User (test1)"
+            jobRunAsOwner: false
+            type: REPOSITORY
+            manifest:
+              name: Test-9.cmnf
+              path: /demo/Test-9.cmnf
+              resourceLocation: REPOSITORY
+              id: d6eefec9-dcc2-4574-8af8-69897038d9c5
+              fileVersion: "2.0"
+          limit: 2
+          version: 2
+    clinicalJobSubmissionSummary:
+      title: Clinical Job Submission Summary
+      description: >
+        Clinical job submission represents a single submission of a clinical workspace
+        or
+        repository job.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        id:
+          description: Identifier for the clinical job submission.
+          type: string
+        type:
+          description: Type of clinical job submission, which can be Workspace or
+            Repository
+          type: string
+        runContext:
+          description: Run context for the clinical job submission.
+          type: string
+          enum:
+          - INTERACTIVE
+        name:
+          description: Name of the clinical job that was submitted.
+          type: string
+        job:
+          type: object
+          properties:
+            version:
+              description: The version of the representation. This is version 1.
+              type: number
+            name:
+              type: string
+              description: The name of the item.
+            path:
+              type: string
+              description: The path of the item.
+            location:
+              type: string
+              description: The location of the item. This is the parent container
+                path of this item.
+            resourceLocation:
+              description: The resource location of the item.
+              type: string
+              enum:
+              - REPOSITORY
+              - WORKSPACE
+        jobOwner:
+          description: User who owns the clinical job file in the repository.
+          type: string
+        jobOwnerDisplayName:
+          description: Display name for the clinical job owner in the repository.
+          type: string
+        runAsUser:
+          description: User context for the clinical job submission. The user is the
+            owner of the clinical job in the repository when the clinical job is marked
+            to be run as the clinical job owner.
+          type: string
+        runAsUserDisplayName:
+          description: Display name for the user context used for the clinical job
+            submission.
+          type: string
+        jobRunAsOwner:
+          description: Indicates whether the clinical job in the repository has been
+            marked to be run as owner.
+          type: boolean
+        info:
+          description: Provides additional information about the clinical job submission
+            status.
+          type: string
+        lastSubmittedItem:
+          description: Last submitted program name.
+          type: string
+        completedTimeStamp:
+          type: string
+          format: date-time
+          description: The date and time the clinical job submission was completed.
+        submittedTimeStamp:
+          type: string
+          format: date-time
+          description: The date and time the clinical job submission was submitted.
+        submittedBy:
+          description: User who submitted clinical job.
+          type: string
+        submittedByDisplayName:
+          description: Display name for the user who submitted the clinical job.
+          type: string
+        state:
+          x-sas-internal: true
+          type: string
+          description: The current state of the clinical job submission.
+          enum:
+          - NOT_STARTED
+          - STARTED
+          - RUNNING_TASKS
+          - CANCELING
+          - POST_EXECUTION_PUBLISHING
+          - COMPLETED_SUCCESSFUL
+          - COMPLETED_PROGRAM_ERRORS
+          - COMPLETED_CHECKIN_ERROR
+          - COMPLETED_PROGRAM_ERRORS_CHECKIN_ERROR
+          - COMPLETED_FAILED
+          - COMPLETED_CANCELED
+          - COMPLETED_PROGRAM_WARNINGS
+          - COMPLETED_PROGRAM_WARNINGS_CHECKIN_ERROR
+      example:
+        value:
+          version: 1
+          state: COMPLETED_SUCCESSFUL
+          id: b2913000-58fc-4153-91c7-655dc4f675df
+          name: Test.cjob
+          jobRunContext: INTERACTIVE
+          submittedTimeStamp: 2024-05-03T14:04:19.181000Z
+          submittedBy: test1
+          submittedByDisplayName: " Test User (test1)"
+          completedTimeStamp: 2024-05-03T14:04:29.827000Z
+          info: Job completed successfully.
+          runAsUser: test1
+          runAsUserDisplayName: " Test User (test1)"
+          jobName: Test.cjob
+          jobPath: /demo/Test.cjob
+          jobLocation: /demo
+          jobResourceLocation: WORKSPACE
+          jobOwner: test1
+          jobOwnerDisplayName: " Test User (test1)"
+          jobRunAsOwner: false
+          lastSubmittedItem: Prog2.sas
+          type: WORKSPACE
+          manifest:
+            name: Test.cmnf
+            path: /demo/Test.cmnf
+            resourceLocation: WORKSPACE
+    clinicalJobSubmissionFailureDetail:
+      title: Clinical Job Submission Failure
+      type: object
+      description: The status of an individual failure during the clinical job execution.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        itemIdentifier:
+          description: The parent path of the item if a path is being used as the
+            item identifier. This field can be null.
+          type: string
+        itemName:
+          description: The name or display name for the item. This field can be null.
+          type: string
+        message:
+          description: The message with details about the failure.
+          type: string
+    clinicalJobSubmission:
+      title: Repository Resource
+      type: object
+      description: The schema for a repository resource.
+      allOf:
+      - $ref: "#/components/schemas/clinicalJobSubmissionSummary"
+      - type: object
+        properties:
+          checkinFailures:
+            description: A collection of any check-in failures from a clinical repository
+              job submission.
+            type: array
+            items:
+              $ref: "#/components/schemas/clinicalJobSubmissionFailureDetail"
+      example:
+        value:
+          version: 1
+          state: "RUNNING_TASKS"
+          id: b2913000-58fc-4153-91c7-655dc4f675df
+          name: Test.cjob
+          jobRunContext: INTERACTIVE
+          submittedTimeStamp: 2024-05-03T14:04:19.181000Z
+          submittedBy: test1
+          submittedByDisplayName: " Test User (test1)"
+          completedTimeStamp: 2024-05-03T14:04:29.827000Z
+          info: Job completed successfully.
+          runAsUser: test1
+          runAsUserDisplayName: " Test User (test1)"
+          jobName: Test.cjob
+          jobPath: /demo/Test.cjob
+          jobLocation: /demo
+          jobResourceLocation: WORKSPACE
+          jobOwner: test1
+          jobOwnerDisplayName: " Test User (test1)"
+          jobRunAsOwner: false
+          lastSubmittedItem: Prog2.sas
+          type: WORKSPACE
+          manifest:
+            name: Test.cmnf
+            path: /demo/Test.cmnf
+            resourceLocation: WORKSPACE
+          manifestModifiedTimeStamp: 2024-05-03T14:04:30.827000Z
+    clinicalJobParameterValue:
+      title: Clinical Job Parameter Value
+      description: Parameter value for passing values to a clinical job submission.
+      type: object
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        name:
+          description: The name of the job parameter.
+          type: string
+        value:
+          description: The value of the job parameter.
+          type: object
+        type:
+          description: Describes the type of parameter.
+          type: string
+          enum:
+          - CHARACTER
+          - CHARACTER_MASKED
+          - NUMERIC
+          - DATE
+          - FOLDER
+          - FILE
+    clinicalJobRunInfo:
+      title: 'Clinical Job Run Information'
+      description: 'Clinical resource represents the clinical job resource and run
+        information to perform the action.'
+      properties:
+        version:
+          description: 'The version of the representation. This is version 1.'
+          type: 'number'
+        job:
+          $ref: "#/components/schemas/clinicalResource"
+        parameterValues:
+          type: 'array'
+          description: 'Collection of clinical job parameter values to be used for
+            the run.'
+          items:
+            $ref: "#/components/schemas/clinicalJobParameterValue"
+      example:
+        value:
+          job:
+            resourceLocation: WORKSPACE
+            name: TestParams1.cjob
+            path: /f1/TestParams1.cjob
+            location: /f1
+            workspace: dd556ca8-4da1-43c8-ad18-41b5e1e58e05
+          parameterValues:
+          - version: 1
+            name: date_param
+            value:
+              value: 2023-12-15T05:00:00Z
+            type: DATE
+          - version: 1
+            name: numeric_param
+            value:
+              value: 22
+            type: NUMERIC
+          - version: 1
+            name: file_param
+            value:
+              path: /f1/a1.sas7bdat
+            type: FILE
+    clinicalScheduleCollection:
+      title: Clinical Job Schedule Collection
+      description: Provides a collection of clinical job schedules.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/clinicalSchedule"
+      example:
+        value:
+          name: schedules
+          accept: application/vnd.sas.clinical.job.schedule+json
+          start: 0
+          count: 3
+          items:
+          - version: 1
+            createdBy: test1
+            creationTimeStamp: '2025-08-18T22:05:28.887Z'
+            modifiedBy: test1
+            modifiedTimeStamp: '2025-08-19T20:09:31.845Z'
+            id: a90545d8-9023-4c9b-b293-9998c44cb25d
+            createdByDisplayName: Test User (test1)
+            modifiedByDisplayName: Test User (test1)
+            name: hourlyNever
+            runAs: test1
+            runAsDisplayName: Test User (test1)
+            trigger:
+              version: 1
+              type: HOURLY
+              timeZone: America/New_York
+              interval: 1
+              numOccurrences: -1
+              start: '2025-08-18'
+              minutes: '00'
+              hours: '00'
+            jobInfo:
+              job:
+                name: putAll.cjob
+                path: "/test/putAll.cjob"
+                location: "/test"
+                resourceLocation: REPOSITORY
+                fileVersion: ''
+            status: "DISABLED"
+            jobAvailable: true
+          - version: 1
+            createdBy: test1
+            creationTimeStamp: '2025-08-18T14:41:18.910Z'
+            modifiedBy: test1
+            modifiedTimeStamp: '2025-08-18T22:05:02.112Z'
+            id: 4651307d-42f7-4437-8221-3c8657f76b0d
+            createdByDisplayName: Test User (test1)
+            modifiedByDisplayName: Test User (test1)
+            name: schedForDisable
+            runAs: test1
+            runAsDisplayName: Test User (test1)
+            trigger:
+              version: 1
+              type: DAILY
+              timeZone: America/New_York
+              interval: 1
+              numOccurrences: -1
+              start: '2025-10-31'
+              end: '2025-12-31'
+              minutes: '40'
+              hours: '10'
+            jobInfo:
+              job:
+                name: putAll.cjob
+                path: "/test/putAll.cjob"
+                location: "/test"
+                resourceLocation: REPOSITORY
+                fileVersion: ''
+            status: "DISABLED"
+            jobAvailable: true
+          - version: 1
+            createdBy: test1
+            creationTimeStamp: '2025-08-19T20:11:16.002Z'
+            modifiedBy: test1
+            modifiedTimeStamp: '2025-08-19T20:12:53.318Z'
+            id: f2b3144e-44bd-4bc0-8ade-e060c635ef07
+            createdByDisplayName: Test User (test1)
+            modifiedByDisplayName: Test User (test1)
+            name: sjhOverrides
+            runAs: test1
+            runAsDisplayName: Test User (test1)
+            trigger:
+              version: 1
+              type: DAILY
+              timeZone: America/New_York
+              interval: 1
+              numOccurrences: -1
+              start: '2025-08-19'
+              end: '2025-09-25'
+              minutes: '15'
+              hours: '16'
+            jobInfo:
+              job:
+                name: multiple_param_no_default.cjob
+                path: "/test/Schedule_Edit_Parameters_DefaultValues/multiple_param_no_default.cjob"
+                location: "/test/Schedule_Edit_Parameters_DefaultValues"
+                resourceLocation: REPOSITORY
+              parameterValues:
+              - version: 1
+                name: masked_param
+                value:
+                  value: "*****"
+                label: Masked param
+                type: CHARACTER_MASKED
+              - version: 1
+                name: char_param
+                value:
+                  value: "sampleParmValue"
+                label: Char param
+                type: CHARACTER
+              - version: 1
+                name: num_param
+                value:
+                  value: 22
+                label: Num param
+                type: NUMERIC
+              - version: 1
+                name: date_param
+                value:
+                  value: 2025-08-30T21:55:06Z
+                label: Date param
+                type: DATE
+              - version: 1
+                name: file_param
+                value:
+                  path: "/test/putAll.sas"
+                label: File param
+                type: FILE
+              - version: 1
+                name: folder_param
+                value:
+                  path: "/test/mnfTest/inputsOutputs"
+                  includeSubfolders: false
+                label: Folder param
+                type: FOLDER
+            status: "ENABLED"
+            jobAvailable: true
+          limit: 1000
+          version: 2
+    clinicalLogLine:
+      title: Log Line
+      description: The representation of a single clinical log line.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        line:
+          type: string
+          description: A single line of text from an active log or log file.
+        type:
+          type: string
+          description: The type of log line. Used to sort for errors and warnings.
+    clinicalLogLineCollection:
+      title: Log Line Collection
+      description: >
+        A collection of string values representing the clinical job submission's log
+        lines.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/clinicalLogLine"
+      example:
+        value:
+          name: clinicalLogLines
+          accept: application/vnd.sas.clinical.log.line+json
+          start: 0
+          count: 4
+          items:
+          - version: 1
+            line: Wednesday, June 26, 2024 05:27:34 PM
+            type: normal
+          - version: 1
+            line: "NOTE: Additional information about Host:"
+            type: note
+          - version: 1
+            line: "WARNING: The data set WORK._NULL may be incomplete. When this step\
+              \ was stopped there were 0 observations and 0 variables."
+            type: warning
+          - version: 1
+            line: "ERROR: Failed to complete the task. Additional information:"
+            type: error
+          limit: 10
+          version: 2
+    clinicalListingLineCollection:
+      title: Listing Line Collection
+      description: A collection of strings that represents the content of the listing
+        file.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              type: string
+      example:
+        value:
+          name: clinicalListingLines
+          accept: application/json
+          start: 0
+          count: 3
+          items:
+          - "  The SAS System                  Tuesday, January 22, 2019 09:14:22\
+            \ PM   1"
+          - " Obs    Name       Sex    Age    Height    Weight"
+          - " 1    Alfred      M      14     69.0      112.5"
+          limit: 10
+          version: 1
+    clinicalJobManifestExternalReference:
+      title: Clinical Job Manifest External Reference
+      description: The external references stored within the clinical job manifest.
+      properties:
+        name:
+          description: 'The name of the external reference.'
+          type: 'string'
+        location:
+          description: 'The parent location of the external reference.'
+          type: 'string'
+        referencingProgram:
+          description: 'The full path to the referencing program that referenced this
+            file.'
+          type: 'string'
+    clinicalJobManifestInput:
+      description: An input used in a clinical job submission that generated the clinical
+        job manifest.
+      allOf:
+      - $ref: "#/components/schemas/clinicalJobManifestFile"
+      - type: object
+        properties:
+          referencingProgram:
+            description: The path to the program that referenced this input.
+            type: string
+    clinicalJobManifestSystemFile:
+      description: >
+        Clinical resource represents a system file such as log or lst generated by
+        the clinical job submission that generated this manifest.
+      allOf:
+      - $ref: "#/components/schemas/clinicalJobManifestFile"
+    clinicalJobManifestOutput:
+      description: >
+        An output generated by the clinical job submission that generated this manifest.
+      allOf:
+      - $ref: "#/components/schemas/clinicalJobManifestFile"
+      - type: object
+        properties:
+          referencingProgram:
+            description: The path to the program that referenced this input.
+            type: string
+    clinicalJobManifestProgram:
+      title: Manifest Program
+      description: Details of a program run as part of the job submission.
+      allOf:
+      - $ref: "#/components/schemas/clinicalJobManifestFile"
+      - type: object
+        properties:
+          executionState:
+            description: 'The execution state of the program.'
+            type: string
+            enum:
+            - 'UNEXECUTED'
+            - 'FAILED'
+            - 'CANCELED'
+            - 'ERRORS'
+            - 'WARNINGS'
+            - 'SUCCESSFUL'
+          executionTime:
+            description: 'The time it took to execute the program.'
+            type: number
+          executionInfo:
+            description: 'The information about the program execution.'
+            type: string
+    clinicalJobManifestJob:
+      title: Clinical Manifest Job
+      description: The details of the job that was submitted to generate this clinical
+        job manifest.
+      allOf:
+      - $ref: "#/components/schemas/clinicalJobManifestFile"
+      - type: object
+        properties:
+          owner:
+            description: User who owns the clinical job file.
+            type: string
+          ownerDisplayName:
+            description: Display name of clinical job owner.
+            type: string
+          runAsOwner:
+            description: Indicates if the clinical job in the repository has been
+              marked to be run as owner.
+            type: boolean
+          description:
+            description: Description of the clinical job.
+            type: string
+    clinicalJobManifestFile:
+      title: Clinical Manifest File
+      description: A file resource in a clinical job manifest.
+      properties:
+        resource:
+          $ref: "#/components/schemas/clinicalResource"
+        lastModifiedTimeStamp:
+          description: The date the output file was last modified.
+          type: string
+          format: 'date-time'
+        size:
+          type: number
+          description: The size of the file in bytes.
+        digest:
+          description: The hash value of a file based on MD5 algorithm. This only
+            applies to repository files.
+          type: string
+    clinicalJobManifestJobSubmission:
+      title: Clinical Job Manifest Job Submission
+      description: Details about the job submission that generated this clinical job
+        manifest.
+      properties:
+        state:
+          type: string
+          description: The current state of the clinical job submission.
+          enum:
+          - NOT_STARTED
+          - STARTED
+          - RUNNING_TASKS
+          - CANCELING
+          - POST_EXECUTION_PUBLISHING
+          - COMPLETED_SUCCESSFUL
+          - COMPLETED_PROGRAM_ERRORS
+          - COMPLETED_CHECKIN_ERROR
+          - COMPLETED_PROGRAM_ERRORS_CHECKIN_ERROR
+          - COMPLETED_FAILED
+          - COMPLETED_CANCELED
+          - COMPLETED_PROGRAM_WARNINGS
+          - COMPLETED_PROGRAM_WARNINGS_CHECKIN_ERROR
+        jobRunContext:
+          description: 'Run context of the clinical job submission.'
+          type: string
+          enum:
+          - INTERACTIVE
+          - INTERACTIVE_RUN_AND_POPULATE
+          - INTERACTIVE_RUN_AND_POPULATE_RELATIVE
+          - SCHEDULER
+          - INTERACTIVE_TEST
+        submittedTimeStamp:
+          type: string
+          format: date-time
+          description: The date and time the clinical job submission was submitted.
+        submittedBy:
+          description: User that this clinical job submission was submitted by.
+          type: string
+        submittedByDisplayName:
+          description: Display name of the user that this clinical job submission
+            was submitted by.
+          type: string
+        completedTimeStamp:
+          type: string
+          format: date-time
+          description: The date and time the clinical job submission was completed.
+        info:
+          description: Provides additional information about the clinical job submission
+            status.
+          type: string
+        runAsUser:
+          description: User context used for the clinical job submission. Is the owner
+            of the clinical job in the repository when the clinical job is marked
+            to be run as the clinical job owner.
+          type: string
+        runAsUserDisplayName:
+          description: Display name of user context used for the clinical job submission.
+          type: string
+    clinicalJobManifestTransferMetric:
+      title: Clinical Job Manifest Transfer Metric
+      description: Details about the time, size, and number of files synced during
+        a clinical job submission.
+      properties:
+        total:
+          description: The total number of synchronized files.
+          type: number
+        size:
+          description: The total size of the synchronized files.
+          type: number
+        time:
+          description: The total amount of time used to synchronize the files.
+          type: number
+    clinicalJobManifestMetrics:
+      title: Clinical Job Manifest Metrics
+      description: Metrics for file activity during a clinical job submission.
+      properties:
+        totalInputMetrics:
+          $ref: "#/components/schemas/clinicalJobManifestTransferMetric"
+        jobMetrics:
+          $ref: "#/components/schemas/clinicalJobManifestTransferMetric"
+        programsMetrics:
+          $ref: "#/components/schemas/clinicalJobManifestTransferMetric"
+        inputsMetrics:
+          $ref: "#/components/schemas/clinicalJobManifestTransferMetric"
+        inputsReferencedMetrics:
+          $ref: "#/components/schemas/clinicalJobManifestTransferMetric"
+        outputsMetrics:
+          $ref: "#/components/schemas/clinicalJobManifestTransferMetric"
+        outputsReferencedMetrics:
+          $ref: "#/components/schemas/clinicalJobManifestTransferMetric"
+    clinicalJobManifest:
+      title: Clinical Job Manifest
+      description: A clinical job manifest is generated by a clinical job submission
+        that captures input and output used by the clinical job.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        type:
+          description: The type of clinical job manifest.
+          type: string
+        jobSubmission:
+          $ref: "#/components/schemas/clinicalJobManifestJobSubmission"
+        job:
+          $ref: "#/components/schemas/clinicalJobManifestJob"
+        totalExecutionTime:
+          description: The total submission time for the clinical job, in milliseconds.
+          type: number
+        programs:
+          description: 'The program references that are stored within the clinical
+            job manifest.'
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobManifestProgram"
+        logs:
+          description: 'The log file references that are stored within the clinical
+            job manifest.'
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobManifestSystemFile"
+        results:
+          description: 'The result file references that are stored within the clinical
+            job manifest.'
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobManifestSystemFile"
+        parameters:
+          description: 'The parameters that are stored within the clinical job manifest.'
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobParameterValue"
+        inputs:
+          description: 'The input references that are stored within the clinical job
+            manifest.'
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobManifestInput"
+        internalInputs:
+          description: 'The internal input references that are stored within the clinical
+            job manifest.'
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobManifestInput"
+        externalInputs:
+          description: 'The external input references that are stored within the clinical
+            job manifest.'
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobManifestExternalReference"
+        outputs:
+          description: 'The output references stored within the clinical job manifest.'
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobManifestOutput"
+        internalOutputs:
+          description: 'The internal output references that are stored within the
+            clinical job manifest.'
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobManifestOutput"
+        externalOutputs:
+          description: 'The external output references that are stored within the
+            clinical job manifest.'
+          type: array
+          items:
+            $ref: "#/components/schemas/clinicalJobManifestExternalReference"
+        manifest:
+          $ref: "#/components/schemas/clinicalJobManifestFile"
+        metrics:
+          $ref: "#/components/schemas/clinicalJobManifestMetrics"
+        checkinSpecification:
+          $ref: "#/components/schemas/clinicalJobPublishCheckin"
+      example:
+        value:
+          version: 1
+          type: REPOSITORY
+          jobSubmission:
+            version: 1
+            state: COMPLETED_SUCCESSFUL
+            id: 4754a0ec-1915-4a84-b03e-2095b2f9bc6a
+            jobRunContext: INTERACTIVE
+            submittedTimeStamp: 2025-08-13T16:24:13.941000Z
+            submittedBy: test1
+            submittedByDisplayName: Test User (test1)
+            completedTimeStamp: 2025-08-13T16:24:30.631000Z
+            info: Clinical job completed successfully.
+            runAsUser: test1
+            runAsUserDisplayName: Test User (test1)
+            job:
+              version: 1
+              resource:
+                name: inputsOutputs.cjob
+                path: /inputsOutputs/inputsOutputs.cjob
+                location: /inputsOutputs
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: 5c99b6b3-81a5-4ba9-b445-9e168485c9ec
+              lastModifiedTimeStamp: 2025-08-11T19:53:49Z
+              size: 1061
+              digest: CF72B3F7385ACEEE2F54F7A419BF95EF
+              owner: test1
+              ownerDisplayName: Test User (test1)
+              runAsOwner: false
+            totalExecutionTime: 607
+            programs:
+            - version: 1
+              resource:
+                name: inputsOutputs.sas
+                path: /inputsOutputs/inputsOutputs.sas
+                location: /inputsOutputs
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: de3ccbe4-4cc5-491b-b0c7-0898aa569002
+              lastModifiedTimeStamp: 2025-08-11T19:53:50Z
+              size: 388
+              digest: 29A39EDF94817FC7C6B84BDE6EF2DF0E
+              executionState: SUCCESSFUL
+              executionTime: 607
+            logs:
+            - version: 1
+              resource:
+                name: inputsOutputs.log
+                path: /inputsOutputs/output/inputsOutputs.log
+                location: /inputsOutputs/output
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: 2096c1b9-c03d-4b1e-9b80-a943ace7a4ce
+              lastModifiedTimeStamp: 2025-08-13T16:24:29Z
+              size: 5530
+              digest: FE970D29AC6DE7C42BCEAF33D8111F5A
+            results:
+            - version: 1
+              resource:
+                name: inputsOutputs.lst
+                path: /inputsOutputs/output/inputsOutputs.lst
+                location: /inputsOutputs/output
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: a7ed2fed-252b-49e5-97cb-4bdae234a64d
+              lastModifiedTimeStamp: 2025-08-13T16:24:29Z
+              size: 72602
+              digest: 6B42A063D34D4A5F1E755C672E5E767D
+            parameters:
+            - name: file_param
+              label: file-parameter
+              value:
+                path: /inputsOutputs/parmFiles/parmFile.txt
+                version: "-"
+              type: FILE
+            - name: folder_param
+              label: folder-parameter
+              value:
+                path: /inputsOutputs/parmFolder
+                includeSubfolders: false
+              type: FOLDER
+            inputs:
+            - version: 1
+              resource:
+                name: cars.sas7bdat
+                path: /inputsOutputs/inputFolderSetup/inputSubfolderSetup/cars.sas7bdat
+                location: /inputsOutputs/inputFolderSetup/inputSubfolderSetup
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: 48e9d531-3cfc-44d3-bdf7-bc74a49275c7
+              lastModifiedTimeStamp: 2025-08-11T19:53:49Z
+              size: 196608
+              digest: 0FA3713F9BA4E15AC2B51D9E659C4D4B
+              referencingProgram: /inputsOutputs/inputsOutputs.sas
+            - version: 1
+              resource:
+                name: setupInputFile.sas
+                path: /inputsOutputs/setupInputFile.sas
+                location: /inputsOutputs
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: 81890eaa-f50d-4b02-8ecb-567cbdfae24f
+              lastModifiedTimeStamp: 2025-08-11T19:53:51Z
+              size: 34
+              digest: 4109E158C42D4B77C07A4CD9CDAF6142
+            - version: 1
+              resource:
+                name: parmFolderFile.txt
+                path: /inputsOutputs/parmFolder/parmFolderFile.txt
+                location: /inputsOutputs/parmFolder
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: b92a298b-2c43-4504-9618-bee03cc7cc68
+              lastModifiedTimeStamp: 2025-08-11T19:53:50Z
+              size: 105595
+              digest: 58167FBBAF9A7A09278293E6860FFA17
+            - version: 1
+              resource:
+                name: parmFile.txt
+                path: /inputsOutputs/parmFiles/parmFile.txt
+                location: /inputsOutputs/parmFiles
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: 13c3d2a8-c5a8-45f7-ba03-cd0f02310056
+              lastModifiedTimeStamp: 2025-08-11T19:53:50Z
+              size: 89
+              digest: 09F1A7B96071127FD9AFFA40A41C59C9
+            internalInputs:
+            - version: 1
+              resource:
+                name: cars.sas7bdat
+                path: /inputsOutputs/inputFolderSetup/inputSubfolderSetup/cars.sas7bdat
+                location: /inputsOutputs/inputFolderSetup/inputSubfolderSetup
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: 48e9d531-3cfc-44d3-bdf7-bc74a49275c7
+              lastModifiedTimeStamp: 2025-08-11T19:53:49Z
+              size: 196608
+              digest: 0FA3713F9BA4E15AC2B51D9E659C4D4B
+              referencingProgram: /inputsOutputs/inputsOutputs.sas
+            externalInputs:
+            - version: 1
+              name: class.sas7bdat
+              location: /opt/sas/viya/home/SASFoundation/sashelp
+              referencingProgram: /inputsOutputs/inputsOutputs.sas
+            outputs:
+            - version: 1
+              resource:
+                name: inputsOutputs.log
+                path: /inputsOutputs/output/inputsOutputs.log
+                location: /inputsOutputs/output
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: 2096c1b9-c03d-4b1e-9b80-a943ace7a4ce
+              lastModifiedTimeStamp: 2025-08-13T16:24:29Z
+              size: 5530
+              digest: FE970D29AC6DE7C42BCEAF33D8111F5A
+            - version: 1
+              resource:
+                name: inputsOutputs.lst
+                path: /inputsOutputs/output/inputsOutputs.lst
+                location: /inputsOutputs/output
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: a7ed2fed-252b-49e5-97cb-4bdae234a64d
+              lastModifiedTimeStamp: 2025-08-13T16:24:29Z
+              size: 72602
+              digest: 6B42A063D34D4A5F1E755C672E5E767D
+            - version: 1
+              resource:
+                name: workdscp.sas7bdat
+                path: /inputsOutputs/output/workdscp.sas7bdat
+                location: /inputsOutputs/output
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: e430910a-b06a-4925-91ed-66e615053f83
+              lastModifiedTimeStamp: 2025-08-13T16:24:29Z
+              size: 131072
+              digest: 2DE1249329B88EFAD8B1A8A410564FDC
+              referencingProgram: /inputsOutputs/inputsOutputs.sas
+            internalOutputs:
+            - version: 1
+              resource:
+                name: workdscp.sas7bdat
+                path: /inputsOutputs/output/workdscp.sas7bdat
+                location: /inputsOutputs/output
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: e430910a-b06a-4925-91ed-66e615053f83
+              lastModifiedTimeStamp: 2025-08-13T16:24:29Z
+              size: 131072
+              digest: 2DE1249329B88EFAD8B1A8A410564FDC
+              referencingProgram: /inputsOutputs/inputsOutputs.sas
+            externalOutputs:
+            - version: 1
+              name: extds.sas7bdat
+              location: /opt/sas/viya/config/var/run/compsrv/default
+              referencingProgram: /inputsOutputs/inputsOutputs.sas
+            manifest:
+              version: 1
+              resource:
+                name: inputsOutputs.cmnf
+                path: /inputsOutputs/output/inputsOutputs.cmnf
+                location: /inputsOutputs/output
+                resourceLocation: REPOSITORY
+                fileVersion: "-"
+                id: 10c7a876-eb67-4e34-8a3a-cec220c8027f
+            metrics:
+              totalInputMetrics:
+                total: 6
+                size: 303775
+                time: 3472
+              jobMetrics:
+                total: 1
+                size: 1061
+                time: 516
+              programsMetrics:
+                total: 1
+                size: 388
+                time: 427
+              inputsMetrics:
+                total: 4
+                size: 302326
+                time: 2529
+              inputsReferencedMetrics:
+                total: 1
+                size: 196608
+                time: 728
+              outputsMetrics:
+                total: 3
+                size: 209204
+                time: 1078
+              outputsReferencedMetrics:
+                total: 1
+                size: 131072
+                time: 339
+            checkinSpecification:
+              enableVersioningOnNewFiles: false
+              fileVersion: MAJOR
+              locations: []
+    clinicalScheduleDefinition:
+      title: Clinical Job Schedule Definition
+      description: >
+        The clinical job schedule definition contains information that is needed to
+        schedule an existing clinical job to run in the future.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        name:
+          description: Name of the clinical job schedule.
+          type: string
+        description:
+          description: Description of the clinical job schedule.
+          type: string
+        jobInfo:
+          $ref: "#/components/schemas/clinicalJobRunInfo"
+        trigger:
+          $ref: "#/components/schemas/clinicalTrigger"
+      example:
+        value:
+          name: testSchedule
+          trigger:
+            minutes: '0'
+            hours: '17'
+            type: DAILY
+            start: '2025-09-01'
+            end: '2025-09-30'
+            timeZone: America/New_York
+          jobInfo:
+            parameterValues: []
+            runAsOwner: false
+            jobOwnerDisplayName: Test User 1 (sastest)
+            job:
+              name: simple.cjob
+              path: "/test/simple.cjob"
+              location: "/test"
+              resourceLocation: REPOSITORY
+              fileVersion: '-'
+    clinicalSchedule:
+      title: 'Clinical Job Schedule'
+      description: >
+        Clinical job schedule represents a single schedule of a clinical workspace
+        or repository job.
+      properties:
+        version:
+          description: 'The version of the representation. This is version 1.'
+          type: 'number'
+        id:
+          description: 'Identifier for the clinical job schedule.'
+          type: 'string'
+        typeId:
+          description: 'Type of the clinical job schedule.'
+          type: 'string'
+        name:
+          description: 'Name of the clinical job schedule.'
+          type: 'string'
+        description:
+          description: 'Description of the clinical job schedule.'
+          type: 'string'
+        runAs:
+          description: 'The clinical job schedule is to be run as this specified user,
+            who is the owner of the clinical job schedule.'
+          type: 'string'
+        runAsDisplayName:
+          description: 'The display name for the user who owns the clinical job schedule
+            and who the clinical job schedule is run as.'
+          type: 'string'
+        status:
+          description: 'The status of the clinical job schedule.'
+          type: 'string'
+          enum:
+          - 'ENABLED'
+          - 'DISABLED'
+        jobAvailable:
+          description: 'Indicates whether the associated clinical job is available
+            to the current user. A false value can mean the clinical job no longer
+            exists or that the user does not have access to the item.'
+          type: 'boolean'
+        jobInfo:
+          $ref: "#/components/schemas/clinicalJobRunInfo"
+        trigger:
+          $ref: "#/components/schemas/clinicalTrigger"
+      example:
+        value:
+          version: 1
+          createdBy: sastest
+          creationTimeStamp: 2024-10-21T15:11:49.340000Z
+          createdByDisplayName: Test User (test1)
+          modifiedByDisplayName: Test User (test1)
+          modifiedBy: sastest
+          modifiedTimeStamp: 2024-10-21T15:11:49.340000Z
+          id: 1b168ca4-9c15-42b9-be05-7c767fda8c8e
+          name: HOURLY_1729523504301_Every2For5occ
+          trigger:
+            version: 1
+            type: HOURLY
+            startDate: 2024-11-21T16:16:16.894000Z
+            timeZone: America/New_York
+            interval: 2
+            numOccurrences: 5
+          jobInfo:
+            job:
+              name: hourly_simple.cjob
+              path: /scheduledJobTests/jobs/hourly_simple.cjob
+              location: /scheduledJobTests/jobs
+              resourceLocation: WORKSPACE
+          status: ENABLED
+    clinicalTrigger:
+      description: >
+        Clinical job schedule trigger contains instructions for when to run the clinical
+        job schedule.
+        There are additional values that vary depending on the type of trigger.
+      properties:
+        version:
+          description: 'The version of the representation. This is version 1.'
+          type: 'number'
+        type:
+          description: 'The type of clinical job schedule trigger.'
+          type: 'string'
+          enum:
+          - 'MINUTELY'
+          - 'HOURLY'
+          - 'DAILY'
+          - 'WEEKLY'
+          - 'MONTHLY'
+          - 'YEARLY'
+          - 'DATELIST'
+        start:
+          description: 'The date to start the clinical job schedule. The date must
+            be formatted as YYYY-MM-DD.'
+          type: 'string'
+        end:
+          description: 'The date to end the clinical job schedule. The date must be
+            formatted as YYYY-MM-DD.'
+          type: 'string'
+        timeZone:
+          description: 'The ID for the time zone for the clinical job schedule run
+            dates. If no value is provided, the time zone on the request is used.'
+          type: 'string'
+        numOccurrences:
+          description: 'The number of times the clinical job schedule is to run.'
+          type: 'number'
+        interval:
+          description: 'The number of time units between each schedule run.'
+          type: 'number'
+        dayOfMonth:
+          description: 'The day of the month to run the schedule.'
+          type: 'number'
+        daysOfWeek:
+          description: 'The days of the week to run the schedule.'
+          type: 'array'
+          items:
+            type: 'string'
+            enum:
+            - 'SUN'
+            - 'MON'
+            - 'TUE'
+            - 'WED'
+            - 'THU'
+            - 'FRI'
+            - 'SAT'
+        minutes:
+          description: 'The minute to run the schedule. If specified, this value must
+            be between 0 and 59.'
+          type: 'string'
+        hours:
+          description: 'The hour to run the schedule. If specified, this value must
+            be between 0 and 23.'
+          type: 'string'
+        dates:
+          description: 'The specific dates to run the schedule. Each date must be
+            formatted as YYYY-MM-DD.'
+          type: 'array'
+          items:
+            type: 'string'
+        occurrence:
+          description: 'Ordinal value to run the schedule.'
+          type: 'string'
+          enum:
+          - 'FIRST'
+          - 'SECOND'
+          - 'THIRD'
+          - 'FOURTH'
+          - 'LAST'
+        monthOfYear:
+          description: 'The month of the year.'
+          type: 'string'
+          enum:
+          - 'JANUARY'
+          - 'FEBRUARY'
+          - 'MARCH'
+          - 'APRIL'
+          - 'MAY'
+          - 'JUNE'
+          - 'JULY'
+          - 'AUGUST'
+          - 'SEPTEMBER'
+          - 'OCTOBER'
+          - 'NOVEMBER'
+          - 'DECEMBER'
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+  examples:
+    apiResponse:
+      summary: Links to the API resources
+      description: The list of links to top-level resources and operations available
+        from the root service.
+      value:
+        version: 1
+        links:
+        - method: POST
+          rel: createClinicalJob
+          href: "/clinicalJobs/definitions"
+          uri: "/clinicalJobs/definitions"
+          responseType: application/vnd.sas.clinical.job+json
+          itemType: application/vnd.sas.clinical.job+json
+        - method: POST
+          rel: submitClinicalJob
+          href: "/clinicalJobs/submissions"
+          uri: "/clinicalJobs/submissions"
+          responseType: application/vnd.sas.clinical.job.submission+json
+          itemType: application/vnd.sas.clinical.job.run.info+json
+        - method: GET
+          rel: clinicalJobSubmissionSummaries
+          href: "/clinicalJobs/submissions"
+          uri: "/clinicalJobs/submissions"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.clinical.job.submission.summary+json
+        - method: GET
+          rel: clinicalJobSubmission
+          href: "/clinicalJobs/submissions/{submissionId}"
+          uri: "/clinicalJobs/submissions/{submissionId}"
+          itemType: application/vnd.sas.clinical.job.submission+json
+        - method: GET
+          rel: schedules
+          href: "/clinicalJobs/schedules"
+          uri: "/clinicalJobs/schedules"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.clinical.job.schedule+json

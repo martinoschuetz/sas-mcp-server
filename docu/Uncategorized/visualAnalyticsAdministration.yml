@@ -1,0 +1,1250 @@
+---
+openapi: 3.0.3
+info:
+  title: Visual Analytics Administration
+  description: This is the Visual Analytics Administration API, handling custom graph
+    type resources and default report data view resources.
+  version: "3"
+  contact:
+    name: "SAS Developers"
+    email: "devex@sas.com"
+    url: "https://developer.sas.com"
+tags:
+- name: Root
+  description: The API root.
+- name: CustomGraphTypes
+  description: Operations on custom graph type resources.
+- name: DefaultReportDataViews
+  description: Operations on default report data view resources.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get a list of top-level links
+      description: The HATEOAS links for paths under this location.
+      operationId: root
+      responses:
+        "200":
+          description: A collection of links to this API's resources.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            "application/vnd.sas.api+json":
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                subscribe response:
+                  $ref: "#/components/examples/apiResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                subscribe response:
+                  $ref: "#/components/examples/apiResponse"
+  /customGraphTypes:
+    get:
+      tags:
+      - CustomGraphTypes
+      summary: Get the collection of custom graph types
+      description: The custom graph types that have been created.
+      operationId: getCustomGraphTypes
+      parameters:
+      - name: If-None-Match
+        in: header
+        description: If this value matches the current ETag value, then 304 (Not Modified)
+          is returned. Otherwise the normal GET proceeds (with ETag returned).
+        schema:
+          type: string
+      - name: start
+        in: query
+        description: optional start index for the returned collection
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        description: optional size limit for the returned collection
+        schema:
+          type: integer
+          default: 10
+      responses:
+        "200":
+          description: A collection of custom graph types
+          headers:
+            ETag:
+              description: The entity tag which conveys the modification state of
+                the custom graph types.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/customGraphTypeCollection"
+              examples:
+                Custom graph collection:
+                  $ref: "#/components/examples/customGraphCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/customGraphTypeCollection"
+              examples:
+                Custom graph collection:
+                  $ref: "#/components/examples/customGraphCollection"
+        "304":
+          description: Not modified
+    post:
+      tags:
+      - CustomGraphTypes
+      summary: Create a custom graph type
+      description: The data from which to create a custom graph type.
+      operationId: createCustomGraphType
+      requestBody:
+        content:
+          application/vnd.sas.van.custom.graph.type+json:
+            schema:
+              $ref: "#/components/schemas/customGraphType"
+            examples:
+              Custom graph request body:
+                $ref: "#/components/examples/customGraphRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/customGraphType"
+            examples:
+              Custom graph request body:
+                $ref: "#/components/examples/customGraphRequest"
+        description: Representation of a new custom graph type.
+        required: true
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location:
+              description: The location (URL) of the new custom graph type.
+              schema:
+                type: string
+            ETag:
+              description: The entity tag which conveys the modification state of
+                the new custom graph type.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.custom.graph.type+json:
+              schema:
+                $ref: "#/components/schemas/customGraphType"
+              examples:
+                Custom graph object:
+                  $ref: "#/components/examples/customGraphResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/customGraphType"
+              examples:
+                Custom graph object:
+                  $ref: "#/components/examples/customGraphResponse"
+        "400":
+          description: Bad request (missing required field or field length is too
+            long)
+          content:
+            application/vnd.sas.van.custom.graph.type+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError400"
+        "403":
+          description: Forbidden. The user is not an administrator.
+          content:
+            application/vnd.sas.van.custom.graph.type+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError403"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError403"
+  "/customGraphTypes/{customGraphTypeId}":
+    get:
+      tags:
+      - CustomGraphTypes
+      summary: Get a specific custom graph type
+      description: The specified custom graph type.
+      operationId: getCustomGraphType
+      parameters:
+      - name: customGraphTypeId
+        in: path
+        required: true
+        description: The unique identifier of a custom graph type
+        schema:
+          type: string
+      - name: If-None-Match
+        in: header
+        description: If this value matches the current ETag value, then 304 (Not Modified)
+          is returned. Otherwise the normal GET proceeds (with ETag returned).
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The specified custom graph type.
+          headers:
+            ETag:
+              description: The entity tag which conveys the modification state of
+                the returned custom graph type.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.custom.graph.type+json:
+              schema:
+                $ref: "#/components/schemas/customGraphType"
+              examples:
+                Custom graph object:
+                  $ref: "#/components/examples/customGraphResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/customGraphType"
+              examples:
+                Custom graph object:
+                  $ref: "#/components/examples/customGraphResponse"
+        "304":
+          description: Not modified
+        "404":
+          description: Not found
+          content:
+            application/vnd.sas.van.custom.graph.type+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError404"
+    put:
+      tags:
+      - CustomGraphTypes
+      summary: Update a custom graph type
+      description: Update the specified custom graph type.
+      operationId: updateCustomGraphType
+      parameters:
+      - name: customGraphTypeId
+        in: path
+        required: true
+        description: The unique identifier of a custom graph type.
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        required: true
+        description: If this value matches the current ETag value, then the PUT operation
+          proceeds; otherwise, a 412 (Precondition failed) is returned.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.van.custom.graph.type+json:
+            schema:
+              $ref: "#/components/schemas/customGraphType"
+            examples:
+              Custom graph object:
+                $ref: "#/components/examples/customGraphResponse"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/customGraphType"
+            examples:
+              Custom graph object:
+                $ref: "#/components/examples/customGraphResponse"
+        description: Representation of the modified custom graph type.
+        required: true
+      responses:
+        "200":
+          description: OK; the updated custom graph type is returned.
+          headers:
+            ETag:
+              description: The entity tag which conveys the modification state of
+                the returned custom graph type.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.custom.graph.type+json:
+              schema:
+                $ref: "#/components/schemas/customGraphType"
+              examples:
+                Custom graph object:
+                  $ref: "#/components/examples/customGraphResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/customGraphType"
+              examples:
+                Custom graph object:
+                  $ref: "#/components/examples/customGraphResponse"
+        "304":
+          description: Not modified
+        "400":
+          description: Bad request (the custom graph type in the body has a different
+            id than the identifier specified in the path, or illegal values are specified
+            in the supplied custom graph type).
+          content:
+            application/vnd.sas.van.custom.graph.type+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError400"
+        "403":
+          description: Forbidden. The user is not an administrator.
+          content:
+            application/vnd.sas.van.custom.graph.type+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError403"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError403"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError403"
+        "404":
+          description: Not found; the custom graph type specified by the id parameter
+            cannot be found.
+          content:
+            application/vnd.sas.van.custom.graph.type+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError404"
+        "412":
+          description: Precondition failed
+          content:
+            application/vnd.sas.van.custom.graph.type+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError412"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError412"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError412"
+        "428":
+          description: Precondition required
+          content:
+            application/vnd.sas.van.custom.graph.type+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError428"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError428"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError428"
+    delete:
+      tags:
+      - CustomGraphTypes
+      summary: Delete a custom graph type
+      description: Delete the specified custom graph type.
+      operationId: deleteCustomGraphType
+      parameters:
+      - name: customGraphTypeId
+        in: path
+        required: true
+        description: The unique identifier of a custom graph type.
+        schema:
+          type: string
+      responses:
+        "204":
+          description: The specified custom graph type has been deleted. No response
+            body is returned.
+        "403":
+          description: Forbidden. The user is not an administrator.
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError403"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError403"
+  /defaultReportDataViews:
+    get:
+      tags:
+      - DefaultReportDataViews
+      summary: Get the collection of default report data views
+      description: Return the default report data views that have been created.
+      operationId: getDefaultReportDataViews
+      parameters:
+      - name: If-None-Match
+        in: header
+        description: If this value matches the current ETag value, then 304 (Not Modified)
+          is returned. Otherwise the normal GET proceeds (with ETag returned).
+        schema:
+          type: string
+      - name: start
+        in: query
+        description: optional start index for the returned collection
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        description: optional size limit for the returned collection
+        schema:
+          type: integer
+          default: 10
+      - name: filter
+        in: query
+        description: Filter criteria for finding a specific data table's corresponding
+          default report data view.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: A collection of default report data views
+          headers:
+            ETag:
+              description: The entity tag which conveys the modification state of
+                the default report data views.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/defaultReportDataViewCollection"
+              examples:
+                Default data view:
+                  $ref: "#/components/examples/defaultDataViewCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/defaultReportDataViewCollection"
+              examples:
+                Default data view:
+                  $ref: "#/components/examples/defaultDataViewCollection"
+        "304":
+          description: Not modified
+    post:
+      tags:
+      - DefaultReportDataViews
+      summary: Create a default report data view
+      description: A default report data view.
+      operationId: createDefaultReportDataView
+      requestBody:
+        content:
+          application/vnd.sas.van.default.report.data.view+json:
+            schema:
+              $ref: "#/components/schemas/defaultReportDataView"
+            examples:
+              Default data view:
+                $ref: "#/components/examples/defaultDataViewRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/defaultReportDataView"
+            examples:
+              Default data view:
+                $ref: "#/components/examples/defaultDataViewRequest"
+        description: Representation of a new default report data view. The version,
+          id, and links fields are ignored.
+        required: true
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location:
+              description: The location (URL) of the new default report data view.
+              schema:
+                type: string
+            ETag:
+              description: The entity tag which conveys the modification state of
+                the new default report data view.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.default.report.data.view+json:
+              schema:
+                $ref: "#/components/schemas/defaultReportDataView"
+              examples:
+                Default data view:
+                  $ref: "#/components/examples/defaultDataViewResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/defaultReportDataView"
+              examples:
+                Default data view:
+                  $ref: "#/components/examples/defaultDataViewResponse"
+        "400":
+          description: Bad request (missing required field or field length is too
+            long)
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.default.report.data.view+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError400"
+        "403":
+          description: Forbidden. The user is not an administrator.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.default.report.data.view+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError403"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError403"
+        "409":
+          description: Conflict. Another default report data view refers to the same
+            data table.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.default.report.data.view+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError409"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError409"
+  "/defaultReportDataViews/{defaultReportDataViewId}":
+    get:
+      tags:
+      - DefaultReportDataViews
+      summary: Get a specific default report data view
+      description: The specified default report data view.
+      operationId: getDefaultReportDataView
+      parameters:
+      - name: defaultReportDataViewId
+        in: path
+        required: true
+        description: The unique identifier of a default report data view
+        schema:
+          type: string
+      - name: If-None-Match
+        in: header
+        description: If this value matches the current ETag value, then 304 (Not Modified)
+          is returned. Otherwise the normal GET proceeds (with ETag returned).
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The specified default report data view.
+          headers:
+            ETag:
+              description: The entity tag which conveys the modification state of
+                the returned default report data view.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.default.report.data.view+json:
+              schema:
+                $ref: "#/components/schemas/defaultReportDataView"
+              examples:
+                Default data view:
+                  $ref: "#/components/examples/defaultDataViewResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/defaultReportDataView"
+              examples:
+                Default data view:
+                  $ref: "#/components/examples/defaultDataViewResponse"
+        "304":
+          description: Not modified
+        "404":
+          description: Not found
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.default.report.data.view+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError404"
+    put:
+      tags:
+      - DefaultReportDataViews
+      summary: Update a default report data view
+      description: Update the specified default report data view.
+      operationId: updateDefaultReportDataView
+      parameters:
+      - name: defaultReportDataViewId
+        in: path
+        required: true
+        description: The unique identifier of a default report data view.
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        required: true
+        description: If this value matches the current ETag value, then the PUT operation
+          proceeds; otherwise, a 412 (Precondition failed) is returned.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.van.default.report.data.view+json:
+            schema:
+              $ref: "#/components/schemas/defaultReportDataView"
+            examples:
+              Default data view:
+                $ref: "#/components/examples/defaultDataViewResponse"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/defaultReportDataView"
+            examples:
+              Default data view:
+                $ref: "#/components/examples/defaultDataViewResponse"
+        description: Representation of the modified default report data view. The
+          version and links fields are ignored. The id field must match the id path
+          parameter.
+        required: true
+      responses:
+        "200":
+          description: OK; the updated default report data view is returned.
+          headers:
+            ETag:
+              description: The entity tag which conveys the modification state of
+                the returned default report data view.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.default.report.data.view+json:
+              schema:
+                $ref: "#/components/schemas/defaultReportDataView"
+              examples:
+                Default data view:
+                  $ref: "#/components/examples/defaultDataViewResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/defaultReportDataView"
+              examples:
+                Default data view:
+                  $ref: "#/components/examples/defaultDataViewResponse"
+        "304":
+          description: Not modified
+        "400":
+          description: Bad request (the default report data view in the body has a
+            different id than the identifier specified in the path, or illegal values
+            are specified in the supplied default report data view).
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.default.report.data.view+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError400"
+        "403":
+          description: Forbidden. The user is not an administrator.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.default.report.data.view+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError403"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError403"
+        "404":
+          description: Not found; the default report data view specified by the id
+            parameter cannot be found.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.default.report.data.view+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError404"
+        "409":
+          description: Conflict. Another default report data view refers to the same
+            data table.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.default.report.data.view+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError409"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError409"
+        "412":
+          description: Precondition failed
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.default.report.data.view+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError412"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError412"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError412"
+        "428":
+          description: Precondition required
+          headers:
+            Content-Type:
+              schema:
+                type: string
+            ETag:
+              description: The entity tag which conveys the modification state of
+                the default report data view.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.van.default.report.data.view+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError428"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError428"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError428"
+    delete:
+      tags:
+      - DefaultReportDataViews
+      summary: Delete a default report data view
+      description: Delete the specified default report data view.
+      operationId: deleteDefaultReportDataView
+      parameters:
+      - name: defaultReportDataViewId
+        in: path
+        required: true
+        description: The unique identifier of a default report data view.
+        schema:
+          type: string
+      responses:
+        "204":
+          description: The specified default report data view has been deleted. No
+            response body is returned.
+        "403":
+          description: Forbidden. The user is not an administrator.
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError403"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                bad request response:
+                  $ref: "#/components/examples/badRequestError403"
+servers:
+- url: http://example.com/visualAnalyticsAdministration
+  description: Sample server URL.
+components:
+  schemas:
+    customGraphType:
+      type: object
+      title: Custom Graph type
+      description: A full representation of a custom graph type.
+      x-sas-media-type:
+        name: application/vnd.sas.van.custom.graph.type
+        version: 1
+      required:
+      - label
+      - uri
+      properties:
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1
+        id:
+          type: string
+          description: The system-assigned unique ID for this collection.
+        label:
+          type: string
+          description: Label associated with this custom graph type.
+        uri:
+          type: string
+          description: The URI to the custom graph renderer.
+        links:
+          type: array
+          description: An array of links to related resources and actions.
+          items:
+            $ref: "#/components/schemas/link"
+    customGraphTypeCollection:
+      title: Custom Graph Type Collection
+      description: A collection of custom graph types
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: An array of `application/vnd.sas.van.custom.graph.type` representations.
+            items:
+              $ref: "#/components/schemas/customGraphType"
+    defaultReportDataView:
+      type: object
+      title: Default Report Data View
+      description: A full representation of a default report data view.
+      x-sas-media-type:
+        name: application/vnd.sas.van.default.report.data.view
+        version: 1
+      required:
+      - dataTableUri
+      - reportUri
+      properties:
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1
+        links:
+          type: array
+          description: An array of links to related resources and actions.
+          items:
+            $ref: "#/components/schemas/link"
+        id:
+          type: string
+          description: The system-assigned unique ID for this instance
+        dataTableUri:
+          type: string
+          description: The URI to the data table
+        reportUri:
+          type: string
+          description: The URI to the default report. It is required (that is, it
+            cannot be null) but an empty string is a valid value.
+    defaultReportDataViewCollection:
+      title: Default Report Data View Collection
+      description: A collection of default report data views
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/defaultReportDataView"
+            description: An array of `application/vnd.sas.van.default.report.data.view+json`
+              representations.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+  examples:
+    badRequestError428:
+      description: Bad request. The response object will contain an error code and
+        further information.
+      value: {"version": 2, "httpStatusCode": 428, "message": 'You must include the
+          "if-match" header in the request to ensure that the custom graph is up-to-date.',
+        "details": ["path: /visualAnalyticsAdministration/customGraphTypes/c53138f0-09c9-4d75-9000-770b58e2397c",
+          "correlator: c83b60d7-c258-447b-a942-d6ace0a4ed8e"]}
+    defaultDataViewResponse:
+      description: Data view object
+      value: {"id": "95c36f90-e7f8-423c-bacc-e101aa14f084", "dataTableUri": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/HEARTCT",
+        "reportUri": "/reportTemplates/dataViews/36b6438a-8ff9-4ee4-bd2f-34585382f785",
+        "version": 1, "links": [{"method": "GET", "rel": "self", "href": "/visualAnalyticsAdministration/defaultReportDataViews/95c36f90-e7f8-423c-bacc-e101aa14f084",
+            "uri": "/visualAnalyticsAdministration/defaultReportDataViews/95c36f90-e7f8-423c-bacc-e101aa14f084",
+            "type": "application/vnd.sas.van.default.report.data.view"}, {"method": "GET",
+            "rel": "up", "href": "/visualAnalyticsAdministration/defaultReportDataViews",
+            "uri": "/visualAnalyticsAdministration/defaultReportDataViews", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.van.default.report.data.view"}, {"method": "PUT",
+            "rel": "update", "href": "/visualAnalyticsAdministration/defaultReportDataViews/95c36f90-e7f8-423c-bacc-e101aa14f084",
+            "uri": "/visualAnalyticsAdministration/defaultReportDataViews/95c36f90-e7f8-423c-bacc-e101aa14f084",
+            "type": "application/vnd.sas.van.default.report.data.view", "responseType": "application/vnd.sas.van.default.report.data.view"},
+          {"method": "DELETE", "rel": "delete", "href": "/visualAnalyticsAdministration/defaultReportDataViews/95c36f90-e7f8-423c-bacc-e101aa14f084",
+            "uri": "/visualAnalyticsAdministration/defaultReportDataViews/95c36f90-e7f8-423c-bacc-e101aa14f084"}]}
+    defaultDataViewCollection:
+      description: Default data view collection
+      value: {"accept": "application/vnd.sas.van.default.report.data.view", "count": 1,
+        "items": [{"dataTableUri": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/HEARTCT",
+            "id": "95c36f90-e7f8-423c-bacc-e101aa14f084", "links": [{"method": "GET",
+                "rel": "self", "href": "/visualAnalyticsAdministration/defaultReportDataViews/95c36f90-e7f8-423c-bacc-e101aa14f084",
+                "uri": "/visualAnalyticsAdministration/defaultReportDataViews/95c36f90-e7f8-423c-bacc-e101aa14f084",
+                "type": "application/vnd.sas.van.default.report.data.view"}, {"method": "GET",
+                "rel": "up", "href": "/visualAnalyticsAdministration/defaultReportDataViews",
+                "uri": "/visualAnalyticsAdministration/defaultReportDataViews", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.van.default.report.data.view"}, {
+                "method": "PUT", "rel": "update", "href": "/visualAnalyticsAdministration/defaultReportDataViews/95c36f90-e7f8-423c-bacc-e101aa14f084",
+                "uri": "/visualAnalyticsAdministration/defaultReportDataViews/95c36f90-e7f8-423c-bacc-e101aa14f084",
+                "type": "application/vnd.sas.van.default.report.data.view", "responseType": "application/vnd.sas.van.default.report.data.view"},
+              {"method": "DELETE", "rel": "delete", "href": "/visualAnalyticsAdministration/defaultReportDataViews/95c36f90-e7f8-423c-bacc-e101aa14f084",
+                "uri": "/visualAnalyticsAdministration/defaultReportDataViews/95c36f90-e7f8-423c-bacc-e101aa14f084"}],
+            "reportUri": "/reportTemplates/dataViews/36b6438a-8ff9-4ee4-bd2f-34585382f785",
+            "version": 1}], "limit": 100000, "links": [{"method": "GET", "rel": "collection",
+            "href": "/visualAnalyticsAdministration/defaultReportDataViews", "uri": "/visualAnalyticsAdministration/defaultReportDataViews",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.van.default.report.data.view"},
+          {"method": "GET", "rel": "self", "href": "/visualAnalyticsAdministration/defaultReportDataViews?start=0&limit=100000",
+            "uri": "/visualAnalyticsAdministration/defaultReportDataViews?start=0&limit=100000",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.van.default.report.data.view"},
+          {"method": "POST", "rel": "createDefaultReportDataView", "href": "/visualAnalyticsAdministration/defaultReportDataViews",
+            "uri": "/visualAnalyticsAdministration/defaultReportDataViews", "type": "application/vnd.sas.van.default.report.data.view",
+            "responseType": "application/vnd.sas.van.default.report.data.view"}],
+        "name": "defaultReportDataViews", "start": 0, "version": 2}
+    badRequestError403:
+      description: Bad request. The response object will contain an error code and
+        further information.
+      value: {"version": 2, "httpStatusCode": 403, "message": "Invalid URI specified.",
+        "details": ["path: /visualAnalyticsAdministration/customGraphTypes/c53138f0-09c9-4d75-9000-770b58e2397c",
+          "correlator: c83b60d7-c258-447b-a942-d6ace0a4ed8e"]}
+    badRequestError400:
+      description: Bad request. The response object will contain an error code and
+        further information.
+      value: {"version": 2, "httpStatusCode": 400, "message": "Invalid URI specified.",
+        "details": ["path: /visualAnalyticsAdministration/customGraphTypes/c53138f0-09c9-4d75-9000-770b58e2397c",
+          "correlator: c83b60d7-c258-447b-a942-d6ace0a4ed8e"]}
+    badRequestError404:
+      description: Bad request. The response object will contain an error code and
+        further information.
+      value: {"version": 2, "httpStatusCode": 404, "message": "Invalid id specified.",
+        "details": ["path: /visualAnalyticsAdministration/customGraphTypes/c53138f0-09c9-4d75-9000-770b58e2397c",
+          "correlator: c83b60d7-c258-447b-a942-d6ace0a4ed8e"]}
+    badRequestError412:
+      description: Bad request. The response object will contain an error code and
+        further information.
+      value: {"version": 2, "httpStatusCode": 412, "message": "The custom graph has\
+          \ been updated since you last retrieved it.", "details": ["path: /visualAnalyticsAdministration/customGraphTypes/c53138f0-09c9-4d75-9000-770b58e2397c",
+          "correlator: c83b60d7-c258-447b-a942-d6ace0a4ed8e"]}
+    defaultDataViewRequest:
+      description: Request body to create a default data view
+      value: {"dataTableUri": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/HEARTCT",
+        "reportUri": "/reportTemplates/dataViews/36b6438a-8ff9-4ee4-bd2f-34585382f785"}
+    apiResponse:
+      description: Response to root request
+      value: {"links": [{"method": "GET", "rel": "customGraphTypes", "href": "/visualAnalyticsAdministration/customGraphTypes",
+            "uri": "/visualAnalyticsAdministration/customGraphTypes", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.van.custom.graph.type"}, {"method": "POST",
+            "rel": "createCustomGraphType", "href": "/visualAnalyticsAdministration/customGraphTypes",
+            "uri": "/visualAnalyticsAdministration/customGraphTypes", "type": "application/vnd.sas.van.custom.graph.type",
+            "responseType": "application/vnd.sas.van.custom.graph.type"}, {"method": "GET",
+            "rel": "defaultReportDataViews", "href": "/visualAnalyticsAdministration/defaultReportDataViews",
+            "uri": "/visualAnalyticsAdministration/defaultReportDataViews", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.van.default.report.data.view"}, {"method": "POST",
+            "rel": "createDefaultReportDataView", "href": "/visualAnalyticsAdministration/defaultReportDataViews",
+            "uri": "/visualAnalyticsAdministration/defaultReportDataViews", "type": "application/vnd.sas.van.default.report.data.view",
+            "responseType": "application/vnd.sas.van.default.report.data.view"}, {
+            "method": "GET", "rel": "settings", "href": "/visualAnalyticsAdministration/commons/settings",
+            "uri": "/visualAnalyticsAdministration/commons/settings", "type": "application/vnd.sas.attributes"}],
+        "version": 1}
+    customGraphCollection:
+      description: Custom graph collection
+      value: {"accept": "application/vnd.sas.van.custom.graph.type", "count": 1, "items": [
+          {"id": "cf7937ed-711d-4617-b064-e3d2e917f046", "label": "test%20data", "links": [
+              {"method": "GET", "rel": "self", "href": "/visualAnalyticsAdministration/customGraphTypes/cf7937ed-711d-4617-b064-e3d2e917f046",
+                "uri": "/visualAnalyticsAdministration/customGraphTypes/cf7937ed-711d-4617-b064-e3d2e917f046",
+                "type": "application/vnd.sas.van.custom.graph.type"}, {"method": "GET",
+                "rel": "up", "href": "/visualAnalyticsAdministration/customGraphTypes",
+                "uri": "/visualAnalyticsAdministration/customGraphTypes", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.van.custom.graph.type"}, {"method": "PUT",
+                "rel": "update", "href": "/visualAnalyticsAdministration/customGraphTypes/cf7937ed-711d-4617-b064-e3d2e917f046",
+                "uri": "/visualAnalyticsAdministration/customGraphTypes/cf7937ed-711d-4617-b064-e3d2e917f046",
+                "type": "application/vnd.sas.van.custom.graph.type", "responseType": "application/vnd.sas.van.custom.graph.type"},
+              {"method": "DELETE", "rel": "delete", "href": "/visualAnalyticsAdministration/customGraphTypes/cf7937ed-711d-4617-b064-e3d2e917f046",
+                "uri": "/visualAnalyticsAdministration/customGraphTypes/cf7937ed-711d-4617-b064-e3d2e917f046"}],
+            "uri": "https://localhost", "version": 1}], "limit": 100000, "links": [
+          {"method": "GET", "rel": "collection", "href": "/visualAnalyticsAdministration/customGraphTypes",
+            "uri": "/visualAnalyticsAdministration/customGraphTypes", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.van.custom.graph.type"}, {"method": "GET",
+            "rel": "self", "href": "/visualAnalyticsAdministration/customGraphTypes?start=0&limit=100000",
+            "uri": "/visualAnalyticsAdministration/customGraphTypes?start=0&limit=100000",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.van.custom.graph.type"},
+          {"method": "POST", "rel": "createCustomGraphType", "href": "/visualAnalyticsAdministration/customGraphTypes",
+            "uri": "/visualAnalyticsAdministration/customGraphTypes", "type": "application/vnd.sas.van.custom.graph.type",
+            "responseType": "application/vnd.sas.van.custom.graph.type"}], "name": "customGraphTypes",
+        "start": 0, "version": 2}
+    customGraphRequest:
+      description: Request body to create a custom graph
+      value: {"label": "test%20data", "uri": "https://localhost"}
+    customGraphResponse:
+      description: Custom graph object
+      value: {"id": "cf7937ed-711d-4617-b064-e3d2e917f046", "label": "test%20data",
+        "uri": "https://localhost", "version": 1, "links": [{"method": "GET", "rel": "self",
+            "href": "/visualAnalyticsAdministration/customGraphTypes/cf7937ed-711d-4617-b064-e3d2e917f046",
+            "uri": "/visualAnalyticsAdministration/customGraphTypes/cf7937ed-711d-4617-b064-e3d2e917f046",
+            "type": "application/vnd.sas.van.custom.graph.type"}, {"method": "GET",
+            "rel": "up", "href": "/visualAnalyticsAdministration/customGraphTypes",
+            "uri": "/visualAnalyticsAdministration/customGraphTypes", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.van.custom.graph.type"}, {"method": "PUT",
+            "rel": "update", "href": "/visualAnalyticsAdministration/customGraphTypes/cf7937ed-711d-4617-b064-e3d2e917f046",
+            "uri": "/visualAnalyticsAdministration/customGraphTypes/cf7937ed-711d-4617-b064-e3d2e917f046",
+            "type": "application/vnd.sas.van.custom.graph.type", "responseType": "application/vnd.sas.van.custom.graph.type"},
+          {"method": "DELETE", "rel": "delete", "href": "/visualAnalyticsAdministration/customGraphTypes/cf7937ed-711d-4617-b064-e3d2e917f046",
+            "uri": "/visualAnalyticsAdministration/customGraphTypes/cf7937ed-711d-4617-b064-e3d2e917f046"}]}
+    badRequestError409:
+      description: Bad request. The response object will contain an error code and
+        further information.
+      value: {"version": 2, "httpStatusCode": 409, "message": "Invalid id specified.",
+        "details": ["path: /visualAnalyticsAdministration/customGraphTypes/c53138f0-09c9-4d75-9000-770b58e2397c",
+          "correlator: c83b60d7-c258-447b-a942-d6ace0a4ed8e"]}

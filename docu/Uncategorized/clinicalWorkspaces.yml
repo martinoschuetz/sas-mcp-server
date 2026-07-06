@@ -1,0 +1,2265 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: SAS Clinical Workspaces
+  description: >
+    The SAS Clinical Workspaces API provides API endpoints necessary for
+    managing clinical workspaces and their content.
+  termsOfService: https://www.sas.com/en_us/legal/copyright.html
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+servers:
+- url: https://example.com/clinicalWorkspaces
+  description: kubernetes mock server
+tags:
+- name: Root
+  description: The operations for the root resource.
+- name: Workspace
+  description: The operations for managing a user's workspace.
+- name: Synchronization
+  description: The operations for managing synchronization items.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the links for the API
+      description: Returns the links to the top-level resources for the API.
+      operationId: root
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: Describes the representation of the collection response.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                title: API
+                description: The list of links to top-level resources and operations
+                  available from the root of the API.
+                x-sas-media-type:
+                  name: application/vnd.sas.api
+                  version: 1
+                required:
+                - version
+                - links
+                properties:
+                  version:
+                    type: integer
+                    description: The version number of the API representation. This
+                      is version 1.
+                    minimum: 1
+                  links:
+                    description: The API's top-level links.
+                    type: array
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      required:
+                      - rel
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: If this is a link to a container, `itemType`
+                            is the media type or link type for the items in the container.
+                        responseType:
+                          type: string
+                          description: The media type or link type of the response
+                            body for a `PUT`, `POST`, or `PATCH` operation.
+                        responseItemType:
+                          type: string
+                          description: The media type or link type of the items in
+                            the response body for a `PUT`, `POST`, or `PATCH` operation.
+              examples:
+                api:
+                  summary: Links to the API resources
+                  value:
+                    version: 1
+                    links:
+                    - method: POST
+                      rel: createWorkspace
+                      href: /clinicalWorkspaces/userWorkspace
+                      uri: /clinicalWorkspaces/userWorkspace
+                      responseType: application/vnd.sas.clinical.workspace+json
+            application/json:
+              schema:
+                $ref: "#/paths/~1/get/responses/200/content/application~1vnd.sas.api%2Bjson/schema"
+              examples:
+                api:
+                  $ref: "#/paths/~1/get/responses/200/content/application~1vnd.sas.api%2Bjson/examples/api"
+        "404":
+          description: The service is not available.
+    head:
+      tags:
+      - Root
+      summary: Get the headers for the API
+      description: >
+        Returns the headers for the API. Also determines whether the service
+        provided by the API is available.
+      operationId: headersForRoot
+      responses:
+        "200":
+          description: The service is running.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: Describes the representation of the collection response.
+        "404":
+          description: The service is not available.
+  /synchronization/items:
+    get:
+      tags:
+      - Synchronization
+      summary: Get the collection of synchronization items
+      description: >
+        Returns the collection of synchronization items matching the specified
+        filter. Users belonging to the 'Clinical Administrators' group can run
+        as an administrator by specifying a value of 'admin' for the
+        'X-SAS-Clinical-Authorization' header. The default behavior is to run in
+        non-administrative mode. Only synchronization items associated with the
+        current user will be returned for non-administrators.
+      operationId: getSynchronizationItems
+      parameters:
+      - name: start
+        in: query
+        description: 0-based offset of the first type to return. Defaults to 0.
+        schema:
+          type: integer
+        example: 10
+      - name: limit
+        in: query
+        description: The maximum number of items to return. Defaults to 10. The maximum
+          cannot exceed 500.
+        schema:
+          type: integer
+        example: 10
+      - name: filter
+        in: query
+        description: >
+          Filter criteria for items. See [Filtering in REST
+          APIs](https://developer.sas.com/apis/rest/Topics/#filters).
+        schema:
+          type: string
+          format: filter-criteria
+        example: eq(name,'ACME')
+      - name: sortBy
+        in: query
+        description: >
+          Sorts the returned items. See [Sorting in REST
+          APIs](https://developer.sas.com/apis/rest/Topics/#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+          example: name:ascending:primary
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection:
+              schema:
+                description: The schema for a collection of synchronization items.
+                allOf:
+                - description: This is a base schema used to define paginated collections
+                    of resources. This base schema is extended by other schemas by
+                    adding an 'items' array property. These extensions define the
+                    application/vnd.sas.collection media type (version 2)
+                  properties:
+                    accept:
+                      description: A space-delimited list of media types from which
+                        an `Accept` header may be constructed.
+                      type: string
+                    name:
+                      type: string
+                      description: The name of the collection.
+                    count:
+                      type: integer
+                      description: The total item count.
+                    start:
+                      type: integer
+                      description: The zero-based index of the first item in the collection.
+                    limit:
+                      type: integer
+                      description: The number of items that were requested from the
+                        collection.
+                    links:
+                      description: The links that apply to the collection.
+                      items: {}
+                      type: array
+                    version:
+                      type: integer
+                      description: The version number of the collection representation.
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      description: The array of synchronization items.
+                      items:
+                        title: Synchronization Item
+                        description: The representation of a synchronization item.
+                        type: object
+                        properties:
+                          version:
+                            type: number
+                            description: The version of the representation. This is
+                              version 1.
+                          id:
+                            description: The unique identifier of the synchronization
+                              item.
+                            type: string
+                          workspaceId:
+                            type: string
+                            description: The unique identifier of the workspace associated
+                              with this synchronization item.
+                          userId:
+                            type: string
+                            description: The identifier of the user associated with
+                              this synchronization item.
+                          name:
+                            type: string
+                            description: The name of the file associated with this
+                              synchronization item.
+                          location:
+                            type: string
+                            description: The location, or parent path, of the file
+                              associated with this synchronization item.
+                          path:
+                            type: string
+                            description: The path of the file associated with this
+                              synchronization item.
+                          fileVersion:
+                            type: string
+                            description: >
+                              The current version of the repository file
+                              associated with this synchronization item (if
+                              the file exists in the repository).
+                          repositoryFileSize:
+                            type: number
+                            description: >
+                              The size of the repository file associated with
+                              this synchronization item (if the file exists in
+                              the repository).
+                          repositoryModifiedTimeStamp:
+                            type: string
+                            format: date-time
+                            description: >
+                              The modified timestamp of the repository file
+                              associated with this synchronization item (if
+                              the file exists in the repository).
+                          synchronizationInfo:
+                            type: object
+                            description: Additional synchronization information associated
+                              with this synchronization item.
+                            $ref: "#/components/schemas/synchronizationItem/properties/synchronizationInfo"
+              example:
+                summary: Get synchronization items
+                description: Returns a collection of synchronization items.
+                value:
+                  links:
+                  - method: GET
+                    rel: self
+                    href: /clinicalWorkspaces/synchronization/items?filter=and(startsWith(path,'/RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1725036088990/testGetSynchronizationItems_Filtering-1725036088990/'),like(name,'folder*_file?.txt'))&sortBy=name:ascending:primary&start=0&limit=10
+                    uri: /clinicalWorkspaces/synchronization/items?filter=and(startsWith(path,'/RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1725036088990/testGetSynchronizationItems_Filtering-1725036088990/'),like(name,'folder*_file?.txt'))&sortBy=name:ascending:primary&start=0&limit=10
+                    type: application/vnd.sas.collection
+                    itemType: application/vnd.sas.clinical.synchronization.info+json
+                  - method: GET
+                    rel: collection
+                    href: /clinicalWorkspaces/synchronization/items
+                    uri: /clinicalWorkspaces/synchronization/items
+                    type: application/vnd.sas.collection
+                    itemType: application/vnd.sas.clinical.synchronization.info+json
+                  name: items
+                  accept: application/vnd.sas.clinical.synchronization.info+json
+                  start: 0
+                  count: 3
+                  items:
+                  - version: 1
+                    id: 39ab413a-0013-466f-bd3e-0f287199b18e
+                    workspaceId: 5ae783a1-eb1d-49ec-9a39-5204e54a311a
+                    userId: sastest1
+                    name: folder1_file1.txt
+                    location: /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1725036088990/testGetSynchronizationItems_Filtering-1725036088990/folder1
+                    path: /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1725036088990/testGetSynchronizationItems_Filtering-1725036088990/folder1/folder1_file1.txt
+                    fileVersion: "-"
+                    repositoryFileSize: 17
+                    repositoryModifiedTimeStamp: 2024-08-30T16:42:20Z
+                    synchronizationInfo:
+                      version: 1
+                      checkedOut: false
+                      synchronizationFileVersion: "-"
+                      synchronizationTimeStamp: 2024-08-30T16:42:31.345000Z
+                      workspaceStatus: IN_SYNC
+                  - version: 1
+                    id: 24e8bd6e-495c-4656-a253-faebef615cac
+                    workspaceId: 5ae783a1-eb1d-49ec-9a39-5204e54a311a
+                    userId: sastest1
+                    name: folder2_file1.txt
+                    location: /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1725036088990/testGetSynchronizationItems_Filtering-1725036088990/folder2
+                    path: /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1725036088990/testGetSynchronizationItems_Filtering-1725036088990/folder2/folder2_file1.txt
+                    fileVersion: "-"
+                    repositoryFileSize: 17
+                    repositoryModifiedTimeStamp: 2024-08-30T16:42:21Z
+                    synchronizationInfo:
+                      version: 1
+                      checkedOut: true
+                      checkedOutBy: sastest1
+                      checkedOutByDisplayName: SAS Test User 1 (sastest1)
+                      checkedOutTimeStamp: 2024-08-30T16:42:33Z
+                      synchronizationFileVersion: "-"
+                      synchronizationTimeStamp: 2024-08-30T16:42:35.514000Z
+                      workspaceStatus: IN_SYNC
+                  - version: 1
+                    id: 20f3dc8f-b58f-4f3a-8d3e-b2f272520ad1
+                    workspaceId: 5ae783a1-eb1d-49ec-9a39-5204e54a311a
+                    userId: sastest1
+                    name: folder3_file1.txt
+                    location: /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1725036088990/testGetSynchronizationItems_Filtering-1725036088990/folder3
+                    path: /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1725036088990/testGetSynchronizationItems_Filtering-1725036088990/folder3/folder3_file1.txt
+                    fileVersion: "-"
+                    repositoryFileSize: 17
+                    repositoryModifiedTimeStamp: 2024-08-30T16:42:22Z
+                    synchronizationInfo:
+                      version: 1
+                      checkedOut: true
+                      checkedOutBy: sastest1
+                      checkedOutByDisplayName: SAS Test User 1 (sastest1)
+                      checkedOutTimeStamp: 2024-08-30T16:42:40Z
+                      synchronizationFileVersion: "-"
+                      synchronizationTimeStamp: 2024-08-30T16:42:42.714000Z
+                      workspaceStatus: IN_SYNC
+                  limit: 10
+                  version: 2
+            application/json:
+              schema:
+                $ref: "#/paths/~1synchronization~1items/get/responses/200/content/application~1vnd.sas.collection/schema"
+              example:
+                $ref: "#/paths/~1synchronization~1items/get/responses/200/content/application~1vnd.sas.collection/example"
+    post:
+      tags:
+      - Synchronization
+      summary: Get the collection of synchronization items eligible for check in for
+        the current user
+      description: >
+        Returns the collection of synchronization items eligible for check in
+        for the current user based on the specified paths.
+      operationId: getCheckInSynchronizationItems
+      parameters:
+      - name: type
+        in: query
+        required: true
+        description: >
+          The type of check in synchronization items to retrieve. CHECKED_OUT
+          retrieves synchronization items of checked out files only and
+          CHECKIN includes synchronization items for files available for check
+          in (this includes checked out files and new files which don't yet
+          exist in the repository).
+        schema:
+          type: string
+          enum:
+          - CHECKED_OUT
+          - CHECKIN
+      requestBody:
+        required: true
+        description: >
+          The list of paths to retrieve synchronization items for. If a folder
+          path is specified, synchronization items will be retrieved for files
+          within the folder.
+        content:
+          application/json:
+            schema:
+              type: array
+              example:
+              - /RemoteTests/RemoteWorkspaceControllerSynchronizationTest-1716224505926/testGetSynchronizationItems-1716224505926/folder1
+              - /RemoteTests/RemoteWorkspaceControllerSynchronizationTest-1716224505926/testGetSynchronizationItems-1716224505926/folder2
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection:
+              schema:
+                $ref: "#/paths/~1synchronization~1items/get/responses/200/content/application~1vnd.sas.collection/schema"
+              example:
+                $ref: "#/paths/~1synchronization~1items/get/responses/200/content/application~1vnd.sas.collection/example"
+            application/json:
+              schema:
+                $ref: "#/paths/~1synchronization~1items/get/responses/200/content/application~1vnd.sas.collection/schema"
+              example:
+                $ref: "#/paths/~1synchronization~1items/get/responses/200/content/application~1vnd.sas.collection/example"
+  /userWorkspace:
+    post:
+      tags:
+      - Workspace
+      summary: Create a new workspace
+      description: |
+        Add a new workspace.
+      operationId: createWorkspace
+      responses:
+        "201":
+          description: The request succeeded and the created workspace is returned.
+          content:
+            application/vnd.sas.clinical.workspace:
+              schema:
+                title: Workspace
+                description: >
+                  An area where files and folders may be stored. A workspace is
+                  associated with a specific user. Files and folders within a
+                  user's workspace are only accessible by that user.
+                properties:
+                  version:
+                    description: The version of the representation. This is version
+                      1.
+                    type: number
+                  id:
+                    description: The unique identifier of the workspace.
+                    type: string
+                  owner:
+                    description: The user ID of the user that owns the workspace.
+                    type: string
+                  name:
+                    description: The name of the workspace.
+                    type: string
+                  empty:
+                    description: Whether or not the workspace is empty.
+                    type: boolean
+              examples:
+                workspace:
+                  description: Workspace representation.
+                  value:
+                    version: 1
+                    id: 8107898a-70d7-43cc-850f-004d28bff58d
+                    owner: sastest2
+                    name: sastest2
+                    empty: true
+            application/json:
+              schema:
+                $ref: "#/paths/~1userWorkspace/post/responses/201/content/application~1vnd.sas.clinical.workspace/schema"
+              examples:
+                workspace:
+                  $ref: "#/paths/~1userWorkspace/post/responses/201/content/application~1vnd.sas.clinical.workspace/examples/workspace"
+        "400":
+          description: Bad Request
+        "409":
+          description: The workspace already exists.
+    get:
+      tags:
+      - Workspace
+      summary: Get the current user's workspace
+      description: Get the current user's workspace.
+      operationId: getWorkspace
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.clinical.workspace:
+              schema:
+                $ref: "#/paths/~1userWorkspace/post/responses/201/content/application~1vnd.sas.clinical.workspace/schema"
+              examples:
+                workspace:
+                  $ref: "#/paths/~1userWorkspace/post/responses/201/content/application~1vnd.sas.clinical.workspace/examples/workspace"
+            application/json:
+              schema:
+                $ref: "#/paths/~1userWorkspace/post/responses/201/content/application~1vnd.sas.clinical.workspace/schema"
+              examples:
+                workspace:
+                  $ref: "#/paths/~1userWorkspace/post/responses/201/content/application~1vnd.sas.clinical.workspace/examples/workspace"
+        "404":
+          description: Not found - The workspace could not be found.
+    head:
+      tags:
+      - Workspace
+      summary: Determine if the current user's workspace exists
+      description: Determine if the current user's workspace exists.
+      operationId: headersForWorkspace
+      responses:
+        "200":
+          description: OK - the workspace exists.
+        "404":
+          description: Not found - the workspace could not be found.
+    delete:
+      tags:
+      - Workspace
+      summary: Delete the current user's workspace
+      description: >
+        Delete the current user's workspace. All files and folders within the
+        workspace must be deleted before the workspace can be deleted.
+      operationId: deleteWorkspace
+      responses:
+        "204":
+          description: The workspace was deleted.
+        "400":
+          description: Bad Request
+        "404":
+          description: Not found - the workspace could not be found.
+  /userWorkspace/items/item:
+    get:
+      tags:
+      - Workspace
+      summary: Get the workspace item with the specified path
+      description: |
+        Get the workspace item with the specified path.
+      operationId: getWorkspaceItemTemp
+      parameters:
+      - name: Accept
+        in: header
+        description: >
+          The requested representation of workspace item. Media type
+          'application/vnd.sas.clinical.workspace.item+json' is the default.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.clinical.workspace.item+json
+          - application/vnd.sas.collection+json
+          - application/json
+      - name: path
+        in: query
+        required: true
+        description: The full path of the workspace item.
+        schema:
+          type: string
+        examples:
+          folder:
+            value: /Org/project/programs
+          file:
+            value: /Org/project/programs/report.sas
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection:
+              schema:
+                description: The schema for a collection of workspace items which
+                  can be folders or files.
+                allOf:
+                - $ref: "#/paths/~1synchronization~1items/get/responses/200/content/application~1vnd.sas.collection/schema/allOf/0"
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      description: The array of workspace items.
+                      items:
+                        $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                getWorkspaceChildren:
+                  summary: Get workspace item children.
+                  description: Returns a collection of workspace items.
+                  value:
+                    links:
+                    - method: GET
+                      rel: self
+                      href: /clinicalWorkspaces/userWorkspace/items/Org/project/programs?start=0&limit=3
+                      uri: /clinicalWorkspaces/userWorkspace/items/Org/project/programs?start=0&limit=3
+                      type: application/vnd.sas.collection
+                      itemType: application/vnd.sas.clinical.workspace.item+json
+                    - method: GET
+                      rel: collection
+                      href: /clinicalWorkspaces/userWorkspace/items/Org/project/programs
+                      uri: /clinicalWorkspaces/userWorkspace/items/Org/project/programs
+                      type: application/vnd.sas.collection
+                      itemType: application/vnd.sas.clinical.workspace.item+json
+                    name: items
+                    accept: application/vnd.sas.clinical.workspace.item+json
+                    start: 0
+                    count: 3
+                    items:
+                    - version: 1
+                      workspaceId: ce211872-f840-4d41-bcb4-4974cb35840e
+                      name: inputs
+                      path: /Org/project/programs/inputs
+                      type: FOLDER
+                      modifiedTimeStamp: 2023-12-13T16:04:42.183000Z
+                    - version: 1
+                      workspaceId: ce211872-f840-4d41-bcb4-4974cb35840e
+                      name: outputs
+                      path: /Org/project/programs/outputs
+                      type: FOLDER
+                      modifiedTimeStamp: 2023-12-13T16:04:49.306000Z
+                    - version: 1
+                      workspaceId: ce211872-f840-4d41-bcb4-4974cb35840e
+                      name: sleep.sas
+                      path: /Org/project/programs/sleep.sas
+                      type: FILE
+                      modifiedTimeStamp: 2023-12-13T15:39:09.907000Z
+                      contentType: application/x-sas
+                      size: 22
+                    limit: 3
+                    version: 2
+            application/vnd.sas.clinical.workspace.item:
+              schema:
+                $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                workspaceFolder:
+                  summary: An example of getting a workspace item that is a folder.
+                  description: Returns a workspace folder representation.
+                  value:
+                    version: 1
+                    workspaceId: ce211872-f840-4d41-bcb4-4974cb35840e
+                    name: programs
+                    location: /Org/project
+                    path: /Org/project/programs
+                    type: FOLDER
+                    modifiedTimeStamp: 2023-12-13T16:04:52.385000Z
+                workspaceFile:
+                  summary: An example of getting a workspace item that is a file.
+                  description: Returns a workspace file representation.
+                  value:
+                    version: 1
+                    workspaceId: ce211872-f840-4d41-bcb4-4974cb35840e
+                    name: sleep.sas
+                    path: /Org/project/programs/sleep.sas
+                    type: FILE
+                    modifiedTimeStamp: 2023-12-13T15:39:09.907000Z
+                    contentType: application/x-sas
+                    size: 22
+            application/json:
+              schema:
+                $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                workspaceFolder:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFolder"
+                workspaceFile:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFile"
+        "404":
+          description: Not found - the workspace item could not be found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                title: Error
+                type: object
+                description: The representation of an error.
+                x-sas-media-type:
+                  name: application/vnd.sas.error
+                  version: 2
+                required:
+                - httpStatusCode
+                - version
+                properties:
+                  message:
+                    type: string
+                    description: The message for the error.
+                  id:
+                    type: string
+                    description: The string ID for the error.
+                  errorCode:
+                    type: integer
+                    description: The numeric ID for the error.
+                  httpStatusCode:
+                    type: integer
+                    description: The HTTP status code for the error.
+                  details:
+                    type: array
+                    description: Messages that provide additional details about the
+                      cause of the error.
+                    items:
+                      type: string
+                  remediation:
+                    type: string
+                    description: A message that describes how to resolve the error.
+                  errors:
+                    type: array
+                    description: Any additional errors that occurred.
+                    items:
+                      $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/404/content/application~1vnd.sas.error%2Bjson/schema"
+                  links:
+                    type: array
+                    description: The links that apply to the error.
+                    items:
+                      $ref: "#/paths/~1/get/responses/200/content/application~1vnd.sas.api%2Bjson/schema/properties/links/items"
+                  version:
+                    type: integer
+                    description: The version number of the error representation. This
+                      representation is version 2.
+              examples:
+                json:
+                  summary: Not found error response
+                  description: This is an example of an error response for a resource
+                    that is not found.
+                  value:
+                    errorCode: 145016
+                    message: No resource with the path "/does/not/exist" was found.
+                    details:
+                    - Workspace item was not found /does/not/exist
+                    remediation: Either the path is incorrect or the desired resource
+                      does not exist.
+                    version: 2
+                    httpStatusCode: 404
+            application/json:
+              schema:
+                $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/404/content/application~1vnd.sas.error%2Bjson/schema"
+              examples:
+                json:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/404/content/application~1vnd.sas.error%2Bjson/examples/json"
+    delete:
+      tags:
+      - Workspace
+      summary: Delete the workspace item with the specified path
+      description: Delete the workspace item with the specified path.
+      operationId: deleteItemTemp
+      parameters:
+      - name: path
+        in: query
+        required: true
+        description: The full path of the workspace item.
+        schema:
+          type: string
+        examples:
+          folder:
+            value: /Org/project/programs
+          file:
+            value: /Org/project/programs/report.sas
+      responses:
+        "204":
+          description: The workspace item was successfully deleted.
+        "404":
+          description: Not found - the workspace item could not be found.
+  /userWorkspace/items/item/rename:
+    post:
+      tags:
+      - Workspace
+      summary: Rename the item at the specified path
+      description: |
+        Rename the item at the specified path.
+      operationId: renameItem
+      parameters:
+      - name: path
+        in: query
+        required: true
+        description: The full path of the workspace item.
+        schema:
+          type: string
+        examples:
+          folder:
+            value: /Org/project/programs
+          file:
+            value: /Org/project/programs/report.sas
+      requestBody:
+        required: true
+        description: The new name for the workspace item.
+        content:
+          application/json:
+            schema:
+              type: string
+            examples:
+              Name:
+                summary: An example of a name sent for the rename action.
+                value: Results
+      responses:
+        "200":
+          description: OK - The rename was successful.
+          content:
+            application/vnd.sas.clinical.workspace.item:
+              schema:
+                $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                workspaceFolder:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFolder"
+                workspaceFile:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFile"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                workspaceFolder:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFolder"
+                workspaceFile:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFile"
+  "/userWorkspace/files/{path}/**":
+    post:
+      tags:
+      - Workspace
+      summary: Update the file with the specified path
+      description: Update the file with the specified path.
+      operationId: updateFile
+      parameters:
+      - name: path
+        in: path
+        required: true
+        description: >
+          The path of the file. This could be a workspace and/or repository
+          file path depending on the action.
+        schema:
+          type: string
+          example: /Org/project/programs/report.sas
+      - name: action
+        in: query
+        required: true
+        description: >
+          The update action to perform on the file. Supported actions:
+
+          * CHECK_OUT: Check out a repository file and copy it to the workspace. If
+          the file exists in the workspace its
+
+          content will be overwritten. Any parent contexts and folders that don't
+          currently exist in the workspace are
+
+          created in the workspace as folders.
+
+          * CHECK_OUT_WITHOUT_COPY: Check out a repository file and do not copy the
+          file or its parent containers to the
+
+          workspace.
+
+          * UNDO_CHECKOUT: Undo the check out of a file that is currently checked
+          out. Users can only undo checkout on
+
+          files they have checked out. The workspace content of the file is not affected
+          by undo checkout.
+
+          * CHECK_IN: Check in a file which currently exists in the repository and
+          is checked out or check in a new file
+
+          which exists in the workspace, but does not yet exist in the repository.
+          Checking in a file will result in the
+
+          file being created or updated in the repository and any missing parent folders
+          will be created in the repository.
+
+          The optional version and file comments will be applied if specified.
+
+          * COPY_LATEST_VERSION: Copy the content of a file in the repository to the
+          workspace. For versioned files the
+
+          content of the most recent version of the file will be copied to the workspace.
+          Existing workspace files will have
+
+          their content overwritten if the content of the file does not already match
+          that of the most recent version of
+
+          the file in the repository.
+
+          * COPY_VERSION: Copy the content of a file in the repository to the workspace.
+          For versioned files, by default the
+
+          content of the latest version of the file will be copied to the workspace.
+          The optional fileVersion can
+
+          be specified to copy the content of an earlier version of the file. Existing
+          workspace files will have
+
+          their content overwritten if the content of the file does not already match
+          that of the specified fileVersion
+
+          in the repository, or the latest version when no version is specified.
+        schema:
+          type: string
+          enum:
+          - CHECK_OUT
+          - CHECK_OUT_WITHOUT_COPY
+          - UNDO_CHECKOUT
+          - CHECK_IN
+          - COPY_LATEST_VERSION
+      - name: fileVersion
+        in: query
+        description: >
+          The optional version specification for checking in a version of the
+          file or copying a version of the file to the workspace. This
+          parameter is not required, so for check in, unless a version
+          parameter value is provided, new files are created un-versioned. For
+          the CHECK_IN action, the valid values for version are MAJOR, MINOR,
+          or a specific version such as 2.3. If MAJOR, new files are created
+          as versioned with initial version 1.0. Similarly, MINOR creates a
+          versioned file with version 0.1. If the file exists and is
+          versioned, new versions are MINOR versions by default. To specify a
+          version other than MAJOR or MINOR, a value can be specified between
+          0.1 and 99999.99999. For COPY_VERSION, the specific file version you
+          wish to copy to the workspace can be specified; otherwise the
+          content of the most recent version is copied. This parameter is only
+          applicable when the action is CHECK_IN and COPY_VERSION.
+        required: false
+        schema:
+          type: string
+        example: MAJOR
+      - name: comment
+        in: query
+        description: >
+          The optional file version comment for this file. This is only
+          applicable when action is CHECK_IN.
+        required: false
+        schema:
+          type: string
+        example: Final report version.
+      responses:
+        "200":
+          description: OK - the file was updated successfully.
+          content:
+            application/vnd.sas.clinical.workspace.file:
+              schema:
+                title: Workspace File
+                description: The representation of a workspace file.
+                allOf:
+                - $ref: "#/components/schemas/workspaceFile/allOf/0"
+                - type: object
+                  properties:
+                    contentType:
+                      type: string
+                      description: The content type of the file.
+                    size:
+                      type: number
+                      description: The size of the file in bytes.
+            application/json:
+              schema:
+                $ref: "#/paths/~1userWorkspace~1files~1%7Bpath%7D~1**/post/responses/200/content/application~1vnd.sas.clinical.workspace.file/schema"
+              examples:
+                workspaceFile:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFile"
+  "/userWorkspace/items/{path}/**":
+    get:
+      tags:
+      - Workspace
+      summary: Get the workspace item with the specified path
+      description: |
+        Get the workspace item with the specified path.
+      operationId: getWorkspaceItem
+      parameters:
+      - $ref: "#/paths/~1userWorkspace~1items~1item/get/parameters/0"
+      - name: path
+        in: path
+        required: true
+        description: |
+          The full path of the workspace item.
+        schema:
+          type: string
+        examples:
+          folder:
+            value: /Org/project/programs
+          file:
+            value: /Org/project/programs/report.sas
+      - name: type
+        in: query
+        schema:
+          enum:
+          - FILE
+          - FOLDER
+        required: false
+        description: >
+          Only files are returned when 'FILE' specified and only folders when
+          'FOLDER' specified. Both files and folders are returned if no 'type'
+          value is specified. This parameter is ignored when the accept value
+          is not 'application/vnd.sas.collection'.
+        example: FILE
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection:
+              schema:
+                $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.collection/schema"
+              examples:
+                getWorkspaceChildren:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.collection/examples/getWorkspaceChildren"
+            application/vnd.sas.clinical.workspace.item:
+              schema:
+                $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                workspaceFolder:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFolder"
+                workspaceFile:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFile"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                workspaceFolder:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFolder"
+                workspaceFile:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFile"
+        "404":
+          description: Not found - the workspace item could not be found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/404/content/application~1vnd.sas.error%2Bjson/schema"
+              examples:
+                json:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/404/content/application~1vnd.sas.error%2Bjson/examples/json"
+            application/json:
+              schema:
+                $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/404/content/application~1vnd.sas.error%2Bjson/schema"
+              examples:
+                json:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/404/content/application~1vnd.sas.error%2Bjson/examples/json"
+    head:
+      tags:
+      - Workspace
+      summary: Determine if the workspace item with the specified path exists
+      description: |
+        Check if the workspace item with the specified path exists.
+      operationId: headersForWorkspaceItem
+      parameters:
+      - $ref: "#/paths/~1userWorkspace~1items~1item/get/parameters/0"
+      - $ref: "#/paths/~1userWorkspace~1items~1%7Bpath%7D~1**/get/parameters/1"
+      responses:
+        "200":
+          description: OK - the workspace item exists.
+        "404":
+          description: Not found - the workspace item could not be found.
+    put:
+      tags:
+      - Workspace
+      summary: Upload workspace content
+      description: >
+        Uploads a single file to create a new file or updates the content of an
+        existing file. You can also upload and expand a ZIP file to a folder.
+        <p> Optionally, an action status ID can be provided to monitor the
+        completion status. To get the action status ID, first call
+        [batchUpdate](#operationId:batchUpdate) with the action UPLOAD or
+        UPLOAD_EXPAND, which returns the action status ID on the request header.
+      operationId: putWorkspaceItemContent
+      parameters:
+      - $ref: "#/paths/~1userWorkspace~1items~1%7Bpath%7D~1**/get/parameters/1"
+      - name: expand
+        in: query
+        schema:
+          type: boolean
+        required: false
+        description: >
+          Determines if the ZIP file on the request should be expanded when it
+          is uploaded to the workspace folder. This parameter is ignored if
+          the path is to a file.
+        example: true
+      - name: actionStatusId
+        in: query
+        description: >
+          The action status ID if monitoring the completion status. The action
+          status ID is obtained by calling batchUpdate with the action UPLOAD
+          or UPLOAD_EXPAND.
+        required: false
+        schema:
+          type: string
+        example: z31efec9-dcc2-4574-8af8-69897038d9c6
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  description: The name of the file. Clients must specify name of
+                    the file as form data in the request body.
+                  type: string
+            examples:
+              file:
+                value:
+                  file: test_file.txt
+      responses:
+        "200":
+          description: Content was created or updated successfully.
+          content:
+            application/vnd.sas.clinical.workspace.item:
+              schema:
+                $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                workspaceFile:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFile"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                workspaceFile:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFile"
+        "400":
+          description: Bad Request
+        "404":
+          description: Not found - the parent folder could not be found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/404/content/application~1vnd.sas.error%2Bjson/schema"
+              examples:
+                json:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/404/content/application~1vnd.sas.error%2Bjson/examples/json"
+            application/json:
+              schema:
+                $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/404/content/application~1vnd.sas.error%2Bjson/schema"
+              examples:
+                json:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/404/content/application~1vnd.sas.error%2Bjson/examples/json"
+    post:
+      tags:
+      - Workspace
+      summary: Update the item at the specified path based on the action requested
+      description: >
+        Update the item at the specified path based on the action
+        requested.  The path is the full path to the item including the current
+        name.
+      operationId: updateItem
+      parameters:
+      - $ref: "#/paths/~1userWorkspace~1items~1%7Bpath%7D~1**/get/parameters/1"
+      - name: action
+        in: query
+        required: true
+        description: The update action to perform on the workspace item.
+        schema:
+          type: string
+          enum:
+          - MOVE
+          - RENAME
+          - COPY
+      requestBody:
+        required: true
+        description: >
+          The workspace update specification. This will vary based on the type
+          of update and the 'action' request parameter value.
+        content:
+          application/json:
+            schema:
+              type: string
+            examples:
+              Name:
+                summary: An example of a name sent for the rename action.
+                value: Results
+              Path:
+                summary: An example of a path sent for the move action.
+                value: /Org/project/programs/results.txt
+      responses:
+        "200":
+          description: OK - The request was successful.
+          content:
+            application/vnd.sas.clinical.workspace.item:
+              schema:
+                $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                workspaceFolder:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFolder"
+                workspaceFile:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFile"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                workspaceFolder:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFolder"
+                workspaceFile:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFile"
+        "201":
+          description: Created - The item was created successfully.
+          content:
+            application/vnd.sas.clinical.workspace.item:
+              schema:
+                $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                workspaceFolder:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFolder"
+                workspaceFile:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFile"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                workspaceFolder:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFolder"
+                workspaceFile:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFile"
+    delete:
+      tags:
+      - Workspace
+      summary: Delete the workspace item with the specified path
+      description: Delete the workspace item with the specified path.
+      operationId: deleteItem
+      parameters:
+      - $ref: "#/paths/~1userWorkspace~1items~1%7Bpath%7D~1**/get/parameters/1"
+      responses:
+        "204":
+          description: The workspace item was successfully deleted.
+        "404":
+          description: Not found - the workspace item could not be found.
+  /userWorkspace/items/content:
+    post:
+      tags:
+      - Workspace
+      summary: Download workspace item content
+      description: >
+        Download one or more workspace items as defined by the paths specified
+        in the request body. Paths can be to files and/or folders. If a single
+        path is specified and it is to a file, that file will be downloaded as a
+        stream on the response. If it is a single path and to a folder or
+        multiple paths are provided, the items are downloaded to a zip file and
+        returned as a stream on the response.  For folders, all child items are
+        downloaded to the zip. <p> Optionally, an action status ID can be
+        provided to monitor the completion status.  To get the action status ID,
+        first call [batchUpdate](#operationId:batchUpdate) with the action
+        DOWNLOAD, which returns the action status ID on the request header.
+      operationId: downloadContent
+      parameters:
+      - name: actionStatusId
+        in: query
+        description: >
+          The action status ID if monitoring the completion status. The action
+          status ID is obtained by calling batchUpdate with the action
+          DOWNLOAD.
+        required: false
+        schema:
+          type: string
+        example: z31efec9-dcc2-4574-8af8-69897038d9c6
+      requestBody:
+        required: true
+        description: >
+          The workspace download specification. One or more paths can be
+          specified for download. An optional actionStatusId can be specified if
+          performing a batch operation and tracking download status via the
+          action status API.
+        content:
+          application/vnd.sas.clinical.workspace.download:
+            schema:
+              title: Workspace Download
+              description: The information to download items from the workspace.
+              properties:
+                version:
+                  description: The version of the representation. This is version
+                    1.
+                  type: number
+                  example: 1
+                paths:
+                  description: The paths of the files or folders to be downloaded.
+                  type: array
+                  items:
+                    type: string
+                  example:
+                  - /Results/1-12-23.txt
+                  - /Results/Data
+                actionStatusId:
+                  required: false
+                  description: The optional id of the action status that is returned
+                    from specifying paths to batchUpdate for preparing download to
+                    report status of the download for each path.
+                  type: string
+                  example: 662fa302-0b27-4849-8f2e-edf2bbb88e8f
+            examples:
+              download:
+                description: Example request body for workspace download.
+                value:
+                  version: 1
+                  paths:
+                  - /proj1/data
+                  - /proj1/programs
+                  - /proj2/summary.doc
+                  actionStatusId: 662fa302-0b27-4849-8f2e-edf2bbb88e8f
+          application/json:
+            schema:
+              $ref: "#/paths/~1userWorkspace~1items~1content/post/requestBody/content/application~1vnd.sas.clinical.workspace.download/schema"
+            examples:
+              download:
+                $ref: "#/paths/~1userWorkspace~1items~1content/post/requestBody/content/application~1vnd.sas.clinical.workspace.download/examples/download"
+      responses:
+        "200":
+          description: OK
+  /userWorkspace/items/batch:
+    post:
+      tags:
+      - Workspace
+      summary: Asynchronously update one or more workspace items
+      description: Asynchronously update one or more workspace items.
+      operationId: batchUpdate
+      parameters:
+      - name: clientId
+        in: query
+        schema:
+          type: string
+        required: false
+        description: The client ID that is associated with the action status.
+      - name: action
+        in: query
+        required: true
+        description: >
+          The action to perform on the workspace items. Supported actions:
+
+          * DELETE: Delete one or more workspace items. The request body is a list
+          of paths for the items to delete.
+
+          * MOVE: Move one or more workspace items to the specified destination path.
+
+          * COPY: Copy one or more workspace items to the specified destination path.
+
+          * REPOSITORY_CHECK_OUT: Check out one or more repository files and/or folders.
+          The Check Out Specification
+
+          should be specified in the request body. If 'copyContent' is 'true' in the
+          request body, existing workspace
+
+          files will have their content overwritten. By default or if 'copyContent'
+          is 'false', the repository file
+
+          content is not copied to the workspace and workspace file content will not
+          change.
+
+          * WORKSPACE_CHECK_OUT: Check out one or more workspace files and/or folders.
+          Files must also exist in the
+
+          repository to be checked out, therefore, the specified paths must exist
+          in both the repository and workspace for
+
+          the check out action to succeed. The Check Out Specification should be specified
+          in the request body. If
+
+          'copyContent' is 'true' in the request body, existing workspace files will
+          have their content overwritten.
+
+          By default or if 'copyContent' is 'false', the repository file content is
+          not copied to the workspace and
+
+          workspace file content will not change.
+
+          * UNDO_CHECKOUT: Undo the check out of one or more files that are currently
+          checked out. Users can only undo
+
+          checkout on files they have checked out. The workspace content of the files
+          is not affected by undo checkout.
+
+          The request body is a list of paths for the items to undo.
+
+          * UNDO_CHECKOUT_BY_FILTER: Undo the check out of one or more files that
+          are currently checked out by specifying
+
+          a filter of synchronization items to act on. The request body is a plain
+          text filter.
+
+          * CHECK_IN: Check in one or more files which currently exist in the repository
+          and are checked out and/or one or
+
+          more new files which exist in the workspace, but do not yet exist in the
+          repository. Checking in a file will
+
+          result in the file being created or updated in the repository and any missing
+          parent folders will be created
+
+          in the repository. The Check In Specification should be specified in the
+          request body.
+
+          * DOWNLOAD: To be used for tracking download status when downloading one
+          or more items. Specify a list of one or more paths to be
+
+          downloaded to the request body, and then use the action status ID returned
+          on the response header in each individual item download call. Note the paths
+
+          passed here must match each path sent to download to get the proper download
+          status for each item.
+
+          * UPLOAD: To be used for tracking upload status when uploading one or more
+          files. Specify a list of one or more file paths to be
+
+          uploaded to the request body, and then use the action status ID returned
+          on the response header in each individual file upload call. Note the paths
+
+          passed here must match each path sent to upload to get the proper upload
+          status for each file.
+
+          * UPLOAD_EXPAND: To be used for tracking upload status when uploading and
+          expanding a zip file to a folder. Specify the destination folder path to
+          the
+
+          to the request body, and then use the action status ID returned on the response
+          header in the upload and expand call. Note the path
+
+          passed here must match the path sent to upload and expand to get the proper
+          upload status.
+
+          * COPY_LATEST_VERSION: Copy the content of one or more files in the repository
+          to the workspace. For versioned files the
+
+          content of the most recent version of the file will be copied to the workspace.
+          Existing workspace files will have
+
+          their content overwritten if the content of the file does not already match
+          that of the most recent version of the
+
+          file in the repository. Additionally, if a repository container path is
+          specified, the container will be created
+
+          in the workspace as a folder, and any files and containers within the subtree
+          of the container will be also be
+
+          copied to the workspace. The request body is a list of paths for the items
+          to perform copy latest version on.
+
+          * COPY_SPECIFIC_VERSION: Copy the content of one or more files in the repository
+          to the workspace. The
+
+          content of the specified version of the file will be copied to the workspace.
+          Existing workspace files will have
+
+          their content overwritten if the content of the file does not already match
+          that of the specified version of the
+
+          file in the repository. The request body is a list File Specifications which
+          allow for specifying the path and version
+
+          of each file that should have its version content copied.
+
+          * COPY_FOLDER_STRUCTURE: Copy one or more repository containers in the repository
+          to the workspace as folders.
+
+          If 'includeSubfolders' is 'false' only the specified containers are copied
+          and none of their content. If
+
+          'includeSubfolders' is 'true' specified containers and containers within
+          their subtree will be copied. Files
+
+          are not copied to the workspace. The Copy Folder Specification should be
+          specified in the request body.
+        schema:
+          type: string
+          enum:
+          - DELETE
+          - MOVE
+          - COPY
+          - REPOSITORY_CHECK_OUT
+          - WORKSPACE_CHECK_OUT
+          - UNDO_CHECKOUT
+          - UNDO_CHECKOUT_BY_FILTER
+          - CHECK_IN
+          - DOWNLOAD
+          - UPLOAD
+          - UPLOAD_EXPAND
+          - COPY_LATEST_VERSION
+          - COPY_SPECIFIC_VERSION
+          - COPY_FOLDER_STRUCTURE
+      requestBody:
+        required: true
+        description: >
+          The workspace update specification. This value varies based on the
+          type of update and the 'action' request parameter value.
+        content:
+          application/vnd.sas.clinical.workspace.move.copy+json:
+            schema:
+              title: Workspace Move or Copy
+              description: The required information to perform batch move or copy.
+              properties:
+                version:
+                  description: The version of the representation. This is version
+                    1.
+                  type: number
+                  example: 1
+                paths:
+                  description: The paths of the files or folders to be moved or copied.
+                  type: array
+                  items:
+                    type: string
+                  example:
+                  - /Results/1-12-23.txt
+                  - /Results/Data
+                destinationPath:
+                  description: The path of the container to which the repository items
+                    are moved or copied.
+                  type: string
+                  example: /Backup/TestingData
+          application/vnd.sas.clinical.check.in.specification+json:
+            schema:
+              title: Check In Specification
+              description: The specification for the check in action.
+              properties:
+                version:
+                  type: number
+                  description: The version of the representation. This is version
+                    1.
+                  example: 1
+                fileSpecifications:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/checkInSpecification/properties/fileSpecifications/items"
+                  description: The file specifications for the files to be checked
+                    in.
+                commment:
+                  type: string
+                  description: The check in comment to be applied to all checked in
+                    files.
+                  example: Adding SAS programs to repository
+                includeNewFiles:
+                  type: boolean
+                  description: Whether new files should be included in the check in
+                    action. Only checked out files will be checked in if false.
+          application/vnd.sas.clinical.check.out.specification+json:
+            schema:
+              title: Check Out Specification
+              description: The specification for the check out action.
+              properties:
+                version:
+                  type: number
+                  description: The version of the representation. This is version
+                    1.
+                  example: 1
+                paths:
+                  type: array
+                  description: >
+                    The paths for the files and folders to be checked out. If a
+                    folder is specified files in the subtree of the folder will
+                    be checked out. Additionally, if 'copyContent' is 'true',
+                    any non-existing parent contexts and folders of the checked
+                    out files are created in the workspace as folders.
+                  example:
+                  - /testBatchCheckOut-Folder/testBatchCheckOut-File.txt
+                  - /testBatchCheckOut-Folder/testBatchCheckOut-Folder2
+                  items: {}
+                copyContent:
+                  type: boolean
+                  description: >
+                    Whether the checked out files should be copied to the
+                    workspace. If true, existing workspace files will be
+                    overwritten. The default value is false.
+          application/vnd.sas.clinical.copy.folder.specification+json:
+            schema:
+              title: Copy Folder Specification
+              description: The specification for the copy folder structure action.
+              properties:
+                version:
+                  type: number
+                  description: The version of the representation. This is version
+                    1.
+                  example: 1
+                paths:
+                  type: array
+                  description: >
+                    The paths for the repository containers to be copied to the
+                    workspace. Additionally, any non-existing parent contexts
+                    and folders of the copied containers are created in the
+                    workspace as folders.
+                  example:
+                  - /testBatchCopyFolderStructure-Folder1
+                  - /testBatchCopyFolderStructure-Folder2
+                  items: {}
+                includeSubfolders:
+                  type: boolean
+                  description: >
+                    Whether containers within the subtree of specified container
+                    paths should be copied to the workspace. The default value
+                    is false.
+          text/plain:
+            schema:
+              description: >
+                The filter to retrieve the synchronization items to update. This
+                applies only when the 'action' request parameter is
+                'UNDO_CHECKOUT_BY_FILTER'.
+              example: eq(name,'item-to-update.txt')
+          application/json:
+            schema:
+              oneOf:
+              - $ref: "#/paths/~1userWorkspace~1items~1batch/post/requestBody/content/application~1vnd.sas.clinical.workspace.move.copy%2Bjson/schema"
+              - $ref: "#/paths/~1userWorkspace~1items~1batch/post/requestBody/content/application~1vnd.sas.clinical.check.in.specification%2Bjson/schema"
+              - $ref: "#/paths/~1userWorkspace~1items~1batch/post/requestBody/content/application~1vnd.sas.clinical.check.out.specification%2Bjson/schema"
+              - $ref: "#/paths/~1userWorkspace~1items~1batch/post/requestBody/content/application~1vnd.sas.clinical.copy.folder.specification%2Bjson/schema"
+              - type: array
+                example:
+                - /testBatchDelete-Folder/testBatchDelete-Item2
+                - /testBatchDelete-Folder/testBatchDelete-Folder2
+              - type: array
+                example:
+                  value:
+                  - version: 1
+                    path: /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1727458868194/testBatchCopySpecificVersion-1727458868194/copyLatestFolder2/file4.txt
+                    fileVersion: "0.3"
+                  - version: 1
+                    path: /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1727458868194/testBatchCopySpecificVersion-1727458868194/copyLatestFolder1/copyLatestFolder1.1/file3.txt
+                    fileVersion: "99.98"
+                  - version: 1
+                    path: /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1727458868194/testBatchCopySpecificVersion-1727458868194/copyLatestFolder1/file1.txt
+                    fileVersion: "1.0"
+                  - version: 1
+                    path: /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1727458868194/testBatchCopySpecificVersion-1727458868194/copyLatestFolder2/file5.txt
+                    fileVersion: "99999.99999"
+                  - version: 1
+                    path: /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1727458868194/testBatchCopySpecificVersion-1727458868194/copyLatestFolder1/file2.txt
+      responses:
+        "202":
+          description: >
+            The request was accepted. See the Location header for a link to
+            status information.
+          headers:
+            Location:
+              schema:
+                type: string
+              description: The link to determine the status of the operation that
+                was initiated with this request.
+  "/userWorkspace/folders/{path}/**":
+    post:
+      tags:
+      - Workspace
+      summary: Create a folder at the specified path with the specified name
+      description: |
+        Create a folder at the specified path with the specified name.
+      operationId: createFolder
+      parameters:
+      - name: path
+        in: path
+        schema:
+          type: string
+        required: true
+        description: The path of the parent directory.
+        example: /Org/project/programs
+      - name: name
+        in: query
+        schema:
+          type: string
+        required: true
+        description: The name of the folder to be created.
+        example: Results
+      responses:
+        "201":
+          description: Created - the folder was created.
+          content:
+            application/vnd.sas.clinical.workspace.folder:
+              schema:
+                title: Workspace Folder
+                description: The representation of a workspace folder.
+                allOf:
+                - $ref: "#/components/schemas/workspaceFile/allOf/0"
+              examples:
+                workspaceFolder:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFolder"
+            application/json:
+              schema:
+                $ref: "#/paths/~1userWorkspace~1folders~1%7Bpath%7D~1**/post/responses/201/content/application~1vnd.sas.clinical.workspace.folder/schema"
+              examples:
+                workspaceFolder:
+                  $ref: "#/paths/~1userWorkspace~1items~1item/get/responses/200/content/application~1vnd.sas.clinical.workspace.item/examples/workspaceFolder"
+        "400":
+          description: Bad Request
+        "404":
+          description: Not found - the parent folder could not be found.
+        "409":
+          description: The workspace folder already exists.
+  "/userWorkspace/log/lines/{path}/**":
+    get:
+      tags:
+      - Workspace
+      summary: Get the log file content at the specified path
+      description: >
+        Gets the parsed log file's content. This allows formatting of the output
+        rather than a simple text output.
+      operationId: getLogLines
+      parameters:
+      - name: path
+        in: path
+        schema:
+          type: string
+        required: true
+        description: The path of the log file.
+        example: /Org/project/JobLog.log
+      responses:
+        "200":
+          description: The request succeeded and the parsed log is returned.
+          content:
+            application/vnd.sas.clinical.log:
+              schema:
+                title: Log
+                description: The representation of a log file.
+                type: object
+                properties:
+                  version:
+                    type: number
+                    description: The version of the representation. This is version
+                      1.
+                  logLineReps:
+                    type: array
+                    description: The list of log lines.
+                    items:
+                      $ref: "#/components/schemas/log/properties/logLineReps/items"
+                  hasErrors:
+                    type: boolean
+                    description: Whether or not the log has any errors.
+                  hasWarnings:
+                    type: boolean
+                    description: Whether or not the log has any warnings.
+              examples:
+                log:
+                  description: Log file representation.
+                  value:
+                    version: 1
+                    logLines:
+                    - version: 1
+                      line: Wednesday, June 26, 2024 05:27:34 PM
+                      type: normal
+                    - version: 1
+                      line: "NOTE: Additional information about Host:"
+                      type: note
+                    - version: 1
+                      line: "WARNING: The data set WORK._NULL may be incomplete. When\
+                        \ this step was stopped there were 0 observations and 0 variables."
+                      type: warning
+                    - version: 1
+                      line: "ERROR: Failed to completed task. Additional information:"
+                      type: error
+                    hasErrors: true
+                    hasWarnings: true
+            application/json:
+              schema:
+                $ref: "#/paths/~1userWorkspace~1log~1lines~1%7Bpath%7D~1**/get/responses/200/content/application~1vnd.sas.clinical.log/schema"
+              examples:
+                log:
+                  $ref: "#/paths/~1userWorkspace~1log~1lines~1%7Bpath%7D~1**/get/responses/200/content/application~1vnd.sas.clinical.log/examples/log"
+        "400":
+          description: Bad Request
+        "404":
+          description: The log file was not found at the given path.
+  /workspaces/items/batch:
+    post:
+      tags:
+      - Workspace
+      summary: Asynchronously update one or more items within one or more workspaces
+      description: Asynchronously update one or more items within one or more workspaces.
+        Requires administrative privileges.
+      operationId: batchAdminUpdate
+      parameters:
+      - name: clientId
+        in: query
+        schema:
+          type: string
+        required: false
+        description: The client ID that is associated with the action status.
+      - name: action
+        in: query
+        required: true
+        description: >
+          The action to perform on the workspace items. Supported actions:
+
+          * UNDO_CHECKOUT: Undo the check out of one or more files that are currently
+          checked out. This is an administrative
+
+          undo checkout which allows undoing the checkout of files checked out by
+          other users. The workspace content of
+
+          the files is not affected by undo checkout. The request body is a collection
+          of Workspace Paths which allows for
+
+          grouping file/folder paths by the associated workspace.
+
+          * UNDO_CHECKOUT_BY_FILTER: Undo the check out of one or more files that
+          are currently checked out by specifying
+
+          a filter of synchronization items to act on. This is an administrative undo
+          checkout which allows undoing the
+
+          checkout of files checked out by other users. The workspace content of the
+          files is not affected by undo checkout.
+
+          The request body is a plain text filter.
+        schema:
+          type: string
+          enum:
+          - UNDO_CHECKOUT
+          - UNDO_CHECKOUT_BY_FILTER
+      requestBody:
+        required: true
+        description: >
+          The update specification. This value varies based on the type of
+          update and the 'action' request parameter value.
+        content:
+          application/json:
+            schema:
+              type: array
+              example:
+                value:
+                - version: 1
+                  workspaceId: 96ee1102-d7b9-4825-9b4d-df26ba55f2b0
+                  paths:
+                  - /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1724942479836/testBatchAdminUndoCheckout-1724942479836/folder3
+                  - /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1724942479836/testBatchAdminUndoCheckout-1724942479836/file3.txt
+                - version: 1
+                  workspaceId: de067777-485f-488b-89f0-c8429cce5c4a
+                  paths:
+                  - /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1724942479836/testBatchAdminUndoCheckout-1724942479836/folder2
+                  - /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1724942479836/testBatchAdminUndoCheckout-1724942479836/file2.txt
+                - version: 1
+                  workspaceId: 5ae783a1-eb1d-49ec-9a39-5204e54a311a
+                  paths:
+                  - /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1724942479836/testBatchAdminUndoCheckout-1724942479836/folder1
+                  - /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1724942479836/testBatchAdminUndoCheckout-1724942479836/file1.txt
+          text/plain:
+            schema:
+              description: >
+                The filter to retrieve the synchronization items to update. This
+                applies only when the 'action' request parameter is
+                'UNDO_CHECKOUT_BY_FILTER'.
+              example: eq(name,'item-to-update.txt')
+      responses:
+        "202":
+          description: >
+            The request was accepted. See the Location header for a link to
+            status information.
+          headers:
+            Location:
+              schema:
+                type: string
+              description: The link to determine the status of the operation that
+                was initiated with this request.
+components:
+  parameters:
+    startParam:
+      name: start
+      in: query
+      description: 0-based offset of the first type to return. Defaults to 0.
+      schema:
+        type: integer
+      example: 10
+    limitParam:
+      name: limit
+      in: query
+      description: The maximum number of items to return. Defaults to 10. The maximum
+        cannot exceed 500.
+      schema:
+        type: integer
+      example: 10
+    filterParam:
+      name: filter
+      in: query
+      description: >
+        Filter criteria for items. See [Filtering in REST
+        APIs](https://developer.sas.com/apis/rest/Topics/#filters).
+      schema:
+        type: string
+        format: filter-criteria
+      example: eq(name,'ACME')
+    sortByParam:
+      name: sortBy
+      in: query
+      description: >
+        Sorts the returned items. See [Sorting in REST
+        APIs](https://developer.sas.com/apis/rest/Topics/#sorting).
+      schema:
+        type: string
+        format: sort-criteria
+        example: name:ascending:primary
+  schemas:
+    fileSpecification:
+      title: File Specification
+      description: Path and version information for a file.
+      properties:
+        version:
+          type: number
+          description: The version of the representation. This is version 1.
+          example: 1
+        path:
+          type: string
+          description: The path of the file.
+          example: /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1718153164023/testBatchCheckIn-1718153164023/checkin-file1.txt
+        fileVersion:
+          type: string
+          description: The version of the file.
+          example: "1.0"
+    checkInSpecification:
+      title: Check In Specification
+      description: The specification for the check in action.
+      properties:
+        version:
+          type: number
+          description: The version of the representation. This is version 1.
+          example: 1
+        fileSpecifications:
+          type: array
+          items:
+            title: File Specification
+            description: Path and version information for a file.
+            properties:
+              version:
+                type: number
+                description: The version of the representation. This is version 1.
+                example: 1
+              path:
+                type: string
+                description: The path of the file.
+                example: /RemoteSynchronizationTest/RemoteWorkspaceControllerSynchronizationTest-1718153164023/testBatchCheckIn-1718153164023/checkin-file1.txt
+              fileVersion:
+                type: string
+                description: The version of the file.
+                example: "1.0"
+          description: The file specifications for the files to be checked in.
+        commment:
+          type: string
+          description: The check in comment to be applied to all checked in files.
+          example: Adding SAS programs to repository
+        includeNewFiles:
+          type: boolean
+          description: Whether new files should be included in the check in action.
+            Only checked out files will be checked in if false.
+    checkOutSpecification:
+      title: Check Out Specification
+      description: The specification for the check out action.
+      properties:
+        version:
+          type: number
+          description: The version of the representation. This is version 1.
+          example: 1
+        paths:
+          type: array
+          description: >
+            The paths for the files and folders to be checked out. If a folder
+            is specified files in the subtree of the folder will be checked out.
+            Additionally, if 'copyContent' is 'true', any non-existing parent
+            contexts and folders of the checked out files are created in the
+            workspace as folders.
+          example:
+          - /testBatchCheckOut-Folder/testBatchCheckOut-File.txt
+          - /testBatchCheckOut-Folder/testBatchCheckOut-Folder2
+          items: {}
+        copyContent:
+          type: boolean
+          description: >
+            Whether the checked out files should be copied to the workspace. If
+            true, existing workspace files will be overwritten. The default
+            value is false.
+    copyFolderSpecification:
+      title: Copy Folder Specification
+      description: The specification for the copy folder structure action.
+      properties:
+        version:
+          type: number
+          description: The version of the representation. This is version 1.
+          example: 1
+        paths:
+          type: array
+          description: >
+            The paths for the repository containers to be copied to the
+            workspace. Additionally, any non-existing parent contexts and
+            folders of the copied containers are created in the workspace as
+            folders.
+          example:
+          - /testBatchCopyFolderStructure-Folder1
+          - /testBatchCopyFolderStructure-Folder2
+          items: {}
+        includeSubfolders:
+          type: boolean
+          description: >
+            Whether containers within the subtree of specified container paths
+            should be copied to the workspace. The default value is false.
+    synchronizationInfo:
+      title: Synchronization Info
+      description: The representation of synchronization information for a repository
+        and/or workspace file.
+      type: object
+      properties:
+        version:
+          type: number
+          description: The version of the representation. This is version 1.
+        checkedOut:
+          type: boolean
+          description: Indicates whether the file associated with this synchronization
+            information is checked out.
+        checkedOutBy:
+          type: string
+          description: >
+            The identifier of the user who has the file associated with this
+            synchronization information checked out (if the file is checked
+            out).'
+        checkedOutByDisplayName:
+          type: string
+          description: >
+            The display name of the user who has the file associated with this
+            synchronization information checked out (if the file is checked
+            out).
+        checkedOutTimeStamp:
+          type: string
+          format: date-time
+          description: >
+            The date and time the file associated with this synchronization
+            information was checked out (if the file is checked out).
+        synchronizationFileVersion:
+          type: string
+          description: >
+            The version of the file in the repository at the time the workspace
+            file was synced with the repository. Files can be synced via a check
+            in, check out (with copy content) or copy to workspace actions.
+        synchronizationTimeStamp:
+          type: string
+          format: date-time
+          description: >
+            The date and time the workspace file and repository file were last
+            synced. Files can be synced via a check in, check out or copy to
+            workspace actions.
+        workspaceStatus:
+          type: string
+          description: The workspace status of the file associated with this synchronization
+            information.
+          enum:
+          - IN_SYNC
+          - NOT_SYNCED
+          - OUT_OF_SYNC
+          - WORKSPACE_FILE_MISSING
+    synchronizationItem:
+      title: Synchronization Item
+      description: The representation of a synchronization item.
+      type: object
+      properties:
+        version:
+          type: number
+          description: The version of the representation. This is version 1.
+        id:
+          description: The unique identifier of the synchronization item.
+          type: string
+        workspaceId:
+          type: string
+          description: The unique identifier of the workspace associated with this
+            synchronization item.
+        userId:
+          type: string
+          description: The identifier of the user associated with this synchronization
+            item.
+        name:
+          type: string
+          description: The name of the file associated with this synchronization item.
+        location:
+          type: string
+          description: The location, or parent path, of the file associated with this
+            synchronization item.
+        path:
+          type: string
+          description: The path of the file associated with this synchronization item.
+        fileVersion:
+          type: string
+          description: >
+            The current version of the repository file associated with this
+            synchronization item (if the file exists in the repository).
+        repositoryFileSize:
+          type: number
+          description: >
+            The size of the repository file associated with this synchronization
+            item (if the file exists in the repository).
+        repositoryModifiedTimeStamp:
+          type: string
+          format: date-time
+          description: >
+            The modified timestamp of the repository file associated with this
+            synchronization item (if the file exists in the repository).
+        synchronizationInfo:
+          title: Synchronization Info
+          description: The representation of synchronization information for a repository
+            and/or workspace file.
+          type: object
+          properties:
+            version:
+              type: number
+              description: The version of the representation. This is version 1.
+            checkedOut:
+              type: boolean
+              description: Indicates whether the file associated with this synchronization
+                information is checked out.
+            checkedOutBy:
+              type: string
+              description: >
+                The identifier of the user who has the file associated with this
+                synchronization information checked out (if the file is checked
+                out).'
+            checkedOutByDisplayName:
+              type: string
+              description: >
+                The display name of the user who has the file associated with
+                this synchronization information checked out (if the file is
+                checked out).
+            checkedOutTimeStamp:
+              type: string
+              format: date-time
+              description: >
+                The date and time the file associated with this synchronization
+                information was checked out (if the file is checked out).
+            synchronizationFileVersion:
+              type: string
+              description: >
+                The version of the file in the repository at the time the
+                workspace file was synced with the repository. Files can be
+                synced via a check in, check out (with copy content) or copy to
+                workspace actions.
+            synchronizationTimeStamp:
+              type: string
+              format: date-time
+              description: >
+                The date and time the workspace file and repository file were
+                last synced. Files can be synced via a check in, check out or
+                copy to workspace actions.
+            workspaceStatus:
+              type: string
+              description: The workspace status of the file associated with this synchronization
+                information.
+              enum:
+              - IN_SYNC
+              - NOT_SYNCED
+              - OUT_OF_SYNC
+              - WORKSPACE_FILE_MISSING
+    workspace:
+      title: Workspace
+      description: >
+        An area where files and folders may be stored. A workspace is associated
+        with a specific user. Files and folders within a user's workspace are
+        only accessible by that user.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        id:
+          description: The unique identifier of the workspace.
+          type: string
+        owner:
+          description: The user ID of the user that owns the workspace.
+          type: string
+        name:
+          description: The name of the workspace.
+          type: string
+        empty:
+          description: Whether or not the workspace is empty.
+          type: boolean
+    workspaceItem:
+      title: Workspace Item
+      description: The representation of a workspace item.
+      type: object
+      properties:
+        version:
+          type: number
+          description: The version of the representation. This is version 1.
+        workspaceId:
+          type: string
+          description: The unique identifier of the workspace in which this item is
+            stored.
+        name:
+          type: string
+          description: The name of the item.
+        location:
+          type: string
+          description: The location, or parent path, of the item.
+        path:
+          type: string
+          description: The path of the item.
+        type:
+          type: string
+          description: The type of the workspace item.
+          enum:
+          - FILE
+          - FOLDER
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The date and time the item was last modified.
+    workspaceFile:
+      title: Workspace File
+      description: The representation of a workspace file.
+      allOf:
+      - title: Workspace Item
+        description: The representation of a workspace item.
+        type: object
+        properties:
+          version:
+            type: number
+            description: The version of the representation. This is version 1.
+          workspaceId:
+            type: string
+            description: The unique identifier of the workspace in which this item
+              is stored.
+          name:
+            type: string
+            description: The name of the item.
+          location:
+            type: string
+            description: The location, or parent path, of the item.
+          path:
+            type: string
+            description: The path of the item.
+          type:
+            type: string
+            description: The type of the workspace item.
+            enum:
+            - FILE
+            - FOLDER
+          modifiedTimeStamp:
+            type: string
+            format: date-time
+            description: The date and time the item was last modified.
+      - type: object
+        properties:
+          contentType:
+            type: string
+            description: The content type of the file.
+          size:
+            type: number
+            description: The size of the file in bytes.
+    workspaceFolder:
+      title: Workspace Folder
+      description: The representation of a workspace folder.
+      allOf:
+      - $ref: "#/components/schemas/workspaceFile/allOf/0"
+    workspaceMoveCopy:
+      title: Workspace Move or Copy
+      description: The required information to perform batch move or copy.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+          example: 1
+        paths:
+          description: The paths of the files or folders to be moved or copied.
+          type: array
+          items:
+            type: string
+          example:
+          - /Results/1-12-23.txt
+          - /Results/Data
+        destinationPath:
+          description: The path of the container to which the repository items are
+            moved or copied.
+          type: string
+          example: /Backup/TestingData
+    workspacePaths:
+      title: Workspace Paths
+      description: |
+        Represents a collection of file and folder paths in a single workspace.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        workspaceId:
+          description: The unique identifier of the workspace.
+          type: string
+        paths:
+          description: The paths for the files and folders in the specified workspace.
+          type: array
+          example:
+          - /testBatchUndoCheckout-Folder/testBatchUndoCheckout-File.txt
+          - /testBatchUndoCheckout-Folder/testBatchUndoCheckout-Folder2
+          items: {}
+    log:
+      title: Log
+      description: The representation of a log file.
+      type: object
+      properties:
+        version:
+          type: number
+          description: The version of the representation. This is version 1.
+        logLineReps:
+          type: array
+          description: The list of log lines.
+          items:
+            title: Log Line
+            description: The representation of a log line.
+            type: object
+            properties:
+              line:
+                type: string
+                description: A single line of text from a log file.
+              type:
+                type: string
+                description: The type of log line. Used to sort for errors and warnings.
+        hasErrors:
+          type: boolean
+          description: Whether or not the log has any errors.
+        hasWarnings:
+          type: boolean
+          description: Whether or not the log has any warnings.

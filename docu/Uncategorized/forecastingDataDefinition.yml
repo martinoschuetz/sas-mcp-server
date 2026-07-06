@@ -1,0 +1,3617 @@
+---
+openapi: 3.0.3
+info:
+  description: Forecasting Data Definitions API
+  version: "2"
+  title: Forecasting Data Definitions
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: devex@sas.com
+  license:
+    name: SAS Institute Inc.
+    url: "https://support.sas.com/techsup/license/index.html"
+tags:
+- name: Root
+  description: The operations for the root resource.
+- name: Table Definition
+  description: The operations for a table definition resource.
+- name: Hierarchy
+  description: The operations for a hierarchy resource.
+- name: Variable
+  description: The operations for a variable resource.
+- name: Time Definition
+  description: The operations for a time definition resource.
+- name: Data Definition
+  description: The operations for a data definition resource.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the links for the API
+      description: The API object contains a set of links for the supported endpoints.
+      operationId: root
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/rootResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/rootResp"
+          headers: {}
+  /dataDefinitions:
+    get:
+      tags:
+      - Data Definition
+      summary: Get All data definitions
+      description: Returns a list of data definitions. For a list of data definitions
+        with a particular parentUri, caller may specify the optional query parameter
+        'parentUri={parentUri}'. The returned items will be media type "application/vnd.sas.analytics.forecasting.data.definition".
+      operationId: getDataDefinitions
+      parameters:
+      - name: start
+        in: query
+        description: Offset of first data definition to retrieve (0-based). Defaults
+          to 0
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: limit
+        in: query
+        description: Maximum number of data definitions to retrieve. Defaults to 30
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 30
+      - name: sortBy
+        in: query
+        description: Sort criteria for retrieved data definitions (see https://developer.sas.com/rest-apis/forecastingDataDefinition-v2/docs/getting-started/usage-notes#sorting)
+        required: false
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: Filter criteria for retrieved data definitions (see https://developer.sas.com/rest-apis/forecastingDataDefinition-v2/docs/getting-started/usage-notes#filtering)
+        required: false
+        schema:
+          type: string
+      - name: parentUri
+        in: query
+        description: The parentUri for the data definition
+        required: false
+        schema:
+          type: string
+      - name: checkForUpdates
+        in: query
+        description: Flag to determine whether to check the data definition source
+          input data for updates
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum:
+                - application/vnd.sas.collection+json
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/dataDefinitionCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/getDataDefsResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/dataDefinitionCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/getDataDefsResp"
+    post:
+      tags:
+      - Data Definition
+      summary: Create a data definition
+      description: Creates a data definition
+      operationId: createDataDefinition
+      requestBody:
+        content:
+          application/vnd.sas.analytics.forecasting.data.definition.request+json:
+            schema:
+              $ref: "#/components/schemas/dataDefinitionRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/createDataDefRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/dataDefinitionRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/createDataDefRequest"
+        description: dataDefinition request
+        required: true
+      responses:
+        "201":
+          description: OK
+          headers:
+            Location:
+              description: The URI of the data definition.
+              schema:
+                type: string
+                format: uri
+            ETag:
+              description: E-Tag for the data definition.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.forecasting.data.definition+json:
+              schema:
+                $ref: "#/components/schemas/dataDefinition"
+              examples:
+                default:
+                  $ref: "#/components/examples/createDataDefResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/dataDefinition"
+              examples:
+                default:
+                  $ref: "#/components/examples/createDataDefResp"
+        "400":
+          description: The information sent in the request body contains an error
+            or is incomplete
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+  "/dataDefinitions/{dataDefinitionId}":
+    head:
+      tags:
+      - Data Definition
+      summary: Check the availability of a data definition
+      description: Retrieve the headers and check the availability of a data definition
+      operationId: headersForDataDefinition
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition to find
+        required: true
+        schema:
+          type: string
+      - name: checkForUpdates
+        in: query
+        description: Flag to determine whether to check the data definition source
+          input data for updates
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for the data definition.
+              schema:
+                type: string
+        "404":
+          description: Data definition not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    get:
+      tags:
+      - Data Definition
+      summary: Get a data definition
+      description: Returns a data definition specified by the  data definition id
+      operationId: getDataDefinition
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition to find
+        required: true
+        schema:
+          type: string
+      - name: checkForUpdates
+        in: query
+        description: Flag to determine whether to check the data definition source
+          input data for updates
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for the data definition.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.forecasting.data.definition+json:
+              schema:
+                $ref: "#/components/schemas/dataDefinition"
+              examples:
+                default:
+                  $ref: "#/components/examples/getDataDefResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/dataDefinition"
+              examples:
+                default:
+                  $ref: "#/components/examples/getDataDefResp"
+        "404":
+          description: Data definition not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    put:
+      tags:
+      - Data Definition
+      summary: Update a data definition
+      description: Updates a data definition specified by the id
+      operationId: updateDataDefinition
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition to find
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        required: true
+        description: Update the data definition only if the current ETag header matches
+          this value
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.analytics.forecasting.data.definition+json:
+            schema:
+              $ref: "#/components/schemas/dataDefinition"
+            examples:
+              json:
+                $ref: "#/components/examples/putDataDefReq"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/dataDefinition"
+            examples:
+              json:
+                $ref: "#/components/examples/putDataDefReq"
+        description: dataDefinition
+        required: true
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for time definition
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.forecasting.data.definition+json:
+              schema:
+                $ref: "#/components/schemas/dataDefinition"
+              examples:
+                json:
+                  $ref: "#/components/examples/getDataDefResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/dataDefinition"
+              examples:
+                json:
+                  $ref: "#/components/examples/getDataDefResp"
+        "400":
+          description: The information sent in the request body contains an error
+            or is incomplete
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: Data definition not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+        "412":
+          description: The 'If-Match' request header did not match the resource's
+            entity tag.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionFailed"
+        "428":
+          description: The request headers did not include an 'If-Match' precondition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionRequired"
+    delete:
+      tags:
+      - Data Definition
+      summary: Delete a data definition
+      description: Deletes a data definition specified by the id
+      operationId: deleteDataDefinition
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition to find.
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Data definition not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+  "/dataDefinitions/{dataDefinitionId}/dataUpdateJobs":
+    post:
+      tags:
+      - Data Definition
+      summary: Update Input Data
+      description: Updates the input data that needs to be updated from the source
+      operationId: createDataUpdateJob
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition for which to update the input data.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK. Input table is updated successfully. Job is return with
+            "complete" state.
+          content:
+            application/vnd.sas.job.execution.job+json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                json:
+                  $ref: "#/components/examples/dataUpdateResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                json:
+                  $ref: "#/components/examples/dataUpdateResponse"
+        "404":
+          description: Data definition not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+  "/dataDefinitions/{dataDefinitionId}/finalForecast":
+    post:
+      tags:
+      - Data Definition
+      summary: Publish Final Forecast
+      description: Publishes the final forecast to the table reference specified
+      operationId: createFinalForecastTable
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition for which to publish the final
+          forecast.
+        required: true
+        schema:
+          type: string
+      - name: overwrite
+        in: query
+        description: Indicate desire to overwrite existing table at tableRef.
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: promote
+        in: query
+        description: Indicate desire to promote the table at tableRef.
+        required: false
+        schema:
+          type: boolean
+          default: true
+      requestBody:
+        content:
+          application/vnd.sas.forecasting.table.reference+json:
+            schema:
+              $ref: "#/components/schemas/tableReference"
+            examples:
+              json:
+                $ref: "#/components/examples/publishFFRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/tableReference"
+            examples:
+              json:
+                $ref: "#/components/examples/publishFFRequest"
+        description: The table information for the location of the published table.
+      responses:
+        "201":
+          description: OK
+          headers:
+            Location:
+              description: The URI of the new data table.
+              schema:
+                type: string
+                format: uri
+            ETag:
+              description: E-Tag for the data table.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.table+json:
+              schema:
+                $ref: "#/components/schemas/table"
+              examples:
+                json:
+                  $ref: "#/components/examples/publishFFResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/table"
+              examples:
+                json:
+                  $ref: "#/components/examples/publishFFResp"
+        "400":
+          description: The information sent in the request body contains an error
+            or is incomplete
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: Data definition not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+  "/dataDefinitions/{dataDefinitionId}/hierarchies":
+    get:
+      tags:
+      - Hierarchy
+      summary: Get All hierarchies
+      description: Returns a list of hierarchies for a data definition. The returned
+        items will be media type "application/vnd.sas.analytics.hierarchy".
+      operationId: getHierarchies
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition from which to get all hierarchies.
+        required: true
+        schema:
+          type: string
+      - name: start
+        in: query
+        description: Offset of first data definition to retrieve (0-based). Defaults
+          to 0
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: limit
+        in: query
+        description: Maximum number of data definitions to retrieve. Defaults to 30
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 30
+      - name: sortBy
+        in: query
+        description: Sort criteria for retrieved data definitions (see https://developer.sas.com/rest-apis/forecastingDataDefinition-v2/docs/getting-started/usage-notes#sorting)
+        required: false
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: Filter criteria for retrieved data definitions (see https://developer.sas.com/rest-apis/forecastingDataDefinition-v2/docs/getting-started/usage-notes#filtering)
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/hierarchyCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/getHierResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/hierarchyCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/getHierResp"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum:
+                - application/vnd.sas.collection+json
+    post:
+      tags:
+      - Hierarchy
+      summary: Create a hierarchy
+      description: Creates a hierarchy
+      operationId: createHierarchy
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition from which to create the hierarchy.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        $ref: "#/components/requestBodies/hierarchy"
+      responses:
+        "201":
+          description: OK
+          headers:
+            Location:
+              description: The URI of the newly created hierarchy
+              schema:
+                type: string
+                format: uri
+            ETag:
+              description: E-Tag for the hierarchy.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.forecasting.hierarchy+json:
+              schema:
+                $ref: "#/components/schemas/hierarchy"
+              examples:
+                json:
+                  $ref: "#/components/examples/getHierarchyResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/hierarchy"
+              examples:
+                json:
+                  $ref: "#/components/examples/getHierarchyResp"
+        "400":
+          description: The information sent in the request body contains an error
+            or is incomplete
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+  "/dataDefinitions/{dataDefinitionId}/hierarchies/{hierarchyId}":
+    head:
+      tags:
+      - Hierarchy
+      summary: Check the availability of a hierarchy
+      description: Checks the availability of a hierarchy by id
+      operationId: headersForHierarchy
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition for this hierarchy.
+        required: true
+        schema:
+          type: string
+      - name: hierarchyId
+        in: path
+        description: The id of the hierarchy to find.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for the data definition.
+              schema:
+                type: string
+        "404":
+          description: Hierarchy not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    get:
+      tags:
+      - Hierarchy
+      summary: Get a hierarchy
+      description: Returns a hierarchy specified by the id
+      operationId: getHierarchy
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition for this hierarchy.
+        required: true
+        schema:
+          type: string
+      - name: hierarchyId
+        in: path
+        description: The id of the hierarchy to find.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for the data definition.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.forecasting.hierarchy+json:
+              schema:
+                $ref: "#/components/schemas/hierarchy"
+              examples:
+                json:
+                  $ref: "#/components/examples/getHierarchyResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/hierarchy"
+              examples:
+                json:
+                  $ref: "#/components/examples/getHierarchyResp"
+        "404":
+          description: Hierarchy not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    put:
+      tags:
+      - Hierarchy
+      summary: Update a hierarchy
+      description: Updates a hierarchy specified by the id
+      operationId: updateHierarchy
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition for this hierarchy
+        required: true
+        schema:
+          type: string
+      - name: hierarchyId
+        in: path
+        description: The id of the hierarchy to find
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: Update the hierarchy only if the current ETag header matches
+          this value
+        schema:
+          type: string
+      requestBody:
+        $ref: "#/components/requestBodies/hierarchy"
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for time definition
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.forecasting.hierarchy+json:
+              schema:
+                $ref: "#/components/schemas/hierarchy"
+              examples:
+                json:
+                  $ref: "#/components/examples/getHierarchyResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/hierarchy"
+              examples:
+                json:
+                  $ref: "#/components/examples/getHierarchyResp"
+        "400":
+          description: The information sent in the body contains an error or is incomplete
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: Hierarchy not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+        "412":
+          description: The 'If-Match' request header did not match the resource's
+            entity tag.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionFailed"
+        "428":
+          description: The request headers did not include a 'If-Match' precondition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionRequired"
+    delete:
+      tags:
+      - Hierarchy
+      summary: Delete a hierarchy
+      description: Deletes a hierarchy specified by the id
+      operationId: deleteHierarchy
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition for this hierarchy
+        required: true
+        schema:
+          type: string
+      - name: hierarchyId
+        in: path
+        description: The id of the hierarchy to find
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Hierarchy not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+  "/dataDefinitions/{dataDefinitionId}/tableDefinitions":
+    get:
+      tags:
+      - Table Definition
+      summary: Get All table definitions
+      description: Returns a list of table definitions for a data definition. The
+        returned items will be media type "application/vnd.sas.analytics.forecasting.table.definition".
+      operationId: getTableDefinitions
+      parameters:
+      - name: start
+        in: query
+        description: Offset of first table definition to retrieve (0-based). Defaults
+          to 0
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: limit
+        in: query
+        description: Maximum number of table definitions to retrieve. Defaults to
+          30
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 30
+      - name: sortBy
+        in: query
+        description: Sort criteria for retrieved table definitions (see https://developer.sas.com/rest-apis/forecastingDataDefinition-v2/docs/getting-started/usage-notes#sorting)
+        required: false
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: Filter criteria for retrieved table definitions (see https://developer.sas.com/rest-apis/forecastingDataDefinition-v2/docs/getting-started/usage-notes#filtering)
+        required: false
+        schema:
+          type: string
+      - name: tableType
+        in: query
+        description: The type of table definition requested
+        required: false
+        schema:
+          type: string
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/tableDefinitionCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/getTableDefsResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tableDefinitionCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/getTableDefsResp"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum:
+                - application/vnd.sas.collection+json
+    post:
+      tags:
+      - Table Definition
+      summary: Create a table definition
+      description: Creates a table definition
+      operationId: createTableDefinition
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition
+        required: true
+        schema:
+          type: string
+      requestBody:
+        $ref: "#/components/requestBodies/tableDefinition"
+      responses:
+        "201":
+          description: OK
+          headers:
+            Location:
+              description: The URL of the table definition.
+              schema:
+                type: string
+                format: uri
+            ETag:
+              description: E-Tag for the table definition.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.forecasting.table.definition+json:
+              schema:
+                $ref: "#/components/schemas/tableDefinition"
+              examples:
+                default:
+                  $ref: "#/components/examples/getInputTableDefResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tableDefinition"
+              examples:
+                default:
+                  $ref: "#/components/examples/getInputTableDefResp"
+        "400":
+          description: The information sent in the request body contains an error
+            or is incomplete
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+  "/dataDefinitions/{dataDefinitionId}/tableDefinitions/{tableDefinitionId}":
+    head:
+      tags:
+      - Table Definition
+      summary: Check the existence of a table definition
+      description: Checks the existence of a table definition by id
+      operationId: headersForTableDefinition
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition containing the table definition
+        required: true
+        schema:
+          type: string
+      - name: tableDefinitionId
+        in: path
+        description: The id of the table definition
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for the data definition.
+              schema:
+                type: string
+        "404":
+          description: Table definition not found
+          content:
+            "application/vnd.sas.error+json:":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    get:
+      tags:
+      - Table Definition
+      summary: Get a table definition
+      description: Returns a table definition by id
+      operationId: getTableDefinition
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition containing the table definition
+        required: true
+        schema:
+          type: string
+      - name: tableDefinitionId
+        in: path
+        description: The id of the table definition
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for the data definition.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.forecasting.table.definition+json:
+              schema:
+                $ref: "#/components/schemas/tableDefinition"
+              examples:
+                default:
+                  $ref: "#/components/examples/getInputTableDefResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tableDefinition"
+              examples:
+                default:
+                  $ref: "#/components/examples/getInputTableDefResp"
+        "404":
+          description: Table definition not found
+          content:
+            'application/vnd.sas.error+json:':
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    put:
+      tags:
+      - Table Definition
+      summary: Update a table definition
+      description: Updates a table definition by the id
+      operationId: updateTableDefinition
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition containing the table definition
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: Update the table definition only if the current ETag header matches
+          this value
+        schema:
+          type: string
+      - name: tableDefinitionId
+        in: path
+        description: The id of the table definition
+        required: true
+        schema:
+          type: string
+      requestBody:
+        $ref: "#/components/requestBodies/tableDefinition"
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for time definition
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.forecasting.table.definition+json:
+              schema:
+                $ref: "#/components/schemas/tableDefinition"
+              examples:
+                json:
+                  $ref: "#/components/examples/getInputTableDefResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tableDefinition"
+              examples:
+                json:
+                  $ref: "#/components/examples/getInputTableDefResp"
+        "400":
+          description: The information sent in the request body contains an error
+            or is incomplete
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: Table definition not found
+          content:
+            'application/vnd.sas.error+json:':
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+        "412":
+          description: The 'If-Match' request header did not match the resource's
+            entity tag.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionFailed"
+        "428":
+          description: The request headers did not include a 'If-Match' precondition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionRequired"
+    delete:
+      tags:
+      - Table Definition
+      summary: Delete a table definition
+      description: Deletes a table definition specified by the id
+      operationId: deleteTableDefinition
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition owning the table definition
+        required: true
+        schema:
+          type: string
+      - name: tableDefinitionId
+        in: path
+        description: The id of the table definition to delete
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Table definition not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+  "/dataDefinitions/{dataDefinitionId}/tableDefinitions/{tableDefinitionId}/indexJobs":
+    post:
+      tags:
+      - Table Definition
+      summary: "Index a table "
+      description: "Index a table "
+      operationId: createIndexTable
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition containing the table definition
+        required: true
+        schema:
+          type: string
+      - name: tableDefinitionId
+        in: path
+        description: The id of the table definition
+        required: true
+        schema:
+          type: string
+      responses:
+        "202":
+          description: Accepted. Job request is accepted however job may not be completed
+            as this is asynchronous operation. Response provides "state" link to check
+            state of search index response.
+          content:
+            application/vnd.sas.search.index.feed+json:
+              schema:
+                $ref: "#/components/schemas/searchIndexResponse"
+              examples:
+                json:
+                  $ref: "#/components/examples/indexJobResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/searchIndexResponse"
+              examples:
+                json:
+                  $ref: "#/components/examples/indexJobResponse"
+        "404":
+          description: Table definition not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+  "/dataDefinitions/{dataDefinitionId}/tableDefinitions/{tableDefinitionId}/variables":
+    get:
+      tags:
+      - Variable
+      summary: Get All variable definitions
+      description: Returns a list of variable definitions for a table definition.
+        The returned items will be media type "application/vnd.sas.analytics.forecasting.variable".
+      operationId: getVariableDefinitions
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition
+        required: true
+        schema:
+          type: string
+      - name: tableDefinitionId
+        in: path
+        description: The id of the table definition
+        required: true
+        schema:
+          type: string
+      - name: start
+        in: query
+        description: Offset of first variable to retrieve (0-based). Defaults to 0
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: limit
+        in: query
+        description: Maximum number of variables to retrieve. Defaults to 30
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 30
+      - name: sortBy
+        in: query
+        description: Sort criteria for retrieved variables (see https://developer.sas.com/rest-apis/forecastingDataDefinition-v2/docs/getting-started/usage-notes#sorting)
+        required: false
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: Filter criteria for retrieved variables (see https://developer.sas.com/rest-apis/forecastingDataDefinition-v2/docs/getting-started/usage-notes#filtering)
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/variableCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/getVarsResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/variableCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/getVarsResp"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum:
+                - application/vnd.sas.collection+json
+    post:
+      tags:
+      - Variable
+      summary: Bulk update variable definitions
+      description: Updates all variable definitions for the specified table definition
+        in a single operation.
+      operationId: updateVariableDefinitions
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: tableDefinitionId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.analytics.forecasting.variable.definition+json:
+            schema:
+              $ref: "#/components/schemas/variableCollection"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/variableCollection"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.analytics.forecasting.variable.definition+json:
+              schema:
+                $ref: "#/components/schemas/variableCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/variableCollection"
+        "400":
+          description: Request body is invalid or incomplete.
+  "/dataDefinitions/{dataDefinitionId}/tableDefinitions/{tableDefinitionId}/variables/{variableDefinitionId}":
+    head:
+      tags:
+      - Variable
+      summary: Check the existence of a variable
+      description: Checks the existence of a variable by id
+      operationId: headersForVariable
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition containing the variable definition
+        required: true
+        schema:
+          type: string
+      - name: tableDefinitionId
+        in: path
+        description: The id of the table definition containing the variable definition
+        required: true
+        schema:
+          type: string
+      - name: variableDefinitionId
+        in: path
+        description: The id of the variable definition
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for the variable.
+              schema:
+                type: string
+        "404":
+          description: Variable not found
+          content:
+            "application/vnd.sas.error+json:":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    get:
+      tags:
+      - Variable
+      summary: Get a variable
+      description: Returns a variable by id
+      operationId: getVariable
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition containing the variable definition
+        required: true
+        schema:
+          type: string
+      - name: tableDefinitionId
+        in: path
+        description: The id of the table definition containing the variable definition
+        required: true
+        schema:
+          type: string
+      - name: variableDefinitionId
+        in: path
+        description: The id of the variable definition
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for the variable.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.forecasting.variable+json:
+              schema:
+                $ref: "#/components/schemas/variable"
+              examples:
+                json:
+                  $ref: "#/components/examples/getVarResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/variable"
+              examples:
+                json:
+                  $ref: "#/components/examples/getVarResp"
+        "404":
+          description: Variable not found
+          content:
+            'application/vnd.sas.error+json:':
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    put:
+      tags:
+      - Variable
+      summary: Update a variable
+      description: Updates a variable by the dataDefinitionId
+      operationId: updateVariable
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the dataDefinition
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: Update the variable only if the current ETag header matches this
+          value
+        schema:
+          type: string
+      - name: variableDefinitionId
+        in: path
+        description: The id of the variable
+        required: true
+        schema:
+          type: string
+      - name: tableDefinitionId
+        in: path
+        description: The id of the table definition
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.analytics.forecasting.variable+json:
+            schema:
+              $ref: "#/components/schemas/variable"
+            examples:
+              json:
+                $ref: "#/components/examples/getVarResp"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/variable"
+            examples:
+              json:
+                $ref: "#/components/examples/getVarResp"
+        description: variable
+        required: true
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for override settings
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.forecasting.variable+json:
+              schema:
+                $ref: "#/components/schemas/variable"
+              examples:
+                json:
+                  $ref: "#/components/examples/getVarResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/variable"
+              examples:
+                json:
+                  $ref: "#/components/examples/getVarResp"
+        "400":
+          description: The information sent in the request body contains an error
+            or is incomplete
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+          description: Variable not found
+        "412":
+          description: The 'If-Match' request header did not match the resource's
+            entity tag.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionFailed"
+        "428":
+          description: The request headers did not include a 'If-Match' precondition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionRequired"
+  "/dataDefinitions/{dataDefinitionId}/timeDefinition":
+    head:
+      tags:
+      - Time Definition
+      summary: Check the existence of a time definition
+      description: Check the existence of a time definition time definition associated
+        with the data definition.
+      operationId: headersForTimeDefinition
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition associated with the requested time
+          definition
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for the time definition.
+              schema:
+                type: string
+        "404":
+          description: Time definition not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    get:
+      tags:
+      - Time Definition
+      summary: Get a time definition
+      description: Returns a time definition associated with the data definition.
+        The returned items will be media type "application/vnd.sas.analytics.forecasting.time.definition".
+      operationId: getTimeDefinition
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition associated with the requested time
+          definition
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for the data definition.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.forecasting.time.definition+json:
+              schema:
+                $ref: "#/components/schemas/timeDefinition"
+              examples:
+                default:
+                  $ref: "#/components/examples/getTimeDefResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/timeDefinition"
+              examples:
+                default:
+                  $ref: "#/components/examples/getTimeDefResp"
+        "404":
+          description: Time definition not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    put:
+      tags:
+      - Time Definition
+      summary: Update a time definition
+      description: Updates a time definition associated with the data definition specified
+        by the id
+      operationId: updateTimeDefinition
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition associated with the time definition
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: Update the time definition only if the current ETag header matches
+          this value
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.analytics.forecasting.time.definition+json:
+            schema:
+              $ref: "#/components/schemas/timeDefinition"
+            examples:
+              json:
+                $ref: "#/components/examples/getTimeDefResp"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/timeDefinition"
+            examples:
+              json:
+                $ref: "#/components/examples/getTimeDefResp"
+        description: timeDefinition
+        required: true
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for time definition
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.forecasting.time.definition+json:
+              schema:
+                $ref: "#/components/schemas/timeDefinition"
+              examples:
+                json:
+                  $ref: "#/components/examples/getTimeDefResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/timeDefinition"
+              examples:
+                json:
+                  $ref: "#/components/examples/getTimeDefResp"
+        "400":
+          description: The information sent in the request body contains an error
+            or is incomplete
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: Time definition not found
+          content:
+            'application/vnd.sas.error+json:':
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+        "412":
+          description: The 'If-Match' request header did not match the resource's
+            entity tag.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionFailed"
+        "428":
+          description: The request headers did not include a 'If-Match' precondition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionRequired"
+  "/dataDefinitions/{dataDefinitionId}/timeIntervals":
+    get:
+      tags:
+      - Data Definition
+      summary: Get Time Intervals
+      description: Returns the list of available time intervals. The returned items
+        will be media type "application/vnd.sas.analytics.forecasting.time.interval".
+      operationId: getTimeIntervals
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        description: The id of the data definition for which to return the time intervals
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/timeIntervalCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/getTimeIntervalsResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/timeIntervalCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/getTimeIntervalsResp"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum:
+                - application/vnd.sas.collection+json
+        "404":
+          description: Data definition not found
+          content:
+            'application/vnd.sas.error+json:':
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+  "/dataDefinitions/{dataDefinitionId}/derivedAttributes":
+    post:
+      tags:
+      - Table Definition
+      summary: Create derived attribute table definitions
+      description: Creates derived attribute table definitions for the specified data
+        definition.
+      operationId: createDerivedAttributes
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "201":
+          description: Created
+          content:
+            application/vnd.sas.analytics.forecasting.table.definition+json:
+              schema:
+                $ref: "#/components/schemas/tableDefinitionCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tableDefinitionCollection"
+        "400":
+          description: Request body is invalid or incomplete.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  "/dataDefinitions/{dataDefinitionId}/tableDefinitions/{tableDefinitionId}/attributes":
+    post:
+      tags:
+      - Table Definition
+      summary: Create default attribute table definition
+      description: Creates a default attribute table definition for the specified
+        table definition.
+      operationId: createDefaultAttributes
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: tableDefinitionId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "201":
+          description: Created
+          content:
+            application/vnd.sas.analytics.forecasting.table.definition+json:
+              schema:
+                $ref: "#/components/schemas/tableDefinition"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tableDefinition"
+        "400":
+          description: Request body is invalid or incomplete.
+  "/dataDefinitions/{dataDefinitionId}/tableDefinitions/{tableDefinitionId}/updateComparison":
+    get:
+      tags:
+      - Table Definition
+      summary: Get update comparison for a table definition
+      description: Returns the update comparison for schema change detection on the
+        specified table definition.
+      operationId: getUpdateComparison
+      parameters:
+      - name: dataDefinitionId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: tableDefinitionId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not found
+servers:
+- url: http://example.com/forecastingDataDefinition
+  description: Kubernetes mock server
+components:
+  requestBodies:
+    hierarchy:
+      content:
+        application/vnd.sas.analytics.forecasting.hierarchy+json:
+          schema:
+            $ref: "#/components/schemas/hierarchy"
+          examples:
+            json:
+              $ref: "#/components/examples/hierarchy"
+        application/json:
+          schema:
+            $ref: "#/components/schemas/hierarchy"
+          examples:
+            json:
+              $ref: "#/components/examples/hierarchy"
+      description: hierarchy
+      required: true
+    tableDefinition:
+      content:
+        application/vnd.sas.analytics.forecasting.table.definition+json:
+          schema:
+            $ref: "#/components/schemas/tableDefinition"
+          examples:
+            json:
+              $ref: "#/components/examples/tableDefinition"
+        application/json:
+          schema:
+            $ref: "#/components/schemas/tableDefinition"
+          examples:
+            json:
+              $ref: "#/components/examples/tableDefinition"
+      description: tableDefinition
+      required: true
+  schemas:
+    variable:
+      type: object
+      description: Representation of a variable
+      properties:
+        id:
+          type: string
+          description: Variable ID
+        createdBy:
+          type: string
+          description: User that created this resource.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: Time stamp of resource creation.
+        dataDefinitionId:
+          type: string
+          description: Data Definition Id
+        description:
+          type: string
+          description: A memo field to add descriptive information to a variable
+        displayableFacet:
+          type: boolean
+          description: Facet display
+        distinctValuesCount:
+          type: integer
+          format: int32
+          description: Number of distinct values
+        format:
+          type: string
+          description: Variable format (SAS format)
+        formattedLength:
+          type: integer
+          format: int32
+          description: Variable formatted length
+        hierarchyAggregation:
+          type: string
+          description: Hierarchy aggregation method
+        label:
+          type: string
+          description: Variable label
+        missingInterpretation:
+          type: string
+          description: Missing value interpretation method
+        missingValuesCount:
+          type: integer
+          format: int32
+          description: Number of values
+        modifiedBy:
+          type: string
+          description: The last user to modify this resource
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: Time stamp of last resource modification
+        name:
+          type: string
+          description: A variable name or column name related to a table in a data
+            definition
+        numericType:
+          type: string
+          description: Number data type, discrete or range
+        revision:
+          type: integer
+          format: int64
+          description: Revision of variable
+        role:
+          type: string
+          description: Variable role
+        rowCount:
+          type: integer
+          format: int32
+          description: Number of rows
+        sourceTableUri:
+          type: string
+          description: The source table this variable came from
+        tableDefinitionId:
+          type: string
+          description: Table DefinitionId
+        timeIntervalAccumulation:
+          type: string
+          description: Time interval accumulation method
+        type:
+          type: string
+          description: Variable data type
+        useInForecastGraph:
+          type: string
+          description: Use in forecasting graph
+        useInSystemGeneratedModels:
+          type: string
+          description: Variable usage of a system generation models
+        variableLock:
+          type: boolean
+          description: Variable update lock
+        visibility:
+          type: boolean
+          description: Visibility
+        links:
+          type: array
+          description: Links that apply to the variable
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: The version number of this schema. This representation is version
+            1.
+    dataDefinitionRequest:
+      type: object
+      required:
+      - inputTableUri
+      - name
+      - parentUri
+      properties:
+        description:
+          type: string
+          description: Description of data definition request to create
+        inputTableUri:
+          type: string
+          description: Input table uri
+        name:
+          type: string
+          description: Name of data definition to create
+        parentUri:
+          type: string
+          description: The parentUri for this data definition
+        links:
+          type: array
+          description: Links that apply to the resource. OutputDataSource link should
+            be provided to define the CASlib unique to this data definition.  All
+            tables produced in the life cycle of this data definition will reside
+            in the "outputDataSource" CASlib.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: The version number of this schema. This representation is version
+            1.
+      description: Representation used to create a data definition
+      example:
+        name: t1-DataDefinition
+        parentUri: /analyticsGateway/projects/3328f8a6-6636-4920-8cb8-5e458bdb7149
+        inputTableUri: /dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/TIMESERIES
+        description: data definition for project t1
+        links:
+        - method: GET
+          rel: outputDataSource
+          href: /casManagement/servers/cas-shared-default/caslibs/Analytics_Project_3328f8a6-6636-4920-8cb8-5e458bdb7149
+          uri: /casManagement/servers/cas-shared-default/caslibs/Analytics_Project_3328f8a6-6636-4920-8cb8-5e458bdb7149
+          type: application/vnd.sas.cas.caslib
+    tableReference:
+      type: object
+      description: Representation of a table reference resource
+      properties:
+        dataSourceUri:
+          type: string
+          description: Location of table like cas library
+        tableName:
+          type: string
+          description: Target table name
+        version:
+          type: integer
+          format: int32
+          description: The version number of this schema. This representation is version
+            1.
+    dataDefinition:
+      type: object
+      description: Representation of data definition
+      properties:
+        id:
+          type: string
+          description: DataDefinition ID
+        accumulatedTimeSeriesTableName:
+          type: string
+          description: Accumulated time series table name
+        attributesIndexTableName:
+          type: string
+          description: Attributes index table name
+        caslibName:
+          type: string
+          description: The cas lib for all output data
+        serverName:
+          type: string
+          description: The cas server for all output data
+        createdBy:
+          type: string
+          description: User that created this resource
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: Time stamp of resource creation
+        description:
+          type: string
+          description: A memo field for the dataDefinition to add information
+        forecastSettings:
+          $ref: "#/components/schemas/forecastSettings"
+        forecastsTableName:
+          type: string
+          description: Output forecast table name
+        forecastsUpdated:
+          type: boolean
+          description: Forecasts updated indicator
+        hierarchyForecasting:
+          type: boolean
+          description: Hierarchy forecasting indicator
+        horizonTableName:
+          type: string
+          description: Horizon table name
+        modifiedBy:
+          type: string
+          description: The last user to modify this resource
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: Time stamp of last resource modification
+        name:
+          type: string
+          description: Name of DataDefinition
+        negativeForecasts:
+          type: boolean
+          description: Has negative forecasts indicator
+        outputDataSourceUri:
+          type: string
+          description: Data Source for all output data
+        parentUri:
+          type: string
+          description: The parentUri for this data definition
+        revision:
+          type: integer
+          format: int64
+          description: Revision of DataDefinition
+        singleTimeSeries:
+          type: boolean
+          description: Single time series indicator
+        status:
+          $ref: "#/components/schemas/dataDefinitionStatus"
+        links:
+          type: array
+          description: Links available for this resource
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: The version number of this schema. This representation is version
+            1.
+    tableDefinition:
+      type: object
+      description: Table information related to a data definition
+      required:
+      - dataDefinitionId
+      - tableType
+      properties:
+        id:
+          type: string
+          description: tableDefinition ID
+        columnCount:
+          type: integer
+          format: int32
+          description: The number of columns in the table
+        createdBy:
+          type: string
+          description: User that created this resource
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: Time stamp of resource creation
+        dataDefinitionId:
+          type: string
+          description: The id of the Data definition this table definition belongs
+            to
+        description:
+          type: string
+          description: A memo field to add descriptive information to a tableDefinition
+        destinationTableUri:
+          type: string
+          description: The destination uri for this table
+        modifiedBy:
+          type: string
+          description: The last user to modify this resource
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: Time stamp of last resource modification
+        name:
+          type: string
+          description: Name of tableDefinition
+        revision:
+          type: integer
+          format: int64
+          description: Revision of tableDefinition
+        rowCount:
+          type: integer
+          format: int32
+          description: The number of rows in the table
+        sortValue:
+          type: integer
+          format: int32
+          description: Value for ordering table definitions
+        sourceTableUri:
+          type: string
+          description: The original uri for this table
+        tableSize:
+          type: integer
+          format: int32
+          description: The size of the table
+        tableType:
+          type: string
+          description: The table type for this table definition
+        links:
+          type: array
+          description: Links available for this resource
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: The version number of this schema. This representation is version
+            1.
+    timeDefinition:
+      type: object
+      description: It has timeID variable related information like timeID candidates,
+        horizon length and horizon start.
+      required:
+      - dataDefinitionId
+      properties:
+        id:
+          type: string
+          description: TimeDefinition ID
+        createdBy:
+          type: string
+          description: User that created this resource
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: Time stamp of resource creation
+        dataDefinitionId:
+          type: string
+          description: The id of the Data definition this time definition belongs
+            to
+        description:
+          type: string
+          description: A memo field to add descriptive information to a timeDefinition
+        horizonStart:
+          type: integer
+          format: int32
+          description: The horizon start period
+        horizonTimePeriods:
+          type: array
+          description: The list of time periods in the horizon
+          items:
+            type: integer
+            format: int64
+        modifiedBy:
+          type: string
+          description: The last user to modify this resource
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: Time stamp of last resource modification
+        name:
+          type: string
+          description: Name of timeDefinition
+        revision:
+          type: integer
+          format: int64
+          description: Revision of timeDefinition
+        timeId:
+          $ref: "#/components/schemas/timeId"
+        timeIdCandidates:
+          type: array
+          description: A list of possible time id candidates
+          items:
+            $ref: "#/components/schemas/timeId"
+        links:
+          type: array
+          description: Links available for this resource
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: The version number of this schema. This representation is version
+            1.
+    dataDefinitionStatus:
+      type: object
+      description: It shows data definition status and its detail description.
+      properties:
+        status:
+          type: string
+          description: Data definition status code
+        statusMessages:
+          type: array
+          items:
+            type: string
+          description: Description in detail for a matching status of a data definition
+        version:
+          type: integer
+          format: int32
+          description: The version number of this schema. This representation is version
+            1.
+    table:
+      title: Table
+      type: object
+      description: Information about a table
+      properties:
+        providerId:
+          type: string
+          description: |
+            The table provider name
+        dataSourceId:
+          type: string
+          description: |
+            The parent source name
+        name:
+          type: string
+          description: |
+            The unique name of the table
+        label:
+          type: string
+          description: >
+            The user visible name of this table. This value may vary depending
+            on the Accept-Language header.
+        type:
+          type: string
+          description: |
+            The type of this table
+        createdBy:
+          type: string
+          description: |
+            The user who created this table.
+        modifiedBy:
+          type: string
+          description: |
+            The last user to modify this table.
+        attributes:
+          type: object
+          description: |
+            Additional provider specific attributes
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp of table creation, in yyyy-mm-ddThh:mm:ssZ format
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp of last table modification, in yyyy-mm-ddThh:mm:ssZ
+            format
+        links:
+          type: array
+          description: The links that apply to this table.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: table schema version
+    timeInterval:
+      type: object
+      description: Representation of time interval
+      properties:
+        baseIntervalName:
+          type: string
+          description: Base interval name
+        dateTimeFlag:
+          type: boolean
+          description: Date time flag
+        dtFormat:
+          type: string
+          description: Date format
+        format:
+          type: string
+          description: Format
+        localizedBaseIntervalName:
+          type: string
+          description: Localized base interval name
+        maxShift:
+          type: integer
+          format: int32
+          description: Maximum shift
+        multiplier:
+          type: integer
+          format: int32
+          description: Multiplier number
+        order:
+          type: integer
+          format: int32
+          description: Order
+        seasonality:
+          type: integer
+          format: int32
+          description: Seasonality
+        shift:
+          type: integer
+          format: int32
+          description: Shift number
+        shiftInterval:
+          type: string
+          description: Shift interval
+        weekendDays:
+          type: string
+          description: Weekend days
+        version:
+          type: integer
+          format: int32
+          description: The version number of this schema. This representation is version
+            1.
+    hierarchy:
+      type: object
+      description: It defines level of orders in variables of time series data.
+      required:
+      - dataDefinitionId
+      properties:
+        id:
+          type: string
+          description: Hierarchy ID
+        createdBy:
+          type: string
+          description: User that created this resource
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: Time stamp of resource creation
+        dataDefinitionId:
+          type: string
+          description: Data definition id
+        description:
+          type: string
+          description: A memo field to add descriptive information to a Hierarchy
+        modifiedBy:
+          type: string
+          description: The last user to modify this resource
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: Time stamp of last resource modification
+        name:
+          type: string
+          description: Name of Hierarchy
+        reconciliationLevel:
+          type: integer
+          format: int32
+          description: Reconciliation level
+        revision:
+          type: integer
+          format: int64
+          description: Revision of Hierarchy
+        varList:
+          type: array
+          description: This contains hierarchy variables in order. This order decides
+            hierarchy structure.
+          items:
+            type: string
+        links:
+          type: array
+          description: Links available for this resource
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: The version number of this schema. This representation is version
+            1.
+    forecastSettings:
+      type: object
+      description: Representation of forecast settings
+      properties:
+        confidenceLimit:
+          type: number
+          format: double
+          description: Forecasting confidence limit
+        horizonLength:
+          type: integer
+          format: int32
+          description: Forecasting horizon length
+        version:
+          type: integer
+          format: int32
+          description: The version number of this schema. This representation is version
+            1.
+    searchIndexResponse:
+      type: object
+      description: It contains response of any executed search index operation.
+      properties:
+        createdBy:
+          type: string
+          description: User that created this resource
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: Time stamp of resource creation
+        deploymentIndex:
+          type: boolean
+          description: It indicates if the response is deploymentIndex.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: End of execution in time
+        jobId:
+          type: string
+          description: Search index job ID.
+        state:
+          type: string
+          description: Execution status of a search index operation
+        links:
+          type: array
+          description: Links available for this resource
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: The version number of this schema
+    timeId:
+      type: object
+      properties:
+        format:
+          type: string
+          description: Format
+        maxTimeId:
+          type: integer
+          format: int32
+          description: Maximum time ID value
+        timeIdVariableId:
+          type: string
+          description: The id of the variable that is the time ID
+        timeIdVariableName:
+          type: string
+          description: The name of the variable that is the time ID
+        timeInterval:
+          $ref: "#/components/schemas/timeInterval"
+        weekendDayCount:
+          type: integer
+          format: int32
+          description: Number of weekend days
+        version:
+          type: integer
+          format: int32
+          description: The version number of this schema. This representation is version
+            1.
+      description: Representation of time ID
+    dataDefinitionCollection:
+      title: DataDefinition collection
+      description: A collection of data definitions.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The array of `application/vnd.sas.analytics.forecasting.data.definition`
+              representations.
+            items:
+              $ref: "#/components/schemas/dataDefinition"
+    hierarchyCollection:
+      title: hierarchy collection
+      description: A collection of hierarchies.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The array of `application/vnd.sas.analytics.forecasting.hierarchy`
+              representations.
+            items:
+              $ref: "#/components/schemas/hierarchy"
+    tableDefinitionCollection:
+      title: TableDefinition collection
+      description: A collection of table definitions.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The array of `application/vnd.sas.analytics.forecasting.table.definition`
+              representations.
+            items:
+              $ref: "#/components/schemas/tableDefinition"
+    variableCollection:
+      title: variable collection
+      description: A collection of variables.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The array of `application/vnd.sas.analytics.forecasting.variable`
+              representations.
+            items:
+              $ref: "#/components/schemas/variable"
+    timeIntervalCollection:
+      title: TimeInterval collection
+      description: A collection of time intervals.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The array of `application/vnd.sas.analytics.forecasting.time.interval`
+              representations.
+            items:
+              $ref: "#/components/schemas/timeInterval"
+    job:
+      title: Job
+      description: The execution job.
+      x-sas-media-type:
+        name: application/vnd.sas.job.execution.job
+        version: 1
+      required:
+      - id
+      properties:
+        version:
+          type: number
+          description: The version number of the representation. The current version
+            is 2.
+        id:
+          type: string
+          description: The unique identifier that is generated by the API.
+        state:
+          type: string
+          description: 'The current state of the job. Valid values: pending, running,
+            canceled, completed, failed, timedOut'
+        results:
+          type: object
+          description: The output results of the job execution (map of String, String).
+        error:
+          $ref: "#/components/schemas/error2"
+        jobRequest:
+          $ref: "#/components/schemas/request"
+        heartbeatInterval:
+          type: integer
+          format: int32
+          description: The interval in seconds that the `heartbeatTimeStamp` should
+            be updated by the provider or the job times out. The value for the `heatbeatInterval`
+            is 0 when there is no heartbeat.
+        heartbeatTimeStamp:
+          description: The timestamp for when the last heartbeat was received, in
+            the format of `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        creationTimeStamp:
+          description: The timestamp for when the job was created, in the format of
+            `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        modifiedTimeStamp:
+          description: The timestamp for when the job was last modified, in the format
+            of `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        endTimeStamp:
+          description: The timestamp for when the state of the job changed to completed
+            or failed, in the format of `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        expirationTimeStamp:
+          description: The timestamp for when the job expires and will be deleted
+            by the Job Execution service, in the format of `YYYY-MM-DDThh:mm:ss.sssZ`.
+            This is set by the service after the job has completed based on the value
+            of the `expiresAfter` member of the job request.
+          type: string
+        createdBy:
+          description: The ID of the user that created or submitted the job.
+          type: string
+        modifiedBy:
+          description: The ID of the user that last modified the job.
+          type: string
+        links:
+          type: array
+          description: The links that are associated with the job.
+          items:
+            $ref: "#/components/schemas/link"
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    request:
+      title: Job Request
+      description: The job request.
+      x-sas-media-type:
+        name: application/vnd.sas.job.execution.job.request
+        version: 1
+      required:
+      - id
+      type: object
+      properties:
+        version:
+          type: integer
+          description: The version number of the representation. The current version
+            is 2.
+        id:
+          type: string
+          description: The unique identifier for the job.
+        name:
+          type: string
+          description: The name of the job.
+        description:
+          type: string
+          description: The description of the job.
+        creationTimeStamp:
+          description: The timestamp for when the job was created, in the format of
+            `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        modifiedTimeStamp:
+          description: The timestamp for when the job was last modified, in the format
+            of `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        createdBy:
+          description: The ID of the user that created or submitted the job.
+          type: string
+        modifiedBy:
+          description: The ID of the user that last modified the job.
+          type: string
+        jobDefinitionUri:
+          type: string
+          description: The URI of the job definition that is to be executed.
+        jobDefinition:
+          type: object
+          description: The definition of the job that is to be executed.
+        expiresAfter:
+          type: string
+          description: The duration of time (in <a href="https://www.w3.org/TR/xmlschema-2/#duration"
+            target="_blank">W3C XML duration format</a>) after the completion of the
+            job when the job should be deleted by the Job Execution service.
+        arguments:
+          type: object
+          description: The values of the arguments described in the job definition.
+        properties:
+          type: object
+          description: The value of properties in the format of (map<string, string>)
+            that contains name value pairs (map<name, value>). The maximum name value
+            length is 100.
+          additionalProperties:
+            type: string
+        links:
+          type: array
+          description: The links that are associated with the job.
+          items:
+            $ref: "#/components/schemas/link"
+  examples:
+    createDataDefRequest:
+      description: An example of a request for creating a data definition.
+      value: {"name": "t1-DataDefinition", "parentUri": "/analyticsGateway/projects/3328f8a6-6636-4920-8cb8-5e458bdb7149",
+        "inputTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/TIMESERIES",
+        "links": [{"method": "GET", "rel": "outputDataSource", "href": "/casManagement/servers/cas-shared-default/caslibs/Analytics_Project_3328f8a6-6636-4920-8cb8-5e458bdb7149",
+            "uri": "/casManagement/servers/cas-shared-default/caslibs/Analytics_Project_3328f8a6-6636-4920-8cb8-5e458bdb7149",
+            "type": "application/vnd.sas.cas.caslib"}]}
+    dataUpdateResponse:
+      description: Update input tables including time series , external forecasts,  attributes
+        and events.
+      value: {"creationTimeStamp": "0001-01-01T00:00:00Z", "modifiedTimeStamp": "2022-02-07T19:58:09.889798822Z",
+        "version": 0, "id": "48f03aa1-ff9f-4cb1-a144-a4df3574760b", "state": "completed",
+        "results": {"6afacd32-8180-40f7-89a8-c5c4211613e9": "updated"}, "heartbeatInterval": 0,
+        "elapsedTime": 0}
+    publishFFRequest:
+      description: Publish final forecast to the specified table reference.
+      value: {"dataSourceUri": "/dataSources/providers/cas/sources/cas-shared-default~fs~CASUSER(sasboot)",
+        "tableName": "test_outfor"}
+    indexJobResponse:
+      description: An example of an index job response.
+      value: {"state": "pending", "jobId": "68591653-c7b2-484b-be27-38f0af9e73aa",
+        "createdBy": "sasboot", "deploymentIndex": false, "links": [{"method": "GET",
+            "rel": "state", "href": "/searchIndex/jobs/68591653-c7b2-484b-be27-38f0af9e73aa",
+            "uri": "/searchIndex/jobs/68591653-c7b2-484b-be27-38f0af9e73aa", "type": "application/vnd.sas.search.index.feed"}],
+        "version": 1}
+    badRequest:
+      description: An example response content with 400 status code.
+      value: {"version": 2, "httpStatusCode": 400, "message": "Bad Request", "details": [
+          "The body member <member_name> has an invalid value. (The specified value\
+            \ is .)", "path: /path/to/the/resource", "correlator: 624db953-fed5-4cfb-9050-7cc42929af8b"]}
+    notFound:
+      description: An example response content with 404 status code.
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 12345, "message": "The\
+          \ resource was not found. (ID or URI: /path/to/the/resource)", "details": [
+          "traceId: 76673823245ccda1", "path: /path/to/the/resource", "path: /uri/path",
+          "correlator: 39b72009-d18b-4348-82e9-2ac8bab70612"]}
+    preConditionFailed:
+      description: Pre-condition failed.
+      value:
+        httpStatusCode: 412
+        version: 2
+    preConditionRequired:
+      description: Pre-condition required.
+      value:
+        httpStatusCode: 428
+        version: 2
+    getTableDefsResp:
+      description: An example of table definitions.
+      value: {"version": 2, "accept": "application/vnd.sas.analytics.forecasting.table.definition",
+        "count": 6, "start": 0, "limit": 30, "name": "Table Definitions", "items": [
+          {"id": "6afacd32-8180-40f7-89a8-c5c4211613e9", "name": "PRICEDATA", "links": [
+              {"method": "GET", "rel": "self", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "alternate", "href": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9",
+                "uri": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "up", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "variables", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9/variables",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9/variables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"},
+              {"method": "PUT", "rel": "update", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition",
+                "responseType": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "destinationTable", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+                "type": "application/vnd.sas.data.table"}, {"method": "GET", "rel": "table",
+                "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+                "type": "application/vnd.sas.data.table"}, {"method": "POST", "rel": "save",
+                "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/tables?tableUri=/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/tables?tableUri=/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+                "type": "application/vnd.sas.cas.table.save.request", "responseType": "application/vnd.sas.job.execution.job"}],
+            "creationTimeStamp": "2022-02-03T17:15:59.415897Z", "createdBy": "sasiom5",
+            "modifiedTimeStamp": "2022-02-07T19:58:06.884719Z", "modifiedBy": "sasiom5",
+            "revision": 2, "version": 1, "dataDefinitionId": "a5296039-86b4-4ea5-a6a6-ce1c55457b6d",
+            "tableType": "TIMESERIES", "tableClass": "INPUT", "sourceTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+            "destinationTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+            "casServer": "cas-shared-default", "destinationCasLib": "Public", "destinationCasTable": "PRICEDATA",
+            "sourceModifiedDate": "2022-02-07T19:58:06.883839Z", "sortValue": 1, "attributes": {
+              "NUMGROUPS": "17", "active": "true"}}, {"id": "80493e03-1a6f-4a73-898e-dc67130e6446",
+            "name": "_ATTRIBUTES", "links": [{"method": "GET", "rel": "self", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/80493e03-1a6f-4a73-898e-dc67130e6446",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/80493e03-1a6f-4a73-898e-dc67130e6446",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "alternate", "href": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/80493e03-1a6f-4a73-898e-dc67130e6446",
+                "uri": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/80493e03-1a6f-4a73-898e-dc67130e6446",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "up", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "variables", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/80493e03-1a6f-4a73-898e-dc67130e6446/variables",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/80493e03-1a6f-4a73-898e-dc67130e6446/variables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"},
+              {"method": "PUT", "rel": "update", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/80493e03-1a6f-4a73-898e-dc67130e6446",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/80493e03-1a6f-4a73-898e-dc67130e6446",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition",
+                "responseType": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "destinationTable", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Analytics_Project_a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/tables/_ATTRIBUTES",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Analytics_Project_a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/tables/_ATTRIBUTES",
+                "type": "application/vnd.sas.data.table"}, {"method": "GET", "rel": "table",
+                "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Analytics_Project_a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/tables/_ATTRIBUTES",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Analytics_Project_a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/tables/_ATTRIBUTES",
+                "type": "application/vnd.sas.data.table"}, {"method": "POST", "rel": "save",
+                "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/tables?tableUri=/dataTables/dataSources/cas~fs~cas-shared-default~fs~Analytics_Project_a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/tables/_ATTRIBUTES",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/tables?tableUri=/dataTables/dataSources/cas~fs~cas-shared-default~fs~Analytics_Project_a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/tables/_ATTRIBUTES",
+                "type": "application/vnd.sas.cas.table.save.request", "responseType": "application/vnd.sas.job.execution.job"}],
+            "creationTimeStamp": "2022-02-03T17:16:39.25478Z", "createdBy": "sasiom5",
+            "modifiedTimeStamp": "2022-02-07T19:58:08.583148Z", "modifiedBy": "sasiom5",
+            "revision": 1, "version": 1, "label": "Default attributes", "dataDefinitionId": "a5296039-86b4-4ea5-a6a6-ce1c55457b6d",
+            "tableType": "ATTRIBUTES", "tableClass": "INPUT", "destinationTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Analytics_Project_a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/tables/_ATTRIBUTES",
+            "casServer": "cas-shared-default", "destinationCasLib": "Analytics_Project_a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3",
+            "destinationCasTable": "_ATTRIBUTES", "sortValue": 100, "attributes": {
+              "active": "true"}}, {"id": "5d6b3dd2-2e6e-4ea5-83af-e3714fa15a9b", "name": "Descriptive\
+              \ statistics", "links": [{"method": "GET", "rel": "self", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/5d6b3dd2-2e6e-4ea5-83af-e3714fa15a9b",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/5d6b3dd2-2e6e-4ea5-83af-e3714fa15a9b",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "alternate", "href": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/5d6b3dd2-2e6e-4ea5-83af-e3714fa15a9b",
+                "uri": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/5d6b3dd2-2e6e-4ea5-83af-e3714fa15a9b",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "up", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "variables", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/5d6b3dd2-2e6e-4ea5-83af-e3714fa15a9b/variables",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/5d6b3dd2-2e6e-4ea5-83af-e3714fa15a9b/variables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"}],
+            "creationTimeStamp": "2022-02-03T17:16:05.053663Z", "createdBy": "sasiom5",
+            "modifiedTimeStamp": "2022-02-03T17:16:05.053669Z", "modifiedBy": "sasiom5",
+            "revision": 0, "version": 1, "label": "Descriptive statistics", "dataDefinitionId": "a5296039-86b4-4ea5-a6a6-ce1c55457b6d",
+            "tableType": "DERIVED_ATTRIBUTES", "tableClass": "INPUT", "sortValue": 110},
+          {"id": "4390d9fe-c93d-49ba-8d78-d9dc697c1029", "name": "Demand classification\
+              \ attributes", "links": [{"method": "GET", "rel": "self", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/4390d9fe-c93d-49ba-8d78-d9dc697c1029",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/4390d9fe-c93d-49ba-8d78-d9dc697c1029",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "alternate", "href": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/4390d9fe-c93d-49ba-8d78-d9dc697c1029",
+                "uri": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/4390d9fe-c93d-49ba-8d78-d9dc697c1029",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "up", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "variables", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/4390d9fe-c93d-49ba-8d78-d9dc697c1029/variables",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/4390d9fe-c93d-49ba-8d78-d9dc697c1029/variables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"}],
+            "creationTimeStamp": "2022-02-03T17:16:05.251322Z", "createdBy": "sasiom5",
+            "modifiedTimeStamp": "2022-02-03T17:16:05.251335Z", "modifiedBy": "sasiom5",
+            "revision": 0, "version": 1, "label": "Demand classification attributes",
+            "dataDefinitionId": "a5296039-86b4-4ea5-a6a6-ce1c55457b6d", "tableType": "DERIVED_ATTRIBUTES",
+            "tableClass": "INPUT", "sortValue": 111}, {"id": "20ef11a7-bcfe-4934-a213-3dc938953575",
+            "name": "Model attributes", "links": [{"method": "GET", "rel": "self",
+                "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/20ef11a7-bcfe-4934-a213-3dc938953575",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/20ef11a7-bcfe-4934-a213-3dc938953575",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "alternate", "href": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/20ef11a7-bcfe-4934-a213-3dc938953575",
+                "uri": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/20ef11a7-bcfe-4934-a213-3dc938953575",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "up", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "variables", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/20ef11a7-bcfe-4934-a213-3dc938953575/variables",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/20ef11a7-bcfe-4934-a213-3dc938953575/variables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"}],
+            "creationTimeStamp": "2022-02-03T17:16:05.461288Z", "createdBy": "sasiom5",
+            "modifiedTimeStamp": "2022-02-03T17:16:05.461295Z", "modifiedBy": "sasiom5",
+            "revision": 0, "version": 1, "label": "Model attributes", "dataDefinitionId": "a5296039-86b4-4ea5-a6a6-ce1c55457b6d",
+            "tableType": "DERIVED_ATTRIBUTES", "tableClass": "INPUT", "sortValue": 112},
+          {"id": "8a89eb8c-175a-4689-9248-277a7eec483e", "name": "Forecast attributes",
+            "links": [{"method": "GET", "rel": "self", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/8a89eb8c-175a-4689-9248-277a7eec483e",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/8a89eb8c-175a-4689-9248-277a7eec483e",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "alternate", "href": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/8a89eb8c-175a-4689-9248-277a7eec483e",
+                "uri": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/8a89eb8c-175a-4689-9248-277a7eec483e",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "up", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "variables", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/8a89eb8c-175a-4689-9248-277a7eec483e/variables",
+                "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/8a89eb8c-175a-4689-9248-277a7eec483e/variables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"}],
+            "creationTimeStamp": "2022-02-03T17:16:07.080896Z", "createdBy": "sasiom5",
+            "modifiedTimeStamp": "2022-02-03T17:16:07.080903Z", "modifiedBy": "sasiom5",
+            "revision": 0, "version": 1, "label": "Forecast attributes", "dataDefinitionId": "a5296039-86b4-4ea5-a6a6-ce1c55457b6d",
+            "tableType": "DERIVED_ATTRIBUTES", "tableClass": "INPUT", "sortValue": 113}],
+        "links": [{"method": "GET", "rel": "up", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d",
+            "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d",
+            "type": "application/vnd.sas.analytics.forecasting.data.definition"},
+          {"method": "GET", "rel": "collection", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+            "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "POST", "rel": "create", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+            "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition",
+            "responseType": "application/vnd.sas.analytics.forecasting.table.definition"}]}
+    rootResp:
+      description: An example to discover top level links for forecasting data definition
+        service.
+      value: {"version": 1, "links": [{"method": "POST", "rel": "create", "href": "/forecastingDataDefinition/dataDefinitions",
+            "uri": "/forecastingDataDefinition/dataDefinitions", "type": "application/vnd.sas.analytics.forecasting.data.definition.request",
+            "responseType": "application/vnd.sas.analytics.forecasting.data.definition"},
+          {"method": "GET", "rel": "collection", "href": "/forecastingDataDefinition/dataDefinitions",
+            "uri": "/forecastingDataDefinition/dataDefinitions", "type": "application/vnd.sas.collection"}]}
+    getTimeIntervalsResp:
+      description: An example list of forecasting time intervals.
+      value: {"links": [], "name": "Time Intervals", "count": 23, "items": [{"baseIntervalName": "SECOND",
+            "multiplier": 1, "shift": 1, "shiftInterval": "SECOND", "seasonality": 60,
+            "maxShift": 1, "format": "DATETIME16.", "dateTimeFlag": true, "order": 1,
+            "weekendDays": "", "localizedBaseIntervalName": "Second"}, {"baseIntervalName": "MINUTE",
+            "multiplier": 1, "shift": 1, "shiftInterval": "MINUTE", "seasonality": 60,
+            "maxShift": 1, "format": "DATETIME13.", "dateTimeFlag": true, "order": 2,
+            "weekendDays": "", "localizedBaseIntervalName": "Minute"}, {"baseIntervalName": "HOUR",
+            "multiplier": 1, "shift": 1, "shiftInterval": "HOUR", "seasonality": 24,
+            "maxShift": 1, "format": "DATETIME10.", "dateTimeFlag": true, "order": 3,
+            "weekendDays": "", "localizedBaseIntervalName": "Hour"}, {"baseIntervalName": "DAY",
+            "multiplier": 1, "shift": 1, "shiftInterval": "DAY", "seasonality": 7,
+            "maxShift": 1, "format": "DATE9.", "dateTimeFlag": false, "order": 4,
+            "weekendDays": "", "localizedBaseIntervalName": "Day"}, {"baseIntervalName": "WEEKDAY",
+            "multiplier": 1, "shift": 1, "shiftInterval": "WEEKDAY", "seasonality": 5,
+            "maxShift": 1, "format": "DATE9.", "dateTimeFlag": false, "order": 5,
+            "weekendDays": "", "localizedBaseIntervalName": "Weekday"}, {"baseIntervalName": "WEEK",
+            "multiplier": 1, "shift": 1, "shiftInterval": "DAY", "seasonality": 52,
+            "maxShift": 7, "format": "WEEKDATX17.", "dateTimeFlag": false, "order": 6,
+            "weekendDays": "", "localizedBaseIntervalName": "Week"}, {"baseIntervalName": "WEEKV",
+            "multiplier": 1, "shift": 1, "shiftInterval": "DAY", "seasonality": 52,
+            "maxShift": 7, "format": "WEEKV9.", "dateTimeFlag": false, "order": 7,
+            "weekendDays": "", "localizedBaseIntervalName": "ISO 8601 week"}, {"baseIntervalName": "TENDAY",
+            "multiplier": 1, "shift": 1, "shiftInterval": "TENDAY", "seasonality": 36,
+            "maxShift": 1, "format": "DATE9.", "dateTimeFlag": false, "order": 8,
+            "weekendDays": "", "localizedBaseIntervalName": "Ten-day"}, {"baseIntervalName": "SEMIMONTH",
+            "multiplier": 1, "shift": 1, "shiftInterval": "SEMIMONTH", "seasonality": 24,
+            "maxShift": 1, "format": "DATE9.", "dateTimeFlag": false, "order": 9,
+            "weekendDays": "", "localizedBaseIntervalName": "Semimonth"}, {"baseIntervalName": "MONTH",
+            "multiplier": 1, "shift": 1, "shiftInterval": "MONTH", "seasonality": 12,
+            "maxShift": 1, "format": "MONYY7.", "dateTimeFlag": false, "order": 10,
+            "weekendDays": "", "localizedBaseIntervalName": "Month"}, {"baseIntervalName": "R445MON",
+            "multiplier": 1, "shift": 1, "shiftInterval": "R445MON", "seasonality": 12,
+            "maxShift": 1, "format": "WEEKV9.", "dateTimeFlag": false, "order": 11,
+            "weekendDays": "", "localizedBaseIntervalName": "Retail 4-4-5 month"},
+          {"baseIntervalName": "R454MON", "multiplier": 1, "shift": 1, "shiftInterval": "R454MON",
+            "seasonality": 12, "maxShift": 1, "format": "WEEKV9.", "dateTimeFlag": false,
+            "order": 12, "weekendDays": "", "localizedBaseIntervalName": "Retail 4-5-4\
+              \ month"}, {"baseIntervalName": "R544MON", "multiplier": 1, "shift": 1,
+            "shiftInterval": "R544MON", "seasonality": 12, "maxShift": 1, "format": "WEEKV9.",
+            "dateTimeFlag": false, "order": 13, "weekendDays": "", "localizedBaseIntervalName": "Retail\
+              \ 5-4-4 month"}, {"baseIntervalName": "QTR", "multiplier": 1, "shift": 1,
+            "shiftInterval": "MONTH", "seasonality": 4, "maxShift": 3, "format": "YYQC6.",
+            "dateTimeFlag": false, "order": 14, "weekendDays": "", "localizedBaseIntervalName": "Quarter"},
+          {"baseIntervalName": "R445QTR", "multiplier": 1, "shift": 1, "shiftInterval": "R445MON",
+            "seasonality": 4, "maxShift": 3, "format": "WEEKV9.", "dateTimeFlag": false,
+            "order": 15, "weekendDays": "", "localizedBaseIntervalName": "Retail 4-4-5\
+              \ quarter"}, {"baseIntervalName": "R454QTR", "multiplier": 1, "shift": 1,
+            "shiftInterval": "R454MON", "seasonality": 4, "maxShift": 3, "format": "WEEKV9.",
+            "dateTimeFlag": false, "order": 16, "weekendDays": "", "localizedBaseIntervalName": "Retail\
+              \ 4-5-4 quarter"}, {"baseIntervalName": "R544QTR", "multiplier": 1,
+            "shift": 1, "shiftInterval": "R544MON", "seasonality": 4, "maxShift": 3,
+            "format": "WEEKV9.", "dateTimeFlag": false, "order": 17, "weekendDays": "",
+            "localizedBaseIntervalName": "Retail 5-4-4 quarter"}, {"baseIntervalName": "SEMIYEAR",
+            "multiplier": 1, "shift": 1, "shiftInterval": "MONTH", "seasonality": 2,
+            "maxShift": 6, "format": "MONYY7.", "dateTimeFlag": false, "order": 18,
+            "weekendDays": "", "localizedBaseIntervalName": "Semiyear"}, {"baseIntervalName": "YEAR",
+            "multiplier": 1, "shift": 1, "shiftInterval": "MONTH", "seasonality": 1,
+            "maxShift": 12, "format": "YEAR4.", "dateTimeFlag": false, "order": 19,
+            "weekendDays": "", "localizedBaseIntervalName": "Year"}, {"baseIntervalName": "YEARV",
+            "multiplier": 1, "shift": 1, "shiftInterval": "WEEKV", "seasonality": 1,
+            "maxShift": 12, "format": "WEEKV9.", "dateTimeFlag": false, "order": 20,
+            "weekendDays": "", "localizedBaseIntervalName": "ISO 8601 Year"}, {"baseIntervalName": "R445YR",
+            "multiplier": 1, "shift": 1, "shiftInterval": "R445MON", "seasonality": 1,
+            "maxShift": 12, "format": "WEEKV9.", "dateTimeFlag": false, "order": 21,
+            "weekendDays": "", "localizedBaseIntervalName": "Retail 4-4-5 year"},
+          {"baseIntervalName": "R454YR", "multiplier": 1, "shift": 1, "shiftInterval": "R454MON",
+            "seasonality": 1, "maxShift": 12, "format": "WEEKV9.", "dateTimeFlag": false,
+            "order": 22, "weekendDays": "", "localizedBaseIntervalName": "Retail 4-5-4\
+              \ year"}, {"baseIntervalName": "R544YR", "multiplier": 1, "shift": 1,
+            "shiftInterval": "R544MON", "seasonality": 1, "maxShift": 12, "format": "WEEKV9.",
+            "dateTimeFlag": false, "order": 23, "weekendDays": "", "localizedBaseIntervalName": "Retail\
+              \ 5-4-4 year"}], "version": 2}
+    putDataDefReq:
+      description: An example of a request to update a data definition. | PUT http://www.example.com/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b
+      value: {"forecastSettings": {"horizonLength": 12, "back": 0, "confidenceLimit": 0.05,
+          "version": 1}, "id": "30681765-b346-41d3-a293-7722aded179b", "name": "r1-DataDefinition",
+        "revision": 9, "version": 1}
+    getDataDefsResp:
+      description: An example of a response from fetching data definitions using a
+        parentUri query parameter. | GET http://www.example.com/forecastingDataDefinition/dataDefinitions?parentUri=/analyticsGateway/projects/c5c71622-4399-4b11-981b-d328bc096367
+      value: {"links": [{"method": "POST", "rel": "create", "href": "/forecastingDataDefinition/dataDefinitions",
+            "uri": "/forecastingDataDefinition/dataDefinitions", "type": "application/vnd.sas.analytics.forecasting.data.definition.request",
+            "responseType": "application/vnd.sas.analytics.forecasting.data.definition"},
+          {"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions?start=0&limit=30",
+            "uri": "/forecastingDataDefinition/dataDefinitions?start=0&limit=30",
+            "type": "application/vnd.sas.collection"}, {"method": "GET", "rel": "collection",
+            "href": "/forecastingDataDefinition/dataDefinitions", "uri": "/forecastingDataDefinition/dataDefinitions",
+            "type": "application/vnd.sas.collection"}], "name": "dataDefinitions",
+        "start": 0, "count": 1, "items": [{"creationTimeStamp": "2018-04-18T19:09:29.755Z",
+            "modifiedTimeStamp": "2018-04-18T19:10:50.806Z", "createdBy": "sasboot",
+            "modifiedBy": "sasboot", "id": "9e5c330d-b841-4989-9431-cd145a8c225f",
+            "links": [{"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f",
+                "type": "application/vnd.sas.analytics.forecasting.data.definition"},
+              {"method": "GET", "rel": "up", "href": "/forecastingDataDefinition/dataDefinitions",
+                "uri": "/forecastingDataDefinition/dataDefinitions", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.analytics.forecasting.data.definition"},
+              {"method": "PUT", "rel": "update", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f",
+                "type": "application/vnd.sas.analytics.forecasting.data.definition",
+                "responseType": "application/vnd.sas.analytics.forecasting.data.definition"},
+              {"method": "DELETE", "rel": "delete", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f"},
+              {"method": "POST", "rel": "publishFinalForecasts", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/finalForecast",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/finalForecast",
+                "type": "application/vnd.sas.forecasting.table.reference", "responseType": "application/vnd.sas.data.table"},
+              {"method": "GET", "rel": "timeDefinition", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/timeDefinition",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/timeDefinition",
+                "type": "application/vnd.sas.analytics.forecasting.time.definition"},
+              {"method": "GET", "rel": "timeIntervals", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/timeIntervals",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/timeIntervals",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.time.interval"},
+              {"method": "GET", "rel": "tableDefinitions", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "attributesTableDefinition", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/@attributes",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/@attributes",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "inputTableDefinition", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/@input",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/@input",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "eventTableDefinition", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/@event",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/@event",
+                "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+              {"method": "GET", "rel": "hierarchies", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.hierarchy"}],
+            "name": "test-DataDefinition", "revision": 9, "parentUri": "/analyticsGateway/projects/c5c71622-4399-4b11-981b-d328bc096367",
+            "status": {"status": "VALID", "statusMessages": []}, "casServer": "cas-shared-default",
+            "casLibName": "Analytics_Project_c5c71622-4399-4b11-981b-d328bc096367",
+            "attributesIndexTableName": "IDX_FS_Analytics_Project_c5c71622-4399-4b11-981b-d328bc096367__ATTRIBUTES",
+            "accumulatedTimeSeriesTableName": "_ACCUMULATED_TS", "forecastsTableName": "OUTFOR",
+            "horizonTableName": "HORIZON", "outputDataSourceUri": "/casManagement/servers/cas-shared-default/caslibs/Analytics_Project_c5c71622-4399-4b11-981b-d328bc096367",
+            "singleTimeSeries": false, "hierarchyForecasting": true, "forecastsUpdated": false,
+            "negativeForecasts": false, "forecastSettings": {"horizonLength": 12,
+              "confidenceLimit": 0.05}, "overridesStarted": false}], "limit": 30,
+        "version": 2}
+    getHierResp:
+      description: An example response for fetching hierarchies defined under the
+        data definition.
+      value: {"links": [{"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies",
+            "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.hierarchy"},
+          {"method": "POST", "rel": "create", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies",
+            "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies",
+            "type": "application/vnd.sas.analytics.forecasting.hierarchy", "responseType": "application/vnd.sas.analytics.forecasting.hierarchy"}],
+        "name": "Hierarchies", "count": 1, "items": [{"creationTimeStamp": "2018-04-18T19:09:36.248Z",
+            "modifiedTimeStamp": "2018-04-18T19:10:04.433Z", "createdBy": "sasboot",
+            "modifiedBy": "sasboot", "id": "2c4aaa33-ec35-4194-b8c7-4b5586874c3b",
+            "links": [{"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies/2c4aaa33-ec35-4194-b8c7-4b5586874c3b",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies/2c4aaa33-ec35-4194-b8c7-4b5586874c3b",
+                "type": "application/vnd.sas.analytics.forecasting.hierarchy"}, {
+                "method": "GET", "rel": "up", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.hierarchy"},
+              {"method": "PUT", "rel": "update", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies/2c4aaa33-ec35-4194-b8c7-4b5586874c3b",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies/2c4aaa33-ec35-4194-b8c7-4b5586874c3b",
+                "type": "application/vnd.sas.analytics.forecasting.hierarchy", "responseType": "application/vnd.sas.analytics.forecasting.hierarchy"},
+              {"method": "DELETE", "rel": "delete", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies/2c4aaa33-ec35-4194-b8c7-4b5586874c3b",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/hierarchies/2c4aaa33-ec35-4194-b8c7-4b5586874c3b"}],
+            "name": "Hierarchy from TIMESERIES", "revision": 2, "dataDefinitionId": "9e5c330d-b841-4989-9431-cd145a8c225f",
+            "varList": ["location", "sku"], "reconciliationLevel": 0}], "version": 2}
+    getTimeDefResp:
+      description: An example time definitions.
+      value: {"creationTimeStamp": "2018-04-18T19:09:38.446Z", "modifiedTimeStamp": "2018-04-19T19:17:50.914Z",
+        "createdBy": "sasboot", "modifiedBy": "sasboot", "id": "2596a153-98cc-4616-ac53-91482e236fde",
+        "links": [{"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/timeDefinition",
+            "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/timeDefinition",
+            "type": "application/vnd.sas.analytics.forecasting.time.definition"},
+          {"method": "GET", "rel": "up", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f",
+            "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f",
+            "type": "application/vnd.sas.analytics.forecasting.data.definition"},
+          {"method": "PUT", "rel": "update", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/timeDefinition",
+            "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/timeDefinition",
+            "type": "application/vnd.sas.analytics.forecasting.time.definition", "responseType": "application/vnd.sas.analytics.forecasting.time.definition"},
+          {"method": "GET", "rel": "timeIdVariable", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/@any/variables/ddbee430-fb27-4822-b74c-676ca949ac27",
+            "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/@any/variables/ddbee430-fb27-4822-b74c-676ca949ac27",
+            "type": "application/vnd.sas.analytics.forecasting.variable"}], "name": "Time\
+          \ Definition for Data Definition 'test-DataDefinition'", "revision": 2,
+        "dataDefinitionId": "9e5c330d-b841-4989-9431-cd145a8c225f", "timeId": {"timeIdVariableId": "ddbee430-fb27-4822-b74c-676ca949ac27",
+          "timeIdVariableName": "DATE", "timeInterval": {"baseIntervalName": "WEEK",
+            "multiplier": 1, "shift": 1, "shiftInterval": "DAY", "seasonality": 52,
+            "maxShift": 7, "format": "WEEKDATX17.", "dateTimeFlag": false, "order": 6,
+            "weekendDays": "", "localizedBaseIntervalName": "Week"}, "maxTimeId": 0,
+          "weekendDayCount": 0, "format": "DATE"}, "horizonTimePeriods": [20169, 20176,
+          20183, 20190, 20197, 20204, 20211, 20218, 20225, 20232, 20239, 20246], "timeIdCandidates": [
+          {"timeIdVariableId": "ddbee430-fb27-4822-b74c-676ca949ac27", "timeIdVariableName": "DATE",
+            "timeInterval": {"baseIntervalName": "WEEK", "multiplier": 1, "shift": 1,
+              "shiftInterval": "DAY", "seasonality": 52, "maxShift": 7, "format": "WEEKDATX17.",
+              "dateTimeFlag": false, "order": 6, "weekendDays": "", "localizedBaseIntervalName": "Week"},
+            "maxTimeId": 0, "weekendDayCount": 0, "format": "DATE"}], "horizonStart": 20169}
+    tableDefinition:
+      description: An example of a request to update a data definition. | PUT http://www.example.com/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b
+      value: {"id": "5fac2248-b1fa-4018-9de4-c1764dee0346", "name": "PRICEDATA_FULL",
+        "links": [{"method": "GET", "rel": "self", "href": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/tableDefinitions/5fac2248-b1fa-4018-9de4-c1764dee0346",
+            "uri": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/tableDefinitions/5fac2248-b1fa-4018-9de4-c1764dee0346",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "alternate", "href": "/forecastingDataDefinition/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/tableDefinitions/5fac2248-b1fa-4018-9de4-c1764dee0346",
+            "uri": "/forecastingDataDefinition/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/tableDefinitions/5fac2248-b1fa-4018-9de4-c1764dee0346",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "up", "href": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/tableDefinitions",
+            "uri": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/tableDefinitions",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "variables", "href": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/tableDefinitions/5fac2248-b1fa-4018-9de4-c1764dee0346/variables",
+            "uri": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/tableDefinitions/5fac2248-b1fa-4018-9de4-c1764dee0346/variables",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"},
+          {"method": "PUT", "rel": "update", "href": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/tableDefinitions/5fac2248-b1fa-4018-9de4-c1764dee0346",
+            "uri": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/tableDefinitions/5fac2248-b1fa-4018-9de4-c1764dee0346",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition",
+            "responseType": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "destinationTable", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA_FULL",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA_FULL",
+            "type": "application/vnd.sas.data.table"}, {"method": "GET", "rel": "table",
+            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA_FULL",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA_FULL",
+            "type": "application/vnd.sas.data.table"}, {"method": "POST", "rel": "save",
+            "href": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/tables?tableUri=/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA_FULL",
+            "uri": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/tables?tableUri=/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA_FULL",
+            "type": "application/vnd.sas.cas.table.save.request", "responseType": "application/vnd.sas.job.execution.job"}],
+        "creationTimeStamp": "2023-07-27T17:36:23.265721Z", "createdBy": "emduser2",
+        "modifiedTimeStamp": "2023-07-27T17:38:10.259408Z", "modifiedBy": "emduser2",
+        "eTag": 'W/"1690479490259408000"', "revision": 1, "version": 1, "dataDefinitionId": "f425175a-28a5-41e4-a4fc-65eccf837e4e",
+        "tableType": "TIMESERIES", "tableClass": "INPUT", "sourceTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA_FULL",
+        "destinationTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA_FULL",
+        "casServer": "cas-shared-default", "destinationCasLib": "Public", "destinationCasTable": "PRICEDATA_FULL",
+        "sourceModifiedDate": "2023-07-27T17:36:23.258582Z", "sortValue": 1, "allowComparison": false,
+        "attributes": {"NUMGROUPS": "3", "active": "true"}}
+    hierarchy:
+      description: An example of a request to update a data definition. | PUT http://www.example.com/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b
+      value: {"id": "6f5e1b1a-ef02-45c2-b5c3-79c3b6da717e", "name": "Hierarchy from\
+          \ PRICEDATA_FULL", "links": [{"method": "GET", "rel": "collection", "href": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/hierarchies",
+            "uri": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/hierarchies",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.hierarchy"},
+          {"method": "GET", "rel": "self", "href": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/hierarchies/6f5e1b1a-ef02-45c2-b5c3-79c3b6da717e",
+            "uri": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/hierarchies/6f5e1b1a-ef02-45c2-b5c3-79c3b6da717e",
+            "type": "application/vnd.sas.analytics.forecasting.hierarchy"}, {"method": "GET",
+            "rel": "up", "href": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/hierarchies",
+            "uri": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/hierarchies",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.hierarchy"},
+          {"method": "PUT", "rel": "update", "href": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/hierarchies/6f5e1b1a-ef02-45c2-b5c3-79c3b6da717e",
+            "uri": "/forecastingGateway/projects/68ce628a-05f3-45f0-bb2b-0bde37d16a41/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/hierarchies/6f5e1b1a-ef02-45c2-b5c3-79c3b6da717e",
+            "type": "application/vnd.sas.analytics.forecasting.hierarchy", "responseType": "application/vnd.sas.analytics.forecasting.hierarchy"},
+          {"method": "DELETE", "rel": "delete", "href": "/forecastingDataDefinition/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/hierarchies/6f5e1b1a-ef02-45c2-b5c3-79c3b6da717e",
+            "uri": "/forecastingDataDefinition/dataDefinitions/f425175a-28a5-41e4-a4fc-65eccf837e4e/hierarchies/6f5e1b1a-ef02-45c2-b5c3-79c3b6da717e"}],
+        "creationTimeStamp": "2023-07-27T17:36:24.507668Z", "createdBy": "emduser2",
+        "modifiedTimeStamp": "2023-07-27T17:37:18.3772Z", "modifiedBy": "emduser2",
+        "revision": 1, "version": 1, "dataDefinitionId": "f425175a-28a5-41e4-a4fc-65eccf837e4e",
+        "varList": ["region"], "reconciliationLevel": 0}
+    getHierarchyResp:
+      description: An example response for fetching hierarchies defined under the
+        data definition.
+      value: {"id": "7d6ef6c2-5bcd-44a9-8e18-899588da2a69", "name": "Hierarchy from\
+          \ TIMESERIES", "links": [{"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/hierarchies/7d6ef6c2-5bcd-44a9-8e18-899588da2a69",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/hierarchies/7d6ef6c2-5bcd-44a9-8e18-899588da2a69",
+            "type": "application/vnd.sas.analytics.forecasting.hierarchy"}, {"method": "GET",
+            "rel": "up", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/hierarchies",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/hierarchies",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.hierarchy"},
+          {"method": "PUT", "rel": "update", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/hierarchies/7d6ef6c2-5bcd-44a9-8e18-899588da2a69",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/hierarchies/7d6ef6c2-5bcd-44a9-8e18-899588da2a69",
+            "type": "application/vnd.sas.analytics.forecasting.hierarchy", "responseType": "application/vnd.sas.analytics.forecasting.hierarchy"},
+          {"method": "DELETE", "rel": "delete", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/hierarchies/7d6ef6c2-5bcd-44a9-8e18-899588da2a69",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/hierarchies/7d6ef6c2-5bcd-44a9-8e18-899588da2a69"}],
+        "creationTimeStamp": "2023-01-04T16:23:17.167934Z", "createdBy": "emduser2",
+        "modifiedTimeStamp": "2023-01-04T16:24:27.666899Z", "modifiedBy": "emduser2",
+        "revision": 2, "version": 1, "dataDefinitionId": "30681765-b346-41d3-a293-7722aded179b",
+        "varList": ["location", "sku"], "reconciliationLevel": 0}
+    getVarsResp:
+      description: An example of a list of variables retrieved from a time series
+        table.
+      value: {"links": [{"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+            "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"},
+          {"method": "POST", "rel": "update", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+            "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+            "type": "application/vnd.sas.collection", "responseType": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.analytics.forecasting.variable", "responseItemType": "application/vnd.sas.analytics.forecasting.variable"}],
+        "name": "Variables", "count": 5, "items": [{"creationTimeStamp": "2018-04-18T19:09:36.143Z",
+            "modifiedTimeStamp": "2018-04-18T19:10:04.482Z", "createdBy": "sasboot",
+            "modifiedBy": "sasboot", "id": "8d3929a8-5f4e-4090-bbeb-cc546689e880",
+            "links": [{"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/8d3929a8-5f4e-4090-bbeb-cc546689e880",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/8d3929a8-5f4e-4090-bbeb-cc546689e880",
+                "type": "application/vnd.sas.analytics.forecasting.variable"}, {"method": "GET",
+                "rel": "up", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"},
+              {"method": "PUT", "rel": "update", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/8d3929a8-5f4e-4090-bbeb-cc546689e880",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/8d3929a8-5f4e-4090-bbeb-cc546689e880",
+                "type": "application/vnd.sas.analytics.forecasting.variable", "responseType": "application/vnd.sas.analytics.forecasting.variable"}],
+            "name": "promotion", "revision": 1, "dataDefinitionId": "9e5c330d-b841-4989-9431-cd145a8c225f",
+            "tableDefinitionId": "769a80cb-9e5f-4b03-9355-238a2864f07f", "label": "",
+            "type": "double", "role": "UNKNOWN", "format": "", "formattedLength": 12,
+            "hierarchyAggregation": "", "timeIntervalAccumulation": "", "missingInterpretation": "",
+            "useInSystemGeneratedModels": "", "useInForecastGraph": "", "sourceTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/TIMESERIES",
+            "visibility": true, "variableLock": false, "numericType": "DISCRETE",
+            "displayableFacet": false, "distinctValuesCount": 2, "missingValuesCount": 0,
+            "rowCount": 147070}, {"creationTimeStamp": "2018-04-18T19:09:36.127Z",
+            "modifiedTimeStamp": "2018-04-19T19:17:50.277Z", "createdBy": "sasboot",
+            "modifiedBy": "sasboot", "id": "50e7587a-bcea-4447-b3f3-e158d632615b",
+            "links": [{"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/50e7587a-bcea-4447-b3f3-e158d632615b",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/50e7587a-bcea-4447-b3f3-e158d632615b",
+                "type": "application/vnd.sas.analytics.forecasting.variable"}, {"method": "GET",
+                "rel": "up", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"},
+              {"method": "PUT", "rel": "update", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/50e7587a-bcea-4447-b3f3-e158d632615b",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/50e7587a-bcea-4447-b3f3-e158d632615b",
+                "type": "application/vnd.sas.analytics.forecasting.variable", "responseType": "application/vnd.sas.analytics.forecasting.variable"}],
+            "name": "location", "revision": 2, "dataDefinitionId": "9e5c330d-b841-4989-9431-cd145a8c225f",
+            "tableDefinitionId": "769a80cb-9e5f-4b03-9355-238a2864f07f", "label": "",
+            "type": "char", "role": "byvar", "format": "", "formattedLength": 40,
+            "hierarchyAggregation": "", "timeIntervalAccumulation": "", "missingInterpretation": "",
+            "useInSystemGeneratedModels": "", "useInForecastGraph": "", "sourceTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/TIMESERIES",
+            "visibility": true, "variableLock": true, "numericType": "DISCRETE", "displayableFacet": false,
+            "distinctValuesCount": 20, "missingValuesCount": 0, "rowCount": 147070},
+          {"creationTimeStamp": "2018-04-18T19:09:36.109Z", "modifiedTimeStamp": "2018-04-19T19:17:50.281Z",
+            "createdBy": "sasboot", "modifiedBy": "sasboot", "id": "ee9c05c9-03d4-4809-8116-448e973f932c",
+            "links": [{"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/ee9c05c9-03d4-4809-8116-448e973f932c",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/ee9c05c9-03d4-4809-8116-448e973f932c",
+                "type": "application/vnd.sas.analytics.forecasting.variable"}, {"method": "GET",
+                "rel": "up", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"},
+              {"method": "PUT", "rel": "update", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/ee9c05c9-03d4-4809-8116-448e973f932c",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/ee9c05c9-03d4-4809-8116-448e973f932c",
+                "type": "application/vnd.sas.analytics.forecasting.variable", "responseType": "application/vnd.sas.analytics.forecasting.variable"}],
+            "name": "sku", "revision": 2, "dataDefinitionId": "9e5c330d-b841-4989-9431-cd145a8c225f",
+            "tableDefinitionId": "769a80cb-9e5f-4b03-9355-238a2864f07f", "label": "",
+            "type": "char", "role": "byvar", "format": "", "formattedLength": 40,
+            "hierarchyAggregation": "", "timeIntervalAccumulation": "", "missingInterpretation": "",
+            "useInSystemGeneratedModels": "", "useInForecastGraph": "", "sourceTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/TIMESERIES",
+            "visibility": true, "variableLock": true, "numericType": "DISCRETE", "displayableFacet": false,
+            "distinctValuesCount": 83, "missingValuesCount": 0, "rowCount": 147070},
+          {"creationTimeStamp": "2018-04-18T19:09:36.137Z", "modifiedTimeStamp": "2018-04-19T19:17:50.285Z",
+            "createdBy": "sasboot", "modifiedBy": "sasboot", "id": "ddbee430-fb27-4822-b74c-676ca949ac27",
+            "links": [{"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/ddbee430-fb27-4822-b74c-676ca949ac27",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/ddbee430-fb27-4822-b74c-676ca949ac27",
+                "type": "application/vnd.sas.analytics.forecasting.variable"}, {"method": "GET",
+                "rel": "up", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"},
+              {"method": "PUT", "rel": "update", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/ddbee430-fb27-4822-b74c-676ca949ac27",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/ddbee430-fb27-4822-b74c-676ca949ac27",
+                "type": "application/vnd.sas.analytics.forecasting.variable", "responseType": "application/vnd.sas.analytics.forecasting.variable"}],
+            "name": "DATE", "revision": 3, "dataDefinitionId": "9e5c330d-b841-4989-9431-cd145a8c225f",
+            "tableDefinitionId": "769a80cb-9e5f-4b03-9355-238a2864f07f", "label": "",
+            "type": "double", "role": "TIME_ID", "format": "DATE", "formattedLength": 9,
+            "hierarchyAggregation": "", "timeIntervalAccumulation": "", "missingInterpretation": "",
+            "useInSystemGeneratedModels": "", "useInForecastGraph": "", "sourceTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/TIMESERIES",
+            "visibility": true, "variableLock": true, "numericType": "DISCRETE", "displayableFacet": false,
+            "distinctValuesCount": 110, "missingValuesCount": 0, "rowCount": 147070},
+          {"creationTimeStamp": "2018-04-18T19:09:36.147Z", "modifiedTimeStamp": "2018-04-19T19:17:50.294Z",
+            "createdBy": "sasboot", "modifiedBy": "sasboot", "id": "78c0f3e7-675f-4390-8c9f-5fff9d0e2ab4",
+            "links": [{"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/78c0f3e7-675f-4390-8c9f-5fff9d0e2ab4",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/78c0f3e7-675f-4390-8c9f-5fff9d0e2ab4",
+                "type": "application/vnd.sas.analytics.forecasting.variable"}, {"method": "GET",
+                "rel": "up", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"},
+              {"method": "PUT", "rel": "update", "href": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/78c0f3e7-675f-4390-8c9f-5fff9d0e2ab4",
+                "uri": "/forecastingDataDefinition/dataDefinitions/9e5c330d-b841-4989-9431-cd145a8c225f/tableDefinitions/769a80cb-9e5f-4b03-9355-238a2864f07f/variables/78c0f3e7-675f-4390-8c9f-5fff9d0e2ab4",
+                "type": "application/vnd.sas.analytics.forecasting.variable", "responseType": "application/vnd.sas.analytics.forecasting.variable"}],
+            "name": "sales", "revision": 3, "dataDefinitionId": "9e5c330d-b841-4989-9431-cd145a8c225f",
+            "tableDefinitionId": "769a80cb-9e5f-4b03-9355-238a2864f07f", "label": "Actual\
+              \ Values", "type": "double", "role": "dependent", "format": "", "formattedLength": 12,
+            "hierarchyAggregation": "TOTAL", "timeIntervalAccumulation": "TOTAL",
+            "missingInterpretation": "MISSING", "useInSystemGeneratedModels": "",
+            "useInForecastGraph": "", "sourceTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/TIMESERIES",
+            "visibility": true, "variableLock": true, "numericType": "DISCRETE", "displayableFacet": false,
+            "distinctValuesCount": 21205, "missingValuesCount": 0, "rowCount": 147070}],
+        "version": 2}
+    publishFFResp:
+      description: An example response from publishing final forecast to the specified
+        table reference.
+      value: {"name": "TEST_OUTFOR", "providerId": "cas", "dataSourceId": "CASUSER(sasboot)",
+        "type": "table", "createdBy": "sasboot", "creationTimeStamp": "2018-04-19T19:19:17.801Z",
+        "modifiedTimeStamp": "2018-04-19T19:19:18.376Z", "attributes": {"characterSet": "UTF8",
+          "sourceCaslibName": null, "columnCount": 11, "sessionId": "63cbb2b0-0b8b-b94f-9713-688aa2af88a3",
+          "encoding": "utf-8", "serverId": "cas-shared-default", "sourceTableName": null,
+          "sourceTableLastModified": null, "scope": "global", "caslibId": "CASUSER(sasboot)",
+          "lastAccessed": "2018-04-19T19:19:18.376Z", "rowCount": 163114, "state": "loaded"},
+        "version": 1, "links": [{"method": "GET", "rel": "self", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(sasboot)/tables/TEST_OUTFOR",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(sasboot)/tables/TEST_OUTFOR",
+            "type": "application/vnd.sas.data.table"}, {"method": "GET", "rel": "alternate",
+            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(sasboot)/tables/TEST_OUTFOR",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(sasboot)/tables/TEST_OUTFOR",
+            "type": "application/vnd.sas.data.table.summary"}, {"method": "GET", "rel": "connectionAttributes",
+            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(sasboot)/tables/TEST_OUTFOR",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(sasboot)/tables/TEST_OUTFOR",
+            "type": "application/vnd.sas.attributes"}, {"method": "GET", "rel": "up",
+            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(sasboot)/tables",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(sasboot)/tables",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"},
+          {"method": "PUT", "rel": "load", "href": "/casManagement/servers/cas-shared-default/caslibs/CASUSER(sasboot)/tables/TEST_OUTFOR/state?value=loaded",
+            "uri": "/casManagement/servers/cas-shared-default/caslibs/CASUSER(sasboot)/tables/TEST_OUTFOR/state?value=loaded",
+            "responseType": "application/json;text/plain"}, {"method": "PUT", "rel": "unload",
+            "href": "/casManagement/servers/cas-shared-default/caslibs/CASUSER(sasboot)/tables/TEST_OUTFOR/state?value=unloaded",
+            "uri": "/casManagement/servers/cas-shared-default/caslibs/CASUSER(sasboot)/tables/TEST_OUTFOR/state?value=unloaded",
+            "responseType": "application/json;text/plain"}, {"method": "GET", "rel": "rows",
+            "href": "/rowSets/tables/cas~fs~cas-shared-default~fs~CASUSER(sasboot)~fs~TEST_OUTFOR/rows",
+            "uri": "/rowSets/tables/cas~fs~cas-shared-default~fs~CASUSER(sasboot)~fs~TEST_OUTFOR/rows",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.row"},
+          {"method": "GET", "rel": "columns", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(sasboot)/tables/TEST_OUTFOR/columns",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(sasboot)/tables/TEST_OUTFOR/columns",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.column.summary"},
+          {"method": "GET", "rel": "provider", "href": "/dataSources/providers/cas",
+            "uri": "/dataSources/providers/cas", "type": "application/vnd.sas.data.provider"},
+          {"method": "GET", "rel": "dataSource", "href": "/dataSources/providers/cas/sources/cas-shared-default~fs~CASUSER(sasboot)",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default~fs~CASUSER(sasboot)",
+            "type": "application/vnd.sas.data.source"}, {"method": "PUT", "rel": "updateState",
+            "href": "/casManagement/servers/cas-shared-default/caslibs/CASUSER(sasboot)/tables/TEST_OUTFOR/state",
+            "uri": "/casManagement/servers/cas-shared-default/caslibs/CASUSER(sasboot)/tables/TEST_OUTFOR/state",
+            "responseType": "text/plain"}]}
+    createDataDefResp:
+      description: An example response from creating a ddata definition.
+      value: {"creationTimeStamp": "2018-04-23T16:19:38.652Z", "modifiedTimeStamp": "2018-04-23T16:19:45.140Z",
+        "createdBy": "sasboot", "modifiedBy": "sasboot", "id": "faf2a780-6b14-4faa-acbf-c89512ee6cde",
+        "links": [{"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde",
+            "uri": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde",
+            "type": "application/vnd.sas.analytics.forecasting.data.definition"},
+          {"method": "GET", "rel": "up", "href": "/forecastingDataDefinition/dataDefinitions",
+            "uri": "/forecastingDataDefinition/dataDefinitions", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.analytics.forecasting.data.definition"},
+          {"method": "PUT", "rel": "update", "href": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde",
+            "uri": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde",
+            "type": "application/vnd.sas.analytics.forecasting.data.definition", "responseType": "application/vnd.sas.analytics.forecasting.data.definition"},
+          {"method": "DELETE", "rel": "delete", "href": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde",
+            "uri": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde"},
+          {"method": "POST", "rel": "publishFinalForecasts", "href": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/finalForecast",
+            "uri": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/finalForecast",
+            "type": "application/vnd.sas.forecasting.table.reference", "responseType": "application/vnd.sas.data.table"},
+          {"method": "GET", "rel": "timeDefinition", "href": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/timeDefinition",
+            "uri": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/timeDefinition",
+            "type": "application/vnd.sas.analytics.forecasting.time.definition"},
+          {"method": "GET", "rel": "timeIntervals", "href": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/timeIntervals",
+            "uri": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/timeIntervals",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.time.intervals"},
+          {"method": "GET", "rel": "tableDefinitions", "href": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/tableDefinitions",
+            "uri": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/tableDefinitions",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "attributesTableDefinition", "href": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/tableDefinitions/@attributes",
+            "uri": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/tableDefinitions/@attributes",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "inputTableDefinition", "href": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/tableDefinitions/@input",
+            "uri": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/tableDefinitions/@input",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "eventTableDefinition", "href": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/tableDefinitions/@event",
+            "uri": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/tableDefinitions/@event",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "hierarchies", "href": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/hierarchies",
+            "uri": "/forecastingDataDefinition/dataDefinitions/faf2a780-6b14-4faa-acbf-c89512ee6cde/hierarchies",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.hierarchy"}],
+        "name": "t2-DataDefinition", "revision": 5, "parentUri": "/analyticsGateway/projects/c5c71622-4399-4b11-981b-d328bc096367",
+        "status": {"status": "INVALID", "statusMessages": ["You must assign a dependent\
+              \ variable in order to run a pipeline."]}, "casServer": "cas-shared-default",
+        "casLibName": "Analytics_Project_c5c71622-4399-4b11-981b-d328bc096367", "accumulatedTimeSeriesTableName": "_ACCUMULATED_TS",
+        "forecastsTableName": "OUTFOR", "horizonTableName": "HORIZON", "outputDataSourceUri": "/casManagement/servers/cas-shared-default/caslibs/Analytics_Project_c5c71622-4399-4b11-981b-d328bc096367",
+        "singleTimeSeries": false, "hierarchyForecasting": true, "forecastsUpdated": false,
+        "negativeForecasts": false, "forecastSettings": {"horizonLength": 12, "confidenceLimit": 0.05},
+        "overridesStarted": false}
+    getVarResp:
+      description: An example of a variable retrieved by id.
+      value: {"id": "da229ff4-9eda-4df5-a0da-224ad2b05579", "name": "sku", "links": [
+          {"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/eb1807a0-6d46-4414-a801-a72c540c86a4/variables/da229ff4-9eda-4df5-a0da-224ad2b05579",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/eb1807a0-6d46-4414-a801-a72c540c86a4/variables/da229ff4-9eda-4df5-a0da-224ad2b05579",
+            "type": "application/vnd.sas.analytics.forecasting.variable"}, {"method": "GET",
+            "rel": "up", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/eb1807a0-6d46-4414-a801-a72c540c86a4/variables",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/eb1807a0-6d46-4414-a801-a72c540c86a4/variables",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"},
+          {"method": "PUT", "rel": "update", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/eb1807a0-6d46-4414-a801-a72c540c86a4/variables/da229ff4-9eda-4df5-a0da-224ad2b05579",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/eb1807a0-6d46-4414-a801-a72c540c86a4/variables/da229ff4-9eda-4df5-a0da-224ad2b05579",
+            "type": "application/vnd.sas.analytics.forecasting.variable", "responseType": "application/vnd.sas.analytics.forecasting.variable"},
+          {"method": "GET", "rel": "originatingTableDefinition", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/da229ff4-9eda-4df5-a0da-224ad2b05579",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/da229ff4-9eda-4df5-a0da-224ad2b05579",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition"}],
+        "creationTimeStamp": "2023-01-04T16:23:16.960624Z", "createdBy": "emduser2",
+        "modifiedTimeStamp": "2023-01-04T16:24:27.63421Z", "modifiedBy": "emduser2",
+        "revision": 1, "version": 1, "label": "", "dataDefinitionId": "30681765-b346-41d3-a293-7722aded179b",
+        "tableDefinitionId": "eb1807a0-6d46-4414-a801-a72c540c86a4", "type": "char",
+        "role": "byVar", "format": "", "formattedLength": 40, "nfl": 0, "nfd": 0,
+        "hierarchyAggregation": "", "timeIntervalAccumulation": "", "missingInterpretation": "",
+        "useInSystemGeneratedModels": "", "useInForecastGraph": "", "sourceTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/TIMESERIES",
+        "visibility": true, "variableLock": false, "numericType": "discrete", "displayableFacet": false,
+        "showInFacet": true, "distinctValuesCount": 0, "missingValuesCount": 0, "rowCount": 147070,
+        "attributeType": "", "originatingTableDefId": "eb1807a0-6d46-4414-a801-a72c540c86a4"}
+    getDataDefResp:
+      description: An example of a response from fetching data definition. | GET http://www.example.com/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b
+      value: {"accumulatedTimeSeriesTableName": "_ACCUMULATED_TS", "caslibName": "Analytics_Project_b44e3cb7-6ffa-452d-9e7f-d6a35c833581",
+        "createdBy": "emduser2", "creationTimeStamp": "2023-01-04T16:23:14.988189Z",
+        "forecastSettings": {"horizonLength": 12, "back": 0, "confidenceLimit": 0.05,
+          "version": 1}, "forecastsTableName": "OUTFOR", "forecastsUpdated": false,
+        "hierarchyForecasting": true, "horizonTableName": "HORIZON", "id": "30681765-b346-41d3-a293-7722aded179b",
+        "links": [{"method": "GET", "rel": "self", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b",
+            "type": "application/vnd.sas.analytics.forecasting.data.definition"},
+          {"method": "GET", "rel": "up", "href": "/forecastingDataDefinition/dataDefinitions",
+            "uri": "/forecastingDataDefinition/dataDefinitions", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.analytics.forecasting.data.definition"},
+          {"method": "PUT", "rel": "update", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b",
+            "type": "application/vnd.sas.analytics.forecasting.data.definition", "responseType": "application/vnd.sas.analytics.forecasting.data.definition"},
+          {"method": "DELETE", "rel": "delete", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b"},
+          {"method": "POST", "rel": "publishFinalForecasts", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/finalForecast",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/finalForecast",
+            "type": "application/vnd.sas.forecasting.table.reference", "responseType": "application/vnd.sas.data.table"},
+          {"method": "GET", "rel": "timeDefinition", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/timeDefinition",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/timeDefinition",
+            "type": "application/vnd.sas.analytics.forecasting.time.definition"},
+          {"method": "GET", "rel": "timeIntervals", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/timeIntervals",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/timeIntervals",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.time.interval"},
+          {"method": "GET", "rel": "tableDefinitions", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions?filter=eq(tableClass,INPUT)",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions?filter=eq(tableClass,INPUT)",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "attributesTableDefinition", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/@attributes",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/@attributes",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "inputTableDefinition", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/@input",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/@input",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "eventTableDefinition", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/@event",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/tableDefinitions/@event",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "hierarchies", "href": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/hierarchies",
+            "uri": "/forecastingDataDefinition/dataDefinitions/30681765-b346-41d3-a293-7722aded179b/hierarchies",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.hierarchy"}],
+        "modifiedBy": "emduser2", "modifiedTimeStamp": "2023-01-04T16:56:44.606451Z",
+        "name": "r1-DataDefinition", "negativeForecasts": false, "outputDataSourceUri": "/analyticsGateway/projects/b44e3cb7-6ffa-452d-9e7f-d6a35c833581/dataSource",
+        "overridesStarted": false, "parentUri": "/analyticsGateway/projects/b44e3cb7-6ffa-452d-9e7f-d6a35c833581",
+        "revision": 9, "serverName": "cas-shared-default", "singleTimeSeries": false,
+        "status": {"status": "valid", "statusMessages": []}, "version": 1}
+    getInputTableDefResp:
+      description: An example of an input table definition.
+      value: {"id": "6afacd32-8180-40f7-89a8-c5c4211613e9", "name": "PRICEDATA", "links": [
+          {"method": "GET", "rel": "self", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9",
+            "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "alternate", "href": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9",
+            "uri": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "up", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+            "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "variables", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9/variables",
+            "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9/variables",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.variable"},
+          {"method": "PUT", "rel": "update", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9",
+            "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/6afacd32-8180-40f7-89a8-c5c4211613e9",
+            "type": "application/vnd.sas.analytics.forecasting.table.definition",
+            "responseType": "application/vnd.sas.analytics.forecasting.table.definition"},
+          {"method": "GET", "rel": "destinationTable", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+            "type": "application/vnd.sas.data.table"}, {"method": "GET", "rel": "table",
+            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+            "type": "application/vnd.sas.data.table"}, {"method": "POST", "rel": "save",
+            "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/tables?tableUri=/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+            "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/tables?tableUri=/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+            "type": "application/vnd.sas.cas.table.save.request", "responseType": "application/vnd.sas.job.execution.job"}],
+        "creationTimeStamp": "2022-02-03T17:15:59.415897Z", "createdBy": "sasiom5",
+        "modifiedTimeStamp": "2022-02-07T19:58:06.884719Z", "modifiedBy": "sasiom5",
+        "eTag": 'W/"1644263886884719000"', "revision": 2, "version": 1, "dataDefinitionId": "a5296039-86b4-4ea5-a6a6-ce1c55457b6d",
+        "tableType": "TIMESERIES", "tableClass": "INPUT", "sourceTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+        "destinationTableUri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PRICEDATA",
+        "casServer": "cas-shared-default", "destinationCasLib": "Public", "destinationCasTable": "PRICEDATA",
+        "sourceModifiedDate": "2022-02-07T19:58:06.883839Z", "sortValue": 1, "attributes": {
+          "NUMGROUPS": "17", "active": "true"}}

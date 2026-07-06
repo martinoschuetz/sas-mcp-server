@@ -1,0 +1,395 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: Import9
+  description: The Import9 API provides a single framework for importing SAS 9 resources.
+    This api adheres to the Transfer Service's content type plug-in model, and can
+    be used by object types that need to reference SAS 9 libraries within their codebase.
+  termsOfService: 'https://www.sas.com/en_us/legal/copyright.html'
+  contact:
+    name: SAS Developers
+    url: 'https://developer.sas.com'
+    email: devex@sas.com
+tags:
+- name: Root
+  description: Root resources.
+- name: Objects
+  description: Object types.
+- name: ImportMapping
+  description: Import mapping.
+- name: SPI1Converter
+  description: SPI1 conversion.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      operationId: root
+      summary: Get a list of top-level links
+      description: >
+        Returns a list of links surfaced through this API. <p>
+        <b>Authorization:</b> Any authenticated user. </p>
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+        "404":
+          description: Service is not available
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+    head:
+      tags:
+      - Root
+      operationId: headersForRoot
+      summary: Check if the import9 service is available
+      description: >
+        Returns whether or not the import9 service is running. <p>
+        <b>Authorization:</b> Any authenticated user. </p>
+      responses:
+        "200":
+          description: OK.  Service is running and available
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/api"
+        "404":
+          description: Service is not available
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/error2"
+  /objects:
+    post:
+      tags:
+      - Objects
+      operationId: importObjects
+      summary: Import the objects determined by the object type specified and the
+        contents of the package file. The endpoint supports multiple object types.
+        Example endpoints would be /storedProcesses, /infomaps, and /cubes.
+      description: >
+        Import the SAS 9 object resources. <p> <b>Authorization:</b> The ability
+        to import objects is restricted to SAS Administrators and SAS
+        applications. </p>
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  description: The multipart file contents of the package file.
+                  type: string
+                  format: binary
+              required:
+              - files
+        required: true
+      responses:
+        "200":
+          description: Imported objects successful
+          headers:
+            Location:
+              description: URL of the created/updated resource
+              schema:
+                type: string
+          content:
+            application/vnd.sas.transfer.import.summary+json:
+              schema:
+                $ref: "#/components/schemas/importSummary"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/importSummary"
+        "201":
+          description: Imported objects created
+          headers:
+            Location:
+              description: URL of the created/updated resource
+              schema:
+                type: string
+          content:
+            application/vnd.sas.transfer.import.summary+json:
+              schema:
+                $ref: "#/components/schemas/importSummary"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/importSummary"
+        "400":
+          description: Bad Request
+          content:
+            application/vnd.sas.transfer.import.summary+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  /spi1Converter:
+    post:
+      x-sas-internal: true
+      tags:
+      - SPI1Converter
+      operationId: spi1Converter
+      summary: Convert SPI1 XML to SPI2 JSON
+      description: This internal endpoint converts SPI1 XML to SPI2 JSON.
+      requestBody:
+        content:
+          application/xml:
+            schema:
+              $ref: "#/components/schemas/api"
+        description: SPI1 XML that gets converted to SPI2 JSON.
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+        "500":
+          description: Server Error
+          content:
+            text/plain:
+              schema:
+                type: string
+  /mappingEnhancements:
+    post:
+      x-sas-internal: true
+      tags:
+      - ImportMapping
+      summary: 'Adjust v9 import mapping for use in Viya imports'
+      description: |
+        This endpoint enhances the import mapping provided in the body of the request using 
+        information in the transfer package identified by the packageId parameter.  The enhancements 
+        are intended for mappings that originated from v9 export packages and makes adjustments that 
+        are useful/required for importing into Viya.  
+
+        This endpoint is internal, for use by the transfer service's /transfer/packages/{pkgId}/mapping 
+        endpoint.
+      parameters:
+      - schema:
+          type: string
+        in: query
+        name: packageId
+        description: The Id of the transfer package on which the import mapping is
+          based.
+        required: true
+      requestBody:
+        content:
+          application/vnd.sas.transfer.import.mapping+json:
+            schema:
+              $ref: "#/components/schemas/importMapping"
+        description: The import mapping from the package identified the the packageId
+          parameter.
+      operationId: makeMappingEnhancements
+      responses:
+        "201":
+          description: Created
+          content:
+            application/vnd.sas.transfer.import.mapping+json:
+              schema:
+                $ref: "#/components/schemas/importMapping"
+        "404":
+          description: Not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+servers:
+- url: http://mock-import9.apifirst.unx.sas.com/import9
+  description: kubernetes mock server
+components:
+  schemas:
+    importSummary:
+      description: An import summary object.
+      properties:
+        id:
+          type: string
+          description: The ID String value of the object that was created/updated
+            during the import.
+        name:
+          type: string
+          description: The name String value of the object that was created/updated
+            during the import.
+        state:
+          type: string
+          description: The State of the import operations.
+        resultUri:
+          type: string
+          description: The resource URI of the object created/updated during the import.
+        type:
+          type: string
+          description: The type of the object.
+    resourceConnection:
+      $ref: "#/components/schemas/resourceConnector"
+    resourceSubstitution:
+      description: information regarding a resource substitution
+      properties:
+        resourceId:
+          type: string
+          description: The resource id.
+        resourceName:
+          type: string
+          description: The resource name.
+        properties:
+          type: array
+          description: List of property substitutions for the resource.
+          items:
+            $ref: "#/components/schemas/propertySubstitution"
+    propertySubstitution:
+      description: name, value, and data type for a property
+      properties:
+        name:
+          type: string
+          description: The name of the property.
+        value:
+          type: string
+          description: The value for the property.
+        type:
+          type: string
+          description: The data type of the property.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    resourceConnector:
+      description: the source and target for a given resource
+      properties:
+        resourceName:
+          type: string
+          description: The resource name.
+        source:
+          type: string
+          description: The source value to update for the target.
+        target:
+          type: string
+          description: The target value.
+    importMapping:
+      description: mapping information for an import
+      properties:
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+        connectors:
+          type: object
+          description: A map of objects with their resource connectors.
+          additionalProperties:
+            $ref: "#/components/schemas/resourceConnector"
+        options:
+          type: object
+          description: Options to apply to the export.
+        substitutions:
+          type: array
+          description: >
+            List of resource substitution available for this package.
+          items:
+            $ref: "#/components/schemas/resourceSubstitution"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.

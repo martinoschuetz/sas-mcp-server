@@ -1,0 +1,815 @@
+---
+openapi: 3.0.3
+info:
+  title: Transfer Object Provider Contract
+  description: The TransferObjectProviderContract API enables clients to import and
+    export content.
+  version: "4"
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: "devex@sas.com"
+tags:
+- name: Transfer Object
+  description: Resources related to the transfer object.
+- name: Capabilities
+  description: Describes provider capabilities.
+- name: Mappables
+  description: Resources related to mappables.
+servers:
+- url: https://example.com/transferObjectProviderContract
+  description: This is an example base URL.
+paths:
+  "/unspecifiedResourceName":
+    get:
+      operationId: getTransferObject
+      summary: Retrieve the details of this object for transfer
+      description: The returned transfer object will contain all the necessary information
+        to reconstruct the content during an import.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                Transfer Object Example:
+                  $ref: "#/components/examples/transferObject-example1"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                Transfer Object Example:
+                  $ref: "#/components/examples/transferObject-example1"
+      tags:
+      - Transfer Object
+    post:
+      operationId: createTransferObjectFromParts
+      summary: Create a copy of the content
+      description: Create a copy of the content defined by the resources provided
+        in the multipart request.  The created content should always be a copy with
+        a new id.
+      requestBody:
+        description: A list of multipart files. Objects from SAS 9.x will include
+          ResourceMetadata.xml, TransferDescriptor.json, and ImportMapping.json. The
+          transfer integration project contains utilities useful in handling multipart
+          streams and parsing the provided content.
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/multipartFiles"
+        required: true
+      responses:
+        "200":
+          description: New content created
+          headers:
+            Location:
+              schema:
+                type: string
+              description: The URI to the newly created transfer package.
+          content:
+            application/vnd.sas.transfer.import.summary+json:
+              schema:
+                $ref: "#/components/schemas/importSummary"
+              examples:
+                Import Summary Example:
+                  $ref: "#/components/examples/importSummary-example1"
+        "400":
+          description: Bad Request
+      tags:
+      - Transfer Object
+    options:
+      operationId: getTransferProviderOptions
+      summary: Get the options for this provider
+      description: Get the options supported by this provider.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.transfer.provider.options+json:
+              schema:
+                $ref: "#/components/schemas/providerOptions"
+              examples:
+                Preflight Supported:
+                  $ref: "#/components/examples/providerOptions-preflightSupported"
+                Preflight Not Supported:
+                  $ref: "#/components/examples/providerOptions-preflightNotSupported"
+        "404":
+          description: Not Found.  Provider has not implemented support for additional
+            options.
+      tags:
+      - Capabilities
+  "/unspecifiedResourceName/{resourceId}":
+    put:
+      operationId: importTransferObject
+      summary: Create the content specified by the transfer object
+      description: Create the content specified in the transfer object preserving
+        the original id. If content with the same id exists, determine if the content
+        should be updated or an appropriate error message returned.
+      parameters:
+      - name: resourceId
+        description: The id of the resource to import
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: Transfer object for import
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              Transfer Object Example:
+                $ref: "#/components/examples/transferObject-example1"
+        required: true
+      responses:
+        "200":
+          description: The resource was successfully imported.
+          headers:
+            Location:
+              schema:
+                type: string
+              description: The URI to the imported content.
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/resourceSummary"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/resourceSummary"
+        "400":
+          description: Bad Request
+      tags:
+      - Transfer Object
+  "/unspecifiedResourceName#mappables":
+    post:
+      operationId: getPreflightSummary
+      summary: Returns preflight summary, including mappables
+      description: "Examine incoming files and return a list of mappables whose values\
+        \ will be needed during import.  NOTE: Omit/ignore the #mappables anchor in\
+        \ the URI."
+      requestBody:
+        description: A list of multipart files. Objects from SAS 9.x will include
+          ResourceMetadata.xml, TransferDescriptor.json, and ImportMapping.json. PreflightRequest.json
+          will also be passed, containing any mappables discovered by transfer.  The
+          transfer integration project contains utilities useful in handling multipart
+          streams and parsing the provided content.
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/multipartFiles"
+            examples:
+              EG Project Preflight:
+                value:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                    - name: file
+                      filename: PreflightRequest.json
+                      contentType: application/json
+                    - name: file
+                      filename: Export-123.dat
+                      contentType: application/octet-stream
+                    - name: file
+                      filename: TransferDescriptor.json
+                      contentType: application/json
+        required: true
+      responses:
+        "200":
+          description: Preflight summary is returned, including the identified mappables.
+          headers:
+            Location:
+              schema:
+                type: string
+              description: The URI to the newly created transfer package.
+          content:
+            application/vnd.sas.transfer.preflight.summary+json:
+              schema:
+                $ref: "#/components/schemas/preflightSummary"
+              examples:
+                EG Projects with Paths:
+                  $ref: "#/components/examples/preflightSummary-EGProjectsPaths"
+        "400":
+          description: Bad Request
+      tags:
+      - Mappables
+
+components:
+  schemas:
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    transferObject:
+      title: Transfer Object
+      description: full definition of an object used for moving from location to another
+      required:
+      - version
+      - id
+      - summary
+      properties:
+        version:
+          type: integer
+          description: "This media type's schema version number. This representation\
+            \ is version 2."
+        id:
+          format: object-id
+          description: unique identifier of the object
+          type: string
+        summary:
+          $ref: "#/components/schemas/resourceSummary"
+        content:
+          type: object
+          description: optional. contains all necessary details about the object to
+            successfully recreate it on a new system. It must be serialized in a format
+            that is valid for internet transmission. This includes valid encoding
+            formats like Base64 or data structures like JSON. This is provided by
+            the content provider and the transfer service expects no visibility into
+            or understanding of this value.
+        state:
+          type: string
+          description: optional. The state of the transfer object; enabled or disabled
+        fileServiceContent:
+          type: string
+          description: deprecated
+        connectors:
+          type: array
+          description: optional. a list of associations or references to other external
+            objects to be recreated on import. This information must be included if
+            this object depends on the existence of other objects.
+          items:
+            $ref: "#/components/schemas/transferObjectConnector"
+        substitutions:
+          type: object
+          description: optional. map with keys of parameter and value. Specifies parameters
+            and properties on the object that can be replaced with new values during
+            import.
+          additionalProperties:
+            type: string
+        links:
+          type: array
+          description: links that apply to this object
+          items:
+            $ref: "#/components/schemas/link"
+    resourceSummary:
+      title: Resource Summary
+      description: Summary object that represents the transferred object. The class
+        required is ResourceSummary.
+      x-sas-media-type:
+        name: application/vnd.sas.summary
+        version: 2
+      required:
+      - version
+      - id
+      - name
+      - type
+      properties:
+        version:
+          type: integer
+          description: this media type's schema version number. This representation
+            is version 2.
+        id:
+          type: string
+          format: object-id
+          description: unique identifier of the object
+        name:
+          type: string
+          description: name of the object
+        description:
+          type: string
+          description: description of the object
+        createdBy:
+          type: string
+          description: user responsible for creating the object
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: DateTime of object creation
+        modifiedBy:
+          type: string
+          description: user responsible for most recent modification of the object
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: DateTime of last object modification
+        type:
+          type: string
+          description: type of the object being transferred, as listed in the Types
+            service.
+        links:
+          type: array
+          description: Paging links that apply to this object
+          items:
+            $ref: "#/components/schemas/link"
+    transferObjectConnector:
+      title: Transfer Object Connector
+      description: transferObjectConnector
+      x-sas-media-type:
+        name: application/vnd.sas.transfer.connector
+        version: 2
+      required:
+      - version
+      - id
+      - name
+      - uri
+      - contentType
+      properties:
+        version:
+          type: integer
+          description: this media type's schema version number. This representation
+            is version 2.
+        id:
+          type: string
+          format: object-id
+          description: unique identifier of the object
+        name:
+          type: string
+          description: name of the related object
+        uri:
+          type: string
+          description: the URI of the related object
+        contentType:
+          type: string
+          description: media type of the related object
+        type:
+          type: string
+          description: type of connection. This can be any value the creator of the
+            connection wants but should be used to determine what to do to reconstitute
+            the relationship.
+        hints:
+          type: object
+          description: hints that can be used to help find the object to connect to
+            in the target system
+          additionalProperties:
+            type: string
+          items:
+            type: string
+        links:
+          type: array
+          description: Paging links that apply to this object
+          items:
+            $ref: "#/components/schemas/link"
+    importSummary:
+      title: Import Summary
+      description: summary of the import
+      x-sas-media-type:
+        name: application/vnd.sas.transfer.import.summary
+        version: 2
+      properties:
+        id:
+          type: string
+          format: object-id
+          description: unique identifier of the content
+        name:
+          type: string
+          description: name of the content
+        version:
+          type: integer
+          description: this media type's schema version number. This representation
+            is version 2.
+        resultUri:
+          type: string
+          description: the URI of the imported content
+        type:
+          type: string
+          description: the type of the imported content
+        state:
+          $ref: "#/components/schemas/transferState"
+        logEntries:
+          type: array
+          description: a list log entries related to the import of this content
+          items:
+            $ref: "#/components/schemas/logEntry"
+    logEntry:
+      title: Log Entry
+      description: log entry
+      x-sas-hidden: true
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: DateTime of the log entry
+        level:
+          type: string
+          description: level for this log entry. INFO, WARN, ERROR
+        category:
+          type: string
+          description: category
+        message:
+          type: string
+          description: message for this log entry
+    transferState:
+      title: Transfer State
+      description: the state of the import
+      x-sas-hidden: true
+      properties:
+        state:
+          type: string
+          description: the state of the import. pending, running, completed, failed,
+            completedWithWarnings, completedWithErrors, skipped, excluded, canceled
+        longState:
+          type: integer
+          format: int64
+          description: long state
+    providerOptions:
+      title: Provider Options
+      description: options supported by this provider
+      x-sas-media-type:
+        name: application/vnd.sas.transfer.provider.options
+        version: 1
+      properties:
+        version:
+          description: the version of this object.
+          type: integer
+        preflightEnabled:
+          type: boolean
+          description: indicates if preflight is enabled
+        preflightMappables:
+          type: boolean
+          description: indicates if preflight mappables are supported
+    preflightSummary:
+      title: Preflight Summary
+      description: results of the preflight
+      x-sas-media-type:
+        name: application/vnd.sas.transfer.preflight.summary
+        version: 1
+      properties:
+        version:
+          description: the version of this object.
+          type: integer
+        mappables:
+          type: array
+          description: list of mappables
+          items:
+            $ref: "#/components/schemas/mappable"
+    mappablesCollection:
+      title: Mappables Collection
+      description: The list of Mappable items.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+      properties:
+        items:
+          type: array
+          description: An array containing Mappable resources.
+          items:
+            $ref: "#/components/schemas/mappable"
+    mappable:
+      title: Mappable
+      description: a mappable
+      x-sas-media-type:
+        name: application/vnd.sas.transfer.mappable
+        version: 1
+      properties:
+        version:
+          type: integer
+          description: the version of this object
+        id:
+          type: string
+          description: the id of the mappable
+        name:
+          type: string
+          description: the name of the mappable
+        description:
+          type: string
+          description: the description of the mappable
+        infoTip:
+          type: string
+          description: an informational tip for the mappable
+        mcId:
+          type: string
+          description: the migration correlation id of the object associated with
+            this mappable
+        originalValue:
+          type: object
+          description: the original value of the mappable in the source system
+        selections:
+          $ref: "#/components/schemas/mappableSelections"
+        relationships:
+          $ref: "#/components/schemas/mappableRelationships"
+        attributes:
+          #          type: map
+          type: object
+          description: additional attributes for this mappable.
+    mappableSelections:
+      x-sas-hidden: true
+      title: Mappable Selections
+      description: selections for a mappable
+      properties:
+        defaultSelection:
+          type: object
+          description: the default selection value to present for this mappable
+        selections:
+          type: array
+          description: the optional selections list for this mappable, if a list of
+            options is to be provided
+          items:
+            type: object
+            description: each item is a single potential selection for this mappable
+        selectorType:
+          type: string
+          description: |-
+            the type of selector to use for this mappable.  The selector type determines how the user will be presented with the selections for this mappable,
+            if a client chooses to honor the selector type.  The default is AUTO, which means the client will choose the best selector to use.
+
+            The following selector types are supported:
+            | Selector Type | Description |
+            | --- | --- |
+            | AUTO | Client chooses the best selector to use |
+            | APP_SERVER | SAS application server selector |
+            | COMPUTE_CONTEXT | SAS compute context selector |
+            | COMPUTE_LIBRARY | SAS compute library selector |
+            | CAS_SERVER | CAS server selector |
+            | CASLIB | Caslib selector |
+            | DATE | Date selector |
+            | DATETIME | DateTime selector |
+            | USER | User selector |
+            | GROUP | Group selector |
+            | FILE_CLIENT | File client selector |
+            | FILE_SERVER | File server selector |
+            | PATH_CLIENT | Path client selector |
+            | PATH_SERVER | Path server selector |
+            | RESOURCE_FOLDER | Folders service resource selector |
+          enum:
+          - AUTO
+          - APP_SERVER
+          - COMPUTE_CONTEXT
+          - COMPUTE_LIBRARY
+          - CAS_SERVER
+          - CASLIB
+          - DATE
+          - DATETIME
+          - USER
+          - GROUP
+          - FILE_CLIENT
+          - FILE_SERVER
+          - PATH_CLIENT
+          - PATH_SERVER
+          - RESOURCE_FOLDER
+          #          # OpenAPI 3.1 supports describing enums, so we can do it here
+          #          oneOf:
+          #            - const: AUTO
+          #              description: client chooses the best selector to use (default)
+          #            - const: APP_SERVER
+          #              description: SAS application server selector
+          #            - const: COMPUTE_CONTEXT
+          #              description: SAS compute context selector
+          #            - const: COMPUTE_LIBRARY
+          #              description: SAS compute library selector
+          #            - const: CAS_SERVER
+          #              description: CAS server selector
+          #            - const: CASLIB
+          #              description: Caslib selector
+          #            - const: DATE
+          #              description: Date selector
+          #            - const: DATETIME
+          #              description: DateTime selector
+          #            - const: USER
+          #              description: User selector
+          #            - const: GROUP
+          #              description: Group selector
+          #            - const: FILE_CLIENT
+          #              description: File client selector
+          #            - const: FILE_SERVER
+          #              description: File server selector
+          #            - const: PATH_CLIENT
+          #              description: Path client selector
+          #            - const: PATH_SERVER
+          #              description: Path server selector
+          #            - const: RESOURCE_FOLDER
+          #              description: Folders service resource selector
+          default: AUTO
+        constraints:
+          $ref: "#/components/schemas/mappableSelectionsConstraints"
+    mappableSelectionsConstraints:
+      x-sas-hidden: true
+      title: Mappable Selections Constraints
+      description: constraints for the selections for a mappable
+      properties:
+        min:
+          type: integer
+          description: the minimum number of selections that must be made for this
+            mappable
+        max:
+          type: integer
+          description: the maximum number of selections that can be made for this
+            mappable
+        required:
+          type: boolean
+          description: indicates if at least one selection must be made for this mappable
+        multiSelect:
+          type: boolean
+          description: indicates if multiple selections can be made for this mappable
+        hidden:
+          type: boolean
+          description: indicates if the selections for this mappable should be hidden
+            from the user
+    mappableRelationships:
+      x-sas-hidden: true
+      title: Mappable Relationships
+      description: relationships for a mappable
+      properties:
+        sourceIds:
+          type: array
+          description: the source IDs for this mappable
+          items:
+            type: string
+            description: each item is a single source ID for this mappable
+        targetIds:
+          type: array
+          description: the target IDs for this mappable
+          items:
+            type: string
+            description: each item is a single target ID for this mappable
+    multipartFiles:
+      title: Multipart Files
+      description: one or more multipart files
+      properties:
+        files:
+          description: the files to be uploaded in the multipart request
+          type: array
+          items:
+            type: string
+            format: binary
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+  examples:
+    transferObject-example1:
+      description: A sample application/vnd.sas.transfer.object+json
+      value:
+        id: 23fefe3c-75c3-47d6-83e7-7897ab9dae71
+        version: 3
+        summary:
+          id: 5a9e32ff-9f58-4c9f-be39-b300bd6c76f7
+          name: My shiny bobble
+          description: metallic blue cube
+          createdBy: Tim.Taylor@tooltime.com
+          creationTimeStamp: "2022-12-13T21:00:10.991Z"
+          modifiedBy: Al.Borland@tooltime.com
+          modifiedTimeStamp: "2022-12-13T21:00:10.977Z"
+          type: application/vnd.sas.service.media.type
+          version: 3
+          links:
+          - method: GET
+            rel: self
+            uri: "/service/collection/5a9e32ff-9f58-4c9f-be39-b300bd6c76f7"
+            href: "/service/collection/5a9e32ff-9f58-4c9f-be39-b300bd6c76f7"
+            type: application/vnd.sas.service.media.type
+        content:
+          type: object
+          value: asNeeded
+        state: "asDesired"
+        fileServiceContent: "asNeeded"
+        connectors:
+        - id: cfc89b0f-c89c-4ebf-b70c-01b619ae249c
+          uri: "/folders/folders/79671263-e644-4f5d-962c-87698d2fe2cb"
+          name: ""
+          type: objectUri
+          version: 2
+          contentType: ""
+          relatedUris:
+          - "/authorization/rules/db6b0349-a6ec-41a0-b6a3-d5324eb2e063"
+          hints:
+            objectUri: "/folders/folders/79671263-e644-4f5d-962c-87698d2fe2cb/**"
+          links:
+          - method: GET
+            rel: self
+            href: "/transfer/packages/633b2afe-6f1d-41b5-b3a5-98d2d7549fdd/connectors/cfc89b0f-c89c-4ebf-b70c-01b619ae249c"
+            uri: "/transfer/packages/633b2afe-6f1d-41b5-b3a5-98d2d7549fdd/connectors/cfc89b0f-c89c-4ebf-b70c-01b619ae249c"
+            type: application/vnd.sas.transfer.connector
+        substitutions:
+          additionalProp1: string
+          additionalProp2: string
+          additionalProp3: string
+        links:
+        - method: GET
+          rel: self
+          uri: "/transfer/packages/633b2afe-6f1d-41b5-b3a5-98d2d7549fdd/objects/04c3ea28-d8b9-4bfb-9bc8-39b458255576"
+          href: "/transfer/packages/633b2afe-6f1d-41b5-b3a5-98d2d7549fdd/objects/04c3ea28-d8b9-4bfb-9bc8-39b458255576"
+          type: application/vnd.sas.transfer.object
+    importSummary-example1:
+      description: A sample application/vnd.sas.transfer.import.summary+json
+      value:
+        id: 5a9e32ff-9f58-4c9f-be39-b300bd6c76f7
+        name: My shiny bobble
+        type: application/vnd.sas.service.media.type
+        version: 2
+        resultUri: "/service/collection/5a9e32ff-9f58-4c9f-be39-b300bd6c76f7"
+        state: completed
+        logEntries:
+        - timestamp: "2022-12-13T21:29:19.230Z"
+          level: INFO
+          category: providerDetermined
+          message: this is the import log
+    providerOptions-preflightSupported:
+      description: A sample application/vnd.sas.transfer.provider.options+json response
+        which supports preflight mappables
+      value:
+        version: 1
+        preflightEnabled: true
+        preflightMappables: true
+    providerOptions-preflightNotSupported:
+      description: A sample application/vnd.sas.transfer.provider.options+json response
+        which does not support preflight mappables
+      value:
+        version: 1
+        preflightEnabled: false
+        preflightMappables: false
+    preflightSummary-EGProjectsPaths:
+      description: A sample application/vnd.sas.transfer.preflight.summary+json response
+        for EG projects with paths
+      value:
+        version: 1
+        mappables:
+        - version: 1
+          name: 'Path: C:\EGP_Projects\Cust_B'
+          description: "Path used by the following nodes: class.csv, Class2.accdb"
+          infoTip: "Provide the desired target path, relative to the new filesystem"
+          mcId: ElementManager-ZtGTuBzl7iu1ODi4
+          originalValue:
+            type: string
+            value: 'C:\EGP_Projects\Cust_B'
+          selections:
+            selectorType: PATH_SERVER
+            defaultSelection:
+              type: string
+              value: 'C:\EGP_Projects\Cust_B'
+            constraints:
+              min: 0
+              max: 0
+              required: true
+              multiSelect: false
+              hidden: false
+          attributes: {}
+
+
+
+

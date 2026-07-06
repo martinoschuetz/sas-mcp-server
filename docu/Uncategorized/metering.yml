@@ -1,0 +1,642 @@
+---
+openapi: 3.0.3
+info:
+  title: Metering
+  version: "2"
+  description: This API collects metered records via REST.
+  contact:
+    name: Viya 4 Metered Billing
+    email: metered_billing@sas.com
+tags:
+- name: Root
+  description: The operations for the root resource.
+- name: Records
+  description: The operations for a record resource.
+servers:
+- url: http://mock-metering.apifirst.unx.sas.com/metering
+  description: kubernetes mock server
+paths:
+  /:
+    get:
+      operationId: getRoot
+      description: API root links.
+      summary: API top level root resource.
+      tags:
+      - Root
+      responses:
+        "200":
+          description: Version information about the API, as well as top level API
+            entry points.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+    head:
+      operationId: headersForRoot
+      description: Retrieves header information for the service. It can also be used
+        to verify that the service is available.
+      summary: Get header information for the service.
+      tags:
+      - Root
+      responses:
+        "200":
+          description: The request succeeded. The Metering service is available.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+        "404":
+          description: Metering Service is not available
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  /records:
+    get:
+      tags:
+      - Records
+      operationId: getRecords
+      summary: Get a list of records.
+      description: >
+        Get a collection of records. The returned collection can be
+        filtered, sorted, and paged. The default sort order
+        will be the database creation timestamp for the record.
+        Returned collection items will be of media type
+        application/vnd.sas.metering.record.summary+json by default.
+        Pass application/vnd.sas.metering.record+json as the value
+        of the Accept-Item header to receive the full record representation.
+      parameters:
+      - name: start
+        in: query
+        description: 0-based Offset for first record to return. Defaults to 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: Maximum number of records to return. Defaults to 20.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: Filter criteria for returned records. See [Filtering in REST
+          APIs](https://developer.sas.com/apis/rest/Topics/#filters).
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: Sort returned records. See [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      - name: Accept-Item
+        in: header
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.metering.record.summary+json
+          - application/vnd.sas.metering.record+json
+          - application/json
+      responses:
+        "200":
+          description: The request succeeded and matching records are returned.
+          content:
+            application/vnd.sas.collection+json; version=2:
+              schema:
+                oneOf:
+                - $ref: "#/components/schemas/meteringRecordSummaryCollection"
+                - $ref: "#/components/schemas/meteringRecordCollection"
+            application/vnd.sas.collection+json:
+              schema:
+                oneOf:
+                - $ref: "#/components/schemas/meteringRecordSummaryCollection"
+                - $ref: "#/components/schemas/meteringRecordCollection"
+            application/json:
+              schema:
+                oneOf:
+                - $ref: "#/components/schemas/meteringRecordCollection"
+        "400":
+          description: Bad request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+    post:
+      operationId: createRecord
+      description: >
+        This record to create.
+      summary: Accepts records for tranmission to SAS Institute.
+      tags:
+      - Records
+      responses:
+        "202":
+          description: >
+            Accepted. The record has passed API validation.
+            Further processing of the record continues in the background.
+        "400":
+          description: Bad Request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "415":
+          description: Unsupported Media Type.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+      requestBody:
+        content:
+          application/vnd.sas.metering.record+json;version=2:
+            schema:
+              $ref: "#/components/schemas/meteringRecord"
+            examples:
+              record-post-example:
+                $ref: "#/components/examples/record-post-example"
+          application/vnd.sas.metering.record+json:
+            schema:
+              $ref: "#/components/schemas/meteringRecord"
+            examples:
+              record-post-example:
+                $ref: "#/components/examples/record-post-example"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/meteringRecord"
+            examples:
+              record-post-example:
+                $ref: "#/components/examples/record-post-example"
+        description: The Metering Record to post to the API.
+  /records/{recordId}:
+    get:
+      tags:
+      - Records
+      summary: Get a Record.
+      operationId: getRecord
+      description: >
+        Get a specific record by its uuid.
+        Returned record will be of media type
+        application/vnd.sas.metering.record+json by default.
+      parameters:
+      - in: path
+        name: recordId
+        description: This is the UUID generated for the record when it was submitted
+          to the API.
+        required: true
+        schema:
+          type: string
+          format: uuid
+        examples:
+          get-record-example:
+            summary: An example UUID for a record in the database.
+            value: 5cf2b290-093b-4b6a-ba41-346cccf3ae41
+      responses:
+        "200":
+          description: The request succeeded and matching record is returned.
+          content:
+            application/vnd.sas.metering.record+json;version=2:
+              schema:
+                $ref: "#/components/schemas/meteringRecord"
+              examples:
+                record-example:
+                  $ref: "#/components/examples/record-example"
+            application/vnd.sas.metering.record+json:
+              schema:
+                $ref: "#/components/schemas/meteringRecord"
+              examples:
+                record-example:
+                  $ref: "#/components/examples/record-example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/meteringRecord"
+              examples:
+                record-example:
+                  $ref: "#/components/examples/record-example"
+            application/vnd.sas.metering.record.summary+json;version=1:
+              schema:
+                $ref: "#/components/schemas/meteringRecordSummary"
+              examples:
+                record-summary-example:
+                  $ref: "#/components/examples/record-summary-example"
+            application/vnd.sas.metering.record.summary+json:
+              schema:
+                $ref: "#/components/schemas/meteringRecordSummary"
+              examples:
+                record-summary-example:
+                  $ref: "#/components/examples/record-summary-example"
+        "400":
+          description: Bad Request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "404":
+          description: The request failed. No record with the given recordId was found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+components:
+  schemas:
+    meteringRecord:
+      title: meteringRecord
+      type: object
+      x-tags:
+      - record
+      - metering
+      description: A group of metered transactions.
+      properties:
+        recordId:
+          type: string
+          description: >
+            The UUID that uniquely identifies this meteringRecord.
+            This field is populated by the API.
+          readOnly: true
+        version:
+          type: integer
+          description: This media type's schema version number.
+        name:
+          type: string
+          description: A user-visible name associated with this meteringRecord.
+        label:
+          type: string
+          description: A short text label which is appropriate for client UIs.
+        description:
+          type: string
+          description: A text description of this meteringRecord.
+        source:
+          type: string
+          description: >
+            The UUID associated with an application
+            or component emitting this record.
+        tenant:
+          type: string
+          description: >
+            Identifies the tenant associated with this meteringRecord
+            or 'provider' if generated by the system/no tenant.
+        properties:
+          type: object
+          description: >
+            A set of JSON objects that provide additional
+            information about the transaction event.
+        transactions:
+          type: array
+          description: >
+            One or more transaction objects containing
+            the actual metered measurements.
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/transaction"
+        links:
+          type: array
+          description: Links that apply to this meteringRecord.
+          readOnly: true
+          items:
+            $ref: "#/components/schemas/link"
+      required:
+      - version
+      - source
+      - tenant
+      - transactions
+    meteringRecordSummary:
+      title: meteringRecordSummary
+      type: object
+      x-tags:
+      - record
+      - metering
+      description: A summary representation of a meteringRecord.
+      properties:
+        recordId:
+          type: string
+          description: >
+            The UUID that uniquely identifies the meteringRecord
+            represented by this summary.
+        version:
+          type: integer
+          description: This summary media type's schema version number.
+        name:
+          type: string
+          description: A user-visible name associated with the meteringRecord.
+        label:
+          type: string
+          description: The label from the meteringRecord.
+        description:
+          type: string
+          description: The description from the meteringRecord.
+        source:
+          type: string
+          description: >
+            The UUID associated with an application or
+            component emitting the record represented by this summary.
+        tenant:
+          type: string
+          description: >
+            Identifies the tenant associated with the meteringRecord
+            or 'provider' if generated by the system/no tenant.
+        propertiesCount:
+          type: integer
+          description: The number of properties associated with the meteringRecord.
+        transactionCount:
+          type: integer
+          description: The number of transactions in the meteringRecord.
+        links:
+          type: array
+          description: Links that apply to this meteringRecordSummary.
+          items:
+            $ref: "#/components/schemas/link"
+      required:
+      - recordId
+      - version
+      - source
+      - tenant
+      - transactionCount
+      - propertiesCount
+    meteringRecordCollection:
+      title: meteringRecordCollection
+      type: object
+      x-tags:
+      - metering
+      - record
+      description: A standard SAS collection (of MeteringRecords).
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - properties:
+          items:
+            type: array
+            description: Array of MeteringRecords.
+            items:
+              $ref: "#/components/schemas/meteringRecord"
+    meteringRecordSummaryCollection:
+      title: meteringRecordSummaryCollection
+      type: object
+      x-tags:
+      - metering
+      - record
+      description: A standard SAS collection (of MeteringRecordSummary).
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - properties:
+          items:
+            type: array
+            description: Array of MeteringRecordSummary objects.
+            items:
+              $ref: "#/components/schemas/meteringRecordSummary"
+    transaction:
+      title: transaction
+      type: object
+      x-tags:
+      - record
+      - metering
+      description: A specific application transaction.
+      properties:
+        timeStamp:
+          type: string
+          format: data-time
+          description: The datetime value of when the transaction occured. The format
+            must be of the form 2017-06-05T15:24:43.508084-04:00.
+        type:
+          type: string
+          description: The type of transaction being reported.
+        item:
+          type: string
+          description: The identifier of the object involved in this transaction.
+        details:
+          type: object
+          description: A set of key/value pairs that includes additional details about
+            the transactions.
+      required:
+      - timestamp
+      - type
+      - item
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+  examples:
+    record-example:
+      summary: An example meteringRecord object.
+      value: {"recordId": "5cf2b290-093b-4b6a-ba41-346cccf3ae41", "version": 2, "name": "FooMaker\
+          \ record", "label": "foomaker", "description": "This is a test meteringRecord\
+          \ for the record generator in the FooMaker API.", "source": "7381f163-12b5-41b6-948a-8eec83b7aab7",
+        "tenant": "v4deploy", "properties": {"version": "0.0.1", "cloud_provider": "Azure",
+          "cloud_provider_region": "us-east"}, "transactions": [{"timestamp": "2019-05-23T10:54:46.614266-04:00",
+            "type": "count", "item": "FooEndpoint", "details": {"version": "0.1.0",
+              "count": 100, "endpoint": "/foo", "user": "user001"}}, {"timestamp": "2019-05-23T10:54:46.614266-04:30",
+            "type": "count", "item": "BarEndpoint", "details": {"version": "0.1.3",
+              "count": 50, "endpoint": "/foo/bar", "user": "user001", "action": "raise",
+              "height": 500, "unit": "ft"}}], "links": [{"method": "GET", "rel": "self",
+            "href": "/metering/records/5cf2b290-093b-4b6a-ba41-346cccf3ae41", "uri": "/metering/records/5cf2b290-093b-4b6a-ba41-346cccf3ae41",
+            "type": "application/vnd.sas.metering.record"}, {"method": "GET", "rel": "alternate",
+            "href": "/metering/records/5cf2b290-093b-4b6a-ba41-346cccf3ae41", "uri": "/metering/records/5cf2b290-093b-4b6a-ba41-346cccf3ae41",
+            "type": "application/vnd.sas.metering.record.summary"}]}
+    record-post-example:
+      summary: An example of a RequestBody to create a meteringRecord object.
+      value: {"version": 2, "name": "FooMaker record", "label": "foomaker", "description": "This\
+          \ is a test meteringRecord for the record generator in the FooMaker API.",
+        "source": "7381f163-12b5-41b6-948a-8eec83b7aab7", "tenant": "v4deploy", "properties": {
+          "version": "0.0.1", "cloud_provider": "Azure", "cloud_provider_region": "us-east"},
+        "transactions": [{"timestamp": "2019-05-23T10:54:46.614266-04:00", "type": "count",
+            "item": "FooEndpoint", "details": {"version": "0.1.0", "count": 100, "endpoint": "/foo",
+              "user": "user001"}}, {"timestamp": "2019-05-23T10:54:46.614266-04:30",
+            "type": "count", "item": "BarEndpoint", "details": {"version": "0.1.3",
+              "count": 50, "endpoint": "/foo/bar", "user": "user001", "action": "raise",
+              "height": 500, "unit": "ft"}}]}
+    record-collection-example:
+      summary: An example collection of meteringRecord objects.
+      value: {"version": 2, "name": "records", "start": 0, "limit": 1, "count": 1,
+        "accept": "application/vnd.sas.metering.record", "links": [{"method": "GET",
+            "rel": "collection", "href": "/metering/records", "uri": "/metering/records",
+            "type": "application/vnd.sas.collection"}, {"method": "GET", "rel": "self",
+            "href": "/metering/records?start=0&limit=1", "uri": "/metering/records?start=0&limit=1",
+            "type": "application/vnd.sas.collection"}, {"method": "GET", "rel": "next",
+            "href": "/metering/records?start=1&limit=1", "uri": "/metering/records?start=1&limit=1",
+            "type": "application/vnd.sas.collection"}], "items": [{"recordId": "5cf2b290-093b-4b6a-ba41-346cccf3ae41",
+            "version": 2, "name": "FooMaker record", "label": "foomaker", "description": "This\
+              \ is a test meteringRecord for the record generator in the FooMaker\
+              \ API.", "source": "7381f163-12b5-41b6-948a-8eec83b7aab7", "tenant": "v4deploy",
+            "properties": {"version": "0.0.1", "cloud_provider": "Azure", "cloud_provider_region": "us-east"},
+            "transactions": [{"timestamp": "2019-05-23T10:54:46.614266-04:00", "type": "count",
+                "item": "FooEndpoint", "details": {"version": "0.1.0", "count": 100,
+                  "endpoint": "/foo", "user": "user001"}}, {"timestamp": "2019-05-23T10:54:46.614266-04:30",
+                "type": "count", "item": "BarEndpoint", "details": {"version": "0.1.3",
+                  "count": 50, "endpoint": "/foo/bar", "user": "user001", "action": "raise",
+                  "height": 500, "unit": "ft"}}], "links": [{"method": "GET", "rel": "self",
+                "href": "/metering/records/5cf2b290-093b-4b6a-ba41-346cccf3ae41",
+                "uri": "/metering/records/5cf2b290-093b-4b6a-ba41-346cccf3ae41", "type": "application/vnd.sas.metering.record"},
+              {"method": "GET", "rel": "alternate", "href": "/metering/records/5cf2b290-093b-4b6a-ba41-346cccf3ae41",
+                "uri": "/metering/records/5cf2b290-093b-4b6a-ba41-346cccf3ae41", "type": "application/vnd.sas.metering.record.summary"}]}]}
+    record-summary-example:
+      summary: An example meteringRecordSummary object.
+      value: {"recordId": "5cf2b290-093b-4b6a-ba41-346cccf3ae41", "version": 1, "name": "FooMaker\
+          \ record summary", "label": "foomaker", "description": "This is a test meteringRecord\
+          \ for the record generator in the FooMaker API.", "source": "7381f163-12b5-41b6-948a-8eec83b7aab7",
+        "tenant": "v4deploy", "propertiesCount": 3, "transactionCount": 2, "links": [
+          {"method": "GET", "rel": "self", "href": "/metering/records/5cf2b290-093b-4b6a-ba41-346cccf3ae41",
+            "uri": "/metering/records/5cf2b290-093b-4b6a-ba41-346cccf3ae41", "type": "application/vnd.sas.metering.record"}]}
+    record-summary-collection-example:
+      summary: An example collection of meteringRecordSummary objects.
+      value: {"version": 2, "name": "record summaries", "start": 0, "limit": 100,
+        "count": 1, "accept": "application/vnd.sas.metering.record.summary", "links": [
+          {"method": "GET", "rel": "collection", "href": "/metering/records", "uri": "/metering/records",
+            "type": "application/vnd.sas.collection"}, {"method": "GET", "rel": "self",
+            "href": "/metering/records?start=0&limit=1", "uri": "/metering/records?start=0&limit=1",
+            "type": "application/vnd.sas.collection"}, {"method": "GET", "rel": "next",
+            "href": "/metering/records?start=1&limit=1", "uri": "/metering/records?start=1&limit=1",
+            "type": "application/vnd.sas.collection"}], "items": [{"recordId": "5cf2b290-093b-4b6a-ba41-346cccf3ae41",
+            "version": 1, "name": "FooMaker record summary", "label": "foomaker",
+            "description": "This is a test meteringRecord for the record generator\
+              \ in the FooMaker API.", "source": "7381f163-12b5-41b6-948a-8eec83b7aab7",
+            "tenant": "v4deploy", "propertiesCount": 3, "transactionCount": 2, "links": [
+              {"method": "GET", "rel": "self", "href": "/metering/records/5cf2b290-093b-4b6a-ba41-346cccf3ae41",
+                "uri": "/metering/records/5cf2b290-093b-4b6a-ba41-346cccf3ae41", "type": "application/vnd.sas.metering.record"}]}]}

@@ -1,0 +1,757 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: Sentiment Execution Provider
+  description: |
+    This __provider__ api is for the execution of sentiment node in a SAS Visual Text Analytics pipeline. The __provider__ implements the `/jobs` endpoint as described in the job execution api's execution provider contract. The __provider__ api for `sentiment` is intended for use in SAS Visual Text Analytics.
+  termsOfService: 'https://www.sas.com/en_us/legal/copyright.html'
+  contact:
+    name: SAS Developers
+    url: 'https://developer.sas.com'
+    email: devex@sas.com
+servers:
+- url: 'http://example.com/sentimentExecutionProvider'
+  description: This is a sample base URL.
+tags:
+- name: Root
+  description: The operations for the root resource.
+- name: Jobs
+  description: The operations for the jobs.
+- name: Settings
+  description: The operations for the settings.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the links for the API
+      operationId: root
+      description: Returns the links to the top-level resources for the API.
+      responses:
+        '200':
+          description: The request succeeded.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: '#/components/schemas/api'
+              examples:
+                api:
+                  $ref: '#/components/examples/getSentimentExecRootResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/api'
+              examples:
+                api:
+                  $ref: '#/components/examples/getSentimentExecRootResponse'
+          headers:
+            Last-Modified:
+              description: When response was created.
+              schema:
+                type: string
+  /jobs:
+    post:
+      tags:
+      - Jobs
+      summary: Submits a new job
+      description: Perform all tasks necessary for executing sentiments.
+      operationId: createJob
+      requestBody:
+        content:
+          application/vnd.sas.job.execution.job+json:
+            schema:
+              $ref: "#/components/schemas/job"
+            examples:
+              api:
+                $ref: '#/components/examples/postSentimentExecJobsSampleBody'
+          application/json:
+            schema:
+              $ref: "#/components/schemas/job"
+            examples:
+              api:
+                $ref: '#/components/examples/postSentimentExecJobsSampleBody'
+        description: The job execution job submitted to run the sentiment execution
+          task
+        required: true
+      responses:
+        '201':
+          description: The job was created.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the job was last modified.
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              description: The entity tag for the job.
+              schema:
+                type: string
+            Location:
+              description: The URL of the job.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.job.execution.job+json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                api:
+                  $ref: '#/components/examples/postSentimentExecJobsResponse'
+            application/json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                api:
+                  $ref: '#/components/examples/postSentimentExecJobsResponse'
+        '400':
+          description: The request was invalid.
+          content:
+            application/vnd.sas.job.execution.job+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: '#/components/examples/postSentimentExecJobsErrorResponse'
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: '#/components/examples/postSentimentExecJobsErrorResponse'
+  /commons/settings:
+    get:
+      operationId: getCommonSettings
+      summary: Get the settings for this provider
+      description: Returns an application/vnd.sas.attributes resource containing among
+        other settings the jobExecution provider specific settings to be retrieved
+        by the job execution service. See example response for details on format.
+      tags:
+      - Settings
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.sas.attributes+json:
+              schema:
+                $ref: "#/components/schemas/attributes"
+              examples:
+                api:
+                  $ref: '#/components/examples/getSentimentExecSettingsResponse'
+            application/json:
+              schema:
+                $ref: "#/components/schemas/attributes"
+              examples:
+                api:
+                  $ref: '#/components/examples/getSentimentExecSettingsResponse'
+          headers:
+            Last-Modified:
+              description: When response was created.
+              schema:
+                type: string
+components:
+  schemas:
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    job:
+      title: Job
+      description: The execution job.
+      x-sas-media-type:
+        name: application/vnd.sas.job.execution.job
+        version: 4
+      required:
+      - id
+      properties:
+        version:
+          type: integer
+          description: The version number of the representation. The current version
+            is 4.
+        id:
+          type: string
+          description: The unique identifier that is generated by the API.
+        state:
+          type: string
+          description: 'The current state of the job. Valid values: pending, running,
+            canceled, completed, failed, timedOut. Also see "stateDetails".'
+        stateDetails:
+          type: string
+          description: This member supplements the "state" member by providing an
+            hint that additional information is available. It is a hint and not the
+            actual information. The purpose of this member is for providers to provide
+            a hint, where applicable, about the state set and for that hint to be
+            used by components which convey state information to clients. It should
+            be set in conjunction with "state".
+        results:
+          type: object
+          description: The output of the job execution as a map<string, string>.
+        error:
+          $ref: "#/components/schemas/error2"
+        jobRequest:
+          $ref: "#/components/schemas/request"
+        heartbeatInterval:
+          type: integer
+          format: int32
+          description: The interval in seconds that the `heartbeatTimeStamp` should
+            be updated by the provider or the job times out. The value for the `heatbeatInterval`
+            is 0 when there is no heartbeat.
+        heartbeatTimeStamp:
+          description: The timestamp for when the last heartbeat was received, in
+            the format of `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        creationTimeStamp:
+          description: The timestamp for when the job was created, in the format of
+            `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        modifiedTimeStamp:
+          description: The timestamp for when the job was last modified, in the format
+            of `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        endTimeStamp:
+          description: The timestamp for when the state of the job changed to completed
+            or failed, in the format of `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        elapsedTime:
+          description: If the job has ended, the value is the difference between the
+            `endTimeStamp` and the `creationTimeStamp`. If the job has not ended,
+            the value is the difference between the time that this representation
+            was created and the `creationTimeStamp`. The units are in milliseconds.
+            A value of -1 is returned, if a value is not set for the `creationTimeStamp`.
+          type: number
+        logLocation:
+          description: The URI for the log, if one exists.  The provider may provide
+            additional information.
+          type: string
+        expirationTimeStamp:
+          description: The timestamp for when the job expires and will be deleted
+            by the Job Execution service, in the format of `YYYY-MM-DDThh:mm:ss.sssZ`.
+            This is set by the service after the job has completed based on the value
+            of the `expiresAfter` member of the job request.
+          type: string
+        createdBy:
+          description: The ID of the user that created or submitted the job.
+          type: string
+        modifiedBy:
+          description: The ID of the user that last modified the job.
+          type: string
+        submittedByApplication:
+          description: 'Value of the query parameter "submitter" on the POST endpoints
+            to submit a job. If the query parameter is not present, the createdByApplication
+            value from the embedded JobRequest is used. The createdByApplication value
+            in the embedded JobRequest that is used is the same as what was in the
+            submitted job request if one was present; if not the value "jobExecution"
+            is used. The submittedByApplication value is used as the "submitter" in
+            the routing routing key of Job State Change events. Only characters in
+            the set [a-zA-Z0-9] and dash are valid for submitter. Max length: 64'
+          type: string
+        links:
+          type: array
+          description: The links that are associated with the job.
+          items:
+            $ref: "#/components/schemas/link"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    attributes:
+      title: Attributes
+      description: Contains a set of attributes in the form of a map from string names
+        to arbitrary values. The values may be strings, numbers, booleans, arrays,
+        objects or null.
+      x-sas-media-type:
+        name: application/vnd.sas.attributes
+        version: 1
+      required:
+      - version
+      - attributes
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        description:
+          type: string
+          description: A description of the set of attributes.
+        label:
+          type: string
+          description: A brief description or label for the set of attributes.
+        attributes:
+          type: object
+          description: 'The map of attribute names to values.  The set of names is
+            open, though individual services may define a closed set needed for a
+            given resource in that service. The value of each attribute may be of
+            types: number, string, boolean, array, or object.  Although property this
+            is required, the mapping object can be empty, unless stated otherwise
+            by specific documentation for resources where the application/vnd.sas.attributes
+            type is used.'
+          additionalProperties: true
+        links:
+          description: Links to associated resources and operations. APIs may provide
+            links for the link relations `self', `update` (to replace the attributes),
+            `patch` (to update some attributes) or others.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    request:
+      title: Job Request
+      description: A job request.
+      x-sas-media-type:
+        name: application/vnd.sas.job.execution.job.request
+        version: 3
+      required:
+      - id
+      type: object
+      properties:
+        version:
+          type: integer
+          description: The version number of the representation. The current version
+            is 3.
+        id:
+          type: string
+          description: The unique identifier for the job request. This is only required
+            for a persisted job request.
+        name:
+          type: string
+          description: The name of the job request.
+        description:
+          type: string
+          description: The description of the job request.
+        creationTimeStamp:
+          description: The timestamp for when the job request was created, in the
+            format of `YYYY-MM-DDThh:mm:ss.sssZ`.  This is set only on a persisted
+            job request.
+          type: string
+        modifiedTimeStamp:
+          description: The timestamp for when the job request was last modified, in
+            the format of `YYYY-MM-DDThh:mm:ss.sssZ`.  This is set only on a persisted
+            job request.
+          type: string
+        createdBy:
+          description: The ID of the user that created the job request.  This is set
+            only on a persisted job request.
+          type: string
+        modifiedBy:
+          description: The ID of the user that last modified the job request.  This
+            is set only on a persisted job request.
+          type: string
+        jobDefinitionUri:
+          type: string
+          description: The URI of the job definition that is to be executed.  Either
+            the `jobDefinitionUri` or the `jobDefinition` property must be set in
+            a job request submitted to Job Execution service for execution.
+        jobDefinition:
+          $ref: "#/components/schemas/jobDefinition"
+        expiresAfter:
+          type: string
+          description: The duration of time (in <a href="https://www.w3.org/TR/xmlschema-2/#duration"
+            target="_blank">W3C XML duration format</a>) after the completion of the
+            job when the job should be deleted by the Job Execution service. If a
+            value is specified for this property, it overrides any value specified
+            by the provider's `/commons/settings` endpoint for the job request.<p>For
+            a job request that is embedded in the `application/vnd.sas.job.execution.job`
+            media type, if a value is not already set for the `expiresAfter` property,
+            the value is set by the Job Execution service to the provider's value,
+            if one exists.
+        arguments:
+          type: object
+          description: The values of the arguments in the format map<string, string>
+            that contains name value pairs (map<name, value>). Values can be supplied
+            for parameters not defined in the job definition. The maximum name length
+            is 100.<p>Hibernate does not persist a map entry with a null value. Therefore,
+            a persisted Job Request will not contain any such entries.<p>For a job
+            request that is embedded in the 'application/vnd.sas.job.execution.job'
+            media type, this value is set by the Job Execution service and contains
+            the complete set of arguments that are to be used in the execution by
+            the provider. Arguments that already exist in the original job request
+            are left unchanged. If there are arguments in the job definition that
+            do not exist in the original job request arguments map, those arguments
+            and any default values, including null values, are added to the arguments
+            map. However, since the Job object is persisted before being sent to the
+            provider, no entries for such null-value arguments in the Job are sent
+            to the provider (because of the Hibernate behavior of not persisting map/collection
+            entries with null values). The Job Execution service also guarantees that
+            any required argument has an associated non-null value.
+        properties:
+          type: object
+          description: The value of properties in the format of (map<string, string>)
+            that contains name value pairs (map<name, value>). The maximum name length
+            is 100.
+          additionalProperties:
+            type: string
+        createdByApplication:
+          type: string
+          description: The application that created the job request. The value is
+            typically from the spring.application.name property. The value is used
+            as the "creator" in the routing key of the Job State Change events, and
+            if it is not present in the job request the value "jobExecution" is used.
+            Valid characters are [a-zA-Z0-9] and the hyphen. The maximum length is
+            64.
+        links:
+          type: array
+          description: The links that are associated with the job request.
+          items:
+            $ref: "#/components/schemas/link"
+    jobDefinition:
+      title: Job Definition
+      description: The job definition.
+      type: object
+      x-sas-media-type:
+        name: application/vnd.sas.job.definition
+        version: 2
+      required:
+      - code
+      properties:
+        version:
+          type: integer
+          description: The version of the resource. This version is 2.
+        id:
+          type: string
+          description: The unique ID of the resource that is generated by the API.
+        name:
+          type: string
+          description: The name of the job. The maximum length is 100.
+        description:
+          type: string
+          description: A description of the job. The maximum length is 1000.
+          x-sas-attributes:
+            since: '2'
+        type:
+          type: string
+          description: The type of job. This property determines the execution provider
+            that executes this job. The maximum length is 250.
+        code:
+          type: string
+          description: Execution provider specific code to be executed.
+        parameters:
+          type: array
+          description: An array of input parameters to be collected when executing
+            this job definition.
+          items:
+            $ref: "#/components/schemas/jobDefinitionParameter"
+        properties:
+          type: array
+          description: An array of name/value pairs needed to execute a job definition.
+            The maximum length of a name is 100.
+          items:
+            $ref: "#/components/schemas/property"
+        createdBy:
+          type: string
+          description: The user that created this job.
+        modifiedBy:
+          type: string
+          description: The user that modified this job.
+        creationTimeStamp:
+          type: string
+          description: 'The formatted timestamp when the job was created, in the following
+            format: yyyy-mm-ddThh:mm:ssZ.'
+        modifiedTimeStamp:
+          type: string
+          description: 'The formatted timestamp when the job was modified, in the
+            following format: yyyy-mm-ddThh:mm:ssZ.'
+        links:
+          type: array
+          description: An array of link objects
+          items:
+            $ref: "#/components/schemas/link"
+    property:
+      title: Property
+      description: A pair consisting of a string name and a string value. This is
+        an element of `application/vnd.sas.properties`
+      required:
+      - name
+      - value
+      properties:
+        name:
+          type: string
+          description: The property name.
+        value:
+          type: string
+          description: The property value.
+    jobDefinitionParameter:
+      title: Job Definition Parameter
+      type: object
+      description: The job definition parameter.
+      required:
+      - name
+      properties:
+        version:
+          type: integer
+          description: The version of the resource. This version is 1.
+        name:
+          type: string
+          description: The name of the parameter. The maximum length is 100.
+        type:
+          type: string
+          description: The type of the parameter (TABLE, NUMERIC, DATE, CHARACTER).
+            The maximum length is 20.
+        label:
+          type: string
+          description: The display value for the name of this parameter. The maximum
+            length is 250.
+        required:
+          type: boolean
+          description: Specifies if the parameter is required for execution.
+        defaultValue:
+          type: string
+          description: The default value for this parameter, if one is not specified
+            at execution time.
+  examples:
+    getSentimentExecRootResponse:
+      description: Returns the links to the top-level resources for the API.
+      value:
+        version: 1
+        links:
+        - method: GET
+          rel: self
+          href: /sentimentExecutionProvider
+          uri: /sentimentExecutionProvider
+          type: application/vnd.sas.api
+        - method: POST
+          rel: jobs
+          href: /sentimentExecutionProvider/jobs
+          uri: /sentimentExecutionProvider/jobs
+          type: application/vnd.sas.job.execution.job
+          responseType: application/vnd.sas.job.execution.job
+    postSentimentExecJobsSampleBody:
+      description: Sample body when submitting a job.
+      value:
+        name: 'Analytics Flow for "SampleProject": "Pipeline 1"'
+        jobDefinitionUri: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+        arguments:
+          casServerId: cas
+          casSessionName: AdvancedAnalyticSession
+          flowId: b1cc9be0-663f-478a-931a-d9db9df13fbe
+          pipelineId: 7efdf4ef-e991-4ab5-8c05-609639e29c34
+    postSentimentExecJobsResponse:
+      description: This is example response when using POST to submit a sentiment
+        execution provider job.
+      value:
+        creationTimeStamp: '2022-02-23T16:30:36.967Z'
+        modifiedTimeStamp: '2022-02-23T16:30:36.967Z'
+        createdBy: scatest
+        modifiedBy: scatest
+        version: 4
+        id: 23d00778-5c67-437e-94fb-9271cd8e7274
+        jobRequest:
+          version: 3
+          name: 'Analytics Flow for "SampleProject": "Pipeline 1"'
+          jobDefinitionUri: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+          jobDefinition:
+            creationTimeStamp: '2022-02-16T19:25:12.087Z'
+            modifiedTimeStamp: '2022-02-16T19:25:12.088Z'
+            createdBy: sas.analyticsPipelines
+            modifiedBy: sas.analyticsPipelines
+            version: 2
+            id: 801d5009-3b33-41c1-b7e4-b33f77248ede
+            name: Analytics Flow Job Definition
+            type: AnalyticsFlow
+            parameters:
+            - version: 1
+              name: flowId
+              type: CHARACTER
+              label: Flow ID
+              required: true
+            - version: 1
+              name: toNodeUri
+              type: CHARACTER
+              label: ID of final node to run
+              required: false
+            - version: 1
+              name: casServerId
+              defaultValue: cas
+              type: CHARACTER
+              label: ID of CAS Server to use for Component execution
+              required: false
+            - version: 1
+              name: casSessionName
+              defaultValue: AdvancedAnalyticSession
+              type: CHARACTER
+              label: Name of CAS Session to use for Component execution
+              required: false
+            - version: 1
+              name: contextName
+              type: CHARACTER
+              label: Name of Compute Context to use for Component execution
+              required: false
+            code: ''
+            links:
+            - method: GET
+              rel: self
+              href: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+              uri: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+              type: application/vnd.sas.job.definition
+            - method: GET
+              rel: alternate
+              href: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+              uri: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+              type: application/vnd.sas.summary
+            properties: []
+          arguments:
+            casServerId: cas
+            toNodeUri: /analyticsComponents/components/6cf7c59e-db1a-4ff2-92b3-57fb7d395f39
+            casSessionName: AdvancedAnalyticSession
+            flowId: b1cc9be0-663f-478a-931a-d9db9df13fbe
+            pipelineId: 7efdf4ef-e991-4ab5-8c05-609639e29c34
+          properties: []
+          createdByApplication: text
+          expiresAfter: PT24H
+        state: running
+        submittedByApplication: text
+        heartbeatInterval: 0
+        elapsedTime: 375
+        results: {}
+        links:
+        - method: GET
+          rel: self
+          href: /jobExecution/jobs/23d00778-5c67-437e-94fb-9271cd8e7274
+          uri: /jobExecution/jobs/23d00778-5c67-437e-94fb-9271cd8e7274
+          type: application/vnd.sas.job.execution.job
+        - method: GET
+          rel: state
+          href: /jobExecution/jobs/23d00778-5c67-437e-94fb-9271cd8e7274/state
+          uri: /jobExecution/jobs/23d00778-5c67-437e-94fb-9271cd8e7274/state
+          type: text/plain
+        - method: PUT
+          rel: update
+          href: /jobExecution/jobs/23d00778-5c67-437e-94fb-9271cd8e7274
+          uri: /jobExecution/jobs/23d00778-5c67-437e-94fb-9271cd8e7274
+          type: application/vnd.sas.job.execution.job
+          responseType: application/vnd.sas.job.execution.job
+        - method: DELETE
+          rel: delete
+          href: /jobExecution/jobs/23d00778-5c67-437e-94fb-9271cd8e7274
+          uri: /jobExecution/jobs/23d00778-5c67-437e-94fb-9271cd8e7274
+        - method: PUT
+          rel: updateState
+          href: /jobExecution/jobs/23d00778-5c67-437e-94fb-9271cd8e7274/state
+          uri: /jobExecution/jobs/23d00778-5c67-437e-94fb-9271cd8e7274/state
+          type: text/plain
+        - method: POST
+          rel: updateHeartbeatTimeStamp
+          href: /jobExecution/jobs/23d00778-5c67-437e-94fb-9271cd8e7274/heartbeatTimeStamp
+          uri: /jobExecution/jobs/23d00778-5c67-437e-94fb-9271cd8e7274/heartbeatTimeStamp
+          type: text/plain
+        - method: GET
+          rel: jobDefinition
+          href: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+          uri: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+          type: application/vnd.sas.job.definition
+    postSentimentExecJobsErrorResponse:
+      description: This is an example response when using POST with invalid request.
+      value:
+        version: 2
+        httpStatusCode: 400
+        message: Bad Request
+        details:
+        - 'path: /sentimentExecutionProvider/jobs'
+        - 'correlator: d04aacd3-2bca-488e-b04b-e5e097ee390c'
+    getSentimentExecSettingsResponse:
+      description: Get the settings for the sentiment execution provider.
+      value:
+        version: 1
+        attributes:
+          jobExecution:
+            providers:
+            - version: 1
+              id: text-sentiment
+        links: []

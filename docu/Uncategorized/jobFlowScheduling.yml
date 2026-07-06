@@ -1,0 +1,3952 @@
+---
+openapi: 3.0.3
+info:
+  version: "2"
+  title: Job Flow Scheduling
+  description: The jobFlowScheduling Service REST API is used to schedule flows to
+    be executed according a time schedule or other pre-defined conditions being satisfied.
+    <br><br><b>Terminology:</b> <table> <tr><td>dependency        <td>the set of events
+    that must be met for a job or sub-flow to execute within an instance of a flow.
+    <tr><td>job action        <td>a job that has been saved in a deployment and can
+    be added to a flow definition. The job can only execute in the context of a flow
+    execution. <tr><td>event             <td>a condition that has happened which the
+    scheduler must act upon <tr><td>time event        <td>an event based on a point
+    in time. The time event can be recurring in nature (i.e. every day at noon) when
+    used as a trigger. <tr><td>skip count        <td>The increment used as part of
+    a time event, such as every hour (skip count is 1) or every other Monday (skip
+    count is 2); see [wikipedia:skip counting](http://en.wikipedia.org/wiki/skip_counting
+    "wikipedia:skip counting"). <tr><td>file event        <td>an event based on a
+    file in the file system of the scheduler. <tr><td>job event         <td>an event
+    based on the execution (exit code) of a job or sub-flow. <tr><td>gate              <td>a
+    group of events used as a job dependency, that conditionally all must be true
+    (AND) or at least one must be true (OR). Complex dependencies would have a gate
+    being an input to another gate. <tr><td>subordinate-flow  <td>another name for
+    sub-flow. <tr><td>sub-flow          <td>a job flow acting like a job in a parent
+    flow. <tr><td>trigger           <td>an event that signals when a new instance
+    of a scheduled flow should execute. <tr><td>job flow          <td>a group of job
+    actions and/or sub-flows with their dependencies and the triggers for when to
+    execute the flow. <tr><td>scheduling server <td>a server that runs jobs in a scheduled
+    flow. The scheduling server determines whether the schedule criteria and dependencies
+    have been met before a job is executed. </table>
+  termsOfService: "https://www.sas.com/en_us/legal/copyright.html"
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+servers:
+- url: http://mock-preference.apifirst.unx.sas.com/jobFlowScheduling
+  description: kubernetes mock server
+tags:
+- name: Root
+  description: The root of the Job Flow Scheduling API.
+- name: Flows
+  description: Flow operations.
+- name: Jobs
+  description: Job operations.
+- name: Schedulers
+  description: Scheduler operations.
+- name: Transfer
+  description: Contains the operations for the transfer resource.
+paths:
+  /:
+    get:
+      operationId: root
+      summary: Returns a collection of the top-level links available through this
+        API
+      description: "Returns a collection of the top-level links available through\
+        \ this API. Authorization: Any user."
+      tags:
+      - Root
+      responses:
+        "200":
+          description: Version information about the API, as well as top-level API
+            entry points.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+    head:
+      operationId: headersForRoot
+      summary: Used to check that the service is running and responding
+      description: "Used to check that the service is running and responding. Authorization:\
+        \ Any user."
+      tags:
+      - Root
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+  /jobs:
+    get:
+      operationId: getJobs
+      summary: Returns a collection of application/vnd.sas.schedule.job resources
+      description: "Returns a collection of job actions. Authorization: Any authenticated\
+        \ user."
+      tags:
+      - Jobs
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/jobResourceCollection"
+              examples:
+                api:
+                  $ref: "#/components/examples/jobAction"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/jobResourceCollection"
+              examples:
+                api:
+                  $ref: "#/components/examples/jobAction"
+      parameters:
+      - name: Accept-Item
+        description: If Accept-Item=application/vnd.sas.schedule.job+json then return
+          that resource type instead of application/vnd.sas.schedule.base.summary.
+        in: header
+        required: false
+        schema:
+          type: string
+      - name: start
+        in: query
+        description: The index of the first job action to return. The default value
+          is 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: The maximum number of job actions to return. The default value
+          is 10.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: The criteria for filtering the job actions. May filter by name,
+          id, creationTimeStamp, modifiedTimeStamp, modifiedBy, and createdBy. See
+          the [Filtering section](https://developer.sas.com/rest-apis/jobFlowScheduling-v2/docs/getting-started/usage-notes#filtering).
+        schema:
+          type: string
+          format: string
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the job actions. See the [Sorting section](https://developer.sas.com/rest-apis/jobFlowScheduling-v2/docs/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+    post:
+      operationId: createJob
+      summary: Creates a new application/vnd.sas.schedule.job resource
+      description: "Creates a new job action. Authorization: Any authenticated user."
+      tags:
+      - Jobs
+      parameters:
+      - name: parentFolderUri
+        in: query
+        description: The URI of the parent folder in which to save the job-action
+          object.
+        schema:
+          type: string
+      responses:
+        "201":
+          description: Created.
+          headers:
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+            Location:
+              description: The URL of the job.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.schedule.job+json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                api:
+                  $ref: "#/components/examples/createJobAction"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                api:
+                  $ref: "#/components/examples/createJobAction"
+        "400":
+          description: Bad Request.
+          content:
+            application/vnd.sas.schedule.job+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+      requestBody:
+        content:
+          application/vnd.sas.schedule.job+json:
+            schema:
+              $ref: "#/components/schemas/job"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/job"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+        description: The job to create.
+        required: true
+  /jobs#import:
+    post:
+      summary: Import to create a new application/vnd.sas.schedule.job using transfer
+        object
+      description: Creates a new job action from the transfer object. Other than the
+        old ID, all other job action properties are preserved.
+      operationId: createJobFromTransfer
+      tags:
+      - Transfer
+      requestBody:
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+        description: The job action to be imported.
+        required: true
+      responses:
+        "201":
+          description: The job action was imported.
+          headers:
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+            Location:
+              description: The URL of the job.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "400":
+          description: >
+            The request was invalid. This occurs when <ul> <li>the transfer
+            object does not contain valid content.</li> </ul>
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/jobs/{jobId}":
+    get:
+      operationId: getJob
+      summary: Returns a specific application/vnd.sas.schedule.job resource
+      description: "Returns a specific job action. Authorization: Any authenticated\
+        \ user."
+      tags:
+      - Jobs
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                context:
+                  $ref: "#/components/examples/jobAction"
+            application/vnd.sas.schedule.job+json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                context:
+                  $ref: "#/components/examples/jobAction"
+            application/vnd.sas.schedule.base.summary+json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                context:
+                  $ref: "#/components/examples/jobAction"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+      parameters:
+      - name: jobId
+        in: path
+        description: The ID of the job to fetch.
+        required: true
+        schema:
+          type: string
+    put:
+      operationId: updateJob
+      summary: Update a specific application/vnd.sas.schedule.job resource
+      description: "Updates a specific job action. Authorization: Any authenticated\
+        \ user."
+      tags:
+      - Jobs
+      parameters:
+      - name: jobId
+        in: path
+        description: The identifier of a specific job.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: If-Match
+        required: true
+        in: header
+        description: The ETag that was returned from a GET, POST, or PUT of this job.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.schedule.job+json:
+            schema:
+              $ref: "#/components/schemas/job"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/job"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+        description: The job to create.
+        required: true
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.schedule.job+json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "400":
+          description: Bad Request.
+          content:
+            application/vnd.sas.schedule.job+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "412":
+          description: The ETag provided does not match the current version of the
+            object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "428":
+          description: The ETag was not provided when updating an existing object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+    delete:
+      operationId: deleteJob
+      summary: Removes a specific job action
+      description: "Removes a specific job action.  Authorization: Any authenticated\
+        \ user."
+      tags:
+      - Jobs
+      responses:
+        "204":
+          description: No Content.
+        "404":
+          description: Not Found.
+      parameters:
+      - name: jobId
+        in: path
+        description: The ID of the job to fetch.
+        required: true
+        schema:
+          type: string
+  "/jobs/{jobId}#export":
+    get:
+      summary: Return the job action in transfer object format
+      description: Returns the transfer object of the specified job action.
+      operationId: getExportJob
+      tags:
+      - Transfer
+      parameters:
+      - name: jobId
+        in: path
+        description: The ID of the job action.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. Returns the job action as transfer object.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/jobs/{jobId}#importUpdate":
+    get:
+      summary: Return the job action in transfer object format
+      description: Returns the transfer object of the specified job action.
+      operationId: getImportJob
+      tags:
+      - Transfer
+      parameters:
+      - name: jobId
+        in: path
+        description: The ID of the job action.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. Returns the job action as transfer object.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+    put:
+      summary: Import to update an existing job action using transfer object
+      description: This updates a job action using the transfer object. If no existing
+        job action is found, a new job action is created. Either way, all other job
+        action properties are preserved.
+      operationId: updateJobFromTransfer
+      tags:
+      - Transfer
+      parameters:
+      - name: jobId
+        in: path
+        description: The ID of the job action.
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        required: true
+        description: The etag that was returned from a GET, POST or PUT of this object.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+        description: Job action to be imported.
+        required: true
+      responses:
+        "200":
+          description: The request succeeded. Returns the imported or updated job
+            action in resource summary format.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+            Location:
+              description: The URL of the job.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "400":
+          description: >
+            The request was invalid. This occurs when <ul> <li>the user provides
+            an ID in the job action that does not match the ID in the path of
+            the url.</li> <li>the transfer object does not contain valid
+            content. </li> </ul>
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "412":
+          description: The ETag provided does not match the current version of the
+            object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "428":
+          description: The ETag was not provided when updating an existing object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+  /flows:
+    get:
+      operationId: getFlows
+      summary: Returns a collection of application/vnd.sas.schedule.flow.summary (default)
+        or application/vnd.sas.schedule.flow resources
+      description: Returns a collection of flows that the user is authorized to see.
+      tags:
+      - Flows
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/flowResourceCollection"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.collection+json:
+              examples:
+                context:
+                  $ref: "#/components/examples/jobFlow"
+              schema:
+                $ref: "#/components/schemas/flowResourceCollection"
+      parameters:
+      - name: Accept-Item
+        description: If Accept-Item=application/vnd.sas.schedule.flow+json then return
+          that resource type instead of application/vnd.sas.schedule.flow.summary.
+        in: header
+        required: false
+        schema:
+          type: string
+      - name: start
+        in: query
+        description: The index of the first flow to return. The default value is 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: The maximum number of flows to return. The default value is 10.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: The criteria for filtering the flows. May filter by name, id,
+          creationTimeStamp, modifiedTimeStamp, modifiedBy, and createdBy. See the
+          [Filtering section](https://developer.sas.com/rest-apis/jobFlowScheduling-v2/docs/getting-started/usage-notes#filtering).
+        schema:
+          type: string
+          format: string
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the flows. See the [Sorting section](https://developer.sas.com/rest-apis/jobFlowScheduling-v2/docs/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+    post:
+      operationId: createFlow
+      summary: Creates a new application/vnd.sas.schedule.flow resource
+      description: "Creates a new flow. Authorization: Any authenticated user."
+      tags:
+      - Flows
+      parameters:
+      - name: parentFolderUri
+        in: query
+        description: The URI of the parent folder in which to save this job-flow object.
+        schema:
+          type: string
+      responses:
+        "201":
+          description: Created.
+          headers:
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+            Location:
+              description: The URL of the flow.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.schedule.flow+json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/createJobFlow"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "400":
+          description: Bad Request.
+          content:
+            application/vnd.sas.schedule.flow+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+      requestBody:
+        content:
+          application/vnd.sas.schedule.flow+json:
+            schema:
+              $ref: "#/components/schemas/flow"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/flow"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+        description: The flow to create.
+        required: true
+  /flows#import:
+    post:
+      summary: Import to create a new application/vnd.sas.schedule.flow using transfer
+        object
+      description: Creates a new flow from the transfer object. Other than the old
+        ID, all other flow properties are preserved.
+      operationId: createFlowFromTransfer
+      tags:
+      - Transfer
+      requestBody:
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+        description: The flow to be imported.
+        required: true
+      responses:
+        "201":
+          description: The flow was imported.
+          headers:
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+            Location:
+              description: The URL of the flow.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "400":
+          description: >
+            The request was invalid. This occurs when <ul> <li>the transfer
+            object does not contain valid content.</li> </ul>
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/flows/{flowId}":
+    get:
+      operationId: getFlow
+      summary: Returns a specific application/vnd.sas.schedule.flow resource
+      description: "Returns a specific flow. Authorization: Any authenticated user."
+      tags:
+      - Flows
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.schedule.base.summary+json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/jobFlow"
+            application/vnd.sas.schedule.flow.summary+json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.schedule.flow+json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the flow to fetch.
+        required: true
+        schema:
+          type: string
+    put:
+      operationId: updateFlow
+      summary: Updates a specific application/vnd.sas.schedule.flow resource
+      description: "Updates a specific flow. Authorization: Any authenticated user."
+      tags:
+      - Flows
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.schedule.base.summary+json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/jobFlow"
+            application/vnd.sas.schedule.flow.summary+json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/jobFlow"
+            application/vnd.sas.schedule.flow+json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/jobFlow"
+        "400":
+          description: Bad Request.
+          content:
+            application/vnd.sas.schedule.base.summary+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/vnd.sas.schedule.flow.summary+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "412":
+          description: The ETag provided does not match the current version of the
+            object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "428":
+          description: The ETag was not provided when updating an existing object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the flow to update.
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        required: true
+        description: The etag that was returned from a GET, POST or PUT of this object.
+        schema:
+          type: string
+    delete:
+      operationId: deleteFlow
+      summary: Removes a specific application/vnd.sas.schedule.flow resource
+      description: "Removes a specific flow. Authorization: Any authenticated user."
+      tags:
+      - Flows
+      responses:
+        "204":
+          description: No Content.
+        "207":
+          description: Multi-status - flow is deleted, but it was scheduled and unable
+            to remove the flow from the scheduler.
+        "404":
+          description: Not Found.
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the flow to remove.
+        required: true
+        schema:
+          type: string
+  "/flows/{flowId}#export":
+    get:
+      summary: Return the flow in transfer object format
+      description: Returns the transfer object of the specified flow.
+      operationId: getExportFlow
+      tags:
+      - Transfer
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the flow.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. Returns the flow as transfer object.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/flows/{flowId}#importUpdate":
+    get:
+      summary: Return the flow in transfer object format
+      description: Returns the transfer object of the specified flow.
+      operationId: getImportFlow
+      tags:
+      - Transfer
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the flow.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. Returns the flow as transfer object.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+    put:
+      summary: Import to update an existing flow using transfer object
+      description: This updates a flow using the transfer object. If no existing flow
+        is found, a new flow is created. Either way, all other flow properties are
+        preserved.
+      operationId: updateFlowFromTransfer
+      tags:
+      - Transfer
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the flow.
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        required: true
+        description: The etag that was returned from a GET, POST or PUT of this object.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              context:
+                $ref: "#/components/examples/holderForExamples"
+        description: The flow to be imported.
+        required: true
+      responses:
+        "200":
+          description: The request succeeded. Returns the imported or updated flow
+            in resource summary format.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "400":
+          description: >
+            The request was invalid. This occurs when <ul> <li>the user provides
+            an ID in the flow that does not match the ID in the path of the
+            url.</li> </ul>
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "412":
+          description: The ETag provided does not match the current version of the
+            object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "428":
+          description: The ETag was not provided when updating an existing object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/flows/{flowId}/scheduled":
+    get:
+      operationId: getScheduledFlows
+      summary: Fetches a list of application/vnd.sas.schedule.flow resource for a
+        specific scheduled flows
+      description: "Fetches a list of scheduled flows for a specific flow id. Authorization:\
+        \ Any authenticated user."
+      tags:
+      - Flows
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.schedule.flow+json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the flow to fetch.
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: createScheduleFlow
+      summary: Schedule a specific application/vnd.sas.schedule.flow resource
+      description: "Schedules a specific flow. Authorization: Any authenticated user."
+      tags:
+      - Flows
+      responses:
+        "201":
+          description: Created.
+          headers:
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+            Location:
+              description: The URL of the flow.
+              schema:
+                type: string
+                format: uri
+        "400":
+          description: Bad Request.
+          content:
+            application/vnd.sas.schedule.flow+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the flow to schedule.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.schedule.flow+json:
+            schema:
+              $ref: "#/components/schemas/flow"
+            examples:
+              api:
+                $ref: "#/components/examples/holderForExamples"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/flow"
+            examples:
+              api:
+                $ref: "#/components/examples/holderForExamples"
+        description: The flow to create.
+        required: true
+    put:
+      operationId: rescheduleFlow
+      summary: Reschedule a scheduled application/vnd.sas.schedule.flow resource
+      description: "Reschedule a scheduled flow. Authorization: Any authenticated\
+        \ user."
+      tags:
+      - Flows
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.schedule.flow+json:
+              schema:
+                $ref: "#/components/schemas/flow"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "400":
+          description: Bad Request.
+          content:
+            application/vnd.sas.schedule.flow+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the scheduled flow to reschedule.
+        required: true
+        schema:
+          type: string
+    patch:
+      operationId: executeFlow
+      summary: Execute an application/vnd.sas.schedule.flow resource
+      description: "Execute a flow. Authorization: Any authenticated user."
+      tags:
+      - Flows
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+        "400":
+          description: Bad Request.
+          content:
+            application/vnd.sas.schedule.flow+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the scheduled flow to reschedule.
+        required: true
+        schema:
+          type: string
+    delete:
+      operationId: unscheduleFlow
+      summary: Unschedules a specific application/vnd.sas.schedule.flow resource
+      description: "Remove a specific scheduled flow from the scheduler. Authorization:\
+        \ Any authenticated user."
+      tags:
+      - Flows
+      responses:
+        "204":
+          description: No content.
+        "404":
+          description: Not Found.
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the flow to unschedule.
+        required: true
+        schema:
+          type: string
+  "/flows/{flowId}/history":
+    get:
+      operationId: getFlowHistories
+      summary: Fetches a list of application/vnd.sas.schedule.flow.history resource
+        for a specific scheduled flow
+      description: "Fetches a list of history for a specific scheduled flow. Authorization:\
+        \ Any authenticated user."
+      tags:
+      - Flows
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/historyResourceCollection"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/historyResourceCollection"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the flow to fetch.
+        required: true
+        schema:
+          type: string
+  "/flows/{flowId}/history/{flowInstanceId}":
+    get:
+      operationId: getFlowInstanceHistory
+      summary: Returns application/vnd.sas.schedule.flow.history resource of a specific
+        instance for a specific flow
+      description: "Returns history record of a specific instance for a specific flow.\
+        \ Authorization: Any authenticated user."
+      tags:
+      - Flows
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/vnd.sas.schedule.flow.history+json:
+              schema:
+                $ref: "#/components/schemas/history"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/history"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the flow.
+        required: true
+        schema:
+          type: string
+      - name: flowInstanceId
+        in: path
+        description: The ID of the scheduled flow instance.
+        required: true
+        schema:
+          type: string
+    delete:
+      operationId: deleteFlowInstanceHistory
+      summary: Removes a specific flow history record
+      description: "Removes a specific flow history record. Authorization: Any authenticated\
+        \ user."
+      tags:
+      - Flows
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the flow.
+        required: true
+        schema:
+          type: string
+      - name: flowInstanceId
+        in: path
+        description: The ID of the scheduled flow instance.
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content.
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/flows/{flowId}/history/{flowInstanceId}/state":
+    get:
+      operationId: getFlowInstanceState
+      summary: Get the state of a specific instance of the scheduled flow
+      description: "Gets the state of the scheduled flow: pending, running, canceled,\
+        \ completed, or failed."
+      tags:
+      - Flows
+      parameters:
+      - name: flowId
+        in: path
+        description: The ID of the flow.
+        required: true
+        schema:
+          type: string
+      - name: flowInstanceId
+        in: path
+        description: The ID of the scheduled flow instance.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum: [pending, running, completed, failed, unknown]
+              example: completed
+            application/json:
+              schema:
+                $ref: "#/components/schemas/state"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+  /schedulers:
+    get:
+      operationId: getSchedulers
+      summary: Returns a collection of application/vnd.sas.schedule.scheduler resources
+      description: "Returns a collection of schedulers. Authorization: Any authenticated\
+        \ user."
+      tags:
+      - Schedulers
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/schedulerResourceCollection"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/schedulerResourceCollection"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+      parameters:
+      - name: Accept-Item
+        description: If Accept-Item=application/vnd.sas.schedule.scheduler+json then
+          return that resource type instead of application/vnd.sas.schedule.base.summary.
+        in: header
+        required: false
+        schema:
+          type: string
+      - name: start
+        in: query
+        description: The index of the first flow to return. The default value is 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: The maximum number of flows to return. The default value is 10.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: The criteria for filtering the flows. May filter by name, id,
+          creationTimeStamp, modifiedTimeStamp, modifiedBy, and createdBy. See the
+          [Filtering section](https://developer.sas.com/rest-apis/jobFlowScheduling-v2/docs/getting-started/usage-notes#filtering).
+        schema:
+          type: string
+          format: string
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the flows. See the [Sorting section](https://developer.sas.com/rest-apis/jobFlowScheduling-v2/docs/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+    post:
+      operationId: createScheduler
+      summary: Creates a application/vnd.sas.schedule.scheduler resource
+      description: "Creates a scheduler. Authorization: Any authenticated user."
+      tags:
+      - Schedulers
+      responses:
+        "201":
+          description: OK.
+          headers:
+            Location:
+              description: The URL of the flow.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.schedule.scheduler+json:
+              schema:
+                $ref: "#/components/schemas/scheduler"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scheduler"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "400":
+          description: Bad Request.
+          content:
+            application/vnd.sas.schedule.scheduler+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+      requestBody:
+        content:
+          application/vnd.sas.schedule.scheduler+json:
+            schema:
+              $ref: "#/components/schemas/scheduler"
+            examples:
+              api:
+                $ref: "#/components/examples/holderForExamples"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/scheduler"
+            examples:
+              api:
+                $ref: "#/components/examples/holderForExamples"
+        description: The scheduler to create.
+        required: true
+  /schedulers#import:
+    post:
+      summary: Import to create a new application/vnd.sas.schedule.scheduler using
+        transfer object
+      description: Creates a new scheduler from the transfer object. Other than the
+        old ID, all other scheduler properties are preserved.
+      operationId: createSchedulerFromTransfer
+      tags:
+      - Transfer
+      requestBody:
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              api:
+                $ref: "#/components/examples/holderForExamples"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              api:
+                $ref: "#/components/examples/holderForExamples"
+        description: The scheduler to be imported.
+        required: true
+      responses:
+        "201":
+          description: The scheduler was imported.
+          headers:
+            Location:
+              description: The URL of the flow.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "400":
+          description: >
+            The request was invalid. This occurs when <ul> <li>the transfer
+            object does not contain valid content.</li> </ul>
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/schedulers/{schedulerId}":
+    get:
+      operationId: getScheduler
+      summary: Returns information about a specific application/vnd.sas.schedule.scheduler
+        resource
+      description: "Returns information about a specific scheduler. Authorization:\
+        \ Any authenticated user."
+      tags:
+      - Schedulers
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scheduler"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.schedule.scheduler+json:
+              schema:
+                $ref: "#/components/schemas/scheduler"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduling server.
+        required: true
+        schema:
+          type: string
+    put:
+      operationId: updateScheduler
+      summary: Update a specific application/vnd.sas.schedule.scheduler resource
+      description: Returns information about a specific scheduler. Authorization is
+        any authenticated user. No conditional PUT is supported, the last update will
+        win.
+      tags:
+      - Schedulers
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scheduler"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.schedule.scheduler+json:
+              schema:
+                $ref: "#/components/schemas/scheduler"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "400":
+          description: >
+            The request was invalid. This occurs when <ul> <li>the transfer
+            object does not contain valid content.</li> </ul>
+          content:
+            application/vnd.sas.schedule.scheduler+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "412":
+          description: The ETag provided does not match the current version of the
+            object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "428":
+          description: The ETag was not provided when updating an existing object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduling server.
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        required: true
+        description: The etag that was returned from a GET, POST or PUT of this object.
+        schema:
+          type: string
+    delete:
+      operationId: deleteScheduler
+      summary: Deletes a specific application/vnd.sas.schedule.scheduler resource
+      description: "Deletes a specific scheduler. Authorization: Any authenticated\
+        \ user."
+      tags:
+      - Schedulers
+      responses:
+        "204":
+          description: No Content.
+        "404":
+          description: Not Found.
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduling server.
+        required: true
+        schema:
+          type: string
+  "/schedulers/{schedulerId}#export":
+    get:
+      summary: Return the scheduler in transfer object format
+      description: Returns the transfer object of the specified scheduler.
+      operationId: getExportScheduler
+      tags:
+      - Transfer
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduler.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. Returns the scheduler as transfer object.
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/schedulers/{schedulerId}#importUpdate":
+    get:
+      summary: Return the scheduler in transfer object format
+      description: Returns the transfer object of the specified scheduler.
+      operationId: getImportScheduler
+      tags:
+      - Transfer
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduler.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. Returns the scheduler as transfer object.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+    put:
+      summary: Import to update an existing scheduler using transfer object
+      description: This updates a scheduler using the transfer object. If no existing
+        scheduler is found, a new scheduler is created. Either way, all other scheduler
+        properties are preserved.
+      operationId: updateSchedulerFromTransfer
+      tags:
+      - Transfer
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        required: true
+        description: The etag that was returned from a GET, POST or PUT of this object.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              api:
+                $ref: "#/components/examples/holderForExamples"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              api:
+                $ref: "#/components/examples/holderForExamples"
+        description: Scheduler to be imported.
+        required: true
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "400":
+          description: >
+            The request was invalid. This occurs when <ul> <li>the user provides
+            an ID in the scheduler that does not match the ID in the path of the
+            url.</li> </ul>
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "412":
+          description: The ETag provided does not match the current version of the
+            object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "428":
+          description: The ETag was not provided when updating an existing object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/schedulers/{schedulerId}/flows":
+    get:
+      operationId: getSchedulerFlows
+      summary: Get the list of flows scheduled on the given scheduler
+      description: Get the list of flows scheduled on the given scheduler.
+      tags:
+      - Schedulers
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduler.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/flowResourceCollection"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/flowResourceCollection"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/schedulers/{schedulerId}/flows/{flowDefId}/state":
+    get:
+      operationId: getSchedulerFlowInstanceState
+      summary: Get the state of a specific instance of the scheduled flow
+      description: "Gets the state of the scheduled flow: pending, running, canceled,\
+        \ completed, or failed."
+      tags:
+      - Schedulers
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: flowDefId
+        in: path
+        description: The ID of the flow definition.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.placeholder/randy:
+              schema:
+                $ref: "#/components/schemas/state"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/state"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+    put:
+      operationId: updateFlowState
+      summary: Update the state of the flow
+      description: Updates the state of the current flow. The new state must be set
+        as either the value query parameter or in the body of the request. The value
+        query parameter takes precedence if both are specified. If neither are specified,
+        a 400 bad request error response is returned.
+      tags:
+      - Schedulers
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: flowDefId
+        in: path
+        description: The ID of the flow definition on the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: value
+        in: query
+        description: The value of the state. The possible values are "hold" and "release".
+          If this value and the body specify a state, then this value takes precedence.
+        required: false
+        x-sas-since: "2"
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.placeholder/randy:
+            schema:
+              $ref: "#/components/schemas/state"
+            examples:
+              api:
+                $ref: "#/components/examples/holderForExamples"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/state"
+            examples:
+              api:
+                $ref: "#/components/examples/holderForExamples"
+        description: State flow is to be updated.
+        required: true
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/state"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/state"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "400":
+          description: >
+            The request was invalid. This occurs when <ul> <li>the user provides
+            an ID in the scheduler that does not match the ID in the path of the
+            url.</li> </ul>
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "412":
+          description: The ETag provided does not match the current version of the
+            object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "428":
+          description: The ETag was not provided when updating an existing object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/schedulers/{schedulerId}/flows/{flowDefId}/instances":
+    get:
+      operationId: getFlowInstances
+      summary: Returns list of application/vnd.sas.schedule.flow.instance resource
+        of a specific instance for a specific flow definition
+      description: "Returns list of instances of a specific flow instances. Authorization:\
+        \ Any authenticated user."
+      tags:
+      - Schedulers
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: flowDefId
+        in: path
+        description: The ID of the flow definition on the scheduler.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/instanceResourceCollection"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/instanceResourceCollection"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/schedulers/{schedulerId}/flows/{flowDefId}/instances/{flowInstanceId}":
+    get:
+      operationId: getFlowInstance
+      summary: Returns application/vnd.sas.schedule.flow.instance resource of a specific
+        instance for a specific flow definition
+      description: "Returns instance of a specific flow definition. Authorization:\
+        \ Any authenticated user."
+      tags:
+      - Schedulers
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: flowDefId
+        in: path
+        description: The ID of the flow definition on the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: flowInstanceId
+        in: path
+        description: The ID of the scheduled flow instance.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/instance"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.flow.instance+json:
+              schema:
+                $ref: "#/components/schemas/instance"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+    delete:
+      operationId: deleteFlowInstance
+      summary: Removes a specific flow instance
+      description: "Removes a specific flow instance. Authorization: Any authenticated\
+        \ user."
+      tags:
+      - Schedulers
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: flowDefId
+        in: path
+        description: The ID of the flow definition on the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: flowInstanceId
+        in: path
+        description: The ID of the scheduled flow instance.
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content.
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/schedulers/{schedulerId}/flows/{flowDefId}/instances/{flowInstanceId}/state":
+    get:
+      operationId: getSchedulerFlowDefInstanceState
+      summary: Get the state of a specific instance of the scheduled flow
+      description: "Gets the state of the scheduled flow: pending, running, canceled,\
+        \ completed, or failed."
+      tags:
+      - Schedulers
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduler to look up flows.
+        required: true
+        schema:
+          type: string
+      - name: flowDefId
+        in: path
+        description: The ID of the flow.
+        required: true
+        schema:
+          type: string
+      - name: flowInstanceId
+        in: path
+        description: The ID of the scheduled flow instance.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.placeholder/randy:
+              schema:
+                $ref: "#/components/schemas/state"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/state"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+    put:
+      operationId: updateFlowInstanceState
+      summary: Update the state of the flow instance
+      description: Updates the state of the current flow instance. The new state must
+        be set as either the value query parameter or in the body of the request.
+        The value query parameter takes precedence if both are specified. If neither
+        are specified, a 400 bad request error response is returned.
+      tags:
+      - Schedulers
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: flowDefId
+        in: path
+        description: The ID of the flow definition on the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: flowInstanceId
+        in: path
+        description: The ID of the scheduled flow instance.
+        required: true
+        schema:
+          type: string
+      - name: value
+        in: query
+        description: The value of the state. The possible values are "pause", "resume",
+          or "cancel". If this value and the body specify a state, then this value
+          takes precedence.
+        required: false
+        x-sas-since: "2"
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        required: true
+        description: The etag that was returned from a GET, POST or PUT of this object.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.placeholder/randy:
+            schema:
+              $ref: "#/components/schemas/state"
+            examples:
+              api:
+                $ref: "#/components/examples/holderForExamples"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/state"
+            examples:
+              api:
+                $ref: "#/components/examples/holderForExamples"
+        description: State flow is to be updated.
+        required: true
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: The RFC 1123 date string representing the timestamp of
+                the last update to this event.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/state"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/state"
+              examples:
+                api:
+                  $ref: "#/components/examples/holderForExamples"
+        "400":
+          description: >
+            The request was invalid. This occurs when <ul> <li>the user provides
+            an ID in the scheduler that does not match the ID in the path of the
+            url.</li> </ul>
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "412":
+          description: The ETag provided does not match the current version of the
+            object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+        "428":
+          description: The ETag was not provided when updating an existing object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/schedulers/{schedulerId}/flows/{flowDefId}/instances/{flowInstanceId}/items":
+    get:
+      operationId: getFlowInstanceItems
+      summary: Returns list of application/vnd.sas.schedule.flow.flowInstance resource
+        of a specific instance for a specific flow definition
+      description: "Returns list of item instances of a specific instance of a specific\
+        \ flow definition. Authorization: Any authenticated user."
+      tags:
+      - Schedulers
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: flowDefId
+        in: path
+        description: The ID of the flow definition on the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: flowInstanceId
+        in: path
+        description: The ID of the scheduled flow instance.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/instanceResourceCollection"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/instanceResourceCollection"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+  "/schedulers/{schedulerId}/flows/{flowDefId}/instances/{flowInstanceId}/items/{itemInstanceId}":
+    get:
+      operationId: getItemInstance
+      summary: Returns application/vnd.sas.schedule.flow.flowInstance resource of
+        a specific item within a specific instance for a specific flow definition
+      description: "Returns item instance. Authorization: Any authenticated user."
+      tags:
+      - Schedulers
+      parameters:
+      - name: schedulerId
+        in: path
+        description: The ID of the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: flowDefId
+        in: path
+        description: The ID of the flow definition on the scheduler.
+        required: true
+        schema:
+          type: string
+      - name: flowInstanceId
+        in: path
+        description: The ID of the scheduled flow instance.
+        required: true
+        schema:
+          type: string
+      - name: itemInstanceId
+        in: path
+        description: The ID of the item instance within a scheduled flow instance.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/instance"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.schedule.flow.instance+json:
+              schema:
+                $ref: "#/components/schemas/instance"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+        "404":
+          description: Not Found.
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                api:
+                  $ref: "#/components/examples/errorResponseHolder"
+  /schedulerTypes:
+    get:
+      operationId: getSchedulerTypes
+      summary: Returns a application/vnd.sas.schedule.scheduler.type resource
+      description: "Returns a list of supported types of schedulers.  Authorization:\
+        \ Any authenticated user."
+      tags:
+      - Schedulers
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/vnd.sas.schedule.scheduler.type+json:
+              schema:
+                $ref: "#/components/schemas/schedulerType"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/schedulerType"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/schedulerType"
+              examples:
+                context:
+                  $ref: "#/components/examples/holderForExamples"
+components:
+  schemas:
+    summary:
+      title: summary object.
+      description: The set of properties that all media types contain.
+      discriminator:
+        propertyName: type
+      required:
+      - name
+      properties:
+        id:
+          type: string
+          description: The identifier of the object which is unique and generated.
+        name:
+          type: string
+          description: The object name.
+        description:
+          type: string
+          description: A short description of the object as defined by the creator
+            of the resource.
+        version:
+          type: integer
+          description: The version of the schema.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp of when the object was created. This is generated
+            by the service.
+        createdBy:
+          type: string
+          description: Username that created the object. This is generated by the
+            service.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp of when the object was last modified. This is generated
+            by the service.
+        modifiedBy:
+          type: string
+          description: Username that last modified the object. This is generated by
+            the service.
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+          description: List of links related to the object. These are generated by
+            the service.
+    jobResourceCollection:
+      description: A collection of job representations.
+      example:
+      - $ref: "#/components/schemas/baseCollection"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/job"
+            description: The array of application/vnd.sas.schedule.job representations.
+    job:
+      description: A job that has been saved in a deployment and can be added to a
+        flow definition.
+      example:
+      - $ref: "#/components/schemas/summary"
+      - type: object
+        properties:
+          jobRequestUri:
+            type: string
+            description: URI to the application/vnd.sas.job.execution.job.request
+              object for use in the Job action.
+          commandLine:
+            type: string
+            description: Command Line for the Job Action. These are server based command
+              suitable to send to a grid provider.
+          priority:
+            type: string
+            description: Priority for the Job action. Defined values are - none, top,
+              high, normal, medium, low.
+          runAs:
+            type: string
+            description: Username to run the Job action under (default is who scheduled
+              the flow the job is contained).
+          schedulerProperties:
+            type: string
+            description: Scheduler specific resources needed by the Job action. This
+              is a single string that is in a scheduler specific format which is passed
+              as an opaque object. Example, "propName1=value;propName2=value".
+    flowResourceCollection:
+      title: file Resource Collection.
+      description: A collection of file representations.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/flow"
+            description: The array of application/vnd.sas.schedule.flow representations.
+    flow:
+      title: job flow
+      description: A group of job actions and/or sub-flows with their dependencies
+        and the triggers for when to execute the flow.
+      allOf:
+      - $ref: "#/components/schemas/summary"
+      - type: object
+        properties:
+          schedulerId:
+            type: string
+            description: The identity for the scheduler associated to this Flow.
+          triggerType:
+            type: string
+            format: enumeration
+            enum:
+            - event
+            - runNow
+            - manual
+            description: triggerType for the Flow.
+          triggers:
+            type: array
+            items:
+              $ref: "#/components/schemas/triggerEvent"
+            description: List of triggers associated to this Flow.
+          triggerCondition:
+            type: string
+            description: Indicates whether 'any' trigger can start a flow execution
+              or 'all' triggers must be true to start flow.
+          jobs:
+            type: array
+            items:
+              type: string
+            description: list of URIs to jobs and sub-flows contained in the Flow.
+          dependencies:
+            type: array
+            items:
+              $ref: "#/components/schemas/jobDependency"
+            description: List of job dependencies within the Flow for traditional
+              style scheduler.
+          definitionId:
+            type: string
+            description: Definition identifier for the Flow supplied by the scheduler
+              once scheduled. Determined by the service.
+          triggerId:
+            type: string
+            description: Trigger identifier for the Flow supplied by the scheduler
+              once scheduled. Determined by the service. For some schedulers only
+              the definitionId is provided.
+          submitted:
+            type: boolean
+            description: The submitted status for the Flow. Determined by the service.
+              True is the flow is scheduled and false if the Flow is not scheduled.
+          scheduleId:
+            type: integer
+            description: The identifier to last instance of the Flow execution supplied
+              by the scheduler. Determined by the service.
+          scheduledBy:
+            type: string
+            description: The user that scheduled the Flow to the scheduler. Determined
+              by the service.
+          flowProperties:
+            type: object
+            description: map<string, string> with zero or more name, value pairs (map<name,
+              value>), maximum name length = 100.
+            additionalProperties:
+              type: string
+          defaultJobProperties:
+            type: object
+            description: map<string, string> with zero or more name, value pairs (map<name,
+              value>), maximum name length = 100.
+            additionalProperties:
+              type: string
+    triggerEvent:
+      description: An event that signals when a new instance of a scheduled flow should
+        execute.
+      type: object
+      properties:
+        name:
+          type: string
+          description: The display name for the trigger event. Generated by the service.
+        active:
+          type: boolean
+          description: If true then this trigger event actively participating as the
+            trigger for the flow. Otherwise it is ignored.
+        type:
+          type: string
+          format: enumeration
+          enum:
+          - timeevent
+          - fileevent
+          description: The type of trigger event, either 'timeEvent' or 'fileEvent'.
+        event:
+          type: object
+          description: The event which is either timeEvent or fileEvent.
+    jobDependency:
+      description: The set of events that must be met for a job or sub-flow to execute
+        within an instance of a flow.
+      type: object
+      properties:
+        target:
+          type: string
+          description: The name of the job action or sub-flow to associate the dependency.
+        event:
+          $ref: "#/components/schemas/jobDependencyEvent"
+    jobDependencyEvent:
+      title: Job or sub-flow dependency event.
+      discriminator:
+        propertyName: type
+      description: The dependency event for a job or sub-flow which can be one of
+        a gate, jobEvent, timeEvent, or fileEvent.
+    historyResourceCollection:
+      title: history Resource Collection.
+      description: A collection of history representations.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/history"
+            description: The array of application/vnd.sas.schedule.flow.history representations.
+    history:
+      title: history of an instance.
+      description: The information about an instance of execution.
+      allOf:
+      - $ref: "#/components/schemas/summary"
+      - type: object
+        properties:
+          flowInstanceId:
+            type: string
+            description: An identifier of the flow instance.  This is the field used
+              in Flow for scheduleId.
+          startedTimeStamp:
+            type: string
+            description: The time when the flow instance started. The format is "yyyy-mm-ddThh:mm:ss[.SSS]Z".
+          completedTimeStamp:
+            type: string
+            description: The time when the flow instance completed. The format is
+              "yyyy-mm-ddThh:mm:ss[.SSS]Z".
+          state:
+            type: string
+            description: The State  of the flow instance. The possible values - completed,
+              failed, running, pending,canceled, suspended, unknown.
+          exitCode:
+            type: integer
+            description: The exit code of the flow instance based on scheduler defined
+              flow completion criteria. A zero means done or completed successfully.
+          flowName:
+            type: string
+            description: The scheduler defined flow name provided by the scheduler
+              for finding the flow definition.
+          schedulerFlowName:
+            type: string
+            description: The scheduler defined flow name provided by the scheduler
+              for finding the latest instance of the flowName.
+    state:
+      description: This state of an object
+      properties:
+        state:
+          type: string
+          description: The State  of the flow instance. The possible values - completed,
+            failed, running, pending,canceled, suspended, unknown.
+    instanceResourceCollection:
+      title: instance Resource Collection.
+      description: A collection of instance representations.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/instance"
+            description: The array of application/vnd.sas.schedule.flow.instance representations.
+    instance:
+      title: instance of an item with a flow.
+      description: The information about an item within an instance of execution.
+      allOf:
+      - $ref: "#/components/schemas/summary"
+      - type: object
+        properties:
+          instanceId:
+            type: string
+            description: An identifier of the flow instance.  This is the field used
+              in Flow for scheduleId.
+          flowDefinitionId:
+            type: string
+            description: An identifier of the flow definition on the scheduler.
+          startedTimeStamp:
+            type: string
+            description: The time when the flow instance started. The format is "yyyy-mm-ddThh:mm:ss[.SSS]Z".
+          completedTimeStamp:
+            type: string
+            description: The time when the flow instance completed. The format is
+              "yyyy-mm-ddThh:mm:ss[.SSS]Z".
+          state:
+            type: string
+            description: The State  of the flow instance. The possible values - completed,
+              failed, running, pending, canceled, suspended, unknown.
+          exitCode:
+            type: integer
+            description: The exit code of the flow instance based on scheduler defined
+              flow completion criteria. A zero means done or completed successfully.
+          itemName:
+            type: string
+            description: The name of the associated item.
+          parentInstanceId:
+            type: string
+            description: An identifier of the parent instance to this given instance.
+          schedulerFlowName:
+            type: string
+            description: The scheduler defined flow name to this given instance.
+          schedulerId:
+            type: string
+            description: The identifier to the scheduler.
+    schedulerResourceCollection:
+      title: scheduler Resource Collection.
+      description: A collection of scheduler representations.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/scheduler"
+            description: The array of application/vnd.sas.schedule.scheduler representations.
+    schedulerType:
+      title: The type of a scheduler.
+      description: Provides the type of the scheduler and a displayable string for
+        that type of scheduler.
+      type: object
+      properties:
+        types:
+          type: object
+          description: The list of type objects of supported schedulers. The type
+            object has 'name' and 'label' fields.
+    scheduler:
+      description: A server that runs jobs in a scheduled flow.
+      allOf:
+      - $ref: "#/components/schemas/summary"
+      - type: object
+        properties:
+          type:
+            type: string
+            description: The type of scheduler. Valid values are - sasjfs, platformProcessManager.
+          host:
+            type: string
+            description: The machine identifier where the scheduler is located.
+          port:
+            type: string
+            description: The socket port number that the scheduler listens on.
+          protocol:
+            type: string
+            description: The connection protocol for communicating to the scheduler.
+              Valid values are - https, http. If null or empty http is assumed.
+          domain:
+            type: string
+            description: The authentication domain associated to the scheduler.
+          queues:
+            type: string
+            description: The list of queue names separated by a semi-colon associated
+              to the scheduler.
+          context:
+            type: string
+            description: The launcher context to use for job submission. Used when
+              type is set to sasjfs.
+          softwareVersion:
+            type: string
+            description: Version of the scheduler software, release number.
+          capabilities:
+            $ref: "#/components/schemas/capabilities"
+          configuration:
+            $ref: "#/components/schemas/configuration"
+    capabilities:
+      description: The set of capabilities that can vary from types of schedulers
+        or versions of a scheduler.
+      type: object
+      properties:
+        subordinateFlows:
+          type: boolean
+          description: Whether or not the scheduler supports a flow used like a job
+            within a flow.
+        dependencyType:
+          type: string
+          format: enumeration
+          enum:
+          - predecessor
+          - successor
+          description: An identifiable string representation the type of dependencies
+            supported.  Valid values include <ul><li>predecessor - Use dependencies
+            of jobEvent, timeEvent, or fileEvent being satisfied before job execution.</li><li>successor
+            - Use dependency of jobSuccessor to determine what job to execute next.</li></ul>
+        timeEvents:
+          type: boolean
+          description: Whether or not the scheduler supports time events as dependency.
+        fileEvents:
+          type: boolean
+          description: Whether or not the scheduler supports file events as dependency.
+        advancedFileEvents:
+          type: boolean
+          description: Whether or not the scheduler supports file more advanced file
+            events (age, created) beyond exist, not exist, and size.
+        fileEventsAsTriggers:
+          type: boolean
+          description: Whether or not the scheduler supports file events as triggers.
+        multipleTriggers:
+          type: boolean
+          description: Whether or not the scheduler supports multiple events as triggers.
+        flowCompletionCriteria:
+          type: boolean
+          description: Whether or not the scheduler supports setting specific criteria
+            for determining flow completion. Criteria could include when to consider
+            the flow is finished executing (when any items fails, when a specific
+            set of items have completed, etc), what to do with remaining jobs once
+            the flow is determined to have finished (complete any work in progress
+            and stop the flow, continue running the flow, etc), and how to calculate
+            the exit code (sum of the exit codes for all items, the last finished
+            item).
+        emailNotifications:
+          type: boolean
+          description: Whether or not the schedule supports email notification.
+        queues:
+          type: boolean
+          description: Whether or not the scheduler has queues available for selection.
+        jobDefaultEmailNotifications:
+          type: boolean
+          description: Whether or not the scheduler supports setting a default email
+            notification for all the jobs in a flow.
+        jobDefaultPriorities:
+          type: boolean
+          description: Whether or not the scheduler supports setting a default priority
+            for all the jobs in a flow.
+        jobDefaultEnvironmentVariables:
+          type: boolean
+          description: Whether or not the scheduler supports setting a default value
+            for environment variables for all the jobs in a flow.
+        exclusiveExecutions:
+          type: boolean
+          description: Whether or not the scheduler supports exclusive execution for
+            flows where only one instance of the flow runs at any given time. Multiple
+            instances of the same flow cannot run simultaneously.
+        timeZones:
+          type: boolean
+          description: Whether or not the scheduler supports explicit setting of the
+            time zone to a given time event.
+    configuration:
+      discriminator:
+        propertyName: type
+      description: One of sasJobFlowSchedulerConfiguration or platformProcessManagerConfiguration.
+    transferObject:
+      title: Transfer Object
+      type: object
+      description: Information about a transfer object.
+      properties:
+        version:
+          type: integer
+          description: The version number of the transfer object.
+        id:
+          type: string
+          description: The unique transfer object identifier.
+        summary:
+          type: object
+          description: The details of the job request.
+        content:
+          type: object
+          description: The encoded data of the transfer object.
+        connectors:
+          type: array
+          description: Items that are associated with the transfer object.
+          items:
+            type: object
+    api:
+      description: Information about the api object.
+      properties:
+        version:
+          type: integer
+          description: "The version number of the API representation. This is version\
+            \ 1."
+        links:
+          type: array
+          description: The API's top-level links.
+          items:
+            $ref: "#/components/schemas/link"
+    link:
+      title: Link
+      description: A link to a related operation or resource.
+      properties:
+        method:
+          type: string
+          description: The HTTP method to invoke this endpoint.
+        rel:
+          type: string
+          description: The relationship of this URL to the object.
+        uri:
+          type: string
+          description: The relative URI of the REST endpoint.
+        href:
+          type: string
+          description: The full URL of the REST endpoint.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type consumed/produced.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    baseCollection:
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    errorResponse:
+      title: "Error"
+      description: "The representation of an error."
+      type: object
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The error message.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred
+          items:
+            $ref: "#/components/schemas/errorResponse"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+  examples:
+    errorResponseHolder:
+      summary: Error
+      description: The representation of an error.
+      value:
+        message:
+          type: string
+          description: The error message.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/examples/errorResponseHolder"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    holderForExamples:
+      summary: Example
+      description: The representation of an example.
+      value:
+        name: Example
+        type: string
+        message:
+          type: string
+          description: The example message.
+        id: "1"
+        errorCode:
+          type: integer
+          description: The numeric ID for the example.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the example.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the example.
+          items:
+            type: array
+        remediation:
+          type: string
+          description: A message that describes how to resolve the example.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            type: array
+        links: [{"method": "GET", "rel": "apiMeta", "href": "/eventMonitor/", "uri": "/eventMonitor/",
+            "type": "application/vnd.sas.api"}]
+        version: 1
+    createJobAction:
+      "description": A job request type of job action.
+      "value": {"name": "my job action", "jobRequestUri": "/jobExecution/jobRequests/2acdd295-4fdf-4e47-89f6-20338a24924d"}
+    createJobFlow:
+      "description": A job flow definition.
+      "value": {"name": "Test Flow20230614T165017", "description": "Daily time event\
+          \ trigger with job default environment variables", "triggerType": "event",
+        "triggers": [{"name": "Daily Schedule 12:15pm", "type": "timeevent", "active": true,
+            "event": {"recurrence": {"type": "minutely", "startDate": "2018-10-08",
+                "skipCount": 1}, "hours": "12", "minutes": "0", "duration": 1, "timeZone": "America/New_York"}}],
+        "triggerCondition": "all", "jobs": ["/jobFlowScheduling/jobs/80a07ddb-079d-49be-977c-bdbd98a375e9"],
+        "schedulerId": "74202ef0-4ea0-48d7-b855-af26a6a4367a", "flowProperties": {},
+        "defaultJobProperties": {}}
+    jobFlow:
+      "description": A job flow definition.
+      "value": {"name": "Test Flow20230614T165017", "id": "e430b2b7-12be-4874-b234-348c82a5262d",
+        "description": "Daily time event trigger with job default environment variables",
+        "triggerType": "event", "triggers": [{"name": "Daily Schedule 12:15pm", "type": "timeevent",
+            "active": true, "event": {"recurrence": {"type": "minutely", "startDate": "2018-10-08",
+                "skipCount": 1}, "hours": "12", "minutes": "0", "duration": 1, "timeZone": "America/New_York"}}],
+        "triggerCondition": "all", "jobs": ["/jobFlowScheduling/jobs/80a07ddb-079d-49be-977c-bdbd98a375e9"],
+        "schedulerId": "74202ef0-4ea0-48d7-b855-af26a6a4367a", "flowProperties": {},
+        "defaultJobProperties": {}}
+    jobAction:
+      "description": A job request type of job action.
+      "value": {"name": "my job action", "id": "80a07ddb-079d-49be-977c-bdbd98a375e9",
+        "jobRequestUri": "/jobExecution/jobRequests/2acdd295-4fdf-4e47-89f6-20338a24924d"}

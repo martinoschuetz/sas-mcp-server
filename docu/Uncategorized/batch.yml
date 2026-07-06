@@ -1,0 +1,3766 @@
+---
+#
+# Low-level edit performed on 1-31-2023 by Karen Mobley.
+# If editing for external publication, these items need to be done:
+# - Capitalize “batch” consistently.
+# - Hyphenate multi-noun phrases which modify another noun.
+#
+openapi: 3.0.3
+info:
+  title: Batch
+  version: "5"
+  description: >
+    The Batch API provides a full suite of capabilities for Batch job execution, control,
+    and management,
+    including robust file handling and job monitoring.
+  termsOfService: "https://www.sas.com/en_us/legal/copyright.html"
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+servers:
+- url: http://example.com/batch
+  description: kubernetes mock server
+tags:
+- name: Root
+  description: Contains the operations for the root resource of the Batch API.
+- name: Contexts
+  description: Contains the operations to create SAS Batch Server definitions.
+- name: File Sets
+  description: Contains the operations to access information for file sets and files.
+- name: Jobs
+  description: Contains the operations for SAS Batch Server instances.
+- name: Servers
+  description: Contains the operations for SAS Reusable Batch Server instances.
+paths:
+  /:
+    get:
+      summary: Get API resource links
+      description: Returns a list of links to the top-level resources in this API.
+      operationId: root
+      tags:
+      - Root
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/apiInfoResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/apiInfoResponse"
+    head:
+      summary: Check service availability
+      description: Checks the availability of the service.
+      operationId: headersForRoot
+      tags:
+      - Root
+      responses:
+        "200":
+          description: The request succeeded.
+  /contexts:
+    get:
+      summary: Get a collection of contexts
+      description: Returns a collection of context information based on the specified
+        query parameters.
+      operationId: getContexts
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/collectionStart"
+      - $ref: "#/components/parameters/collectionLimit"
+      - $ref: "#/components/parameters/collectionFilter"
+      - $ref: "#/components/parameters/collectionSortBy"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/contextCollection"
+              examples:
+                contexts:
+                  $ref: "#/components/examples/contextCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/contextCollection"
+              examples:
+                contexts:
+                  $ref: "#/components/examples/contextCollection"
+        "400":
+          $ref: "#/components/responses/contextsQueryBadResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+    head:
+      summary: Check endpoint availability
+      description: Determines whether an endpoint is currently available.
+      operationId: headersForContexts
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/collectionStart"
+      - $ref: "#/components/parameters/collectionLimit"
+      - $ref: "#/components/parameters/collectionFilter"
+      - $ref: "#/components/parameters/collectionSortBy"
+      responses:
+        "200":
+          description: The request succeeded.
+        "400":
+          description: There are errors in the request.
+        "406":
+          description: The content media types are unacceptable.
+    post:
+      summary: Create a context
+      description: Creates a context using the context request in the request body.
+      operationId: createContext
+      tags:
+      - Contexts
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.batch.context.request+json;version=1:
+            schema:
+              $ref: "#/components/schemas/contextRequest"
+            examples:
+              contextRequest:
+                $ref: "#/components/examples/contextRequest"
+          application/vnd.sas.batch.context.request+json:
+            schema:
+              $ref: "#/components/schemas/contextRequest"
+            examples:
+              contextRequest:
+                $ref: "#/components/examples/contextRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/contextMultipartFormData"
+            examples:
+              contextRequest:
+                $ref: "#/components/examples/contextMultipartFormData"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/contextRequest"
+            examples:
+              contextRequest:
+                $ref: "#/components/examples/contextRequest"
+      responses:
+        "201":
+          description: The context was created.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Last-Modified:
+              $ref: "#/components/headers/Last-Modified"
+            Location:
+              description: Actual location of resource.
+              schema:
+                type: string
+              example: /batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2
+          content:
+            application/vnd.sas.batch.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+            application/vnd.sas.batch.context+json:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+        "400":
+          $ref: "#/components/responses/contextUpdateBadResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+        "409":
+          $ref: "#/components/responses/contextNameExistsResponse"
+  /contexts/{contextId}:
+    get:
+      summary: Get a context
+      description: Returns the specified context's information.
+      operationId: getContext
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/contextId"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Last-Modified:
+              $ref: "#/components/headers/Last-Modified"
+            Location:
+              description: Actual location of resource.
+              schema:
+                type: string
+              example: /batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2
+          content:
+            application/vnd.sas.batch.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+            application/vnd.sas.batch.context+json;version=2:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+            application/vnd.sas.batch.context+json;version=3:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+            application/vnd.sas.batch.context+json:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+            application/vnd.sas.transfer.object+json;version=1:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                context:
+                  $ref: "#/components/examples/contextTransferObject"
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                context:
+                  $ref: "#/components/examples/contextTransferObject"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+        "404":
+          $ref: "#/components/responses/contextNotFoundResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+    head:
+      summary: Verify that a context exists
+      description: Determines whether a specific context exists. Returns headers for
+        the specified context.
+      operationId: headersForContext
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/contextId"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Last-Modified:
+              $ref: "#/components/headers/Last-Modified"
+            Location:
+              description: Actual location of resource.
+              schema:
+                type: string
+              example: /batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2
+        "404":
+          description: The requested resource does not exist.
+        "406":
+          description: The content media types are unacceptable.
+    put:
+      summary: Update a context
+      description: Updates the specified context with the contents of the request
+        body.
+      operationId: updateContext
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/contextId"
+      - name: If-Match
+        in: header
+        description: The value of the 'ETag' header that was returned from a GET or
+          previous PUT of this context. The request must include either the If-Unmodified-Since
+          header or the If-Match header.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: The value of the 'Last-Modified' header that was returned from
+          a GET or previous PUT of this context. The request must include either the
+          If-Unmodified-Since header or the If-Match header.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.batch.context+json;version=1:
+            schema:
+              $ref: "#/components/schemas/context"
+            examples:
+              context:
+                $ref: "#/components/examples/context"
+          application/vnd.sas.batch.context+json;version=2:
+            schema:
+              $ref: "#/components/schemas/context"
+            examples:
+              context:
+                $ref: "#/components/examples/context"
+          application/vnd.sas.batch.context+json;version=3:
+            schema:
+              $ref: "#/components/schemas/context"
+            examples:
+              context:
+                $ref: "#/components/examples/context"
+          application/vnd.sas.batch.context+json:
+            schema:
+              $ref: "#/components/schemas/context"
+            examples:
+              context:
+                $ref: "#/components/examples/context"
+          application/vnd.sas.transfer.object+json;version=1:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              context:
+                $ref: "#/components/examples/contextTransferObject"
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              context:
+                $ref: "#/components/examples/contextTransferObject"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/context"
+            examples:
+              context:
+                $ref: "#/components/examples/context"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Last-Modified:
+              $ref: "#/components/headers/Last-Modified"
+            Location:
+              description: Actual location of resource.
+              schema:
+                type: string
+              example: /batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2
+          content:
+            application/vnd.sas.batch.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+            application/vnd.sas.batch.context+json:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+        "400":
+          $ref: "#/components/responses/contextUpdateBadResponse"
+        "404":
+          $ref: "#/components/responses/contextNotFoundResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+        "409":
+          $ref: "#/components/responses/contextNameExistsResponse"
+        "412":
+          $ref: "#/components/responses/preconditionFailedResponse"
+        "428":
+          $ref: "#/components/responses/missingPreconditionResponse"
+    delete:
+      summary: Delete a context
+      description: Deletes the specified context.
+      operationId: deleteContext
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/contextId"
+      responses:
+        "204":
+          description: The request succeeded and no content was returned. This is
+            returned whether the context actually existed or not.
+  /contexts/@item:
+    get:
+      summary: Get a context by name
+      description: Returns the specifically named context's information.
+      operationId: getContextByName
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/contextName"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Last-Modified:
+              $ref: "#/components/headers/Last-Modified"
+            Location:
+              description: Actual location of resource.
+              schema:
+                type: string
+              example: /batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2
+          content:
+            application/vnd.sas.batch.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+            application/vnd.sas.batch.context+json:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/context"
+              examples:
+                context:
+                  $ref: "#/components/examples/context"
+        "400":
+          $ref: "#/components/responses/contextQueryByNameBadResponse"
+        "404":
+          $ref: "#/components/responses/contextNotFoundResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+    head:
+      summary: Verify that a context exists by name
+      description: Determines whether a specificly named context exists and return
+        headers for the context.
+      operationId: headersForContextByName
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/contextName"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+        "400":
+          description: There are errors in the request.
+        "404":
+          description: The requested resource does not exist.
+        "406":
+          description: The content media types are unacceptable.
+  /fileSets:
+    head:
+      summary: Check endpoint availability
+      description: Determines whether an endpoint is currently available.
+      operationId: headersForFileSets
+      tags:
+      - File Sets
+      parameters:
+      - $ref: "#/components/parameters/collectionStart"
+      - $ref: "#/components/parameters/collectionLimit"
+      - $ref: "#/components/parameters/collectionFilter"
+      - $ref: "#/components/parameters/collectionSortBy"
+      responses:
+        "200":
+          description: The request succeeded.
+        "400":
+          description: There are errors in the request.
+        "406":
+          description: The content media types are unacceptable.
+    get:
+      summary: Get a collection of file sets
+      description: Returns a collection of file-set objects that meet the specified
+        query parameters.
+      operationId: getFileSets
+      tags:
+      - File Sets
+      parameters:
+      - $ref: "#/components/parameters/collectionStart"
+      - $ref: "#/components/parameters/collectionLimit"
+      - $ref: "#/components/parameters/collectionFilter"
+      - $ref: "#/components/parameters/collectionSortBy"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/fileSetCollection"
+              examples:
+                fileSets:
+                  $ref: "#/components/examples/fileSetCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/fileSetCollection"
+              examples:
+                fileSets:
+                  $ref: "#/components/examples/fileSetCollection"
+        "400":
+          $ref: "#/components/responses/fileSetsQueryBadResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+    post:
+      summary: Create a file set
+      description: Creates a file set to hold files to transport to and from the cluster.
+        The file set object that is passed in, requires only the context ID set.
+      operationId: createFileSet
+      tags:
+      - File Sets
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.batch.file.set+json;version=1:
+            schema:
+              $ref: "#/components/schemas/fileSet"
+            examples:
+              fileSet:
+                $ref: "#/components/examples/fileSet"
+          application/vnd.sas.batch.file.set+json:
+            schema:
+              $ref: "#/components/schemas/fileSet"
+            examples:
+              fileSet:
+                $ref: "#/components/examples/fileSet"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/fileSet"
+            examples:
+              fileSet:
+                $ref: "#/components/examples/fileSet"
+      responses:
+        "201":
+          description: The file set was created.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Last-Modified:
+              $ref: "#/components/headers/Last-Modified"
+            Location:
+              description: Actual location of resource.
+              schema:
+                type: string
+              example: /batch/fileSets/JOB_20220614_150046_039_1
+          content:
+            application/vnd.sas.batch.file.set+json;version=1:
+              schema:
+                $ref: "#/components/schemas/fileSet"
+              examples:
+                fileSet:
+                  $ref: "#/components/examples/fileSet"
+            application/vnd.sas.batch.file.set+json:
+              schema:
+                $ref: "#/components/schemas/fileSet"
+              examples:
+                fileSet:
+                  $ref: "#/components/examples/fileSet"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/fileSet"
+              examples:
+                fileSet:
+                  $ref: "#/components/examples/fileSet"
+        "400":
+          $ref: "#/components/responses/fileSetCreateRequestBadResponse"
+        "404":
+          $ref: "#/components/responses/contextNotFoundResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+  /fileSets/{fileSetId}:
+    get:
+      summary: Get a file set object
+      description: Returns the information about the specified file set.
+      operationId: getFileSet
+      tags:
+      - File Sets
+      parameters:
+      - $ref: "#/components/parameters/fileSetId"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Last-Modified:
+              $ref: "#/components/headers/Last-Modified"
+            Location:
+              description: Actual location of resource.
+              schema:
+                type: string
+              example: /batch/fileSets/JOB_20220614_150046_039_1
+          content:
+            application/vnd.sas.batch.file.set+json;version=1:
+              schema:
+                $ref: "#/components/schemas/fileSet"
+              examples:
+                fileSet:
+                  $ref: "#/components/examples/fileSet"
+            application/vnd.sas.batch.file.set+json:
+              schema:
+                $ref: "#/components/schemas/fileSet"
+              examples:
+                fileSet:
+                  $ref: "#/components/examples/fileSet"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/fileSet"
+              examples:
+                fileSet:
+                  $ref: "#/components/examples/fileSet"
+        "404":
+          $ref: "#/components/responses/fileSetNotFoundResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+    head:
+      summary: Verify that a file set exists
+      description: Determines whether a specified file set exists. Returns headers
+        for the specified file set.
+      operationId: headersForFileSet
+      tags:
+      - File Sets
+      parameters:
+      - $ref: "#/components/parameters/fileSetId"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Last-Modified:
+              $ref: "#/components/headers/Last-Modified"
+            Location:
+              description: Actual location of resource.
+              schema:
+                type: string
+              example: /batch/fileSets/JOB_20220614_150046_039_1
+        "404":
+          description: The requested resource does not exist.
+        "406":
+          description: The content media types are unacceptable.
+    delete:
+      summary: Delete a file set
+      description: Deletes the specified file set and its contents.
+      operationId: deleteFileSet
+      tags:
+      - File Sets
+      parameters:
+      - $ref: "#/components/parameters/fileSetId"
+      responses:
+        "204":
+          description: The request succeeded and no content was returned. This is
+            returned whether the file set actually existed or not.
+        "409":
+          $ref: "#/components/responses/fileSetNotDeletableResponse"
+  /fileSets/{fileSetId}/files:
+    head:
+      summary: Check endpoint availability
+      description: Determines whether an endpoint is currently available.
+      operationId: headersForFileSetFiles
+      tags:
+      - File Sets
+      parameters:
+      - $ref: "#/components/parameters/fileSetId"
+      responses:
+        "200":
+          description: The request succeeded.
+        "404":
+          description: The requested resource does not exist.
+        "406":
+          description: The content media types are unacceptable.
+    get:
+      summary: Get the contents of a file set
+      description: Returns a collection of file-information objects representing all
+        the files contained in the specified file set.
+      operationId: getFileSetFiles
+      tags:
+      - File Sets
+      parameters:
+      - $ref: "#/components/parameters/fileSetId"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/fileSetFileCollection"
+              examples:
+                fileSetFiles:
+                  $ref: "#/components/examples/fileSetFileCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/fileSetFileCollection"
+              examples:
+                fileSetFiles:
+                  $ref: "#/components/examples/fileSetFileCollection"
+        "404":
+          $ref: "#/components/responses/fileSetNotFoundResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+  /fileSets/{fileSetId}/files/{fileName}:
+    head:
+      summary: Verify that a file in a file set exists
+      description: Determines whether a specified file in a specified file set exists.
+        Returns headers for the specified file in the file set.
+      operationId: headersForFileSetFile
+      tags:
+      - File Sets
+      parameters:
+      - $ref: "#/components/parameters/fileSetId"
+      - $ref: "#/components/parameters/fileName"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: A tag that identifies the revision of this object.
+              schema:
+                type: string
+              example: W/"1655120228210222000"
+            Last-Modified:
+              description: The date when the resource was last modified.
+              schema:
+                type: string
+              example: Tue, 14 Jun 2022 15:00:46 GMT
+        "404":
+          description: The requested resource does not exist.
+        "406":
+          description: The content media types are unacceptable.
+    get:
+      summary: Get the information about a file in a file set
+      description: Gets the metadata attached to a file in a file set. application/octet-stream
+        headers returns the information and content of the specified file from the
+        specified file set. application/vnd.sas.batch.file.set.file+json and application/json
+        returns information about the specified file from the specified file set
+      operationId: getFileSetFile
+      tags:
+      - File Sets
+      parameters:
+      - $ref: "#/components/parameters/fileSetId"
+      - $ref: "#/components/parameters/fileName"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: A tag that identifies the revision of this object.
+              schema:
+                type: string
+              example: W/"1655120228210222000"
+            Last-Modified:
+              description: The date when the resource was last modified.
+              schema:
+                type: string
+              example: Tue, 14 Jun 2022 15:00:46 GMT
+          content:
+            application/vnd.sas.batch.file.set.file+json;version=1:
+              schema:
+                $ref: "#/components/schemas/fileSetFile"
+              examples:
+                fileSetFile:
+                  $ref: "#/components/examples/fileSetFile"
+            application/vnd.sas.batch.file.set.file+json:
+              schema:
+                $ref: "#/components/schemas/fileSetFile"
+              examples:
+                fileSetFile:
+                  $ref: "#/components/examples/fileSetFile"
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+              example: |
+                data _null_;
+                  x = sleep(400, 1);
+                run;
+            application/json:
+              schema:
+                $ref: "#/components/schemas/fileSetFile"
+              examples:
+                fileSetFile:
+                  $ref: "#/components/examples/fileSetFile"
+        "304":
+          $ref: "#/components/responses/Redirect304"
+        "404":
+          $ref: "#/components/responses/fileSetFileNotFoundResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+    put:
+      summary: Set the contents of a file in a file set
+      description: Creates or updates the contents of a specified file in the specified
+        file set.
+      operationId: updateFileSetFile
+      tags:
+      - File Sets
+      parameters:
+      - $ref: "#/components/parameters/fileSetId"
+      - $ref: "#/components/parameters/fileName"
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+            example: |
+              data _null_;
+                x = sleep(400, 1);
+              run;
+      responses:
+        "200":
+          description: The request succeeded.
+        "404":
+          $ref: "#/components/responses/fileSetNotFoundResponse"
+  /jobs:
+    head:
+      summary: Check endpoint availability
+      description: Determines whether an endpoint is currently available.
+      operationId: headersForJobs
+      tags:
+      - Jobs
+      parameters:
+      - $ref: "#/components/parameters/collectionStart"
+      - $ref: "#/components/parameters/collectionLimit"
+      - $ref: "#/components/parameters/collectionFilter"
+      - $ref: "#/components/parameters/collectionSortBy"
+      responses:
+        "200":
+          description: The request succeeded.
+        "400":
+          description: There are errors in the request.
+        "406":
+          description: The content media types are unacceptable.
+    get:
+      summary: Get a collection of Jobs
+      description: Returns a collection of job objects in the form of an application/vnd.sas.collection.
+        It is based on the specified query parameters.
+      operationId: getJobs
+      tags:
+      - Jobs
+      parameters:
+      - $ref: "#/components/parameters/collectionStart"
+      - $ref: "#/components/parameters/collectionLimit"
+      - $ref: "#/components/parameters/collectionFilter"
+      - $ref: "#/components/parameters/collectionSortBy"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/jobCollection"
+              examples:
+                jobs:
+                  $ref: "#/components/examples/jobCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/jobCollection"
+              examples:
+                jobs:
+                  $ref: "#/components/examples/jobCollection"
+        "400":
+          $ref: "#/components/responses/jobsQueryBadResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+    post:
+      summary: Create a SAS job
+      description: Creates a new job to run a SAS program. The type of job is created
+        depending on the Accept header. application/vnd.sas.batch.job.request.sas.batch+json
+        headers creates a Batch job to run a SAS program. application/vnd.sas.batch.job.request.sas.line.mode+json
+        headers creates a new interactive job to run SAS in line mode. application/vnd.sas.batch.job.request.command.batch+json
+        headers creates a Batch job to run an arbitrary command. application/vnd.sas.batch.job.request.command.interactive+json
+        headers creates an interactive job to run an arbitrary command.
+      operationId: createJob
+      tags:
+      - Jobs
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.batch.job.request.sas.batch+json;version=1:
+            schema:
+              $ref: "#/components/schemas/jobRequestBatchSas"
+            examples:
+              jobRequest:
+                $ref: "#/components/examples/jobRequestBatchSas"
+          application/vnd.sas.batch.job.request.sas.batch+json;version=2:
+            schema:
+              $ref: "#/components/schemas/jobRequestBatchSas"
+            examples:
+              jobRequest:
+                $ref: "#/components/examples/jobRequestBatchSas"
+          application/vnd.sas.batch.job.request.sas.batch+json:
+            schema:
+              $ref: "#/components/schemas/jobRequestBatchSas"
+            examples:
+              jobRequest:
+                $ref: "#/components/examples/jobRequestBatchSas"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/jobRequestBatchSas"
+            examples:
+              jobRequest:
+                $ref: "#/components/examples/jobRequestBatchSas"
+          application/vnd.sas.batch.job.request.sas.line.mode+json;version=1:
+            schema:
+              $ref: "#/components/schemas/jobRequestInteractiveSas"
+            examples:
+              jobRequest:
+                $ref: "#/components/examples/jobRequestInteractiveSas"
+          application/vnd.sas.batch.job.request.sas.line.mode+json:
+            schema:
+              $ref: "#/components/schemas/jobRequestInteractiveSas"
+            examples:
+              jobRequest:
+                $ref: "#/components/examples/jobRequestInteractiveSas"
+          application/vnd.sas.batch.job.request.command.batch+json;version=1:
+            schema:
+              $ref: "#/components/schemas/jobRequestBatchCommand"
+            examples:
+              jobRequest:
+                $ref: "#/components/examples/jobRequestBatchCommand"
+          application/vnd.sas.batch.job.request.command.batch+json;version=2:
+            schema:
+              $ref: "#/components/schemas/jobRequestBatchCommand"
+            examples:
+              jobRequest:
+                $ref: "#/components/examples/jobRequestBatchCommand"
+          application/vnd.sas.batch.job.request.command.batch+json:
+            schema:
+              $ref: "#/components/schemas/jobRequestBatchCommand"
+            examples:
+              jobRequest:
+                $ref: "#/components/examples/jobRequestBatchCommand"
+          application/vnd.sas.batch.job.request.command.interactive+json;version=1:
+            schema:
+              $ref: "#/components/schemas/jobRequestInteractiveCommand"
+            examples:
+              jobRequest:
+                $ref: "#/components/examples/jobRequestInteractiveCommand"
+          application/vnd.sas.batch.job.request.command.interactive+json:
+            schema:
+              $ref: "#/components/schemas/jobRequestInteractiveCommand"
+            examples:
+              jobRequest:
+                $ref: "#/components/examples/jobRequestInteractiveCommand"
+      responses:
+        "201":
+          description: The job was created.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Last-Modified:
+              $ref: "#/components/headers/Last-Modified"
+            Location:
+              $ref: "#/components/headers/Location"
+          content:
+            application/vnd.sas.batch.job+json;version=1:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                job:
+                  $ref: "#/components/examples/job"
+            application/vnd.sas.batch.job+json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                job:
+                  $ref: "#/components/examples/job"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                job:
+                  $ref: "#/components/examples/job"
+        "400":
+          $ref: "#/components/responses/jobCreateRequestBadResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+  /jobs/{jobId}:
+    head:
+      summary: Verify that a job exists
+      description: Determines whether a specific job exists.
+      operationId: headersForJob
+      tags:
+      - Jobs
+      parameters:
+      - $ref: "#/components/parameters/jobId"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Last-Modified:
+              $ref: "#/components/headers/Last-Modified"
+            Location:
+              $ref: "#/components/headers/Location"
+        "304":
+          $ref: "#/components/responses/Redirect304"
+        "404":
+          description: The requested resource does not exist.
+        "406":
+          description: The content media types are unacceptable.
+    get:
+      summary: Get the job information
+      description: Gets the job information or job state information for the specified
+        job.
+      operationId: getJob
+      tags:
+      - Jobs
+      parameters:
+      - $ref: "#/components/parameters/jobId"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Last-Modified:
+              $ref: "#/components/headers/Last-Modified"
+            Location:
+              $ref: "#/components/headers/Location"
+          content:
+            application/vnd.sas.batch.job+json;version=1:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                job:
+                  $ref: "#/components/examples/job"
+            application/vnd.sas.batch.job+json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                job:
+                  $ref: "#/components/examples/job"
+            application/vnd.sas.batch.job.state+json;version=1:
+              schema:
+                $ref: "#/components/schemas/jobState"
+              examples:
+                job:
+                  $ref: "#/components/examples/jobState"
+            application/vnd.sas.batch.job.state+json:
+              schema:
+                $ref: "#/components/schemas/jobState"
+              examples:
+                job:
+                  $ref: "#/components/examples/jobState"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                job:
+                  $ref: "#/components/examples/job"
+        "304":
+          $ref: "#/components/responses/Redirect304"
+        "404":
+          $ref: "#/components/responses/jobNotFoundResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+    delete:
+      summary: Delete a job
+      description: Deletes a job with the specified job ID.
+      operationId: deleteJob
+      tags:
+      - Jobs
+      parameters:
+      - $ref: "#/components/parameters/jobId"
+      responses:
+        "204":
+          description: The request succeeded and no content was returned. This is
+            returned whether the job actually existed or not.
+  /jobs/{jobId}/input:
+    post:
+      summary: Send STDIO input text to a job
+      description: Sends the specified array of text strings to a running job to use
+        as STDIN.
+      operationId: updateJobStdIn
+      tags:
+      - Jobs
+      parameters:
+      - $ref: "#/components/parameters/jobId"
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.batch.job.stdin+json:
+            schema:
+              $ref: "#/components/schemas/jobStdioInput"
+            examples:
+              jobInput:
+                $ref: "#/components/examples/jobStdioInput"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/jobStdioInput"
+            examples:
+              jobInput:
+                $ref: "#/components/examples/jobStdioInput"
+      responses:
+        "200":
+          description: The request succeeded.
+        "400":
+          $ref: "#/components/responses/jobSendInputBadResponse"
+        "404":
+          $ref: "#/components/responses/jobNotFoundResponse"
+        "409":
+          $ref: "#/components/responses/jobNotRunningResponse"
+  /jobs/{jobId}/output:
+    post:
+      summary: Retrieve the STDIO ouput of a job
+      description: Retrieves the STDIO text from STDOUT and STDERR output from a running
+        job.
+      operationId: getJobStdOut
+      tags:
+      - Jobs
+      parameters:
+      - $ref: "#/components/parameters/jobId"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.batch.job.stdout+json:
+              schema:
+                $ref: "#/components/schemas/jobStdioOutput"
+              examples:
+                job:
+                  $ref: "#/components/examples/jobStdioOutput"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/jobStdioOutput"
+              examples:
+                job:
+                  $ref: "#/components/examples/jobStdioOutput"
+        "400":
+          $ref: "#/components/responses/jobNotOutputtingResponse"
+        "404":
+          $ref: "#/components/responses/jobNotFoundResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+        "409":
+          $ref: "#/components/responses/jobNotRunningResponse"
+  /jobs/{jobId}/state:
+    head:
+      summary: Verify that a job state exists
+      description: Determines whether a specific job state exists.
+      operationId: headersForJobState
+      tags:
+      - Jobs
+      parameters:
+      - $ref: "#/components/parameters/jobId"
+      responses:
+        "200":
+          description: The request succeeded.
+        "404":
+          description: The requested resource does not exist.
+        "406":
+          description: The content media types are unacceptable.
+    get:
+      summary: Get the state of a job
+      description: "Gets the plain text version of the specified job's state. The\
+        \ returned text is one of the following values: 'pending', 'running', 'completed',\
+        \ 'failed', 'unknown'."
+      operationId: getJobState
+      tags:
+      - Jobs
+      parameters:
+      - $ref: "#/components/parameters/jobId"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum: [pending, running, completed, failed, unknown]
+              example: completed
+        "404":
+          $ref: "#/components/responses/jobNotFoundResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+    put:
+      summary: Change the state of a job
+      description: Changes the state of a specified job. The only state currently
+        allowed is 'canceled'.
+      operationId: updateJobState
+      tags:
+      - Jobs
+      parameters:
+      - $ref: "#/components/parameters/jobId"
+      - $ref: "#/components/parameters/jobState"
+      responses:
+        "200":
+          description: The request succeeded.
+        "400":
+          $ref: "#/components/responses/jobStateValueMissingInvalidResponse"
+        "404":
+          $ref: "#/components/responses/jobNotFoundResponse"
+  /servers:
+    head:
+      summary: Check endpoint availability
+      description: Determines whether an endpoint is currently available.
+      operationId: headersForServers
+      tags:
+      - Servers
+      parameters:
+      - $ref: "#/components/parameters/collectionStart"
+      - $ref: "#/components/parameters/collectionLimit"
+      - $ref: "#/components/parameters/collectionFilter"
+      - $ref: "#/components/parameters/collectionSortBy"
+      responses:
+        "200":
+          description: The request succeeded.
+        "400":
+          $ref: "#/components/responses/serversQueryBadResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+    get:
+      summary: Get a collection of Servers
+      description: Return a collection of server objects in the form of an application/vnd.sas.collection.
+        It is based on the specified query parameters.
+      operationId: getServers
+      tags:
+      - Servers
+      parameters:
+      - $ref: "#/components/parameters/collectionStart"
+      - $ref: "#/components/parameters/collectionLimit"
+      - $ref: "#/components/parameters/collectionFilter"
+      - $ref: "#/components/parameters/collectionSortBy"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/serverCollection"
+              examples:
+                jobs:
+                  $ref: "#/components/examples/serverCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/serverCollection"
+              examples:
+                jobs:
+                  $ref: "#/components/examples/serverCollection"
+        "400":
+          $ref: "#/components/responses/serversQueryBadResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+  /servers/{serverId}:
+    head:
+      summary: Verify that a reusable Batch server exists
+      description: Determines whether a specific reusable Batch server exists.
+      operationId: headersForServer
+      tags:
+      - Servers
+      parameters:
+      - $ref: "#/components/parameters/serverId"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Location:
+              $ref: "#/components/headers/Location"
+        "404":
+          description: The requested resource does not exist.
+        "406":
+          description: The content media types are unacceptable.
+    get:
+      summary: Get the reusable Batch server information
+      description: Gets the reusable Batch server information for the specified reusable
+        Batch server.
+      operationId: getServer
+      tags:
+      - Servers
+      parameters:
+      - $ref: "#/components/parameters/serverId"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Location:
+              $ref: "#/components/headers/Location"
+          content:
+            application/vnd.sas.batch.server+json;version=1:
+              schema:
+                $ref: "#/components/schemas/server"
+              examples:
+                job:
+                  $ref: "#/components/examples/server"
+            application/vnd.sas.batch.server+json:
+              schema:
+                $ref: "#/components/schemas/server"
+              examples:
+                job:
+                  $ref: "#/components/examples/server"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/server"
+              examples:
+                job:
+                  $ref: "#/components/examples/server"
+        "404":
+          $ref: "#/components/responses/serverNotFoundResponse"
+        "406":
+          $ref: "#/components/responses/notAcceptableResponse"
+    delete:
+      summary: Delete a reusable Batch server
+      description: Deletes a reusable Batch server with the specified server ID.
+      operationId: deleteServer
+      tags:
+      - Servers
+      parameters:
+      - $ref: "#/components/parameters/serverId"
+      responses:
+        "204":
+          description: The request succeeded and no content was returned. This is
+            returned whether the server actually existed or not.
+components:
+  headers:
+    ETag:
+      description: A tag that identifies this revision of the resource.
+      schema:
+        type: string
+      example: W/"1655120228210222000"
+    Last-Modified:
+      description: The last `modifiedTimeStamp` of the resource.
+      schema:
+        type: string
+      example: Tue, 14 Jun 2022 15:00:46 GMT
+    Location:
+      description: Actual location of resource.
+      schema:
+        type: string
+  parameters:
+    collectionFilter:
+      name: filter
+      in: query
+      description: Specifies the filter criteria for returned items.
+      schema:
+        type: string
+        format: filter-criteria
+    collectionLimit:
+      name: limit
+      in: query
+      description: Limits the maximum number of resource items to return. The default
+        value is "10".
+      schema:
+        type: integer
+    collectionSortBy:
+      name: sortBy
+      in: query
+      description: Sorts returned items by the specified criteria.
+      schema:
+        type: string
+        format: sort-criteria
+    collectionStart:
+      name: start
+      in: query
+      description: Returns the offset of the first resource item to return. The default
+        value is "0".
+      schema:
+        type: integer
+    contextId:
+      name: contextId
+      in: path
+      description: The ID of the context.
+      required: true
+      schema:
+        type: string
+    contextName:
+      name: name
+      in: query
+      description: The name of the context.
+      required: true
+      schema:
+        type: string
+    fileName:
+      name: fileName
+      in: path
+      description: The name of the file.
+      required: true
+      schema:
+        type: string
+    fileSet:
+      name: fileSet
+      in: path
+      description: The ID of the file set.
+      required: true
+      schema:
+        type: string
+    fileSetId:
+      name: fileSetId
+      in: path
+      description: The ID of the file set.
+      required: true
+      schema:
+        type: string
+    jobId:
+      name: jobId
+      in: path
+      description: The ID of the job.
+      required: true
+      schema:
+        type: string
+    jobState:
+      name: value
+      in: query
+      description: The name of the state to set the job.
+      required: true
+      schema:
+        type: string
+        enum: [canceled]
+    serverId:
+      name: serverId
+      in: path
+      description: The ID of the reusable Batch server.
+      required: true
+      schema:
+        type: string
+  schemas:
+    context:
+      title: Batch Context
+      description: Provides information about the Launcher context and other processing
+        information that is used by the Batch service.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      - type: object
+        properties:
+          description:
+            type: string
+            description: Specifies the description of the Batch context.
+            maxLength: 1000
+            example: Context for High Priority Jobs
+          id:
+            type: string
+            description: Specifies the ID of the context assigned by the Batch service.
+            example: e086b29a-2d19-4b97-a912-ee15951e1549
+          allowXcmd:
+            type: boolean
+            description: Flag indicating whether XCMD is allowed in this context.
+              Allowed in version 4 and later of the context.
+            example: true
+          isMultiServer:
+            type: boolean
+            description: Flag indicating that this context is for a reusable Batch
+              server. Allowed in version 3 and later of the context.
+            example: true
+          launcherContextId:
+            type: string
+            description: Specifies the ID of the launcher context to use. Required
+              if launcherContextName is not provided.
+            example: 9087b3f5-aced-4aa0-a491-b9d33ce197c2
+          links:
+            type: array
+            readOnly: true
+            description: Specifies links that apply to the context.
+            items:
+              $ref: "#/components/schemas/link"
+          maxServers:
+            type: integer
+            format: uint64
+            description: If this is a reusable Batch server, this is the maximum number
+              of servers allowed to run. Allowed in version 3 and later of the context.
+            example: 5
+            minimum: 0
+          minServers:
+            type: integer
+            format: uint64
+            description: If this is a reusable Batch server, this is the minimum number
+              of servers always running. Allowed in version 3 and later of the context.
+            example: 2
+            minimum: 0
+          name:
+            type: string
+            description: Specifies the name of the Batch context.
+            maxLength: 100
+            example: HighPriority
+          providerOptions:
+            type: string
+            description: Specifies options to pass to SAS Workload Orchestrator. Currently
+              there are no options that can be set.
+            maxLength: 1000
+            example: option1=17
+          queueName:
+            type: string
+            description: Specifies the name of the SAS Workload Orchestrator queue
+              to use if SAS Workload Management is part of the deployment.
+            maxLength: 250
+            example: High Priority
+          runServerAs:
+            type: string
+            description: Specifies the service-account user name to use when working
+              with file sets and processing jobs. Allowed in version 2 and higher
+              of the context.
+            maxLength: 250
+            example: serviceAcctUser
+          requiredResources:
+            type: string
+            description: Specifies SAS Workload Orchestrator tags that identify on
+              which hosts this job can run if SAS Workload Management is part of the
+              deployment.
+            maxLength: 500
+            example: gpuRequired
+          sasOptions:
+            type: string
+            description: Specifies the SAS options to use on the SAS command line.
+            maxLength: 1000
+            example: "-memsize 0"
+          serverTimeout:
+            type: integer
+            format: uint64
+            description: If this is a reusable Batch server, this value is the number
+              of seconds that the server waits for a job before terminating. The default
+              is 300 seconds. Allowed in version 3 and later of the context.
+            example: 900
+          version:
+            type: integer
+            format: int32
+            readOnly: true
+            description: Specifies the version number of this representation schema.
+              This is version 1.
+            minimum: 1
+            maximum: 4
+    contextCollection:
+      title: Batch Context Collection
+      description: Provides an array of context-information objects that satisfies
+        the context-collection request.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            description: An array of Context objects.
+            items:
+              $ref: "#/components/schemas/context"
+    contextRequest:
+      title: Batch Context Request
+      description: Provides information to create a Batch context.
+      type: object
+      anyOf:
+      - required: ["launcherContextId", "launcherContextName"]
+      required:
+      - name
+      properties:
+        description:
+          type: string
+          description: Specifies the description of the Batch context.
+          maxLength: 1000
+          example: Context for High Priority Jobs
+        allowXcmd:
+          type: boolean
+          description: Flag indicating whether XCMD is allowed in this context. Allowed
+            in version 4 and later of the context.
+          example: true
+        launcherContextId:
+          type: string
+          description: Specifies the ID of the launcher context to use. Required if
+            launcherContextName is not provided.
+          example: 9087b3f5-aced-4aa0-a491-b9d33ce197c2
+        launcherContextName:
+          type: string
+          description: Specifies the name of the launcher context to use.
+          example: Batch Launcher Context for High Priority Jobs
+        name:
+          type: string
+          description: Specifies the name of the Batch context.
+          maxLength: 100
+          example: HighPriority
+        queueName:
+          type: string
+          description: Specifies the name of the SAS Workload Orchestrator queue to
+            use if SAS Workload Management is part of the deployment.
+          maxLength: 250
+          example: High Priority
+        requiredResources:
+          type: string
+          description: Specifies SAS Workload Orchestrator tags that identify on which
+            hosts this job can run if SAS Workload Management is part of the deployment.
+          maxLength: 500
+          example: gpuRequired
+        sasOptions:
+          type: string
+          description: Specifies the SAS options to use on the SAS command line.
+          maxLength: 1000
+          example: "-memsize 0"
+        version:
+          type: integer
+          format: int32
+          readOnly: true
+          description: Specifies the version number of this representation schema.
+            This is version 1.
+          minimum: 1
+          maximum: 4
+    contextMultipartFormData:
+      title: Batch Context Import Create Request
+      description: Provides information to create a Batch context through the transfer
+        service.
+      type: object
+      properties:
+        TransferDescriptor.json:
+          type: object
+          properties:
+            version:
+              description: Transfer Descriptor version
+              type: integer
+            name:
+              description: Name of transfer descriptor
+              type: string
+            type:
+              description: Type of object as registered in types service
+              type: string
+            properties:
+              description: Array of properties mapped to their value
+              type: object
+              properties:
+                name:
+                  description: Test Batch Create Context
+                  type: string
+                description:
+                  description: Description of Batch context
+                  type: string
+                launcherContextName:
+                  description: Name of launcher service context to use
+                  type: string
+                launcherContextID:
+                  description: ID of launcher service context to use
+                  type: string
+                queueName:
+                  description: Name of the SAS Workload Orchestrator queue to use
+                  type: string
+                providerOptions:
+                  description: Options to pass to the grid provider
+                  type: string
+                requiredResources:
+                  description: Specifies SAS Workload Orchestrator tags that identify
+                    on which hosts this job can run if SAS Workload Management is
+                    part of the deployment.
+                  type: string
+                sasOptions:
+                  description: SAS options to use
+                  type: string
+                allowXcmd:
+                  description: Flag indicating whether XCMD is allowed in this context
+                  type: boolean
+            links:
+              description: Specifies links that apply to the context.
+              type: array
+              items:
+                $ref: "#/components/schemas/link"
+    fileSet:
+      title: File Set
+      description: Provides information about a file set that contains files sent
+        to and from the cluster.
+      type: object
+      required:
+      - contextId
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      - type: object
+        properties:
+          contextId:
+            type: string
+            description: Specifies the context ID that is associated with the file
+              set.
+            example: 16c332b2-4ac6-483b-85f6-7bb9d2d5a576
+          id:
+            type: string
+            readOnly: true
+            description: Specifies the ID of the file set assigned by the Batch service.
+            example: JOB_20220606_182805_634_1
+          links:
+            type: array
+            readOnly: true
+            description: Specifies links that apply to the file set.
+            items:
+              $ref: "#/components/schemas/link"
+          version:
+            type: integer
+            format: int32
+            readOnly: true
+            description: Specifies the version number of this representation schema.
+              This is version 1.
+            minimum: 1
+            maximum: 1
+    fileSetCollection:
+      title: File Set Collection
+      description: Provides an array of file set information objects that satisfies
+        the file-set collection request.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            description: An array of file-set objects.
+            items:
+              $ref: "#/components/schemas/fileSet"
+    fileSetFile:
+      title: File Set File
+      description: Provides information about a file in a file set.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      - type: object
+        properties:
+          fileSetId:
+            type: string
+            readOnly: true
+            description: Specifies the file set ID that is associated with the file.
+            example: JOB_20220606_182805_634_1
+          name:
+            type: string
+            description: Specifies the name of the file.
+            example: myTestPgm.sas
+          size:
+            type: integer
+            format: int64
+            description: Specifies the name of the file.
+            example: 143568
+          links:
+            type: array
+            description: Specifies links that apply to the file.
+            items:
+              $ref: "#/components/schemas/link"
+          version:
+            type: integer
+            format: int32
+            readOnly: true
+            description: Specifies the version number of this representation schema.
+              This is version 1.
+            minimum: 1
+            maximum: 1
+    fileSetFileCollection:
+      title: File Set File Info Collection
+      description: Provides an array of file-information objects for the specified
+        file set.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            description: An array of file-set file objects.
+            items:
+              $ref: "#/components/schemas/fileSetFile"
+    job:
+      title: Batch Job
+      description: Provides information about a Batch job.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      - properties:
+          contextId:
+            type: string
+            readOnly: true
+            description: Specifies the context ID that is associated with the job.
+            example: 16c332b2-4ac6-483b-85f6-7bb9d2d5a576
+          endedTimeStamp:
+            type: string
+            format: date-time
+            readOnly: true
+            description: If present, it specifies the timestamp when the job ended.
+            example: 2022-06-01T13:55:32Z
+          executionHost:
+            type: string
+            description: If the job is running, this is the name of the host on which
+              the job is being processed.
+            example: myhost01.mycompany.com
+          fileSetId:
+            type: string
+            description: Specifies the ID of the file set to use for transporting
+              files to and from the job.
+            example: JOB_20220606_182805_634_1
+          id:
+            type: string
+            description: Specifies the ID of the job assigned by the Batch service.
+            example: 16a46fa5-f866-488d-9cec-92e226bfcf5
+          links:
+            type: array
+            description: Specifies links that apply to the job.
+            items:
+              $ref: "#/components/schemas/link"
+          name:
+            type: string
+            description: The name of the job
+            example: Monthly Status Report for New York
+          port:
+            type: integer
+            description: If the job is running, this is the port on which the job
+              can be contacted by the Batch service to get the STDOUT information.
+            example: 23645
+          processId:
+            type: string
+            description: The operating system process ID of the job process.
+            example: "5"
+          workloadJobId:
+            type: string
+            description: If SAS Workload Management is in the deployment, this is
+              the SAS Workload Orchestrator job ID.
+            example: "1375"
+          returnCode:
+            type: integer
+            description: If the job has finished, this is the return code from the
+              process.
+            example: 2
+          state:
+            type: string
+            description: The processing state of the Batch job.
+            example: failed
+            enum:
+            - pending
+            - running
+            - completed
+            - failed
+            - unknown
+          startedTimeStamp:
+            type: string
+            format: date-time
+            readOnly: true
+            description: If present, it specifies the timestamp when the job was started.
+            example: 2022-06-01T13:45:32Z
+          submittedTimeStamp:
+            type: string
+            format: date-time
+            readOnly: true
+            description: Specifies the timestamp when the job was submitted.
+            example: 2022-06-01T13:44:32Z
+          version:
+            type: integer
+            format: int32
+            readOnly: true
+            description: Specifies the version number of this representation schema.
+              This is version 1.
+            minimum: 1
+            maximum: 1
+    jobCollection:
+      title: Batch Job Collection
+      description: Provides an array of job-information objects that satisfies the
+        job-collection request.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            description: An array of Job objects.
+            items:
+              $ref: "#/components/schemas/job"
+    jobState:
+      title: Batch Job State
+      description: Provides information about a job's processing state.
+      type: object
+      properties:
+        executionHost:
+          type: string
+          description: If the job is running, this is the name of the host on which
+            the job is being processed.
+          example: myhost01.mycompany.com
+        port:
+          type: integer
+          description: If the job is running, this is the port on which the job can
+            be contacted by the Batch service to get the STDOUT information.
+          example: 27359
+        state:
+          type: string
+          description: The processing state of the Batch job.
+          example: running
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          - unknown
+        version:
+          type: integer
+          format: int32
+          description: Specifies the version number of this representation schema.
+            This is version 1.
+          minimum: 1
+          maximum: 1
+    jobLauncherOptions:
+      title: Job Launch Options
+      description: Options that are passed on every job request that describe how
+        to process the job.
+      type: object
+      required:
+      - batchContextId
+      properties:
+        batchContextId:
+          type: string
+          description: The ID of the Batch context to use
+          example: 123e4567-e89b-12d3-a456-426614174000
+        jobName:
+          type: string
+          description: The name of the job
+          maxLength: 100
+          example: Monthly Status Report for New York
+        requiredResources:
+          type: string
+          description: Tags that specify on which hosts this job can run.
+          maxLength: 500
+          example: gpuRequired
+        workloadQueueName:
+          type: string
+          description: The name of the SAS Workload Orchestrator queue to use if SAS
+            Workload Management is part of the deployment.
+          maxLength: 250
+          example: "Priority Queue"
+    jobRequestBatchCommand:
+      title: Batch Command Job Request
+      description: Job request to run a command as a background task.
+      type: object
+      required:
+      - command
+      - fileSetId
+      - launcherOptions
+      - version
+      properties:
+        command:
+          type: string
+          description: Specifies the command and arguments to run in the Batch server.
+          example: "/bin/bash -c 'python3 mtPythonPgm.py'"
+        fileSetId:
+          type: string
+          description: Specifies the ID of the file set to use for transporting files
+            to and from the job.
+          example: JOB_20220606_182805_634_1
+        launcherOptions:
+          $ref: "#/components/schemas/jobLauncherOptions"
+        logFile:
+          type: string
+          description: >
+            Specifies the file name and, optionally, the path to use for the output
+            log file.
+            If the specified name is a full path, the user must be able to access
+            the existing directory or be able to create the directory path in the
+            Batch server pod.
+            If the specified path is only a file name and the outputDir option is
+            specified, the log file is placed in the specified output directory.
+            If the specified path is only a file name and the outputDir option is
+            not specified, the log file is placed in the file set.
+            The file name can use the following replaceable parameters in the file
+            name or path:
+            <UL>
+            <LI>@STARTTIME@ - the start time of the Batch job in YYYY-MM-DD-hh-mm-ss
+            format.
+            <LI>@FILESETID@ - the file set ID.
+            <LI>@SASPGMNAME@ - the base name of the SAS program.
+            </UL>
+            Available in version 2 and higher.
+          maxLength: 1000
+          example: "/my/path/in/my/batch/server/pod/@FILESETID@/myLog-@STARTTIME@.log"
+        outputDir:
+          type: string
+          description: >
+            Specifies a directory in the server that is used to store job output.
+            The default is to upload the files to the file set.
+            The user must be able to either access the existing directory or create
+            the directory path in the Batch server pod.
+            The directory name can use the following replaceable parameters in the
+            name or path:
+            <UL>
+            <LI>@STARTTIME@ - the start time of the Batch job in YYYY-MM-DD-hh-mm-ss
+            format.
+            <LI>@FILESETID@ - the file set ID.
+            <LI>@SASPGMNAME@ - the base name of the SAS program.
+            </UL>
+            Available in version 2 and higher.
+          maxLength: 1000
+          example: "/my/path/in/my/batch/server/pod/@FILESETID@"
+        watchOutput:
+          type: boolean
+          description: Specifies whether the STDOUT of the Batch job is available
+            for retrieval through the REST API.
+          example: false
+        version:
+          type: integer
+          format: int32
+          readOnly: true
+          description: Specifies the version number of this representation schema.
+            This is version 1.
+          minimum: 1
+          maximum: 2
+    jobRequestBatchSas:
+      title: Batch SAS Job Request
+      description: Job request to run a SAS program as a background task.
+      type: object
+      required:
+      - fileSetId
+      - launcherOptions
+      - sasProgramName
+      - version
+      properties:
+        fileSetId:
+          type: string
+          description: Specifies the ID of the file set to use for transporting files
+            to and from the job.
+          example: JOB_20220606_182805_634_1
+        launcherOptions:
+          $ref: "#/components/schemas/jobLauncherOptions"
+        restartType:
+          type: string
+          description: Specifies whether the job can be restarted and the type of
+            restart. 'job' indicates that the job is restarted and no checkpoint restart
+            is done. 'label' indicates the job is restarted using SAS Label Checkpoint
+            restart. 'none' indicates the job cannot be restarted. 'step' indicates
+            the job is restarted using SAS Data Step Checkpoint restart.
+          example: job
+          enum:
+          - job
+          - label
+          - none
+          - step
+        listFile:
+          type: string
+          description: >
+            Specifies the file name and, optionally, the path to use for the output
+            SAS list file.
+            If the specified name is a full path, the user must be able to access
+            the existing directory or be able to create the directory path in the
+            Batch server pod.
+            If the specified path is only a file name and the outputDir option is
+            specified, the SAS list file is placed in the specified output directory.
+            If the specified path is only a file name and the outputDir option is
+            not specified, the SAS list file is placed in the file set.
+            The file name can use the following replaceable parameters in the file
+            name or path:
+            <UL>
+            <LI>@STARTTIME@ - the start time of the Batch job in YYYY-MM-DD-hh-mm-ss
+            format.
+            <LI>@FILESETID@ - the file set ID.
+            <LI>@SASPGMNAME@ - the base name of the SAS program.
+            </UL>
+            Available in version 2 and higher.
+          maxLength: 1000
+          example: "/my/path/in/my/batch/server/pod/@FILESETID@/mySASPgm-@STARTTIME@.lst"
+        logFile:
+          type: string
+          description: >
+            Specifies the file name and, optionally, the path to use for the output
+            SAS log file.
+            If the specified name is a full path, the user must be able to access
+            the existing directory or be able to create the directory path in the
+            Batch server pod.
+            If the specified path is only a file name and the outputDir option is
+            specified, the SAS log file is placed in the specified output directory.
+            If the specified path is only a file name and the outputDir option is
+            not specified, the SAS log file is placed in the file set.
+            The file name can use the following replaceable parameters in the file
+            name or path:
+            <UL>
+            <LI>@STARTTIME@ - the start time of the Batch job in YYYY-MM-DD-hh-mm-ss
+            format.
+            <LI>@FILESETID@ - the file set ID.
+            <LI>@SASPGMNAME@ - the base name of the SAS program.
+            </UL>
+            Available in version 2 and higher.
+          maxLength: 1000
+          example: "/my/path/in/my/batch/server/pod/@FILESETID@/mySASPgm-@STARTTIME@.log"
+        outputDir:
+          type: string
+          description: >
+            Specifies a directory in the server that is used to store job output.
+            The default is to upload the files to the file set.
+            The user must be able to either access the existing directory or create
+            the directory path in the Batch server pod.
+            The directory name can use the following replaceable parameters in the
+            name or path:
+            <UL>
+            <LI>@STARTTIME@ - the start time of the Batch job in YYYY-MM-DD-hh-mm-ss
+            format.
+            <LI>@FILESETID@ - the file set ID.
+            <LI>@SASPGMNAME@ - the base name of the SAS program.
+            </UL>
+            Available in version 2 and higher.
+          maxLength: 1000
+          example: "/my/path/in/my/batch/server/pod/@FILESETID@"
+        sasProgramName:
+          type: string
+          description: Specifies the file name of the program to process.
+          example: "myTestProgram.sas"
+        sasOptions:
+          type: string
+          description: Specifies the SAS options to use on the SAS command line.
+          maxLength: 1000
+          example: "-memsize 2048"
+        watchOutput:
+          type: boolean
+          description: Specifies whether the STDOUT of the Batch job is available
+            for retrieval through the REST API.
+          example: true
+        version:
+          type: integer
+          format: int32
+          readOnly: true
+          description: Specifies the version number of this representation schema.
+            This is version 2.
+          minimum: 1
+          maximum: 2
+    jobRequestInteractiveCommand:
+      title: Interactive Command Job Request
+      description: Job request to run a command with user interaction.
+      type: object
+      required:
+      - command
+      - launcherOptions
+      - version
+      properties:
+        command:
+          type: string
+          description: Specifies the command and arguments to run in the Batch server.
+          example: "/bin/bash -c 'ls -al /opt/sas/viya'"
+        launcherOptions:
+          $ref: "#/components/schemas/jobLauncherOptions"
+        version:
+          type: integer
+          format: int32
+          readOnly: true
+          description: Specifies the version number of this representation schema.
+            This is version 1.
+          minimum: 1
+          maximum: 1
+    jobRequestInteractiveSas:
+      title: Interactive SAS Job Request
+      description: Job request to run SAS interactively in line mode.
+      type: object
+      required:
+      - launcherOptions
+      - version
+      properties:
+        launcherOptions:
+          $ref: "#/components/schemas/jobLauncherOptions"
+        sasOptions:
+          type: string
+          description: Specifies the SAS options to use on the SAS command line.
+          maxLength: 1000
+          example: "-memsize 2048"
+        version:
+          type: integer
+          format: int32
+          readOnly: true
+          description: Specifies the version number of this representation schema.
+            This is version 1.
+          minimum: 1
+          maximum: 1
+    jobStdioInput:
+      title: Job STDIO Input
+      description: Job STDIO input sent to a running job.
+      type: object
+      required:
+      - input
+      - version
+      properties:
+        input:
+          description: Specifies the STDIN text lines to send to the running job.
+          type: array
+          items:
+            type: string
+          example: ["proc options option=SSLCALISTLOC; run;\n"]
+        version:
+          type: integer
+          format: int32
+          readOnly: true
+          description: Specifies the version number of this representation schema.  This
+            is version 1.
+          minimum: 1
+          maximum: 1
+    jobStdioOutput:
+      title: Job STDIO Output
+      description: Job STDIO output and error test.
+      type: object
+      required:
+      - errors
+      - output
+      - version
+      properties:
+        errors:
+          description: Specifies the STDERR text lines from the running job.
+          type: array
+          items:
+            type: string
+          example: ["This is an error message\n"]
+        output:
+          description: Specifies the STDOUT text lines from the running job.
+          type: array
+          items:
+            type: string
+          example: ["This is one line of output\n", "This is the next line of output\n"]
+        version:
+          type: integer
+          format: int32
+          readOnly: true
+          description: Specifies the version number of this representation schema.
+            This is version 1.
+          minimum: 1
+          maximum: 1
+    server:
+      title: Reusable Batch Server
+      description: Provides information about a reusable Batch server.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      - properties:
+          contextId:
+            type: string
+            readOnly: true
+            description: Specifies the context ID that is associated with the reusable
+              Batch server.
+            example: 16c332b2-4ac6-483b-85f6-7bb9d2d5a576
+          hostName:
+            type: string
+            readOnly: true
+            description: The name of the host on which the reusable Batch server is
+              running.
+            example: myhost01.mycompany.com
+          id:
+            type: string
+            readOnly: true
+            description: Specifies the ID of the reusable Batch server assigned by
+              the Batch service.
+            example: 16a46fa5-f866-488d-9cec-92e226bfcf5
+          isPermanent:
+            type: boolean
+            readOnly: true
+            description: Flag indicating whether the reusable Batch server is a permanent
+              server (no idle timeout) or a temporary server (with an idle timeout).
+            example: true
+          links:
+            type: array
+            description: Specifies links that apply to the reusable Batch server.
+            items:
+              $ref: "#/components/schemas/link"
+          processId:
+            type: string
+            readOnly: true
+            description: The launcher process ID of the reusable Batch server process.
+            example: "5"
+          queueName:
+            type: string
+            readOnly: true
+            description: The name of the SAS Workload Orchestrator queue that was
+              used when launching the reusable Batch server.
+            maxLength: 250
+            example: High Priority
+          ruleId:
+            type: string
+            readOnly: true
+            description: Specifies the authorization rule ID that is associated with
+              the reusable Batch server.
+            example: 16c332b2-4ac6-483b-85f6-7bb9d2d5a576
+          runServerAs:
+            type: string
+            readOnly: true
+            description: Specifies the user name under which the reusable Batch server
+              is running.
+            maxLength: 250
+            example: myUserName
+          state:
+            type: string
+            readOnly: true
+            description: The processing state of the reusable Batch server.
+            example: available
+            enum:
+            - startingForContext
+            - startingForJob
+            - available
+            - availableButCounted
+            - processing
+            - awaitingDeletion
+            - terminated
+          version:
+            type: integer
+            format: int32
+            readOnly: true
+            description: Specifies the version number of this representation schema.
+              This is version 1.
+            minimum: 1
+            maximum: 1
+    serverCollection:
+      title: Reusable Batch Server Collection
+      description: Provides an array of reusable Batch server-information objects
+        that satisfies the server-collection request.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            description: An array of Reusable Batch Server objects.
+            items:
+              $ref: "#/components/schemas/server"
+    transferObject:
+      title: Transfer Object
+      description: Content providers implementing the Transfer Object Provider contract
+        use this media type to store information about the content to be transfered.
+      type: object
+      properties:
+        id:
+          description: unique identifier of the object
+          type: string
+          format: object-id
+        version:
+          description: This media type's schema version number. This representation
+            is version 1.
+          type: integer
+        summary:
+          $ref: "#/components/schemas/summary"
+        content:
+          description: optional. Choose this or fileServiceContent. This is the content
+            object that must be serialized in a format that is valid for internet
+            transmission. This includes valid encoding formats like Base64 or data
+            structures like JSON. This is provided by the content provider and the
+            transfer service expects no visibility into or understanding of this value.
+          type: string
+        fileServiceContent:
+          description: optional. Choose this or content. This holds the URI of a file
+            service object that contains the transferrable object.
+          type: string
+        connectors:
+          description: A list of associations or references to other external objects
+            to recreate on import.
+          type: array
+          items:
+            $ref: "#/components/schemas/transferObjectConnector"
+        substitutions:
+          description: Map with keys of parameter and value. Used to replace the value
+            of parameter with the value of value.
+          type: object
+        links:
+          description: Paging links that apply to this object.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    transferObjectConnector:
+      title: Transfer Object Connector
+      description: Content providers implementing the Transfer Object Provider contract
+        use this media type to provide connection information for the content to be
+        transfered.
+      x-sas-media-type:
+        name: application/vnd.sas.transfer.object.connector
+        version: 1
+      properties:
+        id:
+          type: string
+          format: object-id
+          description: unique identifier of the object
+        name:
+          type: string
+          description: name of the related object
+        version:
+          type: integer
+          description: transfer object connector version
+        uri:
+          type: string
+          description: the URI of the related object
+        contentType:
+          type: string
+          description: media type of the related object
+        type:
+          type: string
+          description: type of connection. This can be any value the creator of the
+            connection wants but should be used to determine what to do to reconstitute
+            the relationship.
+        hints:
+          type: array
+          description: hints that can be used to help find the object to connect to
+            in the target system
+          items:
+            type: string
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    trackedResource:
+      title: Tracked Resource
+      type: object
+      description: This class is used to provide common attributes and behaviors around
+        tracking who and when objects were created and modified to representation
+        objects.
+      properties:
+        createdBy:
+          type: string
+          description: The username of whoever created the resource.
+        modifiedBy:
+          type: string
+          description: The username of whoever last modified the resource.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for when the resource was created.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for when the resource was last modified.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    summary:
+      title: Resource Summary
+      type: object
+      description: The summarized representation of a resource. Often used in collection
+        responses when more specific details aren't needed.
+      x-sas-media-type:
+        name: application/vnd.sas.summary
+        version: 1
+      required:
+      - id
+      - links
+      - version
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the resource.
+        name:
+          type: string
+          description: The name of the resource.
+        type:
+          type: string
+          description: The type of the resource.
+        description:
+          type: string
+          description: The description of the resource.
+        createdBy:
+          type: string
+          description: The user who created the resource.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was created.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the resource.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was last modified.
+        links:
+          type: array
+          description: The links that apply to the resource.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the resource. This representation is
+            version 1.
+  responses:
+    Redirect304:
+      description: The caller has the most current resource.
+      headers:
+        ETag:
+          $ref: "#/components/headers/ETag"
+        Last-Modified:
+          $ref: "#/components/headers/Last-Modified"
+    contextNotFoundResponse:
+      description: The specified context is not found.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 404
+            message: No resource is found for the path "/batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2".
+            details:
+            - "path: /batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2"
+            - "correlator: 78ebc222-7381-4fe9-b121-5693fa049ce7"
+    contextNameExistsResponse:
+      description: The specified context name is already in use. Context names must
+        be unique.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 409
+            message: The body member "name" has a value that is already in use by
+              another resource. (The specified value is "my context name".)
+            details:
+            - "path: /batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2"
+            - "correlator: 78ebc222-7381-4fe9-b121-5693fa049ce7"
+    contextRequestBadResponse:
+      description: The create context request is not valid due to one of the following
+        reasons. <UL> <LI> The request is not valid JSON. <LI> The version is not
+        a number. <LI> The version is not a valid value. <LI> A required field is
+        missing. <LI> A field's length is too long. <LI> The launcher context specified
+        by the context ID or context name is not found. </UL> See the returned error
+        response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 400
+            message: The body requires a value for either the member "launcherContextId"
+              or the member "launcherContextName", but a value was not specified for
+              either member.
+            details:
+            - "path: /batch/contexts"
+            - "correlator: 0c21a3fd-f9f6-48f7-92f0-7e3dff78ef2c"
+    contextUpdateBadResponse:
+      description: The update context request is not valid due to one of the following
+        reasons. <UL> <LI> The request is not valid JSON. <LI> The version is not
+        a number. <LI> The version is not a valid value. <LI> A required field is
+        missing. <LI> A field's length is too long. <LI> The launcher context specified
+        by the context ID or context name is not found. </UL> See the returned error
+        response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 400
+            message: The body member "launcherContextId" is missing or does not have
+              a value.
+            details:
+            - "path: /batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2"
+            - "correlator: 68b49731-8031-4bde-8381-3086336b2d05"
+    contextsQueryBadResponse:
+      description: The query contexts request is not valid due to one of the following
+        reasons. <UL> <LI> The start or limit value is not a number. <LI> The start
+        or limit value is less than 0. <LI> The filter parameter is not a valid value.
+        <LI> The sortBy parameter is not a valid value. </UL> See the returned error
+        response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            details:
+            - "path: /batch/contexts"
+            - "correlator: d50ccbd4-0186-43c0-8cbe-7c2e4cd8a500"
+            httpStatusCode: 400
+            message: The query parameter "start" has a value that is less than the
+              minimum value. (The specified value is -1 and the minimum value is 0.)
+            version: 2
+    contextQueryByNameBadResponse:
+      description: The query file sets request is not valid due to one of the following
+        reasons. <UL> <LI> The 'name' query parameter is not specified. <LI> The 'name'
+        query parameter is missing a value. </UL> See the returned error response
+        for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            details:
+            - "path: /batch/contexts/@item"
+            - "correlator: 845a0054-1054-459f-bc3f-d65889ae3198"
+            httpStatusCode: 400
+            message: The query parameter "name" is missing or does not have a value.
+            version: 2
+    fileSetNotFoundResponse:
+      description: The specified file set is not found.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 404
+            message: No resource is found for the path "/batch/fileSets/JOB_20220611_133426_136_1".
+            details:
+            - "path: /batch/fileSets/JOB_20220611_133426_136_1"
+            - "correlator: 78ebc222-7381-4fe9-b121-5693fa049ce7"
+    fileSetsQueryBadResponse:
+      description: The query file sets request is not valid due to one of the following
+        reasons. <UL> <LI> The start or limit value is not a number. <LI> The start
+        or limit value is less than 0. <LI> The filter parameter is not a valid value.
+        <LI> The sortBy parameter is not a valid value. </UL> See the returned error
+        response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 400
+            message: The query parameter "limit" has a value that is less than the
+              minimum value. (The specified value is -10 and the minimum value is
+              0.)
+            details:
+            - "path: /batch/fileSets"
+            - "correlator: b8fead1e-833c-457e-96e8-e1fa63d13080"
+    fileSetCreateRequestBadResponse:
+      description: The create file set request is not valid due to one of the following
+        reasons. <UL> <LI> The request is not valid JSON. <LI> The version is not
+        a number. <LI> The version is not a valid value. <LI> A required field is
+        missing. <LI> The context specified by the context ID is not found. </UL>
+        See the returned error response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 400
+            message: No resource is found for the value of the body member "contextId".
+              (The specified value is "6636c13f-7dea-43a5-b6c8-f17ea45b7c43".)
+            details:
+            - "path: /batch/fileSets"
+            - "correlator: 56c15145-3892-4877-9472-ed585e3eae8f"
+    fileSetCreateRequestForbiddenResponse:
+      description: The create file set request is not allowed due to the following
+        reason. <UL> <LI> The user is not authorized to use the specified context.
+        </UL> See the returned error response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 403
+            message: Forbidden
+            details:
+            - Unauthorized
+            - "path: /batch/fileSets"
+            - "correlator: db8421ba-88ed-4f5c-8250-43821e89730a"
+    fileSetNotDeletableResponse:
+      description: Cannot delete the specified file in the file set. It has a job
+        that depends on it.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 409
+            message: The file set cannot be deleted until its dependent jobs are deleted.
+            details:
+            - "path: /batch/fileSets/JOB_20220614_150046_039_1"
+            - "correlator: f0ea79e2-c8f9-46cc-8317-d04292e3f2a1"
+    fileSetFileNotFoundResponse:
+      description: The specified file in the file set is not found.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 404
+            message: No resource is found for the path "/batch/fileSets/JOB_20220611_133426_136_1/files/testPgm.sas".
+            details:
+            - "path: /batch/fileSets/JOB_20220611_133426_136_1/files/testPgm.sas"
+            - "correlator: 78ebc222-7381-4fe9-b121-5693fa049ce7"
+    jobNotFoundResponse:
+      description: The specified job is not found.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 404
+            message: No resource is found for the path "/batch/jobs/6794ba8a-6aff-4989-ae77-93f67286aea2".
+            details:
+            - "path: /batch/jobs/6794ba8a-6aff-4989-ae77-93f67286aea2"
+            - "correlator: 78ebc222-7381-4fe9-b121-5693fa049ce7"
+    jobsQueryBadResponse:
+      description: The query jobs request is not valid due to one of the following
+        reasons. <UL> <LI> The start or limit value is not a number. <LI> The start
+        or limit value is less than 0. <LI> The filter parameter is not a valid value.
+        <LI> The sortBy parameter is not a valid value. </UL> See the returned error
+        response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 400
+            message: The query parameter "sortBy" has a value that is not valid. (The
+              specified value is "unknownField".)
+            details:
+            - "InvalidInputError: Property unknownField not found Error Code: 1002"
+            - "path: /batch/jobs"
+            - "correlator: 2e56c2bd-9da4-42d5-881d-0882f69fcf25"
+    jobCreateRequestBadResponse:
+      description: The create job request is not valid due to one of the following
+        reasons. <UL> <LI> The request is not valid JSON. <LI> The version is not
+        a number. <LI> The version is not a valid value. <LI> A required field is
+        missing. <LI> A field's length is too long. <LI> An enumeration's value is
+        not a valid value. <LI> The file set specified by the file set ID is not found.
+        <LI> The context specified by the context ID is not found. <LI> The specified
+        file set is not associated with the specified context. </UL> See the returned
+        error response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 400
+            message: No resource is found for the value of the body member "launcherOptions.batchContextId".
+              (The specified value is "123e4567-e89b-12d3-a456-426614174000".)
+            details:
+            - "path: /batch/jobs"
+            - "correlator: acf24faf-a845-4555-91d9-0cffc23e2879"
+    jobCreateRequestForbiddenResponse:
+      description: The create job request is not allowed due to one of the following
+        reasons. <UL> <LI> The user is not allowed to create jobs of the specified
+        type. Batch command jobs, interactive command jobs, and interactive SAS jobs
+        are prohibited by default. They must be enabled in the Authorization service.
+        <LI> The user is not authorized to use the specified file set. <LI> The user
+        is not authorized to use the specified context. </UL> See the returned error
+        response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 403
+            message: Forbidden
+            details:
+            - Unauthorized
+            - "path: /batch/jobs"
+            - "correlator: db8421ba-88ed-4f5c-8250-43821e89730a"
+    jobSendInputBadResponse:
+      description: The send STDIN test request is not valid due to one of the following
+        reasons. <UL> <LI> The request body is not valid JSON. <LI> The version is
+        not a number. <LI> The version is not a valid value. <LI> A required field
+        is missing. <LI> The job is not requested to support providing STDIN. </UL>
+        See the returned error response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 400
+            message: The operation is not supported for the specified job's type.
+            details:
+            - "path: /batch/jobs/dbbb00c3-e67c-408b-bd84-9b57a2d69472/input"
+            - "correlator: 89ab33e7-365b-463d-81fe-29334e870e72"
+    jobNotOutputtingResponse:
+      description: The operation is not permitted on the specified job possibly because
+        output was not requested. See the returned error response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 400
+            message: The operation is not supported for the specified job.
+            details:
+            - "path: /batch/jobs/dbbb00c3-e67c-408b-bd84-9b57a2d69472/output"
+            - "correlator: 5a4022f8-a79a-4750-b4d5-d848ab60c579"
+    jobNotRunningResponse:
+      description: The operation is not permitted on the specified job because the
+        job is not in the running state. See the returned error response for more
+        information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 409
+            message: The operation cannot be performed because the specified job is
+              not running.
+            details:
+            - "path: /batch/jobs/d29c9526-6331-404e-b40b-2cd592d4d0af/output"
+            - "correlator: 0867e3d4-c6d7-423d-93c7-128784a12036"
+    jobStateValueMissingInvalidResponse:
+      description: The specified state value is missing or is not valid. See the returned
+        error response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 400
+            message: The query parameter "value" has a value that is not one of the
+              allowed values. (The specified value is "killed".)
+            details:
+            - "path: /batch/jobs/dbbb00c3-e67c-408b-bd84-9b57a2d69472/state"
+            - "correlator: 6d76a338-40b0-4ecc-8fa1-f964c6aabf59"
+            remediation: "Specify one of the following values: canceled"
+    missingPreconditionResponse:
+      description: The request does not contain an If-Match or If-Unmodified-Since
+        header as required on an update. See the returned error response for more
+        information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 428
+            message: The header requires a value for either the field "If-Match" or
+              the field "If-Unmodified-Since", but a value was not specified for either
+              field.
+            details:
+            - "path: /batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2"
+            - "correlator: 9e3922fe-032a-4877-a5e7-d9c035e606fb"
+            remediation: Specify either the resource's entity tag or the resource's
+              last-modified timestamp.
+    notAcceptableResponse:
+      description: The requested response type is not acceptable. See the returned
+        error response for more information and acceptable response types.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 406
+            message: Not Acceptable
+            details:
+            - application/vnd.sas.batch.context+json;version=1
+            - application/vnd.sas.batch.context+json
+            - application/json
+            - "correlator: 862224d8-eebb-48a4-8f72-412d0a20f162"
+    preconditionFailedResponse:
+      description: The If-Match or If-Unmodified-Since header's precondition failed.
+        See the returned error response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 412
+            message: The header field "If-Match" has a value that is different from
+              the entity tag for the resource. (The specified values are "W/"1655120228210222000""
+              and "W/"1655123439113567000"", respectively.)
+            details:
+            - "path: /batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2"
+            - "correlator: 7701b40b-9a12-44eb-b431-80e1774a4b36"
+    serverNotFoundResponse:
+      description: The specified reusable Batch server is not found.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 404
+            message: No resource is found for the path "/batch/servers/6794ba8a-6aff-4989-ae77-93f67286aea2".
+            details:
+            - "path: /batch/servers/6794ba8a-6aff-4989-ae77-93f67286aea2"
+            - "correlator: 78ebc222-7381-4fe9-b121-5693fa049ce7"
+    serversQueryBadResponse:
+      description: >
+        The query server request is not valid due to one of the following reasons:
+        <UL>
+        <LI> The start or limit value is not a number.
+        <LI> The start or limit value is less than 0.
+        <LI> The filter parameter is not a valid value.
+        <LI> The sortBy parameter is not a valid value.
+        </UL>
+        See the returned error response for more information.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 400
+            message: The query parameter "sortBy" has a value that is not valid. (The
+              specified value is "unknownField".)
+            details:
+            - "InvalidInputError: Property unknownField not found Error Code: 1002"
+            - "path: /batch/servers"
+            - "correlator: 2e56c2bd-9da4-42d5-881d-0882f69fcf25"
+  examples:
+    apiInfoResponse:
+      summary: Batch Service API Info
+      description: List of all the top-level links provided by the Batch Service.
+      value:
+        links:
+        - method: GET
+          rel: contexts
+          href: "/batch/contexts"
+          uri: "/batch/contexts"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.context
+        - method: POST
+          rel: createContext
+          href: "/batch/contexts"
+          uri: "/batch/contexts"
+          type: application/vnd.sas.batch.context
+        - method: POST
+          rel: createFileSet
+          href: "/batch/fileSets"
+          uri: "/batch/fileSets"
+          type: application/vnd.sas.batch.file.set
+        - method: GET
+          rel: fileSets
+          href: "/batch/fileSets"
+          uri: "/batch/fileSets"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.file.set
+        - method: POST
+          rel: createJobCommandBatch
+          href: "/batch/jobs"
+          uri: "/batch/jobs"
+          type: application/vnd.sas.batch.job.request.command.batch
+        - method: POST
+          rel: createJobCommandInteractive
+          href: "/batch/jobs"
+          uri: "/batch/jobs"
+          type: application/vnd.sas.batch.job.request.command.interactive
+        - method: POST
+          rel: createJobSASBatch
+          href: "/batch/jobs"
+          uri: "/batch/jobs"
+          type: application/vnd.sas.batch.job.request.sas.batch
+        - method: POST
+          rel: createJobSASLineMode
+          href: "/batch/jobs"
+          uri: "/batch/jobs"
+          type: application/vnd.sas.batch.job.request.sas.line.mode
+        - method: GET
+          rel: jobs
+          href: "/batch/jobs"
+          uri: "/batch/jobs"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.job
+        version: 1
+    context:
+      summary: Context
+      description: Example context returned in responses.
+      value:
+        allowXcmd: true
+        createdBy: sas.batch
+        creationTimeStamp: "2022-06-13T11:37:08.210222Z"
+        description: Default Batch Context
+        id: 6794ba8a-6aff-4989-ae77-93f67286aea2
+        isMultiServer: true
+        launcherContextId: 01a0ce1b-a704-4fd9-8475-11ec1e746a22
+        links:
+        - method: GET
+          rel: self
+          href: "/batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2"
+          uri: "/batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2"
+          type: application/vnd.sas.batch.context
+        - method: DELETE
+          rel: delete
+          href: "/batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2"
+          uri: "/batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2"
+        - method: GET
+          rel: up
+          href: "/batch/contexts"
+          uri: "/batch/contexts"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.context
+        maxServers: 0
+        minServers: 2
+        modifiedBy: someuser
+        modifiedTimeStamp: "2022-06-13T12:30:39.113567Z"
+        name: default
+        providerOptions: ""
+        queueName: default
+        requiredResources: "gpuRequired"
+        runServerAs: "myServiceAcct"
+        sasOptions: "-memsize 2048"
+        serverTimeout: 600
+        version: 4
+    contextCollection:
+      summary: Example Context Collection
+      description: Example of a SAS collection object full of Batch contexts.
+      value:
+        accept: application/vnd.sas.batch.context
+        count: 2
+        items:
+        - createdBy: sas.batch
+          creationTimeStamp: "2022-06-13T11:37:12.501276Z"
+          description: Default Batch Context for commands
+          id: 83e4801d-8bc2-4a6e-aaa1-a11f68985798
+          allowXcmd: true
+          isMultiServer: true
+          launcherContextId: d9a8437d-7f6b-4fbd-ae84-938d83cb096c
+          links:
+          - method: GET
+            rel: self
+            href: "/batch/contexts/83e4801d-8bc2-4a6e-aaa1-a11f68985798"
+            uri: "/batch/contexts/83e4801d-8bc2-4a6e-aaa1-a11f68985798"
+            type: application/vnd.sas.batch.context
+          - method: DELETE
+            rel: delete
+            href: "/batch/contexts/83e4801d-8bc2-4a6e-aaa1-a11f68985798"
+            uri: "/batch/contexts/83e4801d-8bc2-4a6e-aaa1-a11f68985798"
+          - method: GET
+            rel: up
+            href: "/batch/contexts"
+            uri: "/batch/contexts"
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.batch.context
+          maxServers: 0
+          minServers: 2
+          modifiedBy: sas.batch
+          modifiedTimeStamp: "2022-06-13T11:37:12.501276Z"
+          name: default-cmd
+          providerOptions: ""
+          queueName: ""
+          requiredResources: ""
+          runServerAs: "myServiceAcct"
+          sasOptions: ""
+          serverTimeout: 600
+          version: 4
+        - createdBy: sas.batch
+          creationTimeStamp: "2022-06-13T11:37:08.210222Z"
+          description: Default Batch Context
+          id: 6794ba8a-6aff-4989-ae77-93f67286aea2
+          allowXcmd: false
+          isMultiServer: false
+          launcherContextId: 01a0ce1b-a704-4fd9-8475-11ec1e746a22
+          links:
+          - method: GET
+            rel: self
+            href: "/batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2"
+            uri: "/batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2"
+            type: application/vnd.sas.batch.context
+          - method: DELETE
+            rel: delete
+            href: "/batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2"
+            uri: "/batch/contexts/6794ba8a-6aff-4989-ae77-93f67286aea2"
+          - method: GET
+            rel: up
+            href: "/batch/contexts"
+            uri: "/batch/contexts"
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.batch.context
+          maxServers: 0
+          minServers: 0
+          modifiedBy: someuser
+          modifiedTimeStamp: "2022-06-13T12:30:39.113567Z"
+          name: default
+          providerOptions: ""
+          queueName: default
+          requiredResources: gpuRequired
+          runServerAs: ""
+          sasOptions: "-memsize 2048"
+          serverTimeout: 300
+          version: 4
+        limit: 10
+        links:
+        - method: GET
+          rel: collection
+          href: "/batch/contexts"
+          uri: "/batch/contexts"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.context
+        - method: GET
+          rel: self
+          href: "/batch/contexts?start=0&limit=10"
+          uri: "/batch/contexts?start=0&limit=10"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.context
+        name: contexts
+        start: 0
+        version: 2
+    contextRequest:
+      summary: Example Context Request
+      description: Example of a request body to create a context.
+      value:
+        allowXcmd: true
+        description: Context for High Priority Jobs
+        isMultiServer: true
+        launcherContextId: 9087b3f5-aced-4aa0-a491-b9d33ce197c2
+        launcherContextName: Batch Launcher Context for High Priority Jobs
+        maxServers: 5
+        minServers: 2
+        name: HighPriority
+        queueName: High Priority
+        requiredResources: gpuRequired
+        runServerAs: "myServiceAcct"
+        sasOptions: "-memsize 0"
+        serverTimeout: 600
+        version: 4
+    contextTransferObject:
+      summary: Example Batch Context Transfer Object
+      description: Example of the object used to export and import a context through
+        the transfer service.
+      value:
+        id: 6f1562a4-c717-4127-8c78-a4bd2c9b15e3
+        version: 2
+        summary:
+          id: e75ce467-2463-4db1-a619-55756fb52415
+          name: default
+          description: Default Batch Context
+          createdBy: sas.batch
+          creationTimeStamp: "2022-07-19T15:36:50.710Z"
+          modifiedBy: sas.batch
+          modifiedTimeStamp: "2022-07-19T15:36:50.710Z"
+          version: 2
+          type: batchContext
+          links:
+          - method: GET
+            rel: self
+            href: "/batch/contexts/e75ce467-2463-4db1-a619-55756fb52415"
+            uri: "/batch/contexts/e75ce467-2463-4db1-a619-55756fb52415"
+            type: application/vnd.sas.batch.context
+          - method: DELETE
+            rel: delete
+            href: "/batch/contexts/e75ce467-2463-4db1-a619-55756fb52415"
+            uri: "/batch/contexts/e75ce467-2463-4db1-a619-55756fb52415"
+            type: ""
+          - method: PUT
+            rel: update
+            href: "/batch/contexts/e75ce467-2463-4db1-a619-55756fb52415"
+            uri: "/batch/contexts/e75ce467-2463-4db1-a619-55756fb52415"
+            type: application/vnd.sas.batch.context
+          - method: PUT
+            rel: import
+            href: "/batch/contexts/e75ce467-2463-4db1-a619-55756fb52415"
+            uri: "/batch/contexts/e75ce467-2463-4db1-a619-55756fb52415"
+            type: application/vnd.sas.transfer.object
+          - method: GET
+            rel: up
+            href: "/batch/contexts"
+            uri: "/batch/contexts"
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.batch.context
+        content: "eyJjcmVhdGlvblRpbWVTdGFtcCI6IjIwMjItMDctMTlUMTU6MzY6NTAuNzEwNzI2WiIsImNyZWF0ZWRCeSI6InNhcy5iYXRjaCIsIm1vZGlmaWVkVGltZVN0YW1wIjoiMjAyMi0wNy0xOVQxNTozNjo1MC43MTA3MjZaIiwibW9kaWZpZWRCeSI6InNhcy5iYXRjaCIsImRlc2NyaXB0aW9uIjoiRGVmYXVsdCBCYXRjaCBDb250ZXh0IiwiaWQiOiJlNzVjZTQ2Ny0yNDYzLTRkYjEtYTYxOS01NTc1NmZiNTI0MTUiLCJsYXVuY2hlckNvbnRleHRJZCI6IjI1NTE2MmNkLWZiNDYtNDNjYS1iNGVhLWFlNjY0NDgzOGI3NyIsImxpbmtzIjpbeyJtZXRob2QiOiJHRVQiLCJyZWwiOiJzZWxmIiwiaHJlZiI6Ii9iYXRjaC9jb250ZXh0cy9lNzVjZTQ2Ny0yNDYzLTRkYjEtYTYxOS01NTc1NmZiNTI0MTUiLCJ1cmkiOiIvYmF0Y2gvY29udGV4dHMvZTc1Y2U0NjctMjQ2My00ZGIxLWE2MTktNTU3NTZmYjUyNDE1IiwidHlwZSI6ImFwcGxpY2F0aW9uL3ZuZC5zYXMuYmF0Y2guY29udGV4dCJ9LHsibWV0aG9kIjoiREVMRVRFIiwicmVsIjoiZGVsZXRlIiwiaHJlZiI6Ii9iYXRjaC9jb250ZXh0cy9lNzVjZTQ2Ny0yNDYzLTRkYjEtYTYxOS01NTc1NmZiNTI0MTUiLCJ1cmkiOiIvYmF0Y2gvY29udGV4dHMvZTc1Y2U0NjctMjQ2My00ZGIxLWE2MTktNTU3NTZmYjUyNDE1In0seyJtZXRob2QiOiJQVVQiLCJyZWwiOiJ1cGRhdGUiLCJocmVmIjoiL2JhdGNoL2NvbnRleHRzL2U3NWNlNDY3LTI0NjMtNGRiMS1hNjE5LTU1NzU2ZmI1MjQxNSIsInVyaSI6Ii9iYXRjaC9jb250ZXh0cy9lNzVjZTQ2Ny0yNDYzLTRkYjEtYTYxOS01NTc1NmZiNTI0MTUiLCJ0eXBlIjoiYXBwbGljYXRpb24vdm5kLnNhcy5iYXRjaC5jb250ZXh0In0seyJtZXRob2QiOiJQVVQiLCJyZWwiOiJpbXBvcnQiLCJocmVmIjoiL2JhdGNoL2NvbnRleHRzL2U3NWNlNDY3LTI0NjMtNGRiMS1hNjE5LTU1NzU2ZmI1MjQxNSIsInVyaSI6Ii9iYXRjaC9jb250ZXh0cy9lNzVjZTQ2Ny0yNDYzLTRkYjEtYTYxOS01NTc1NmZiNTI0MTUiLCJ0eXBlIjoiYXBwbGljYXRpb24vdm5kLnNhcy50cmFuc2Zlci5vYmplY3QiLCJyZXNwb25zZVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuc2FzLnN1bW1hcnkifSx7Im1ldGhvZCI6IkdFVCIsInJlbCI6InVwIiwiaHJlZiI6Ii9iYXRjaC9jb250ZXh0cyIsInVyaSI6Ii9iYXRjaC9jb250ZXh0cyIsInR5cGUiOiJhcHBsaWNhdGlvbi92bmQuc2FzLmNvbGxlY3Rpb24iLCJpdGVtVHlwZSI6ImFwcGxpY2F0aW9uL3ZuZC5zYXMuYmF0Y2guY29udGV4dCJ9XSwibmFtZSI6ImRlZmF1bHQiLCJwcm92aWRlck9wdGlvbnMiOiIiLCJyZXF1aXJlZFJlc291cmNlcyI6IiIsInNhc09wdGlvbnMiOiIiLCJxdWV1ZU5hbWUiOiIiLCJ2ZXJzaW9uIjoxfQ=="
+        fileServiceContent: ""
+        connectors: []
+        substitutions: {}
+        links: []
+    contextMultipartFormData:
+      summary: Example Multipart Form-Data Batch context request
+      description: Provides information about a multipart form-data request body to
+        create a Batch context.
+      value:
+        version: 2
+        name: new-batch-context
+        type: batchContext
+        properties:
+          allowXcmd: true
+          description: Default Batch Context
+          launcherContextName: SAS Batch2 service launcher context
+          name: Test Batch Create Context
+          queueName: priority
+        links:
+        - method: GET
+          rel: self
+          href: "/batch/contexts/null"
+          uri: "/batch/contexts/null"
+          type: application/json
+        - method: POST
+          rel: transferMultipartImport
+          href: "/batch/contexts"
+          uri: "/batch/contexts"
+          type: multipart/form-data
+    fileSet:
+      summary: Example File Set
+      description: Provides information about a file set that contains files sent
+        to and from the cluster.
+      value:
+        creationTimeStamp: "2022-06-14T15:00:46.040481Z"
+        createdBy: someuser
+        modifiedTimeStamp: "2022-06-14T15:00:46.040481Z"
+        modifiedBy: someuser
+        id: JOB_20220614_150046_039_1
+        version: 1
+        contextId: 6794ba8a-6aff-4989-ae77-93f67286aea2
+        links:
+        - method: GET
+          rel: self
+          href: "/batch/fileSets/JOB_20220614_150046_039_1"
+          uri: "/batch/fileSets/JOB_20220614_150046_039_1"
+          type: application/vnd.sas.batch.file.set
+        - method: DELETE
+          rel: delete
+          href: "/batch/fileSets/JOB_20220614_150046_039_1"
+          uri: "/batch/fileSets/JOB_20220614_150046_039_1"
+        - method: GET
+          rel: up
+          href: "/batch/fileSets"
+          uri: "/batch/fileSets"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.file.set
+        - method: GET
+          rel: files
+          href: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+          uri: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.file.set.file
+    fileSetCollection:
+      summary: Example File Set Collection
+      description: Provides an array of file-set information objects that satisfies
+        the file-set collection request.
+      value:
+        version: 2
+        accept: application/vnd.sas.batch.file.set
+        count: 1
+        start: 0
+        limit: 10
+        name: fileSets
+        items:
+        - creationTimeStamp: "2022-06-14T15:00:46.040481Z"
+          createdBy: someuser
+          modifiedTimeStamp: "2022-06-14T15:00:46.040481Z"
+          modifiedBy: someuser
+          id: JOB_20220614_150046_039_1
+          version: 1
+          contextId: 6794ba8a-6aff-4989-ae77-93f67286aea2
+          links:
+          - method: GET
+            rel: self
+            href: "/batch/fileSets/JOB_20220614_150046_039_1"
+            uri: "/batch/fileSets/JOB_20220614_150046_039_1"
+            type: application/vnd.sas.batch.file.set
+          - method: DELETE
+            rel: delete
+            href: "/batch/fileSets/JOB_20220614_150046_039_1"
+            uri: "/batch/fileSets/JOB_20220614_150046_039_1"
+          - method: GET
+            rel: up
+            href: "/batch/fileSets"
+            uri: "/batch/fileSets"
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.batch.file.set
+          - method: GET
+            rel: files
+            href: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+            uri: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.batch.file.set.file
+        links:
+        - method: GET
+          rel: collection
+          href: "/batch/fileSets"
+          uri: "/batch/fileSets"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.file.set
+        - method: GET
+          rel: self
+          href: "/batch/fileSets?start=0&limit=10"
+          uri: "/batch/fileSets?start=0&limit=10"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.file.set
+    fileSetFile:
+      summary: Example File Set File Information
+      description: Provides information about a file in a file set.
+      value:
+        creationTimeStamp: "2022-06-14T15:00:47.243Z"
+        createdBy: someuser
+        modifiedTimeStamp: "2022-06-14T15:00:47.243Z"
+        modifiedBy: someuser
+        fileSetId: JOB_20220614_150046_039_1
+        name: testEnvVars.sas
+        size: 544
+        links:
+        - method: GET
+          rel: self
+          href: "/batch/fileSets/JOB_20220614_150046_039_1/files/testEnvVars.sas"
+          uri: "/batch/fileSets/JOB_20220614_150046_039_1/files/testEnvVars.sas"
+          type: application/vnd.sas.batch.file.set.file
+        - method: PUT
+          rel: update
+          href: "/batch/fileSets/JOB_20220614_150046_039_1/files/testEnvVars.sas"
+          uri: "/batch/fileSets/JOB_20220614_150046_039_1/files/testEnvVars.sas"
+          type: application/vnd.sas.batch.file.set.file
+        - method: GET
+          rel: up
+          href: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+          uri: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.file.set.file
+        version: 1
+    fileSetFileCollection:
+      summary: Example File Set File Info Collection
+      description: Provides an array of file-information objects for the specified
+        file set.
+      value:
+        version: 2
+        accept: application/vnd.sas.batch.file.set.file
+        count: 2
+        start: 0
+        limit: 2
+        name: files
+        items:
+        - creationTimeStamp: "2022-06-14T15:01:01.846Z"
+          createdBy: someuser
+          modifiedTimeStamp: "2022-06-14T15:01:01.846Z"
+          modifiedBy: someuser
+          fileSetId: JOB_20220614_150046_039_1
+          name: testEnvVars.log
+          size: 1227
+          links:
+          - method: GET
+            rel: self
+            href: "/batch/fileSets/JOB_20220614_150046_039_1/files/testEnvVars.log"
+            uri: "/batch/fileSets/JOB_20220614_150046_039_1/files/testEnvVars.log"
+            type: application/vnd.sas.batch.file.set.file
+          - method: PUT
+            rel: update
+            href: "/batch/fileSets/JOB_20220614_150046_039_1/files/testEnvVars.log"
+            uri: "/batch/fileSets/JOB_20220614_150046_039_1/files/testEnvVars.log"
+            type: application/vnd.sas.batch.file.set.file
+          - method: GET
+            rel: up
+            href: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+            uri: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.batch.file.set.file
+          version: 1
+        - creationTimeStamp: "2022-06-14T15:00:47.243Z"
+          createdBy: someuser
+          modifiedTimeStamp: "2022-06-14T15:00:47.243Z"
+          modifiedBy: someuser
+          fileSetId: JOB_20220614_150046_039_1
+          name: testEnvVars.sas
+          size: 544
+          links:
+          - method: GET
+            rel: self
+            href: "/batch/fileSets/JOB_20220614_150046_039_1/files/testEnvVars.sas"
+            uri: "/batch/fileSets/JOB_20220614_150046_039_1/files/testEnvVars.sas"
+            type: application/vnd.sas.batch.file.set.file
+          - method: PUT
+            rel: update
+            href: "/batch/fileSets/JOB_20220614_150046_039_1/files/testEnvVars.sas"
+            uri: "/batch/fileSets/JOB_20220614_150046_039_1/files/testEnvVars.sas"
+            type: application/vnd.sas.batch.file.set.file
+          - method: GET
+            rel: up
+            href: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+            uri: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.batch.file.set.file
+          version: 1
+        links:
+        - method: GET
+          rel: collection
+          href: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+          uri: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.file.set.file
+        - method: GET
+          rel: self
+          href: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+          uri: "/batch/fileSets/JOB_20220614_150046_039_1/files"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.file.set.file
+    job:
+      summary: Example Batch Job
+      description: Provides information about a Batch job.
+      value:
+        creationTimeStamp: "2022-06-14T15:00:49.668113Z"
+        createdBy: someuser
+        modifiedTimeStamp: "2022-06-14T15:01:05.66361Z"
+        modifiedBy: anonymous
+        contextId: 6794ba8a-6aff-4989-ae77-93f67286aea2
+        endedTimeStamp: "2022-06-14T15:01:02Z"
+        executionHost: 10.254.3.12
+        fileSetId: JOB_20220614_150046_039_1
+        id: dbbb00c3-e67c-408b-bd84-9b57a2d69472
+        links:
+        - method: GET
+          rel: self
+          href: "/batch/jobs/dbbb00c3-e67c-408b-bd84-9b57a2d69472"
+          uri: "/batch/jobs/dbbb00c3-e67c-408b-bd84-9b57a2d69472"
+          type: application/vnd.sas.batch.job
+        - method: GET
+          rel: up
+          href: "/batch/jobs"
+          uri: "/batch/jobs"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.job
+        name: testEnvVars
+        processId: b7e39cf9-eda7-400c-a752-301653e55e8e
+        workloadJobId: "5"
+        returnCode: 0
+        state: completed
+        startedTimeStamp: "2022-06-14T15:00:49Z"
+        submittedTimeStamp: "2022-06-14T15:00:49Z"
+        version: 1
+    jobCollection:
+      summary: Example Batch Job Collection
+      description: Provides an array of job-information objects that satisfies the
+        job-collection request.
+      value:
+        version: 2
+        accept: application/vnd.sas.batch.job
+        count: 1
+        start: 0
+        limit: 10
+        name: jobs
+        items:
+        - creationTimeStamp: "2022-06-14T15:00:49.668113Z"
+          createdBy: someuser
+          modifiedTimeStamp: "2022-06-14T15:01:05.66361Z"
+          modifiedBy: anonymous
+          contextId: 6794ba8a-6aff-4989-ae77-93f67286aea2
+          endedTimeStamp: "2022-06-14T15:01:02Z"
+          executionHost: 10.254.3.12
+          fileSetId: JOB_20220614_150046_039_1
+          id: dbbb00c3-e67c-408b-bd84-9b57a2d69472
+          links:
+          - method: GET
+            rel: self
+            href: "/batch/jobs/dbbb00c3-e67c-408b-bd84-9b57a2d69472"
+            uri: "/batch/jobs/dbbb00c3-e67c-408b-bd84-9b57a2d69472"
+            type: application/vnd.sas.batch.job
+          - method: GET
+            rel: up
+            href: "/batch/jobs"
+            uri: "/batch/jobs"
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.batch.job
+          name: testEnvVars
+          processId: b7e39cf9-eda7-400c-a752-301653e55e8e
+          workloadJobId: "5"
+          returnCode: 0
+          state: completed
+          startedTimeStamp: "2022-06-14T15:00:49Z"
+          submittedTimeStamp: "2022-06-14T15:00:49Z"
+          version: 1
+        links:
+        - method: GET
+          rel: collection
+          href: "/batch/jobs"
+          uri: "/batch/jobs"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.job
+        - method: GET
+          rel: self
+          href: "/batch/jobs?start=0&limit=10"
+          uri: "/batch/jobs?start=0&limit=10"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.job
+    jobState:
+      summary: Example Batch Job State
+      description: Provides information about a job's processing state.
+      value:
+        executionHost: 10.254.3.12
+        state: completed
+        port: 34865
+        version: 1
+    jobLauncherOptions:
+      summary: Example Job Launch Options
+      description: Options that are passed on every job request that describe how
+        to process the job.
+      value:
+        batchContextId: 123e4567-e89b-12d3-a456-426614174000
+        jobName: Monthly Status Report for New York
+        requiredResources: gpuRequired
+        workloadQueueName: Priority Queue
+    jobRequestBatchCommand:
+      summary: Example Batch Command Job Request
+      description: Job request to run a command as a background task.
+      value:
+        command: "/bin/bash -c 'python3 mtPythonPgm.py'"
+        fileSetId: JOB_20220606_182805_634_1
+        launcherOptions:
+          batchContextId: 123e4567-e89b-12d3-a456-426614174000
+          jobName: Monthly Status Report for New York
+          requiredResources: gpuRequired
+          workloadQueueName: Priority Queue
+        watchOutput: false
+        outputDir: "/my/filesystem/mount/in/pod"
+        logFile: "/my/filesystem/mount/in/pod/mylog.log"
+        version: 2
+    jobRequestBatchSas:
+      summary: Example Batch SAS Job Request
+      description: Job request to run a SAS program as a background task.
+      value:
+        fileSetId: JOB_20220606_182805_634_1
+        launcherOptions:
+          batchContextId: 123e4567-e89b-12d3-a456-426614174000
+          jobName: Monthly Status Report for New York
+          requiredResources: gpuRequired
+          workloadQueueName: Priority Queue
+        restartType: job
+        sasProgramName: testPgm.sas
+        sasOptions: "-memsize 2048 -sysparm ADCD"
+        watchOutput: true
+        outputDir: "/my/filesystem/mount/in/pod"
+        logFile: "/my/filesystem/mount/in/pod/mylog.log"
+        listFile: "/my/filesystem/mount/in/pod/mylist.lst"
+        version: 2
+    jobRequestInteractiveCommand:
+      summary: Example Interactive Command Job Request
+      description: Job request to run a command with user interaction.
+      value:
+        command: "/bin/bash -c 'python3 mtPythonPgm.py'"
+        launcherOptions:
+          batchContextId: 123e4567-e89b-12d3-a456-426614174000
+          jobName: Monthly Status Report for New York
+          requiredResources: gpuRequired
+          workloadQueueName: Priority Queue
+        version: 1
+    jobRequestInteractiveSas:
+      summary: Example Interactive SAS Job Request
+      description: Job request to run SAS interactively in line mode.
+      value:
+        launcherOptions:
+          batchContextId: 123e4567-e89b-12d3-a456-426614174000
+          jobName: Monthly Status Report for New York
+          requiredResources: gpuRequired
+          workloadQueueName: Priority Queue
+        sasOptions: "-memsize 2048 -sysparm ADCD"
+        version: 1
+    jobStdioInput:
+      summary: Example Job STDIO Input
+      description: Job STDIO input sent to a running job.
+      value:
+        input: ["proc options option=SSLCALISTLOC; run;\n", "proc setinit; run;\n"]
+        version: 1
+    jobStdioOutput:
+      summary: Job STDIO Output
+      description: Job STDIO output and error test.
+      value:
+        errors: ["This is an error message\n"]
+        output: ["This is one line of output\n", "This is the next line of output\n"]
+        version: 1
+    server:
+      summary: Example Reusable Batch Server
+      description: Provides information about a reusable Batch server.
+      value:
+        creationTimeStamp: "2022-06-14T15:00:49.668113Z"
+        createdBy: someuser
+        modifiedTimeStamp: "2022-06-14T15:01:05.66361Z"
+        modifiedBy: anonymous
+        contextId: 6794ba8a-6aff-4989-ae77-93f67286aea2
+        hostName: 10.254.3.12
+        id: dbbb00c3-e67c-408b-bd84-9b57a2d69472
+        isPermanent: true
+        links:
+        - method: GET
+          rel: self
+          href: "/batch/servers/dbbb00c3-e67c-408b-bd84-9b57a2d69472"
+          uri: "/batch/servers/dbbb00c3-e67c-408b-bd84-9b57a2d69472"
+          type: application/vnd.sas.batch.server
+        - method: GET
+          rel: up
+          href: "/batch/servers"
+          uri: "/batch/servers"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.server
+        processId: b7e39cf9-eda7-400c-a752-301653e55e8e
+        queueName: High Priority
+        ruleId: 16c332b2-4ac6-483b-85f6-7bb9d2d5a576
+        runServerAs: myUserName
+        state: available
+        version: 1
+    serverCollection:
+      summary: Example Reusable Batch Server Collection
+      description: Provides an example of an array of reusable Batch server-information
+        objects that satisfies the server-collection request.
+      value:
+        version: 2
+        accept: application/vnd.sas.batch.server
+        count: 1
+        start: 0
+        limit: 10
+        name: servers
+        items:
+        - creationTimeStamp: "2022-06-14T15:00:49.668113Z"
+          createdBy: someuser
+          modifiedTimeStamp: "2022-06-14T15:01:05.66361Z"
+          modifiedBy: anonymous
+          contextId: 6794ba8a-6aff-4989-ae77-93f67286aea2
+          hostName: 10.254.3.12
+          id: dbbb00c3-e67c-408b-bd84-9b57a2d69472
+          isPermanent: true
+          links:
+          - method: GET
+            rel: self
+            href: "/batch/servers/dbbb00c3-e67c-408b-bd84-9b57a2d69472"
+            uri: "/batch/servers/dbbb00c3-e67c-408b-bd84-9b57a2d69472"
+            type: application/vnd.sas.batch.server
+          - method: GET
+            rel: up
+            href: "/batch/servers"
+            uri: "/batch/servers"
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.batch.server
+          processId: b7e39cf9-eda7-400c-a752-301653e55e8e
+          queueName: High Priority
+          ruleId: 16c332b2-4ac6-483b-85f6-7bb9d2d5a576
+          runServerAs: myUserName
+          state: available
+          version: 1
+        links:
+        - method: GET
+          rel: collection
+          href: "/batch/servers"
+          uri: "/batch/servers"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.server
+        - method: GET
+          rel: self
+          href: "/batch/servers?start=0&limit=10"
+          uri: "/batch/servers?start=0&limit=10"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.batch.server

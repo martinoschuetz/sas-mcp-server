@@ -1,0 +1,1246 @@
+---
+openapi: 3.0.3
+info:
+  description: The Project Settings API allows access to the settings for a project
+    in VDMML, including all CRUD operations as well as accessing and generating new
+    default settings for a user. When a user creates a new project, these defaults
+    will be the initial settings for that project. For SAS Advanced Analytics Internal
+    use ONLY.
+  version: "2"
+  title: Data Mining Project Settings
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: devex@sas.com
+  license:
+    name: SAS Institute Inc.
+    url: https://support.sas.com/techsup/license/index.html
+tags:
+- name: Root
+  description: Data Mining Project Settings API.
+- name: ProjectSettings
+  description: Project settings.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get a collection of all currently-usable links
+      description: The API object contains a set of links for the supported endpoints.
+      operationId: root
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              description: Type of returned content.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/getProjectSettingsRootResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/getProjectSettingsRootResponse"
+  /commons/validations/settings:
+    post:
+      tags:
+      - ProjectSettings
+      summary: Validates a project settings object for non-null, valid values
+      description: Validates a project settings object for non-null, valid values.  If
+        the object fails validation, a validation response will be returned containing
+        the error with isValid() set to false.  An OK status is returned whether validation
+        fails or succeeds, and the pertinent information will be contained in the
+        validation response object.
+      operationId: validateSettings
+      parameters:
+      - name: projectId
+        in: query
+        description: The project ID
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/projectSettings"
+            examples:
+              json:
+                $ref: "#/components/examples/postCommonsValiationsSettingsRequestBody"
+          application/vnd.sas.analytics.data.mining.project.settings+json:
+            schema:
+              $ref: "#/components/schemas/projectSettings"
+            examples:
+              json:
+                $ref: "#/components/examples/postCommonsValiationsSettingsRequestBody"
+        description: The project settings to validate
+        required: true
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              description: Type of returned content.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/validation"
+              examples:
+                json:
+                  $ref: "#/components/examples/postCommonsValiationsSettingsResponse"
+            application/vnd.sas.validation+json:
+              schema:
+                $ref: "#/components/schemas/validation"
+              examples:
+                json:
+                  $ref: "#/components/examples/postCommonsValiationsSettingsResponse"
+        "400":
+          description: The project settings are null.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/postCommonsValiationsSettings400Response"
+            application/vnd.sas.validation+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/postCommonsValiationsSettings400Response"
+  /settings:
+    get:
+      tags:
+      - ProjectSettings
+      summary: Returns a ProjectSettingsCollection with all settings for projects
+        which the user has access to
+      description: Allows for querying all of the project settings. Only projects
+        to which the user has access will have their settings returned.
+      operationId: getAllProjectSettings
+      parameters:
+      - name: start
+        in: query
+        description: Starting index for the page
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: limit
+        in: query
+        description: Maximum size of the page
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 30
+      - name: sortBy
+        in: query
+        description: "Sorting order, syntax: <property>:ascending"
+        required: false
+        schema:
+          type: string
+          enum:
+          - ascending
+          - descendingforproperties:projectId
+      - name: filter
+        in: query
+        description: "Filter criteria, available properties: projectId"
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              description: Type of returned content.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/projectSettingsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/getSettingsResponse"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/projectSettingsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/getSettingsResponse"
+        "400":
+          description: One or more parameters were invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/getSettings400Response"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/getSettings400Response"
+    post:
+      tags:
+      - ProjectSettings
+      summary: Create a new project settings instance
+      description: Creates a new settings object and returns it.
+      operationId: createSettings
+      parameters:
+      - name: projectId
+        in: query
+        description: The project ID
+        required: true
+        schema:
+          type: string
+      requestBody:
+        $ref: "#/components/requestBodies/projectSettings"
+      responses:
+        "201":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: E-Tag for response
+              schema:
+                type: string
+            Location:
+              description: Location of the resource
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.data.mining.project.settings+json:
+              schema:
+                $ref: "#/components/schemas/projectSettings"
+              examples:
+                json:
+                  $ref: "#/components/examples/postSettings201Response"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/projectSettings"
+              examples:
+                json:
+                  $ref: "#/components/examples/postSettings201Response"
+        "400":
+          description: One or more parameters were invalid.
+          content:
+            application/vnd.sas.analytics.data.mining.project.settings+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/postSettings400Response"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/postSettings400Response"
+  "/settings/{settingsId}":
+    get:
+      tags:
+      - ProjectSettings
+      summary: Retrieve the project settings with a specific entity ID
+      description: Retrieves the project settings object with the ID from the path.
+      operationId: getSettings
+      parameters:
+      - name: settingsId
+        in: path
+        description: The ID of the settings.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: E-Tag for response
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.data.mining.project.settings+json:
+              schema:
+                $ref: "#/components/schemas/projectSettings"
+              examples:
+                json:
+                  $ref: "#/components/examples/getSettingsIdResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/projectSettings"
+              examples:
+                json:
+                  $ref: "#/components/examples/getSettingsIdResponse"
+        "404":
+          description: No settings with the provided id were found.
+          content:
+            application/vnd.sas.analytics.data.mining.project.settings+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/getSettingsId404Response"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/getSettingsId404Response"
+    put:
+      tags:
+      - ProjectSettings
+      summary: Update the specified settings resource
+      description: Updates the project settings object with the ID from the path.
+      operationId: updateSettings
+      parameters:
+      - name: settingsId
+        in: path
+        description: The ID of the settings.
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: If-Match
+        required: true
+        schema:
+          type: string
+      requestBody:
+        $ref: "#/components/requestBodies/projectSettings"
+      responses:
+        "200":
+          description: Project settings were updated.
+          headers:
+            ETag:
+              description: E-Tag for response
+              schema:
+                type: string
+          content:
+            application/vnd.sas.analytics.data.mining.project.settings+json:
+              schema:
+                $ref: "#/components/schemas/projectSettings"
+              examples:
+                json:
+                  $ref: "#/components/examples/putSettingsIdResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/projectSettings"
+              examples:
+                json:
+                  $ref: "#/components/examples/putSettingsIdResponse"
+        "400":
+          description: One or more parameters were invalid.
+          content:
+            application/vnd.sas.analytics.data.mining.project.settings+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/putSettingsId400Response"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/putSettingsId400Response"
+        "404":
+          description: There exists no settings with the provided entity ID.
+          content:
+            application/vnd.sas.analytics.data.mining.project.settings+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/putSettingsId404Response"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/putSettingsId404Response"
+        "412":
+          description: The value supplied in the if-match header did not match the
+            expected value.
+          content:
+            application/vnd.sas.analytics.data.mining.project.settings+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/putSettingsId412Response"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/putSettingsId412Response"
+        "428":
+          description: An if-match header was not supplied on the update request.
+          content:
+            application/vnd.sas.analytics.data.mining.project.settings+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/putSettingsId428Response"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/putSettingsId428Response"
+    delete:
+      tags:
+      - ProjectSettings
+      summary: Delete the specified resource
+      description: Deletes the project settings object with the ID from the path.
+      operationId: deleteSettings
+      parameters:
+      - name: settingsId
+        in: path
+        description: The ID of the settings.
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Settings were successfully deleted.
+servers:
+- url: http://example.com/dataMiningProjectSettings
+  description: kubernetes mock server
+components:
+  requestBodies:
+    projectSettings:
+      content:
+        application/vnd.sas.analytics.data.mining.project.settings+json:
+          schema:
+            $ref: "#/components/schemas/projectSettings"
+          examples:
+            json:
+              $ref: "#/components/examples/postCommonsValiationsSettingsRequestBody"
+        application/json:
+          schema:
+            $ref: "#/components/schemas/projectSettings"
+          examples:
+            json:
+              $ref: "#/components/examples/postCommonsValiationsSettingsRequestBody"
+      description: projectSettings
+      required: true
+  schemas:
+    projectSettingsCollection:
+      title: Project Settings Collection
+      type: object
+      description: This object contains a list of ProjectSettings objects.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The list of project settings objects.
+            items:
+              $ref: "#/components/schemas/projectSettings"
+    validation:
+      title: Validation Response
+      description: The response from a pre-flight validation request. For APIs which
+        support validation, the client can run operations (typically on resources
+        in the `/commons/validation`) with `application/vnd.sas.validation+json` as
+        the requested response type (via the `Accept:` request header). The service
+        will validate the request but not execute the request, and return this response
+        to indicate if the request was valid at the time it was made.
+      x-sas-media-type:
+        name: application/vnd.sas.validation
+        version: 1
+      required:
+      - version
+      - valid
+      properties:
+        version:
+          description: This media type's schema version number. This representation
+            is version 1.
+          type: integer
+        valid:
+          description: '`true` if and only if the validation was successful.'
+          type: boolean
+        error:
+          $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: An array of links to related resources and actions.
+          items:
+            $ref: "#/components/schemas/link"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    projectSettings:
+      title: Project Settings
+      description: Settings for data mining projects.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.data.mining.project.settings
+        version: 7
+      allOf:
+      - $ref: "#/components/schemas/revisionTrackingResource"
+      - type: object
+        properties:
+          assessmentSettings:
+            $ref: "#/components/schemas/assessmentSettings"
+          advisorSettings:
+            $ref: "#/components/schemas/advisorSettings"
+          compareSettings:
+            $ref: "#/components/schemas/compareSettings"
+          cutoffSettings:
+            $ref: "#/components/schemas/classificationCutoffSettings"
+          foldingSettings:
+            $ref: "#/components/schemas/foldingSettings"
+          jobLoggingSettings:
+            $ref: "#/components/schemas/jobLoggingSettings"
+          partitionSettings:
+            $ref: "#/components/schemas/partitionSettings"
+          projectId:
+            type: string
+            description: ID of the project to which the settings belong
+          saveDataUri:
+            type: string
+            description: The Caslib URI where a data mining project's save data nodes
+              will save data
+          samplingSettings:
+            $ref: "#/components/schemas/samplingSettings"
+          pythonConfigurationCodeSettings:
+            $ref: "#/components/schemas/pythonConfigurationCodeSettings"
+          version:
+            type: integer
+            format: int32
+            description: Version of the resource.
+    samplingSettings:
+      title: Sampling Settings
+      description: The sampling settings to be used when creating the partition table
+        for a data mining project.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.data.mining.sampling.settings
+        version: 4
+      properties:
+        samplingEnabled:
+          type: boolean
+          description: The sampling enabled flag.
+        samplingPercentage:
+          type: number
+          format: double
+          description: The sampling percentage value.
+        version:
+          type: integer
+          format: int32
+          description: Version of the resource.
+    partitionSettings:
+      title: Partition Settings
+      description: Settings that indicate how and if a data mining project source
+        data will be partitioned.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.data.mining.partition.settings
+        version: 4
+      properties:
+        partitionEnabled:
+          type: boolean
+          description: The flag that indicates if the project source data will be
+            partitioned. If the flag is true, the source data will be partitioned
+            according to the partition method specified.  If false, the source data
+            will not be partitioned and the entire table will be considered training
+            data.
+        partitionMethod:
+          type: string
+          description: The method by which the project source data will be partitioned.
+          enum:
+          - simpleRandom
+          - stratify
+        test:
+          type: integer
+          format: int32
+          description: The ratio value that indicates how much of the source table
+            should be considered test data.
+        train:
+          type: integer
+          format: int32
+          description: The ratio value that indicates how much of the source table
+            should be considered training data.
+        valid:
+          type: integer
+          format: int32
+          description: The ratio value that indicates how much of the source table
+            should be considered validation data.
+        version:
+          type: integer
+          format: int32
+          description: Version of the resource.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    advisorSettings:
+      title: Advisor Settings
+      description: A collection of advanced settings that are passed to the advisor
+        job during project creation.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.data.mining.advisor.options
+        version: 5
+      properties:
+        applyMaxPercentMissing:
+          type: boolean
+          description: Whether to reject variables based on a specified percentage
+            of missing values.
+        intervalCutoff:
+          type: integer
+          format: int32
+          description: The number of cutoff levels before a numeric variable is marked
+            as a class variable.
+        maxClassLevels:
+          type: integer
+          format: int32
+          description: The maximum number of class levels before a class variable
+            is set to REJECTED.
+        maxPercentMissing:
+          type: integer
+          format: int32
+          description: The maximum percentage of missing values before a variable
+            is set to REJECTED.
+        globalMetadataEnabled:
+          type: boolean
+          description: Whether to enable global metadata for the project.
+        version:
+          type: integer
+          format: int32
+          description: Version of the resource.
+    revisionTrackingResource:
+      title: Revision Tracking Resource
+      type: object
+      description: A TrackedResource subclass which contains additional information
+        for HATEOAS and persistence.
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      - type: object
+        properties:
+          id:
+            type: string
+            description: Primary identifier of the resource in the underlying data
+              store. This field should never be modified by a client application.
+          links:
+            type: array
+            items:
+              $ref: "#/components/schemas/link"
+            description: HATEOAS links related to this resource. Actions that are
+              possible on this resource or related resources are represented by entries
+              in this list.
+          name:
+            type: string
+            description: The name of this resource.
+          description:
+            type: string
+            description: The description of this resource.
+          revision:
+            type: integer
+            format: int64
+            description: The version identifier used for optimistic locking. Each
+              time the resource is modified in the data store, this revision number
+              is updated.
+    foldingSettings:
+      title: Folding Settings
+      description: Settings for configuring k-fold partitioning for modeling nodes
+        in a project.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.data.mining.folding.settings
+        version: 2
+      properties:
+        enableFolding:
+          type: boolean
+          description: Whether k-fold partitioning is enabled for the project.
+        enableManualFoldingSelection:
+          type: boolean
+          description: Whether manual number of folds selection is enabled for the
+            project.
+        numberOfFolds:
+          type: integer
+          format: int32
+          description: The number of folds to use if manual mode is selected.
+        eventProportion:
+          type: integer
+          format: int32
+          description: The proportion of events in each fold.
+        nonEventProportion:
+          type: integer
+          format: int32
+          description: The proportion of non-events in each fold.
+        version:
+          type: integer
+          format: int32
+          description: Version of the resource.
+    jobLoggingSettings:
+      title: Job Logging Settings
+      description: The logging and debug settings for the SAS code run during data
+        mining operations.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.data.mining.job.logging.settings
+        version: 4
+      properties:
+        detailsEnabled:
+          type: boolean
+          description: Enable the retention of temporary CAS tables created during
+            the data mining process.  If true, sets \'%let DM_Debug=DETAILS\'  If
+            both infoEnabled and detailsEnabled are true, sets \'%let DM_DEBUG=INFO
+            DETAILS\'
+        infoEnabled:
+          type: boolean
+          description: Enable generation of timings and headers for SAS code run during
+            the data mining process.  If true, sets \'%let DM_DEBUG=INFO\'  If both
+            infoEnabled and detailsEnabled are true, sets \'%let DM_DEBUG=INFO DETAILS\'
+        mPrintEnabled:
+          type: boolean
+          description: Enable mprint output for SAS code during the data mining process.  If
+            true, sets \'OPTIONS MPRINT\'
+        symbolGenEnabled:
+          type: boolean
+          description: Enable debug and macro variable functionality.  If true, sets
+            \'OPTIONS MPRINT SYMBOLGEN\'.
+        version:
+          type: integer
+          format: int32
+          description: Version of the resource.
+    compareSettings:
+      title: Compare Settings
+      description: The parameters that control the comparison of models.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.data.mining.compare.settings
+        version: 4
+      properties:
+        classStatistic:
+          type: string
+          enum:
+          - ks
+          - ase
+          - rase
+          - mce
+          - mcll
+          - c
+          - f1
+          - fdr
+          - fpr
+          - acc
+          - ks2
+          - lift
+          - cumulativeLift
+          - gain
+          - gini
+          - capturedResponse
+          - cumulativeCapturedResponse
+          - misclassificationEvent
+          - misclassificationCutoff
+          description: The criteria for selecting a champion model when the using
+            a class target variable.
+        cutoff:
+          type: string
+          description: The cutoff value of the champion model selection criteria.
+            This is used for criteria originating from the ROC table.
+          enum:
+          - "5"
+          - "10"
+          - "15"
+          - "20"
+          - "25"
+          - "30"
+          - "35"
+          - "40"
+          - "45"
+          - "50"
+          - "55"
+          - "60"
+          - "65"
+          - "70"
+          - "75"
+          - "80"
+          - "85"
+          - "90"
+          - "95"
+        intervalStatistic:
+          type: string
+          enum:
+          - ase
+          - rase
+          - rmae
+          - rmsle
+          description: The criteria for selecting a champion model when using an interval
+            target variable.
+        selectionDepth:
+          type: string
+          enum:
+          - "5"
+          - "10"
+          - "15"
+          - "20"
+          description: The selection depth of the champion model selection criteria.
+            This is used for criteria originating from the FIT Statistics.
+        selectionTable:
+          type: string
+          enum:
+          - default
+          - train
+          - validate
+          - test
+          description: The partition to use for champion selection. This can be Test,
+            Train or Validate.
+        version:
+          type: integer
+          format: int32
+          description: Version of the resource.
+    pythonConfigurationCodeSettings:
+      title: Python Configuration Code Settings
+      description: Settings for enabling and defining configuration Python pre-code
+        for open source Python components in a project.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.data.mining.python.configuration.code.settings
+        version: 2
+      properties:
+        pythonConfigurationCodeEnabled:
+          type: boolean
+          description: The Python configuration code enabled flag.  Setting this to
+            true indicates that the Python configuration code should be run prior
+            to any open source Python components in the project.
+        pythonConfigurationCode:
+          type: string
+          description: Python configuration pre-code to be run prior to any Python
+            code run in open source components in the project.
+        version:
+          type: integer
+          format: int32
+          description: Version of the resource.
+    classificationCutoffSettings:
+      title: Classification Cutoff Settings
+      description: The classification cutoff settings to be used when running a data
+        mining component.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.data.mining.classification.cutoff.settings
+        version: 4
+      properties:
+        classificationCutoffEnabled:
+          type: boolean
+          description: The classification cutoff enabled flag.
+        classificationCutoffValue:
+          type: number
+          format: double
+          description: The classification cutoff value.
+        version:
+          type: integer
+          format: int32
+          description: Version of the resource.
+    assessmentSettings:
+      title: Assessment Settings
+      description: Assessment configuration settings for modeling nodes in a project.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.data.mining.assessment.settings
+        version: 2
+      properties:
+        numberOfRocBins:
+          type: string
+          enum:
+          - '10'
+          - '20'
+          - '50'
+          - '100'
+          - '500'
+          - '1000'
+          description: The number of ROC bins to use for modeling node assessment.
+        version:
+          type: integer
+          format: int32
+          description: Version of the resource.
+    trackedResource:
+      title: Tracked Resource
+      description: This class is used to provide common attributes and behaviors around
+        tracking who and when objects were created and modified to representation
+        objects.
+      properties:
+        createdBy:
+          type: string
+          description: The username of whoever created the resource.
+        modifiedBy:
+          type: string
+          description: The username of whoever last modified the resource.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for when the resource was created.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for when the resource was last modified.
+  examples:
+    getProjectSettingsRootResponse:
+      summary: Data Mining Project Settings root endpoint
+      description: Get response for Data Mining Project Settings root endpoint
+      value: {"version": 1, "links": [{"method": "GET", "rel": "collection", "href": "/dataMiningProjectSettings/settings",
+            "uri": "/dataMiningProjectSettings/settings", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.analytics.data.mining.project.settings"},
+          {"method": "GET", "rel": "settingsForProject", "href": "/dataMiningProjectSettings/settings?projectId={projectId}",
+            "uri": "/dataMiningProjectSettings/settings?projectId={projectId}", "type": "application/vnd.sas.analytics.data.mining.project.settings"},
+          {"method": "GET", "rel": "systemSettings", "href": "/dataMiningProjectSettings/settings/@system",
+            "uri": "/dataMiningProjectSettings/settings/@system", "type": "application/vnd.sas.analytics.data.mining.project.settings"},
+          {"method": "POST", "rel": "create", "href": "/dataMiningProjectSettings/settings?projectId={projectId}",
+            "uri": "/dataMiningProjectSettings/settings?projectId={projectId}", "type": "application/vnd.sas.analytics.data.mining.project.settings"},
+          {"method": "POST", "rel": "validate", "href": "/dataMiningProjectSettings/commons/validations/settings",
+            "uri": "/dataMiningProjectSettings/commons/validations/settings", "type": "application/vnd.sas.analytics.data.mining.project.settings",
+            "responseType": "application/vnd.sas.validation"}]}
+    postCommonsValiationsSettingsRequestBody:
+      summary: Data Mining Project Settings common validation endpoint
+      description: POST request body for Data Mining Project Settings common validation
+        endpoint
+      value: {"advisorSettings": {"version": 5, "maxPercentMissing": 50, "maxClassLevels": 20,
+          "applyMaxPercentMissing": true, "intervalCutoff": 20, "globalMetadataEnabled": true},
+        "assessmentSettings": {"version": 2, "numberOfRocBins": "100"}, "cutoffSettings": {
+          "version": 4, "classificationCutoffEnabled": false, "classificationCutoffValue": 0.5},
+        "compareSettings": {"version": 4, "selectionDepth": "10", "cutoff": "50",
+          "classStatistic": "ks", "intervalStatistic": "ase", "selectionTable": "default"},
+        "foldingSettings": {"version": 2, "enableFolding": false, "enableManualFoldingSelection": false,
+          "numberOfFolds": 5, "eventProportion": 10, "nonEventProportion": 90}, "jobLoggingSettings": {
+          "version": 4, "mprintEnabled": false, "symbolGenEnabled": false, "infoEnabled": false,
+          "detailsEnabled": false}, "partitionSettings": {"version": 4, "partitionEnabled": true,
+          "partitionMethod": "stratify", "train": 60, "valid": 30, "test": 10}, "pythonConfigurationCodeSettings": {
+          "version": 2, "pythonConfigurationCodeEnabled": false, "pythonConfigurationCode": ""},
+        "samplingSettings": {"version": 4, "samplingEnabled": false, "samplingPercentage": 50},
+        "projectId": "ac4065de-2f70-44c9-8439-ae56d9ca671e", "version": 7, "saveDataUri": "",
+        "computeContextUri": ""}
+    postCommonsValiationsSettingsResponse:
+      summary: Data Mining Project Settings common validation endpoint
+      description: POST response after successful validation
+      value: {"valid": true, "version": 1}
+    postCommonsValiationsSettings400Response:
+      summary: Data Mining Project Settings common validation endpoint
+      description: POST response when validation is not successful
+      value: {"error": {"version": 2, "httpStatusCode": 400, "errorCode": 31006, "message": "The\
+            \ project settings could not be unmarshalled because the JSON provided\
+            \ is invalid.", "remediation": "Correct the values in the input request\
+            \ and resubmit the request.", "errors": [{"version": 2, "httpStatusCode": 500,
+              "errorCode": 31006, "message": "The project settings cannot be updated\
+                \ because validation failed.", "remediation": "Correct the values\
+                \ in the input request and resubmit the request.", "errors": [{"version": 2,
+                  "httpStatusCode": 500, "errorCode": 31006, "message": "The project\
+                    \ settings are not valid because the \"maxPercentMissing\" field\
+                    \ was not provided.", "remediation": "Correct the values in the\
+                    \ input request and resubmit the request."}]}]}, "valid": false,
+        "version": 1}
+    getSettingsResponse:
+      summary: Data Mining Project Settings settings endpoint
+      description: Get response that returns existing settings collection
+      value: {"version": 3, "accept": "application/vnd.sas.analytics.data.mining.project.settings+json",
+        "count": 3, "start": 0, "limit": 30, "name": "settings", "items": [{"creationTimeStamp": "2023-03-11T15:08:26.440922Z",
+            "createdBy": "user1", "modifiedTimeStamp": "2023-03-11T15:08:26.440876Z",
+            "modifiedBy": "user1", "revision": 0, "id": "b69a7ee0-b0f2-489e-89ab-12c349248c0c",
+            "links": [], "advisorSettings": {"version": 5, "maxPercentMissing": 50,
+              "maxClassLevels": 20, "applyMaxPercentMissing": true, "intervalCutoff": 20,
+              "globalMetadataEnabled": true}, "assessmentSettings": {"version": 2,
+              "numberOfRocBins": "100"}, "cutoffSettings": {"version": 4, "classificationCutoffEnabled": false,
+              "classificationCutoffValue": 0.5}, "compareSettings": {"version": 4,
+              "selectionDepth": "10", "cutoff": "50", "classStatistic": "ks", "intervalStatistic": "ase",
+              "selectionTable": "default"}, "foldingSettings": {"version": 2, "enableFolding": false,
+              "enableManualFoldingSelection": false, "numberOfFolds": 5, "eventProportion": 10,
+              "nonEventProportion": 90}, "jobLoggingSettings": {"version": 4, "mprintEnabled": false,
+              "symbolGenEnabled": false, "infoEnabled": false, "detailsEnabled": false},
+            "partitionSettings": {"version": 4, "partitionEnabled": true, "partitionMethod": "stratify",
+              "train": 60, "valid": 30, "test": 10}, "pythonConfigurationCodeSettings": {
+              "version": 2, "pythonConfigurationCodeEnabled": false, "pythonConfigurationCode": ""},
+            "samplingSettings": {"version": 4, "samplingEnabled": false, "samplingPercentage": 50},
+            "projectId": "ac4065de-2f70-44c9-8439-ae56d9ca671e", "version": 7, "saveDataUri": "",
+            "computeContextUri": ""}], "links": []}
+    getSettings400Response:
+      summary: Data Mining Project Settings setttings endpoint
+      description: Get response when parameters are invalid
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 91709, "message": "The\
+          \ project settings could not be retrieved.", "details": ["data-mining-project-settings-api-icu.detail.query.options.msg",
+          "path: /dataMiningProjectSettings/settings", "correlator: ce57ba6a-9a00-4cd9-90e8-89584c75fc35"],
+        "remediation": "An error has been encountered that indicates a software issue.\
+          \  Contact SAS Technical Support and provide the message and error code.",
+        "errors": [{"httpStatusCode": 500, "errorCode": 91710, "message": "The specified\
+              \ query options: Filter: \"\", Start: \"0\", Limit: \"30\", SortBy:\
+              \ \"abcd\", are invalid.", "remediation": "Correct the values in the\
+              \ input request and resubmit the request.", "errors": [{"version": 2,
+                "httpStatusCode": 500, "message": "InvalidInputError: Property abcd\
+                  \ not found Error Code: 1002"}]}]}
+    postSettings201Response:
+      summary: Data Mining Project Settings settings endpoint
+      description: POST response when creating new settings instance
+      value: {"creationTimeStamp": "2023-03-14T17:12:38.687125Z", "createdBy": "user1",
+        "modifiedTimeStamp": "2023-03-14T17:12:38.687098Z", "modifiedBy": "user1",
+        "revision": 0, "id": "927621c4-c96d-4909-8e81-a278d76358d7", "links": [],
+        "advisorSettings": {"version": 5, "maxPercentMissing": 50, "maxClassLevels": 20,
+          "applyMaxPercentMissing": true, "intervalCutoff": 20, "globalMetadataEnabled": true},
+        "assessmentSettings": {"version": 2, "numberOfRocBins": "100"}, "cutoffSettings": {
+          "version": 4, "classificationCutoffEnabled": false, "classificationCutoffValue": 0.5},
+        "compareSettings": {"version": 4, "selectionDepth": "10", "cutoff": "50",
+          "classStatistic": "ks", "intervalStatistic": "ase", "selectionTable": "default"},
+        "foldingSettings": {"version": 2, "enableFolding": false, "enableManualFoldingSelection": false,
+          "numberOfFolds": 5, "eventProportion": 10, "nonEventProportion": 90}, "jobLoggingSettings": {
+          "version": 4, "mprintEnabled": false, "symbolGenEnabled": false, "infoEnabled": false,
+          "detailsEnabled": false}, "partitionSettings": {"version": 4, "partitionEnabled": true,
+          "partitionMethod": "stratify", "train": 60, "valid": 30, "test": 10}, "pythonConfigurationCodeSettings": {
+          "version": 2, "pythonConfigurationCodeEnabled": false, "pythonConfigurationCode": ""},
+        "samplingSettings": {"version": 4, "samplingEnabled": false, "samplingPercentage": 50},
+        "projectId": "testproj1", "version": 7, "saveDataUri": "", "computeContextUri": ""}
+    postSettings400Response:
+      summary: Data Mining Project Settings settings endpoint
+      description: POST response when parameters are invalid in request body
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 91703, "message": "The\
+          \ project settings cannot be created.", "details": ["path: /dataMiningProjectSettings/settings",
+          "correlator: 09ff7b1e-bc2a-4483-a17d-330b084d45fe"], "remediation": "An\
+          \ error has been encountered that indicates a software issue.  Contact SAS\
+          \ Technical Support and provide the message and error code.", "errors": [
+          {"version": 2, "httpStatusCode": 500, "errorCode": 31075, "message": "The\
+              \ project settings cannot be created because validation failed.", "remediation": "Correct\
+              \ the values in the input request and resubmit the request.", "errors": [
+              {"httpStatusCode": 500, "errorCode": 31075, "message": "The project\
+                  \ settings are invalid.  There are 1 issues that need to be corrected:\
+                  \ The value \"0.50\" in the compare settings for the cutoff percentage\
+                  \ is invalid. It must be one of the following: 5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95..",
+                "details": ["Project Settings ID: ."], "remediation": "Correct the\
+                  \ values in the input request and resubmit the request.", "errors": [
+                  {"errorCode": 31075, "message": "The value \"0.50\" in the compare\
+                      \ settings for the cutoff percentage is invalid. It must be\
+                      \ one of the following: 5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95.",
+                    "details": ["Project Settings ID: ."], "remediation": "Correct\
+                      \ the values in the input request and resubmit the request."}]}]}]}
+    getSettingsIdResponse:
+      summary: Data Mining Project Settings settingsId endpoint
+      description: Get response that returns existing settingsId info
+      value: {"creationTimeStamp": "2023-03-11T15:08:26.440922Z", "createdBy": "user1",
+        "modifiedTimeStamp": "2023-03-11T15:08:26.440876Z", "modifiedBy": "user1",
+        "revision": 0, "id": "b69a7ee0-b0f2-489e-89ab-12c349248c0c", "links": [],
+        "advisorSettings": {"version": 5, "maxPercentMissing": 50, "maxClassLevels": 20,
+          "applyMaxPercentMissing": true, "intervalCutoff": 20, "globalMetadataEnabled": true},
+        "assessmentSettings": {"version": 2, "numberOfRocBins": "100"}, "cutoffSettings": {
+          "version": 4, "classificationCutoffEnabled": false, "classificationCutoffValue": 0.5},
+        "compareSettings": {"version": 4, "selectionDepth": "10", "cutoff": "50",
+          "classStatistic": "ks", "intervalStatistic": "ase", "selectionTable": "default"},
+        "foldingSettings": {"version": 2, "enableFolding": false, "enableManualFoldingSelection": false,
+          "numberOfFolds": 5, "eventProportion": 10, "nonEventProportion": 90}, "jobLoggingSettings": {
+          "version": 4, "mprintEnabled": false, "symbolGenEnabled": false, "infoEnabled": false,
+          "detailsEnabled": false}, "partitionSettings": {"version": 4, "partitionEnabled": true,
+          "partitionMethod": "stratify", "train": 60, "valid": 30, "test": 10}, "pythonConfigurationCodeSettings": {
+          "version": 2, "pythonConfigurationCodeEnabled": false, "pythonConfigurationCode": ""},
+        "samplingSettings": {"version": 4, "samplingEnabled": false, "samplingPercentage": 50},
+        "projectId": "ac4065de-2f70-44c9-8439-ae56d9ca671e", "version": 7, "saveDataUri": "",
+        "computeContextUri": ""}
+    getSettingsId404Response:
+      summary: Data Mining Project Settings settingsId endpoint
+      description: Get response when settingsId is invalid
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 91711, "message": "There\
+          \ is no settings object with the provided ID.", "details": ["b69a7ee0-b0f2-489e-89ab-12c349248c",
+          "path: /dataMiningProjectSettings/settings/b69a7ee0-b0f2-489e-89ab-12c349248c",
+          "correlator: 6cee383c-be51-4e13-8d76-8c1b97d30cff"], "remediation": "Resubmit\
+          \ the request with an existing project settings ID.", "errors": [{"errorCode": 91711,
+            "message": "There is no settings object with the provided ID.", "details": [
+              "b69a7ee0-b0f2-489e-89ab-12c349248c"], "errors": [{"version": 2, "httpStatusCode": 404,
+                "message": "record not found"}]}]}
+    putSettingsIdResponse:
+      summary: Data Mining Project Settings settingsId endpoint
+      description: Put response when settingsId and body is valid
+      value: {"creationTimeStamp": "2023-03-11T15:08:26.440922Z", "createdBy": "user1",
+        "modifiedTimeStamp": "2023-03-15T15:12:14.048234Z", "modifiedBy": "user1",
+        "revision": 1, "id": "b69a7ee0-b0f2-489e-89ab-12c349248c0c", "links": [],
+        "advisorSettings": {"version": 5, "maxPercentMissing": 50, "maxClassLevels": 20,
+          "applyMaxPercentMissing": true, "intervalCutoff": 20, "globalMetadataEnabled": true},
+        "assessmentSettings": {"version": 2, "numberOfRocBins": "100"}, "cutoffSettings": {
+          "version": 4, "classificationCutoffEnabled": false, "classificationCutoffValue": 0.5},
+        "compareSettings": {"version": 4, "selectionDepth": "10", "cutoff": "50",
+          "classStatistic": "ks", "intervalStatistic": "ase", "selectionTable": "default"},
+        "foldingSettings": {"version": 2, "enableFolding": false, "enableManualFoldingSelection": false,
+          "numberOfFolds": 5, "eventProportion": 10, "nonEventProportion": 90}, "jobLoggingSettings": {
+          "version": 4, "mprintEnabled": false, "symbolGenEnabled": false, "infoEnabled": false,
+          "detailsEnabled": false}, "partitionSettings": {"version": 4, "partitionEnabled": true,
+          "partitionMethod": "stratify", "train": 60, "valid": 30, "test": 10}, "pythonConfigurationCodeSettings": {
+          "version": 2, "pythonConfigurationCodeEnabled": false, "pythonConfigurationCode": ""},
+        "samplingSettings": {"version": 4, "samplingEnabled": false, "samplingPercentage": 50},
+        "projectId": "ac4065de-2f70-44c9-8439-ae56d9ca671e", "version": 7, "saveDataUri": "",
+        "computeContextUri": ""}
+    putSettingsId400Response:
+      summary: Data Mining Project Settings settingsId endpoint
+      description: Put response when settings object in body is invalid
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 31006, "message": "The\
+          \ project settings could not be unmarshalled because the JSON provided is\
+          \ invalid.", "details": ["path: /dataMiningProjectSettings/settings/b69a7ee0-b0f2-489e-89ab-12c349248c0c",
+          "correlator: 1c60a333-1593-43f9-bb32-08f77c63a9fa"], "remediation": "Correct\
+          \ the values in the input request and resubmit the request.", "errors": [
+          {"version": 2, "httpStatusCode": 500, "errorCode": 31006, "message": "The\
+              \ project settings cannot be updated because validation failed.", "remediation": "Correct\
+              \ the values in the input request and resubmit the request.", "errors": [
+              {"version": 2, "httpStatusCode": 500, "errorCode": 31006, "message": "The\
+                  \ project settings are not valid because the \"id\" field was not\
+                  \ provided.", "remediation": "Correct the values in the input request\
+                  \ and resubmit the request."}]}]}
+    putSettingsId404Response:
+      summary: Data Mining Project Settings settingsId endpoint
+      description: Put response when settingsId is invalid
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 91711, "message": "There\
+          \ is no settings object with the provided ID.", "details": ["b69a7ee0-b0f2-489e-89ab-12c349248c0",
+          "path: /dataMiningProjectSettings/settings/b69a7ee0-b0f2-489e-89ab-12c349248c0",
+          "correlator: 3c227941-3dea-4abd-b677-bafa189ec715"], "remediation": "Resubmit\
+          \ the request with an existing project settings ID.", "errors": [{"errorCode": 91711,
+            "message": "There is no settings object with the provided ID.", "details": [
+              "b69a7ee0-b0f2-489e-89ab-12c349248c0"], "errors": [{"version": 2, "httpStatusCode": 404,
+                "message": "record not found"}]}]}
+    putSettingsId412Response:
+      summary: Data Mining Project Settings settingsId endpoint
+      description: Put response when if-match header does not match the resource
+      value: {"version": 2, "httpStatusCode": 412, "errorCode": 31014, "message": "The\
+          \ header field \"If-Match\" has a value that is different from the entity\
+          \ tag for the resource. (The specified values are \"W/\"167854730644087600\"\
+          \" and \"W/\"1678547306440876000\"\", respectively.)", "details": ["path:\
+            \ /dataMiningProjectSettings/settings/b69a7ee0-b0f2-489e-89ab-12c349248c0c",
+          "correlator: 74be3d70-d2df-41d9-88a3-5788fb7df9f9"]}
+    putSettingsId428Response:
+      summary: Data Mining Project Settings settingsId endpoint
+      description: Put response when if-match header is missing
+      value: {"version": 2, "httpStatusCode": 428, "errorCode": 31017, "message": "The\
+          \ header field \"If-Match\" is missing or does not have a value.", "details": [
+          "path: /dataMiningProjectSettings/settings/b69a7ee0-b0f2-489e-89ab-12c349248c0c",
+          "correlator: e3923153-9e27-4458-82fa-37a5115d52f0"], "remediation": "Specify\
+          \ the resource's entity tag."}

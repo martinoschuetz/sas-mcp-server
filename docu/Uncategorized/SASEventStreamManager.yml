@@ -1,0 +1,4434 @@
+---
+openapi: 3.0.3
+info:
+  title: Event Stream Manager
+  description: The Event Stream Manager API provides programmatic access to deployment
+    and monitoring capabilities within SAS Event Stream Manager.  It allows users
+    to perform operations such as creating and deleting deployments, managing ESP
+    servers, and deploying and monitoring projects.
+  version: '4'
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+servers:
+- url: https://example.com/SASEventStreamManager/v4
+  description: This is an example of a base URL.
+tags:
+- name: Deployment Definition
+  description: Contains the operations for creating, editing, and deleting deployments.
+- name: Cluster Deployment
+  description: Contains the operations for managing ESP servers and projects that
+    run in a Kubernetes cluster. The ESP servers and projects are associated with
+    a deployment whose type is cluster.
+- name: Edge Deployment
+  description: Contains the operations for managing ESP servers and projects that
+    run on edge servers. The ESP servers and projects are associated with a deployment
+    whose type is edge.
+- name: Project
+  description: Contains the operations for returning details of projects.
+- name: Edge Server
+  description: Contains the operations for managing ESP servers.
+- name: Job
+  description: Contains the operations for returning details of running jobs.
+- name: Project Promotion
+  description: Contains the operations for managing project promotion.
+- name: Pod
+  description: Contains the operations for querying pods that are running in a Kubernetes
+    cluster.
+- name: Root
+  description: Contains the operations for the root resource.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get a list of top-level links
+      description: Returns a list of links to the top-level collections surfaced through
+        this API.
+      operationId: root
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Content-Type:
+              description: The media type for the response (application/vnd.sas.api+json).
+              schema:
+                type: string
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/rootResponse200"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                example:
+                  $ref: "#/components/examples/rootResponse200"
+  /deployments:
+    get:
+      summary: Get all deployments
+      description: Returns a list of all deployments, including details of the deployments
+        such as assigned ESP servers and running projects.
+      operationId: getListDeployments
+      parameters:
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - description: When `true`, details of servers and projects are not included
+        in: query
+        name: noDetails
+        required: false
+        schema:
+          default: false
+          type: boolean
+      - description: If this parameter is set to `production`, then only production
+          deployments are returned. If this parameter is set to `test`, then only
+          non-production deployments are returned. Otherwise, deployments are returned
+          regardless of their production status.
+        in: query
+        name: suitableFor
+        required: false
+        schema:
+          type: string
+          enum:
+          - production
+          - test
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionDeploymentRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionDeploymentRepresentation'
+            application/vnd.sas.collection+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionDeploymentRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionDeploymentRepresentation'
+          description: The request succeeded.
+      tags:
+      - Deployment Definition
+    post:
+      summary: Create a deployment
+      description: Creates a deployment of type edge or cluster, to manage ESP servers
+        and projects.
+      operationId: createDeployment
+      requestBody:
+        content:
+          application/json:
+            examples:
+              clusterExample:
+                $ref: '#/components/examples/createClusterDeploymentRepresentation'
+              edgeExample:
+                $ref: '#/components/examples/createDeploymentRepresentation'
+            schema:
+              $ref: '#/components/schemas/createDeploymentRepresentation'
+          application/vnd.sas.esp.deployment+json:
+            examples:
+              clusterExample:
+                $ref: '#/components/examples/createClusterDeploymentRepresentation'
+              edgeExample:
+                $ref: '#/components/examples/createDeploymentRepresentation'
+            schema:
+              $ref: '#/components/schemas/createDeploymentRepresentation'
+        required: true
+      responses:
+        '201':
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              examples:
+                clusterExample:
+                  $ref: '#/components/examples/deploymentClusterRepresentation'
+                edgeExample:
+                  $ref: '#/components/examples/deploymentRepresentation'
+              schema:
+                $ref: '#/components/schemas/deploymentRepresentation'
+            application/vnd.sas.esp.deployment+json:
+              examples:
+                clusterExample:
+                  $ref: '#/components/examples/deploymentClusterRepresentation'
+                edgeExample:
+                  $ref: '#/components/examples/deploymentRepresentation'
+              schema:
+                $ref: '#/components/schemas/deploymentRepresentation'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+      tags:
+      - Deployment Definition
+  /deployments/{deploymentName}:
+    delete:
+      summary: Delete a deployment
+      description: Deletes a specific deployment identified by its name.
+      operationId: deleteDeleteDeployment
+      parameters:
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+      tags:
+      - Deployment Definition
+    get:
+      summary: Get a deployment
+      description: Retrieves a specific deployment identified by its name.
+      operationId: getDeployment
+      parameters:
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/deploymentRepresentation'
+              schema:
+                $ref: '#/components/schemas/deploymentRepresentation'
+            application/vnd.sas.esp.deployment+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/deploymentRepresentation'
+              schema:
+                $ref: '#/components/schemas/deploymentRepresentation'
+          description: The request succeeded.
+      tags:
+      - Deployment Definition
+    patch:
+      summary: Update a specific deployment
+      description: Updates a specific deployment identified by its name. An updated
+        deployment representation is returned.
+      operationId: patchDeployment
+      parameters:
+      - in: header
+        name: If-Unmodified-Since
+        description: If-Unmodified-Since
+        required: false
+        schema:
+          format: HTTP-date
+          type: string
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.esp.update-deployment+json:
+            examples:
+              example:
+                $ref: '#/components/examples/updateDeploymentRepresentation'
+            schema:
+              $ref: '#/components/schemas/updateDeploymentRepresentation'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/updateDeploymentRepresentation'
+            schema:
+              $ref: '#/components/schemas/updateDeploymentRepresentation'
+        required: true
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/deploymentRepresentation'
+              schema:
+                $ref: '#/components/schemas/deploymentRepresentation'
+            application/vnd.sas.esp.deployment+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/deploymentRepresentation'
+              schema:
+                $ref: '#/components/schemas/deploymentRepresentation'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '412':
+          $ref: '#/components/responses/errorResponse412IfUnmodifiedSince'
+        '428':
+          $ref: '#/components/responses/errorResponse428PreconditionRequired'
+      tags:
+      - Deployment Definition
+    head:
+      summary: Check if a deployment exists
+      description: Returns header information about a specific deployment identified
+        by its name.
+      operationId: headersForGetDeployment
+      parameters:
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+          description: The request succeeded.
+      tags:
+      - Deployment Definition
+  /deployments/{deploymentName}/edgeServers:
+    get:
+      summary: Get ESP servers for the specified deployment
+      description: Returns a list of ESP servers that are associated with the specified
+        deployment.
+      operationId: getAssets
+      parameters:
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionEsmEspServerRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionEsmEspServerRepresentation'
+            application/vnd.sas.collection+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionEsmEspServerRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionEsmEspServerRepresentation'
+          description: The request succeeded.
+      tags:
+      - Edge Deployment
+    post:
+      summary: Add ESP servers to the specified deployment
+      description: Adds ESP servers to the specified deployment. Provides a list of
+        names of existing ESP servers to be added.
+      operationId: createServersToDeployment
+      parameters:
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: If-Unmodified-Since
+        description: If-Unmodified-Since
+        required: false
+        schema:
+          format: HTTP-date
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.esp.update-deployment-server-list+json:
+            examples:
+              example:
+                $ref: '#/components/examples/updateDeploymentServerListRepresentation'
+            schema:
+              $ref: '#/components/schemas/updateDeploymentServerListRepresentation'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/updateDeploymentServerListRepresentation'
+            schema:
+              $ref: '#/components/schemas/updateDeploymentServerListRepresentation'
+        required: true
+      responses:
+        '201':
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/deploymentRepresentation'
+              schema:
+                items:
+                  $ref: '#/components/schemas/deploymentRepresentation'
+            application/vnd.sas.esp.deployment+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/deploymentRepresentation'
+              schema:
+                $ref: '#/components/schemas/deploymentRepresentation'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '412':
+          $ref: '#/components/responses/errorResponse412IfUnmodifiedSince'
+        '428':
+          $ref: '#/components/responses/errorResponse428PreconditionRequired'
+      tags:
+      - Edge Deployment
+    patch:
+      summary: Remove ESP servers from the associated deployment
+      description: Removes ESP servers from the associated deployment. Provides a
+        list of names of existing ESP servers to be removed.
+      operationId: patchRemoveServersFromDeployment
+      parameters:
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: If-Unmodified-Since
+        description: If-Unmodified-Since
+        required: false
+        schema:
+          format: HTTP-date
+          type: string
+      - in: query
+        name: forceRemoval
+        description: When this parameter is set to `true`, all ESP servers are removed,
+          including ESP servers that have running projects. When this parameter is
+          set to `false`, if there are any ESP servers that have running projects,
+          then no ESP servers are removed.
+        required: false
+        schema:
+          default: false
+          type: boolean
+      requestBody:
+        content:
+          application/vnd.sas.esp.update-deployment-server-list+json:
+            examples:
+              example:
+                $ref: '#/components/examples/updateDeploymentServerListRepresentation'
+            schema:
+              $ref: '#/components/schemas/updateDeploymentServerListRepresentation'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/updateDeploymentServerListRepresentation'
+            schema:
+              $ref: '#/components/schemas/updateDeploymentServerListRepresentation'
+        required: true
+      responses:
+        '200':
+          headers:
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/deploymentRepresentation'
+              schema:
+                items:
+                  $ref: '#/components/schemas/deploymentRepresentation'
+            application/vnd.sas.esp.deployment+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/deploymentRepresentation'
+              schema:
+                $ref: '#/components/schemas/deploymentRepresentation'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '412':
+          $ref: '#/components/responses/errorResponse412IfUnmodifiedSince'
+        '428':
+          $ref: '#/components/responses/errorResponse428PreconditionRequired'
+      tags:
+      - Edge Deployment
+    head:
+      summary: Check if ESP servers exist for the specified deployment
+      description: Returns header information about ESP servers that are associated
+        with the specified deployment.
+      operationId: headersForGetAssets
+      parameters:
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+      tags:
+      - Edge Deployment
+  /deployments/{deploymentName}/edgeServers/{serverName}/projects:
+    post:
+      summary: Deploy a project to an ESP server
+      description: Deploys a project to an ESP server. Returns information about the
+        job that processes the request.
+      operationId: createDeployProjectOnEdge
+      parameters:
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: serverName
+        description: The name of the ESP server.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.esp.deploy-edge+json:
+            examples:
+              minimalConfigurationToRunOnEdgeDeployment:
+                $ref: '#/components/examples/minimalConfigurationToRunOnEdgeDeployment'
+            schema:
+              $ref: '#/components/schemas/deployEdgeRepresentation'
+          application/json:
+            examples:
+              minimalConfigurationToRunOnEdgeDeployment:
+                $ref: '#/components/examples/minimalConfigurationToRunOnEdgeDeployment'
+            schema:
+              $ref: '#/components/schemas/deployEdgeRepresentation'
+        required: true
+      responses:
+        '201':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/vnd.sas.esp.job-representation+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/jobRepresentation'
+              schema:
+                $ref: '#/components/schemas/jobRepresentation'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/jobRepresentation'
+              schema:
+                $ref: '#/components/schemas/jobRepresentation'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+      tags:
+      - Edge Deployment
+    get:
+      summary: Get a list of projects that run on an ESP server
+      description: Returns a list of projects that run on the specified ESP server
+        and are associated with the specified deployment.
+      operationId: getDeploymentProjects
+      parameters:
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: serverName
+        description: The name of the ESP server.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionRunningProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionRunningProjectRepresentation'
+            application/vnd.sas.collection+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionRunningProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionRunningProjectRepresentation'
+          description: The request succeeded.
+      tags:
+      - Edge Deployment
+    head:
+      summary: Check if projects exist on an ESP server
+      description: Returns header information about projects that run on the specified
+        ESP server and are associated with the specified deployment.
+      operationId: headersForGetDeploymentProject
+      parameters:
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: serverName
+        description: The name of the ESP server.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+      tags:
+      - Edge Deployment
+  /deployments/{deploymentName}/edgeServers/{serverName}/projects/{projectName}:
+    get:
+      summary: Get a project on the specified ESP server for the specified deployment
+      description: Returns a project that runs on the specified ESP server and is
+        associated with the specified deployment.
+      operationId: getServerProjects
+      parameters:
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: serverName
+        description: The name of the ESP server.
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: projectName
+        description: The name of the ESP project.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/runningProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/runningProjectRepresentation'
+            application/vnd.sas.esp.running-project+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/runningProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/runningProjectRepresentation'
+          description: The request succeeded.
+      tags:
+      - Edge Deployment
+    head:
+      summary: Check if a project exists on the ESP server
+      description: Returns header information about a project that runs on the specified
+        ESP server and is associated with the specified deployment.
+      operationId: headersForServerProjects
+      parameters:
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: serverName
+        description: The name of the ESP server.
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: projectName
+        description: The name of the ESP project.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+      tags:
+      - Edge Deployment
+    delete:
+      summary: Delete a project from the specified ESP server and deployment
+      description: Deletes a project from the specified ESP server and deployment.
+      operationId: deleteDeploymentServerProject
+      parameters:
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: serverName
+        description: The name of the ESP server.
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: projectName
+        description: The name of the ESP project.
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+      tags:
+      - Edge Deployment
+  /deployments/{deploymentName}/clusterServers:
+    post:
+      summary: Deploy a project to the Kubernetes cluster
+      description: Deploys a project to the Kubernetes cluster. An ESP server is created
+        on demand in the Kubernetes cluster. Returns information about the job that
+        processes the request.
+      operationId: createDeployProjectOnCluster
+      parameters:
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.esp.deploy-cluster+json:
+            examples:
+              minimalConfigurationToRunOnClusterDeployment:
+                $ref: '#/components/examples/minimalConfigurationToRunOnClusterDeployment'
+              advancedConfigurationToRunOnClusterDeployment:
+                $ref: '#/components/examples/advancedConfigurationToRunOnClusterDeployment'
+            schema:
+              $ref: '#/components/schemas/deployClusterRepresentation'
+          application/json:
+            examples:
+              minimalConfigurationToRunOnClusterDeployment:
+                $ref: '#/components/examples/minimalConfigurationToRunOnClusterDeployment'
+              advancedConfigurationToRunOnClusterDeployment:
+                $ref: '#/components/examples/advancedConfigurationToRunOnClusterDeployment'
+            schema:
+              $ref: '#/components/schemas/deployClusterRepresentation'
+        required: true
+      responses:
+        '201':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/vnd.sas.esp.job-representation+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/jobRepresentationCluster'
+              schema:
+                $ref: '#/components/schemas/jobRepresentationCluster'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/jobRepresentationCluster'
+              schema:
+                $ref: '#/components/schemas/jobRepresentationCluster'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+      tags:
+      - Cluster Deployment
+    get:
+      summary: Get a list of ESP servers that run in the Kubernetes cluster
+      description: Returns a list of ESP servers that run in the Kubernetes cluster
+        and are associated with the specified deployment. The status of each ESP project
+        in the cluster is returned.
+      operationId: getDeploymentClusterServers
+      parameters:
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionEsmEspServerRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionEsmEspServerRepresentation'
+            application/vnd.sas.collection+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionEsmEspServerRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionEsmEspServerRepresentation'
+          description: The request succeeded.
+      tags:
+      - Cluster Deployment
+    head:
+      summary: Check if ESP servers exist in the Kubernetes cluster
+      description: Returns header information about the ESP servers that run in the
+        Kubernetes cluster and are associated with the specified deployment. The deployment
+        status of each ESP project in the cluster is returned.
+      operationId: headersForDeploymentClusterServers
+      parameters:
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+      tags:
+      - Cluster Deployment
+  /deployments/{deploymentName}/clusterServers/{projectName}:
+    get:
+      summary: Get a specified project from the Kubernetes cluster
+      description: Returns a specified project from the Kubernetes cluster.
+      operationId: getClusterServerProject
+      parameters:
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: projectName
+        description: The name of the ESP project.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/runningClusterProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/runningClusterProjectRepresentation'
+            application/vnd.sas.esp.running-cluster-project+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/runningClusterProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/runningClusterProjectRepresentation'
+          description: The request succeeded.
+      tags:
+      - Cluster Deployment
+    head:
+      summary: Check if the specified project exists in the Kubernetes cluster
+      description: Returns header information about a specified project from the Kubernetes
+        cluster.
+      operationId: headersForClusterServerProject
+      parameters:
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: projectName
+        description: The name of the ESP project.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+      tags:
+      - Cluster Deployment
+    delete:
+      summary: Delete a project from the Kubernetes cluster
+      description: Deletes a project from the Kubernetes cluster. The ESP server is
+        also deleted from the Kubernetes cluster.
+      operationId: deleteDeploymentClusterServerProject
+      parameters:
+      - in: path
+        name: deploymentName
+        description: The name of the deployment.
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: projectName
+        description: The name of the ESP project.
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+      tags:
+      - Cluster Deployment
+  /projects:
+    get:
+      summary: Get all available projects
+      description: Returns a list of all projects that SAS Event Stream Manager is
+        aware of. The project's XML code is not returned. You can return basic information
+        that includes the project's ID, name, and version number.
+      operationId: getListProjects
+      parameters:
+      - description: When this parameter is provided, it specifies the type of sort
+          that should be applied to the returned list. If the type of sort is not
+          specified, the representations are returned with the most recent listed
+          first. The only supported sort is alphabetical (a locale-sensitive alphabetical
+          sort in ascending order).
+        in: query
+        name: sort
+        required: false
+        schema:
+          default: ''
+          type: string
+      - description: If this parameter is set to `production`, then only production
+          projects are returned. If this parameter is set to `test`, then only non-production
+          projects are returned. Otherwise, projects are returned regardless of their
+          production status.
+        in: query
+        name: suitableFor
+        required: false
+        schema:
+          default: 'test'
+          enum:
+          - production
+          - test
+          type: string
+      - description: If this parameter is set to `true`, then the project representations
+          contain minimal details.
+        in: query
+        name: noDetails
+        required: false
+        schema:
+          default: false
+          type: boolean
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - description: The filter parameter. For example, to filter by name use `filter=eq(name,theProjectName)`.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionEspProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionEspProjectRepresentation'
+            application/vnd.sas.collection+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionEspProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionEspProjectRepresentation'
+          description: The request succeeded.
+      tags:
+      - Project
+  /projects/{projectName}:
+    get:
+      summary: Get a project
+      description: Retrieves a specific project identified by its name.
+      operationId: getProject1
+      parameters:
+      - description: The name of the project.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/projectVersionNumberString'
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+          content:
+            application/vnd.sas.esp.espproject+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/espProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/espProjectRepresentation'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/espProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/espProjectRepresentation'
+          description: The request succeeded.
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+      tags:
+      - Project
+    head:
+      summary: Check if a project exists
+      description: Returns header information about a specific project identified
+        by its name.
+      operationId: headersForGetProject1
+      parameters:
+      - description: The name of the project.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/projectVersionNumberString'
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+          description: The request succeeded.
+      tags:
+      - Project
+  /projects/{projectName}/promotions:
+    post:
+      summary: Promote a project
+      description: Promotes a project version to the next promotion level when further
+        promotion levels are available.
+      operationId: createPromotedProject
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.esp.project.packaging.promote+json:
+            examples:
+              versioning:
+                $ref: '#/components/examples/createPromotedProjectRepresentation'
+              promotion:
+                $ref: '#/components/examples/createPromotedProjectRepresentation'
+            schema:
+              $ref: '#/components/schemas/createPromotedProjectRepresentation'
+          application/json:
+            examples:
+              versioning:
+                $ref: '#/components/examples/createPromotedProjectRepresentation'
+              promotion:
+                $ref: '#/components/examples/createPromotedProjectRepresentation'
+            schema:
+              $ref: '#/components/schemas/createPromotedProjectRepresentation'
+      responses:
+        '201':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectVersionHistoryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectVersionHistoryRepresentation'
+            application/vnd.sas.esp.project-version-history+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectVersionHistoryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectVersionHistoryRepresentation'
+          description: The new version was created, or the version was promoted.
+        '400':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/errorResponse400'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: The specific project exists, but the specified version does
+            not.
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/errorResponse404'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: The specified project does not exist.
+        '409':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                alreadyExists:
+                  $ref: '#/components/examples/createPromotedProjectErrorAlreadyExists'
+                locked:
+                  $ref: '#/components/examples/projectIsLocked'
+                unsavedChanges:
+                  $ref: '#/components/examples/projectHasUnsavedChanges'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: |
+            The project has already been promoted to the maximum permitted level, or the project is locked by another user and cannot be promoted at this time, or the project has changes that must be saved first.
+        '410':
+          content:
+            application/vnd.sas.error+json:
+              example:
+                previousVersionDoesNotExist:
+                  $ref: '#/components/examples/createPromotedProjectErrorPreviousVersionDoesNotExist'
+                schema:
+                  $ref: '#/components/schemas/errorResponse'
+          description: An error response when the project cannot be promoted.
+        '500':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                projectVersioningInternalImplementationError:
+                  $ref: '#/components/examples/projectVersioningInternalImplementationError'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: An internal error has occurred during project versioning. See
+            the application logs for more details.
+        '503':
+          $ref: '#/components/responses/errorResponse503PackagingOrVersioningNotAvailable'
+      tags:
+      - Project Promotion
+    get:
+      summary: Get the promotion history
+      description: Returns the promotion history of a project.
+      operationId: getPromotionHistory
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: If `true`, then returns the version notes for each version. If
+          `false` or not specified, returns just the version numbers with empty notes.
+        in: query
+        name: includeNotes
+        required: false
+        schema:
+          type: boolean
+      - description: If specified, then returns the history for this version of the
+          project only. If this parameter is not provided, returns the history for
+          all versions for the project.
+        in: query
+        name: forVersion
+        required: false
+        schema:
+          format: int32
+          type: integer
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectVersionHistoryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectVersionHistoryRepresentation'
+            application/vnd.sas.esp.project-version-history+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectVersionHistoryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectVersionHistoryRepresentation'
+          description: The response contains the version history of the project.
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/errorResponse404'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: The project does not exist.
+        '500':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                projectVersioningInternalImplementationError:
+                  $ref: '#/components/examples/projectVersioningInternalImplementationError'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: An internal error has occurred during project versioning. See
+            the application logs for more details.
+        '503':
+          $ref: '#/components/responses/errorResponse503PackagingOrVersioningNotAvailable'
+      tags:
+      - Project Promotion
+    head:
+      summary: Check if the promotion history exists
+      description: Returns header information about the promotion history of a project.
+      operationId: headersForGetVersionHistory
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: If `true`, then returns the version notes for each version. If
+          `false` or not specified, returns just the version numbers with empty notes.
+        in: query
+        name: includeNotes
+        required: false
+        schema:
+          type: boolean
+      - description: If specified, then returns the history for this version of the
+          project only. If this parameter is not provided, returns the history for
+          all versions for the project.
+        in: query
+        name: forVersion
+        required: false
+        schema:
+          format: int32
+          type: integer
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The response contains the version history of the project.
+      tags:
+      - Project Promotion
+  /jobs/{jobId}:
+    get:
+      summary: Get a running job by ID
+      description: Returns a running job given the job's unique identifier. Associated
+        tasks can be filtered out.
+      operationId: getJob
+      parameters:
+      - in: path
+        name: jobId
+        description: The unique identifier of the job.
+        required: true
+        schema:
+          type: string
+      - in: query
+        description: If set to `false`, then these tasks are not included.
+        name: cancelled
+        required: false
+        schema:
+          default: true
+          type: boolean
+      - in: query
+        description: If set to `false`, then these tasks are not included.
+        name: completed
+        required: false
+        schema:
+          default: true
+          type: boolean
+      - in: query
+        description: If set to `false`, then these tasks will are not included.
+        name: completedWithFailures
+        required: false
+        schema:
+          default: true
+          type: boolean
+      - in: query
+        description: If set to `false`, then these tasks are not included.
+        name: notStarted
+        required: false
+        schema:
+          default: true
+          type: boolean
+      - in: query
+        description: If set to `false`, then these tasks are not included.
+        name: running
+        required: false
+        schema:
+          default: true
+          type: boolean
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/vnd.sas.esp.job-representation+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/jobRepresentation'
+              schema:
+                $ref: '#/components/schemas/jobRepresentation'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/jobRepresentation'
+              schema:
+                $ref: '#/components/schemas/jobRepresentation'
+          description: The request succeeded.
+      tags:
+      - Job
+    head:
+      summary: Check if a job exists
+      description: Returns header information about a running job given the job's
+        unique identifier. Associated tasks can be filtered out.
+      operationId: headersForGetJob
+      parameters:
+      - in: path
+        name: jobId
+        description: The unique identifier of the job.
+        required: true
+        schema:
+          type: string
+      - in: query
+        description: If set to `false`, then these tasks are not included.
+        name: cancelled
+        required: false
+        schema:
+          default: true
+          type: boolean
+      - in: query
+        description: If set to `false`, then these tasks are not included.
+        name: completed
+        required: false
+        schema:
+          default: true
+          type: boolean
+      - in: query
+        description: If set to `false`, then these tasks are not included.
+        name: completedWithFailures
+        required: false
+        schema:
+          default: true
+          type: boolean
+      - in: query
+        description: If set to `false`, then these tasks are not included.
+        name: notStarted
+        required: false
+        schema:
+          default: true
+          type: boolean
+      - in: query
+        description: If set to `false`, then these tasks are not included.
+        name: running
+        required: false
+        schema:
+          default: true
+          type: boolean
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+      tags:
+      - Job
+  /pod/globalHealth/{podName}:
+    get:
+      summary: Get a snapshot of the health status
+      description: Returns a snapshot of the health status for the ESP project on
+        the given pod.
+      operationId: getEspServerPodGlobalHealth
+      parameters:
+      - description: The name of the target pod.
+        in: path
+        name: podName
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/globalHealthRepresentation'
+              schema:
+                $ref: '#/components/schemas/globalHealthRepresentation'
+            application/vnd.sas.esp.global-health+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/globalHealthRepresentation'
+              schema:
+                $ref: '#/components/schemas/globalHealthRepresentation'
+          description: The request succeeded.
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+        '502':
+          $ref: '#/components/responses/errorResponse502'
+      tags:
+      - Pod
+    head:
+      summary: Check if the health status exists
+      description: Returns header information about the health status for the ESP
+        project on the given pod.
+      operationId: headersForGetEspServerPodGlobalHealth
+      parameters:
+      - description: The name of the target pod.
+        in: path
+        name: podName
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+      tags:
+      - Pod
+  /pod/performanceStats/{podName}:
+    get:
+      summary: Get the performance statistics of a pod
+      description: Returns the performance statistics for the ESP project on the specified
+        pod.
+      operationId: getEspServerPodPerformanceStats
+      parameters:
+      - description: The name of the target pod's project.
+        in: query
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: Limit the response to windows with 5% CPU or more.
+        in: query
+        name: limitCpu
+        required: false
+        schema:
+          type: boolean
+      - description: The name of the target pod.
+        in: path
+        name: podName
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectStatsResponse'
+              schema:
+                $ref: '#/components/schemas/projectStatsResponse'
+            application/vnd.sas.esp.performance+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectStatsResponse'
+              schema:
+                $ref: '#/components/schemas/projectStatsResponse'
+          description: The request succeeded.
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+        '502':
+          $ref: '#/components/responses/errorResponse502'
+      tags:
+      - Pod
+    head:
+      summary: Check if the performance statistics of a pod exist
+      description: Returns header information about the performance statistics for
+        the ESP project on the given pod.
+      operationId: headersForGetEspServerPodPerformanceStats
+      parameters:
+      - description: The name of the target pod's project.
+        in: query
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: Limit the response to windows with 5% CPU or more.
+        in: query
+        name: limitCpu
+        required: false
+        schema:
+          type: boolean
+      - description: The name of the target pod.
+        in: path
+        name: podName
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+      tags:
+      - Pod
+  /edgeServers:
+    get:
+      summary: Get ESP servers
+      description: Returns a list of all ESP servers known to SAS Event Stream Manager.
+        An optional filter can be applied.
+      operationId: getListServers
+      parameters:
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          minimum: 1
+          maximum: 10000
+          format: int32
+          type: integer
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - in: query
+        name: filter
+        description: A filter expression for filtering servers.
+        required: false
+        schema:
+          default: ''
+          type: string
+          example: deploymentId='097a507e-3e00-4646-98ba-0d11fe724f3a'
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionEsmEspServerRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionEsmEspServerRepresentation'
+            application/vnd.sas.collection+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionEsmEspServerRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionEsmEspServerRepresentation'
+          description: The request succeeded.
+      tags:
+      - Edge Server
+    post:
+      summary: Add ESP server details
+      description: Adds information about an ESP server.
+      operationId: createRegisterServer
+      requestBody:
+        content:
+          application/vnd.sas.esp.esp-server+json:
+            examples:
+              example:
+                $ref: '#/components/examples/createServerRepresentation'
+            schema:
+              $ref: '#/components/schemas/createServerRepresentation'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/createServerRepresentation'
+            schema:
+              $ref: '#/components/schemas/createServerRepresentation'
+        required: true
+      responses:
+        '201':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/vnd.sas.esp.esp-server+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/esmEspServerRepresentation'
+              schema:
+                $ref: '#/components/schemas/esmEspServerRepresentation'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/esmEspServerRepresentation'
+              schema:
+                $ref: '#/components/schemas/esmEspServerRepresentation'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+      tags:
+      - Edge Server
+  /edgeServers/{serverName}:
+    delete:
+      summary: Delete ESP server details
+      description: Deletes the information about an ESP server identified by its name.
+        This endpoint is valid only for ESP servers that are running on edge servers
+        and have been manually registered to SAS Event Stream Manager.
+      operationId: deleteRemoveServer
+      parameters:
+      - in: path
+        name: serverName
+        description: The name of the ESP server.
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+      tags:
+      - Edge Server
+    get:
+      summary: Get ESP server details
+      description: Retrieves the information about a specific ESP server identified
+        by its name.
+      operationId: getServer
+      parameters:
+      - in: path
+        name: serverName
+        description: The name of the ESP server.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+          content:
+            application/vnd.sas.esp.esp-server+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/esmEspServerRepresentation'
+              schema:
+                $ref: '#/components/schemas/esmEspServerRepresentation'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/esmEspServerRepresentation'
+              schema:
+                $ref: '#/components/schemas/esmEspServerRepresentation'
+          description: The request succeeded.
+      tags:
+      - Edge Server
+    head:
+      summary: Check if an ESP server exists
+      description: Returns header information about a specific ESP server identified
+        by its name.
+      operationId: headersForGetServer
+      parameters:
+      - in: path
+        name: serverName
+        description: The name of the ESP server.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers: {}
+          description: The request succeeded.
+      tags:
+      - Edge Server
+components:
+  headers:
+    ContentType:
+      description: The response `Content-Type` header from the service.
+      schema:
+        type: string
+    LastModified:
+      description: The last modified time.
+      schema:
+        type: string
+    Location:
+      description: URL of the created or updated resource.
+      schema:
+        type: string
+  responses:
+    errorResponse400:
+      description: The request was invalid. Additional information is available in
+        the application logs if the environment variable `LOGGING_LEVEL_ORG_SPRINGFRAMEWORK`
+        is set to `DEBUG`.
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse400'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+    errorResponse401:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse401'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: The request is not authenticated.
+    errorResponse403:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse403'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: The user did not have the necessary permissions.
+    errorResponse404:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse404'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: No resource exists at the requested path.
+    errorResponse409:
+      description: The request could not be completed due to a conflict with the current
+        state of the resource.
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse409'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+    errorResponse412IfUnmodifiedSince:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse412IfUnmodifiedSince'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: The `If-Unmodified-Since` request header did not match the resource's
+        last modified timestamp.
+    errorResponse412IfMatch:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse412IfMatch'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: The `If-Match` request header did not match the resource's entity
+        tag.
+    errorResponse428PreconditionRequired:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse428PreconditionRequired'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: A precondition header is required.
+    errorResponse502:
+      description: Bad Gateway. The ESP server was unable to complete the request.
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse404'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+    errorResponse503PackagingOrVersioningNotAvailable:
+      description: Functionality for project packages is not enabled, or functionality
+        for project versions is not enabled.
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            projectPackagingNotEnabled:
+              $ref: '#/components/examples/projectPackagingNotEnabled'
+            projectVersioningNotEnabled:
+              $ref: '#/components/examples/projectVersioningNotEnabled'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+    errorResponse503PackagingVersioningOrRemoteGitNotAvailable:
+      description: Functionality for project packages is not enabled, functionality
+        for project versions is not enabled, or functionality for remote Git connections
+        is not enabled.
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            projectPackagingNotEnabled:
+              $ref: '#/components/examples/projectPackagingNotEnabled'
+            projectVersioningNotEnabled:
+              $ref: '#/components/examples/projectVersioningNotEnabled'
+            remoteGitNotEnabled:
+              $ref: '#/components/examples/remoteGitNotEnabled'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+  parameters:
+    projectVersionNumberString:
+      name: version
+      description: The project's version number. The version number must include a
+        version and promotion level. Each value must be a non-negative integer, separated
+        with a '.' character.
+      in: query
+      required: true
+      schema:
+        type: string
+      examples:
+        versionAndPromotionLevel:
+          value: '3.2'
+          summary: A major version of 3 and a promotion level of 2
+  schemas:
+    aggregatedRunningProjectRepresentation:
+      description: Aggregated running project representation.
+      properties:
+        id:
+          type: string
+        majorVersion:
+          format: int32
+          type: integer
+        minorVersion:
+          format: int32
+          type: integer
+        name:
+          type: string
+        serverCount:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        statuses:
+          additionalProperties:
+            format: int32
+            type: integer
+          type: object
+        tagStrings:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+          writeOnly: true
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+      type: object
+    api:
+      description: >-
+        The list of links to top-level resources and operations available from the
+        root of the API.
+      properties:
+        links:
+          description: The API's top-level links.
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+        version:
+          description: The version number of the API representation.
+          type: integer
+      required:
+      - version
+      - links
+      title: API
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+    clusterProjectConfigurationRepresentation:
+      description: A representation of a running ESP project in the Kubernetes cluster.
+      properties:
+        cpuLimit:
+          type: string
+        cpuRequested:
+          type: string
+        environmentVariables:
+          additionalProperties:
+            type: string
+          example:
+            key: value
+          type: object
+        gpuLimit:
+          type: string
+        gpuRequested:
+          type: string
+        memoryLimit:
+          type: string
+        memoryRequested:
+          type: string
+        replicasLimit:
+          type: string
+        replicasRequested:
+          type: string
+      type: object
+    deployEdgeRepresentation:
+      description: A representation to run an ESP project on a deployment whose type
+        is `edge`. If the `projectVersion` property is not supplied, then the latest
+        version of the project is used.
+      properties:
+        projectName:
+          type: string
+        projectVersion:
+          format: int32
+          type: integer
+      required:
+      - projectName
+      type: object
+    deployClusterRepresentation:
+      description: >-
+        The `clusterConfiguration` property is optional when deploying to a deployment
+        of type `cluster`. If the `projectVersion` property is not supplied, then
+        the latest version of the project is used.
+      properties:
+        clusterConfiguration:
+          $ref: '#/components/schemas/clusterProjectServerRepresentation'
+        projectName:
+          type: string
+        projectVersion:
+          type: integer
+      required:
+      - projectName
+      type: object
+    clusterProjectServerRepresentation:
+      description: The configuration settings for running the project in a Kubernetes
+        cluster. A representation of the limits for the associated ESP server that
+        runs in the Kubernetes cluster.
+      properties:
+        continuousOperation:
+          description: >-
+            Specifies whether continuous operation is enabled for the ESP server.
+            When continuous operation is enabled, the ESP server does not stop and
+            start automatically.
+          default: true
+          type: boolean
+        customEnvironmentVariables:
+          additionalProperties:
+            type: string
+          type: object
+        customServerProperties:
+          additionalProperties:
+            type: string
+          type: object
+        gpuReliant:
+          type: boolean
+        loadOnly:
+          type: boolean
+        settings:
+          $ref: '#/components/schemas/clusterUserSettings'
+      type: object
+    clusterUserSettings:
+      description: A user's settings for an ESP server that is running in the Kubernetes
+        cluster.
+      properties:
+        averageUtilization:
+          format: int32
+          type: integer
+        limitsCpu:
+          format: float
+          minimum: 0
+          type: number
+        limitsGpu:
+          format: int32
+          minimum: 0
+          type: integer
+        limitsMemory:
+          pattern: ^(?:\d+\.)?\d+(k|M|G|T|P|E|Ki|Mi|Gi|Ti|Pi|Ei)?$
+          type: string
+        maxReplicas:
+          format: int32
+          type: integer
+        minReplicas:
+          format: int32
+          type: integer
+        requestsCpu:
+          format: float
+          minimum: 0
+          type: number
+        requestsGpu:
+          format: int32
+          minimum: 0
+          type: integer
+        requestsMemory:
+          pattern: ^(?:\d+\.)?\d+(k|M|G|T|P|E|Ki|Mi|Gi|Ti|Pi|Ei)?$
+          type: string
+      type: object
+    createServerRepresentation:
+      description: A representation for creating an ESP server.
+      properties:
+        description:
+          type: string
+        esmDeploymentId:
+          type: string
+        friendlyName:
+          type: string
+        ipAddress:
+          type: string
+          format: hostname | ipv4
+        pubSubPort:
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 65535
+        ssl:
+          type: boolean
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+      type: object
+    contQueryStats:
+      description: >-
+        A representation of a continuous query's statistics, such as CPU and event
+        count.
+      properties:
+        name:
+          type: string
+        windowStats:
+          items:
+            $ref: '#/components/schemas/windowStats'
+          type: array
+      type: object
+    createDeploymentRepresentation:
+      description: >-
+        A representation for creating a deployment with the following details: a
+        name, a description, information about whether the deployment is a
+        production deployment, tags, and the deployment's type.
+      properties:
+        description:
+          maxLength: 255
+          type: string
+        name:
+          minLength: 1
+          type: string
+        production:
+          type: boolean
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        type:
+          pattern: ^cluster|edge$
+          type: string
+      required:
+      - name
+      - type
+      type: object
+    dateTimeRepresentation:
+      description: Date time representation.
+      properties:
+        date:
+          type: string
+        time:
+          type: string
+        timestamp:
+          format: int64
+          type: integer
+      type: object
+    deploymentRepresentation:
+      description: A representation for creating a deployment.
+      properties:
+        aggregatedStatus:
+          type: string
+        createdBy:
+          type: string
+        createdOn:
+          format: int64
+          type: integer
+        deleted:
+          type: boolean
+        description:
+          type: string
+        label:
+          type: string
+        modifiedBy:
+          type: string
+        modifiedOn:
+          format: int64
+          type: integer
+        production:
+          type: boolean
+        projectStatuses:
+          additionalProperties:
+            $ref: '#/components/schemas/aggregatedRunningProjectRepresentation'
+          type: object
+        serverCount:
+          format: int64
+          type: integer
+        serverStatuses:
+          additionalProperties:
+            format: int32
+            type: integer
+          type: object
+        servers:
+          items:
+            $ref: '#/components/schemas/esmEspServerRepresentation'
+          type: array
+          uniqueItems: true
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        type:
+          type: string
+        uuid:
+          type: string
+      type: object
+    engineProgressRepresentation:
+      description: Engine progress representation.
+      properties:
+        cancelled:
+          format: int32
+          type: integer
+        complete:
+          format: int32
+          type: integer
+        failed:
+          format: int32
+          type: integer
+        failedEngines:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        pending:
+          format: int32
+          type: integer
+        total:
+          format: int32
+          type: integer
+      type: object
+    equipmentRepresentation:
+      description: Equipment representation.
+      properties:
+        diskSpace:
+          format: int64
+          type: integer
+        friendlyName:
+          type: string
+        health:
+          format: int64
+          type: integer
+        hostName:
+          type: string
+        id:
+          type: string
+        ipAddress:
+          type: string
+        memoryUse:
+          format: int64
+          type: integer
+        status:
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        type:
+          type: string
+      type: object
+    errorResponse:
+      description: >-
+        An error response from the API, with details, error codes, and embedded
+        errors.
+      properties:
+        details:
+          items:
+            type: string
+          type: array
+          xml:
+            wrapped: true
+        errorCode:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+        httpStatusCode:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+        id:
+          type: string
+        links:
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+        message:
+          type: string
+        remediation:
+          type: string
+        statusCode:
+          deprecated: true
+          format: int32
+          type: integer
+          writeOnly: true
+        targetUri:
+          deprecated: true
+          type: string
+        version:
+          format: int32
+          type: integer
+      type: object
+    esmEspServerRepresentation:
+      description: A representation for an ESP server in SAS Event Stream Manager.
+      discriminator:
+        mapping:
+          KUBERNETES: '#/components/schemas/esmClusterEspServerRepresentation'
+          STANDARD: '#/components/schemas/esmEdgeEspServerRepresentation'
+        propertyName: type
+      properties:
+        autoRegistered:
+          type: boolean
+        clusterInitiatingApplication:
+          type: string
+        clusterServer:
+          type: boolean
+        combinedWindows:
+          items:
+            $ref: '#/components/schemas/runningWindowRepresentation'
+          type: array
+        deployment:
+          $ref: '#/components/schemas/deploymentRepresentation'
+        description:
+          type: string
+        equipment:
+          $ref: '#/components/schemas/equipmentRepresentation'
+        esmDeploymentId:
+          type: string
+        esmProjectId:
+          type: string
+        esmProjectInstanceUid:
+          type: string
+        esmUserThatStartedClusterServer:
+          type: string
+        espServerId:
+          type: string
+        friendlyName:
+          type: string
+        health:
+          type: boolean
+        hostName:
+          type: string
+        httpPort:
+          format: int32
+          type: integer
+        id:
+          type: string
+        ipAddress:
+          type: string
+        kerberosEnabled:
+          type: boolean
+        logStatus:
+          type: string
+        memoryUsage:
+          format: int64
+          type: integer
+        messagesToRetain:
+          type: string
+        metering:
+          type: boolean
+        meteringFields:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        meteringHost:
+          type: string
+        meteringValues:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        parameters:
+          items:
+            $ref: '#/components/schemas/serverParameterRepresentation'
+          type: array
+        pluginDir:
+          type: string
+        projects:
+          items:
+            $ref: '#/components/schemas/runningClusterProjectRepresentation'
+          type: array
+        pubSubPort:
+          deprecated: true
+          format: int32
+          type: integer
+        residentMemoryUsage:
+          format: int64
+          type: integer
+        ssl:
+          type: boolean
+        state:
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        type:
+          enum:
+          - STANDARD
+          - KUBERNETES
+          type: string
+        useAuthzHeader:
+          type: boolean
+        version:
+          type: string
+        virtualMemoryUsage:
+          format: int64
+          type: integer
+      type: object
+    espProjectRepresentation:
+      description: A representation of a project.
+      properties:
+        archived:
+          type: boolean
+        configurationLevel:
+          format: int32
+          type: integer
+        deployments:
+          format: int32
+          type: integer
+        description:
+          type: string
+        flowId:
+          type: string
+        friendlyName:
+          type: string
+        hasMasModules:
+          type: boolean
+        majorVersion:
+          format: int32
+          type: integer
+        minorVersion:
+          format: int32
+          type: integer
+        packaged:
+          type: boolean
+        production:
+          type: boolean
+        promotionLevel:
+          format: int32
+          type: integer
+        remoteGitConnection:
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        updateTime:
+          format: int64
+          type: integer
+        uploadTime:
+          format: int64
+          type: integer
+        uploadedBy:
+          type: string
+        uuid:
+          type: string
+        validationServer:
+          type: string
+        version:
+          format: int32
+          type: integer
+        versionNotes:
+          type: string
+        xml:
+          type: string
+      type: object
+    failedTaskRepresentation:
+      description: Failed task representation.
+      properties:
+        failed:
+          format: int32
+          type: integer
+        id:
+          type: string
+        name:
+          type: string
+        progress:
+          $ref: '#/components/schemas/jobProgressRepresentation'
+        success:
+          format: int32
+          type: integer
+        total:
+          format: int32
+          type: integer
+      type: object
+    createPromotedProjectRepresentation:
+      description: Identifies a project to promote to the next promotion level.
+      properties:
+        version:
+          description: The project version you wish to promote to the next promotion
+            level.
+          format: int32
+          minimum: 1
+          type: integer
+        notes:
+          description: The notes for the commit.
+          type: string
+        tags:
+          description: The tags for the commit.
+          items:
+            type: string
+          type: array
+      type: object
+    globalHealthRepresentation:
+      description: >-
+        A representation for the health of a running project's pod in a deployment
+        whose type is `cluster`.
+      properties:
+        projects:
+          additionalProperties:
+            $ref: '#/components/schemas/globalHealthRepresentationProject'
+          type: object
+        timestamp:
+          format: int32
+          type: integer
+      type: object
+    globalHealthRepresentationProject:
+      description: Global health representation project.
+      properties:
+        name:
+          type: string
+        nameValuePairs:
+          additionalProperties:
+            type: string
+          type: object
+      type: object
+    jobParameterRepresentation:
+      description: Job parameter representation.
+      properties:
+        friendlyName:
+          type: string
+        id:
+          type: string
+        type:
+          type: string
+        value:
+          type: object
+      type: object
+    jobProgressRepresentation:
+      description: Job progress representation.
+      properties:
+        cancelled:
+          format: int32
+          type: integer
+        complete:
+          format: int32
+          type: integer
+        failed:
+          format: int32
+          type: integer
+        pending:
+          format: int32
+          type: integer
+        total:
+          format: int32
+          type: integer
+      type: object
+    jobRepresentation:
+      description: The status of the job used to deploy a project to an ESP server
+        that runs on an edge server.
+      properties:
+        archived:
+          type: boolean
+        deployment:
+          type: string
+        engineProgress:
+          $ref: '#/components/schemas/engineProgressRepresentation'
+        failedTasks:
+          items:
+            $ref: '#/components/schemas/failedTaskRepresentation'
+          type: array
+        id:
+          type: string
+        jobTemplate:
+          $ref: '#/components/schemas/jobTemplateRepresentation'
+        jobTemplateDescription:
+          type: string
+        parameters:
+          items:
+            $ref: '#/components/schemas/jobParameterRepresentation'
+          type: array
+        progress:
+          $ref: '#/components/schemas/jobProgressRepresentation'
+        startDt:
+          $ref: '#/components/schemas/dateTimeRepresentation'
+        startTime:
+          format: int64
+          type: integer
+        startedBy:
+          type: string
+        status:
+          type: string
+        statusMessage:
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        tasks:
+          items:
+            $ref: '#/components/schemas/jobTaskRepresentation'
+          type: array
+      type: object
+    jobRepresentationCluster:
+      description: The status of the job used to deploy a project to an ESP server
+        that runs in a Kubernetes cluster.
+      properties:
+        archived:
+          type: boolean
+        failedTasks:
+          items:
+            $ref: '#/components/schemas/failedTaskRepresentation'
+          type: array
+        id:
+          type: string
+        startDt:
+          $ref: '#/components/schemas/dateTimeRepresentation'
+        startTime:
+          format: int64
+          type: integer
+        startedBy:
+          type: string
+        status:
+          type: string
+        statusMessage:
+          type: string
+    jobTaskRepresentation:
+      description: Job task representation.
+      properties:
+        duration:
+          format: int64
+          type: integer
+        endTime:
+          format: int64
+          type: integer
+        id:
+          type: string
+        name:
+          type: string
+        startTime:
+          format: int64
+          type: integer
+        status:
+          type: string
+        statusMessage:
+          type: string
+        statusMessageDetails:
+          items:
+            type: string
+          type: array
+        taskProgress:
+          $ref: '#/components/schemas/jobProgressRepresentation'
+      type: object
+    jobTemplateRepresentation:
+      description: A representation of a job template.
+      properties:
+        description:
+          type: string
+        jobTemplateId:
+          type: string
+        lastModifiedDt:
+          $ref: '#/components/schemas/dateTimeRepresentation'
+        lastModifiedTime:
+          format: int64
+          type: integer
+        modifiedBy:
+          type: string
+        name:
+          type: string
+        production:
+          type: boolean
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        type:
+          type: string
+        uploadDt:
+          $ref: '#/components/schemas/dateTimeRepresentation'
+        uploadTime:
+          format: int64
+          type: integer
+        uploadedBy:
+          type: string
+        version:
+          format: int32
+          type: integer
+        versionNotes:
+          type: string
+        xml:
+          type: string
+      type: object
+    link:
+      description: Link.
+      properties:
+        href:
+          type: string
+        itemType:
+          type: string
+        method:
+          type: string
+        rel:
+          type: string
+        responseItemType:
+          type: string
+        responseType:
+          type: string
+        title:
+          type: string
+        type:
+          type: string
+        uri:
+          type: string
+      type: object
+    projectStats:
+      description: A representation of a project's statistics, such as CPU and event
+        count.
+      properties:
+        name:
+          type: string
+        queryStats:
+          items:
+            $ref: '#/components/schemas/contQueryStats'
+          type: array
+        state:
+          type: string
+      type: object
+    projectStatsResponse:
+      description: An array of a project's statistics.
+      properties:
+        projectStats:
+          items:
+            $ref: '#/components/schemas/projectStats'
+          type: array
+        serverStats:
+          $ref: '#/components/schemas/serverStats'
+      type: object
+    projectVersionHistoryRepresentation:
+      type: object
+      description: The version history of a project.
+      properties:
+        projectName:
+          type: string
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/projectVersionHistoryDetails'
+    projectVersionHistoryDetails:
+      type: object
+      description: The version history of a project.
+      properties:
+        operation:
+          type: string
+          enum:
+          - CREATE_VERSION
+          - PROMOTE_LEVEL
+        version:
+          type: integer
+        level:
+          type: integer
+        createdOn:
+          format: int64
+          type: integer
+        createdByName:
+          type: string
+        createdByEmail:
+          type: string
+        commitDetails:
+          $ref: '#/components/schemas/packagingCommitRepresentation'
+    projectConfigurationDataRepresentation:
+      description: A representation of the configuration data that is stored for each
+        commit.
+      properties:
+        connectors:
+          deprecated: true
+          description: A list of the connectors that are included in the configuration.
+          items:
+            $ref: '#/components/schemas/configurationConnectorRepresentation'
+          type: array
+        contents:
+          description: The contents of the project configuration file.
+          type: string
+        properties:
+          deprecated: true
+          description: A list of the user-defined properties in the configuration.
+          items:
+            $ref: '#/components/schemas/userDefinedPropertiesRepresentation'
+          type: array
+      type: object
+    userDefinedPropertiesRepresentation:
+      description: A representation of the object for a user-defined property.
+      properties:
+        propertyName:
+          description: The name of the property.
+          type: string
+        propertyValue:
+          description: The value of the property.
+          type: string
+      type: object
+    packagingCommitRepresentation:
+      description: >-
+        A representation for the commit details when a new version or level is
+        created, or when a project version is configured.
+      properties:
+        configurationData:
+          $ref: '#/components/schemas/projectConfigurationDataRepresentation'
+        level:
+          description: >-
+            The promotion level of the commit. This value is ignored when
+            configuring a project version.
+          format: int32
+          minimum: 1
+          type: integer
+        notes:
+          description: The notes for the commit.
+          type: string
+        tags:
+          description: The tags for the commit.
+          items:
+            type: string
+          type: array
+        type:
+          description: The type of commit message (`MAJOR_VERSION`, `PROMOTE`, or
+            `REVERT`).
+          type: string
+        version:
+          description: The version of the commit.
+          format: int32
+          minimum: 1
+          type: integer
+      type: object
+    configurationConnectorRepresentation:
+      description: A representation of the object for a connector.
+      properties:
+        connectorClass:
+          description: 'The connector type. Example: `fs`'
+          type: string
+        connectorName:
+          description: The name of the connector.
+          type: string
+        contqueryName:
+          description: The name of the continuous query that the connector belongs
+            to.
+          type: string
+        enableConnector:
+          description: This parameter specifies whether the connector is active.
+          type: boolean
+        type:
+          description: >-
+            This parameter specifies whether the connector publishes or
+            subscribes. You can specify either `pub` or `sub` as the value of this
+            parameter.
+          type: string
+        windowName:
+          description: The name of the window that the connector belongs to.
+          type: string
+      type: object
+    resourceCollectionDeploymentRepresentation:
+      description: A list of deployment representations.
+      properties:
+        accept:
+          type: string
+          xml:
+            attribute: true
+        count:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        items:
+          items:
+            $ref: '#/components/schemas/deploymentRepresentation'
+          type: array
+          xml:
+            wrapped: true
+        limit:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+        links:
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+          xml:
+            wrapped: true
+        name:
+          type: string
+          xml:
+            attribute: true
+        start:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        version:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+      type: object
+      xml:
+        name: collection
+    resourceCollectionEsmEspServerRepresentation:
+      description: A list of ESP server representations.
+      properties:
+        accept:
+          type: string
+          xml:
+            attribute: true
+        count:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        items:
+          items:
+            $ref: '#/components/schemas/esmEspServerRepresentation'
+          type: array
+          xml:
+            wrapped: true
+        limit:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+        links:
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+          xml:
+            wrapped: true
+        name:
+          type: string
+          xml:
+            attribute: true
+        start:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        version:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+      type: object
+      xml:
+        name: collection
+    resourceCollectionEspProjectRepresentation:
+      description: A list of project representations, excluding the projects' XML
+        code.
+      properties:
+        accept:
+          type: string
+          xml:
+            attribute: true
+        count:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        items:
+          items:
+            $ref: '#/components/schemas/espProjectRepresentation'
+          type: array
+          xml:
+            wrapped: true
+        limit:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+        links:
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+          xml:
+            wrapped: true
+        name:
+          type: string
+          xml:
+            attribute: true
+        start:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        version:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+      type: object
+      xml:
+        name: collection
+    runningClusterProjectRepresentation:
+      allOf:
+      - $ref: '#/components/schemas/runningProjectRepresentation'
+      - properties:
+          config:
+            $ref: '#/components/schemas/clusterProjectConfigurationRepresentation'
+        required:
+        - config
+        type: object
+      description: A summary of the details for an ESP server that is running in the
+        Kubernetes cluster.
+      type: object
+    runningProjectBaseRepresentation:
+      description: The health, status, and expected status of a running project.
+      properties:
+        expectedStatus:
+          $ref: '#/components/schemas/runningProjectStatusRepresentation'
+        health:
+          type: string
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/runningProjectStatusRepresentation'
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+      type: object
+    resourceCollectionRunningProjectRepresentation:
+      description: A list of running projects that SAS Event Stream Manager is aware
+        of.
+      properties:
+        accept:
+          type: string
+          xml:
+            attribute: true
+        count:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        items:
+          items:
+            $ref: '#/components/schemas/runningProjectRepresentation'
+          type: array
+          xml:
+            wrapped: true
+        limit:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+        links:
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+          xml:
+            wrapped: true
+        name:
+          type: string
+          xml:
+            attribute: true
+        start:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        version:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+      type: object
+      xml:
+        name: collection
+    runningProjectRepresentation:
+      allOf:
+      - $ref: '#/components/schemas/runningProjectBaseRepresentation'
+      description: The detail of a running project.
+      properties:
+        combinedWindows:
+          items:
+            $ref: '#/components/schemas/runningWindowRepresentation'
+          type: array
+        events:
+          format: int32
+          type: integer
+        flow:
+          $ref: '#/components/schemas/espProjectRepresentation'
+        id:
+          type: string
+        job:
+          $ref: '#/components/schemas/jobRepresentation'
+        lastStartedTime:
+          format: int64
+          type: integer
+        loadedTime:
+          format: int64
+          type: integer
+        majorVersion:
+          format: int32
+          type: integer
+        minorVersion:
+          format: int32
+          type: integer
+        newMasModuleAvailable:
+          type: boolean
+        queries:
+          items:
+            $ref: '#/components/schemas/runningQueryRepresentation'
+          type: array
+        startedBy:
+          type: string
+        stoppedTime:
+          format: int64
+          type: integer
+        target:
+          $ref: '#/components/schemas/esmEspServerRepresentation'
+      type: object
+    runningProjectStatusRepresentation:
+      description: Running project status representation.
+      properties:
+        status:
+          type: string
+        statusMessage:
+          type: string
+      type: object
+    runningQueryRepresentation:
+      description: Running query representation.
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        windows:
+          items:
+            $ref: '#/components/schemas/runningWindowRepresentation'
+          type: array
+      type: object
+    runningWindowRepresentation:
+      description: Running window representation.
+      properties:
+        cpu:
+          format: double
+          type: number
+        cqName:
+          type: string
+        events:
+          format: int64
+          type: integer
+        id:
+          type: string
+        interval:
+          format: int32
+          type: integer
+        name:
+          type: string
+        projectName:
+          type: string
+        windowType:
+          type: string
+      type: object
+    serverParameterRepresentation:
+      description: Server parameter representation.
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+      type: object
+    serverStats:
+      description: A representation of an ESP server's memory consumption.
+      properties:
+        residentMemory:
+          type: string
+        systemMemory:
+          type: string
+        virtualMemory:
+          type: string
+      type: object
+    updateDeploymentRepresentation:
+      description: >-
+        Updates the following information for a deployment: the deployment's tags,
+        the deployment's description, and whether the deployment is a production
+        deployment.
+      properties:
+        description:
+          maxLength: 255
+          type: string
+        production:
+          type: boolean
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+      type: object
+    updateDeploymentServerListRepresentation:
+      description: Associates ESP servers with a deployment. A list of ESP server
+        names are used to associate ESP servers with the deployment.
+      properties:
+        serverNames:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+      type: object
+    windowStats:
+      description: A representation of a window's statistics, such as CPU and event
+        count.
+      properties:
+        cpu:
+          format: double
+          type: number
+        interval:
+          format: int32
+          type: integer
+        name:
+          type: string
+      type: object
+  examples:
+    removeProjectFromClusterDeployment:
+      description: >-
+        An example of the configuration required to remove an ESP project from a deployment
+        of type `cluster`.
+      value:
+        deploymentName: DeploymentWestCoast
+        projectName: ArrayTest
+    removeProjectFromEdgeDeployment:
+      description: >-
+        An example of the configuration required to remove an ESP project from a deployment
+        with type `edge`.
+      value:
+        deploymentName: DeploymentWestCoast
+        projectName: ArrayTest
+    minimalConfigurationToRunOnClusterDeployment:
+      description: >-
+        An example of the minimal configuration required to run an ESP project on
+        a deployment of type `cluster`.
+      value:
+        deploymentName: DeploymentWestCoast
+        projectName: ArrayTest
+    minimalConfigurationToRunOnEdgeDeployment:
+      description: >-
+        An example of the minimal configuration required to run an ESP project on
+        a deployment with type `edge`.
+      value:
+        projectName: Project1
+    advancedConfigurationToRunOnClusterDeployment:
+      description: >-
+        An advanced example of a configuration required to run an ESP project in a
+        Kubernetes cluster. This configuration uses custom variables and resource
+        limits.
+      value:
+        deploymentName: DeploymentWestCoast
+        projectName: ArrayTest
+        projectVersion: 1
+        promotionLevel: 1
+        clusterConfiguration:
+          customEnvironmentVariables:
+            VARNAME: value
+            ANOTHER_VARNAME: another value
+          customServerProperties:
+            property.name: value
+            another.property: another value
+          gpuReliant: false
+          settings:
+            averageUtilization: 50
+            limitsCpu: 0.5
+            limitsGpu: 0
+            limitsMemory: 0.1Gi
+            maxReplicas: 1
+            minReplicas: 1
+            requestsCpu: 0.5
+            requestsGpu: 0
+            requestsMemory: 0.1Gi
+    createDeploymentRepresentation:
+      description: An example of a representation for creating a deployment of type
+        `edge` called `deployment1`.
+      value:
+        description: A deployment
+        name: deployment1
+        production: false
+        type: edge
+    createClusterDeploymentRepresentation:
+      description: An example of a representation for creating a deployment of type
+        `cluster` called `deployment1`.
+      value:
+        description: A deployment
+        name: deployment1
+        production: false
+        type: cluster
+    createPromotedProjectErrorAlreadyExists:
+      description: >-
+        An error response when the project has
+        already been promoted to the maximum permitted level.
+      value:
+        details: []
+        errorCode: 5079
+        httpStatusCode: 409
+        message: >-
+          The project "example_project" version 3 has already been promoted to the
+          maximum permitted level.
+    createPromotedProjectErrorPreviousVersionDoesNotExist:
+      description: >-
+        An error response when the project cannot be promoted.
+      value:
+        details: []
+        errorCode: 5083
+        httpStatusCode: 410
+        message: >-
+          The project "example_project" version 3 cannot be promoted because it
+          has not been promoted to the minimum level required for promoting to the
+          next level.
+    createPromotedProjectRepresentation:
+      description: An example of promoting a project with version 1 to the next promotion
+        level.
+      value:
+        notes: Promoting the project.
+        tags:
+        - tag1
+        - tag2
+        version: 1
+    deploymentRepresentation:
+      description: An example representation of a deployment of type `edge` called
+        `edgeDeployment`.
+      value:
+        createdBy: user1
+        createdOn: 1675175923129
+        deleted: false
+        description: Created by user1
+        label: edgeDeployment
+        modifiedBy: user1
+        modifiedOn: 1675175923129
+        production: false
+        projectStatuses: {}
+        serverCount: 0
+        serverStatuses: {}
+        servers: []
+        tags: []
+        type: edge
+        uuid: 6fdd9044-f8e7-47b9-9837-cc457d8e2bee
+    deploymentClusterRepresentation:
+      description: An example of a deployment of type `cluster` called `clusterDeployment`.
+      value:
+        createdBy: user1
+        createdOn: 1675175923129
+        deleted: false
+        description: Created by user1
+        label: clusterDeployment
+        modifiedBy: user1
+        modifiedOn: 1675175923129
+        production: false
+        projectStatuses: {}
+        serverCount: 0
+        serverStatuses: {}
+        servers: []
+        tags: []
+        type: cluster
+        uuid: 6fdd9044-f8e7-47b9-9837-cc457d8e2bee
+    errorResponse400:
+      description: An example of a `400 Bad Request` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamManager'
+        errorCode: 400
+        httpStatusCode: 400
+        message: The request was invalid.
+        version: 2
+    errorResponse401:
+      description: An example of a `401 Bad Request` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamManager'
+        errorCode: 401
+        httpStatusCode: 401
+        message: The request was not authenticated.
+        version: 2
+    errorResponse403:
+      description: An example of a `403 Forbidden` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamManager'
+        errorCode: 403
+        httpStatusCode: 403
+        message: The user did not have the necessary permissions.
+        version: 2
+    errorResponse404:
+      description: An example of a `404 Not Found` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamManager'
+        errorCode: 404
+        httpStatusCode: 404
+        message: No resource exists at the requested path.
+        version: 2
+    errorResponse409:
+      description: An example of a `409 Conflict` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamManager'
+        errorCode: 409
+        httpStatusCode: 409
+        message: >-
+          The request could not be completed due to a conflict with the current
+          state of the resource.
+        version: 2
+    errorResponse412IfMatch:
+      description: An example of a `412 Precondition Failed` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamManager'
+        errorCode: 412
+        httpStatusCode: 412
+        message: >-
+          The values for the request header field "If-Match" ("1659226904") and
+          the resource's entity tag ("547353323") are not the same.
+        remediation: >-
+          Get the latest representation of the resource, and apply the desired
+          changes. Retry the operation with the modified representation and the
+          entity tag from the response header field "ETag".
+    errorResponse412IfUnmodifiedSince:
+      description: An example of a `412 Precondition Failed` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamManager'
+        errorCode: 412
+        httpStatusCode: 412
+        message: >-
+          The request header field "If-Unmodified-Since" has an earlier value
+          (Wed, 18 Jan 2023 11:28:13 GMT) than the resource's last-modified
+          timestamp (Fri, 14 Apr 2023 11:19:18 GMT).
+        remediation: >-
+          Get the latest representation of the resource, and apply the desired
+          changes. Retry the operation with the modified representation and the
+          timestamp from the response header field "Last-Modified".
+    errorResponse428PreconditionRequired:
+      description: An example of a `428 Precondition Required` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamManager'
+        errorCode: 428
+        httpStatusCode: 428
+        message: The request headers did not include a If-Unmodified-Since header.
+        remediation: Retry the operation with an "If-Unmodified-Since" header.
+    errorResponse502:
+      description: An example of a `502 Not Found` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamManager'
+        errorCode: 502
+        httpStatusCode: 502
+        message: The ESP server was unable to complete the request.
+        version: 2
+    globalHealthRepresentation:
+      description: >-
+        An example of the health representation for a pod of an ESP project called
+        `TimerDemo_Project`.
+      value:
+        TimerDemo_Project:
+          name: TimerDemo_Project
+          nameValuePairs:
+            connector_cur_rate__cq1/Source/source_generator: '0.40'
+            connector_state__cq1/Source/source_generator: running
+            project_state: running
+        _meta_:
+          name: _meta_
+          nameValuePairs:
+            project_state: running
+    jobRepresentation:
+      description: The status of the job used to deploy a project to an ESP server
+        that runs on an edge server.
+      value:
+        archived: false
+        engineProgress:
+          cancelled: 0
+          complete: 0
+          failed: 0
+          pending: 1
+          total: 1
+        failedTasks: []
+        id: 088e6ef9-5a1f-4af0-b065-50de6033b558
+        jobTemplate:
+          description: Load and start the project "simple" on the ESP server
+          jobTemplateId: 283d8aed-ffc2-4f1f-81fc-64d6b168fc1b
+          lastModifiedDt:
+            date: '1970-01-01'
+            time: '00:00'
+            timestamp: 0
+          lastModifiedTime: 0
+          name: Load and start the project "simple" on the ESP server
+          production: false
+          tags:
+          - system
+          - xml
+          uploadDt:
+            date: '2023-01-31'
+            time: '14:39'
+            timestamp: 1675175942184
+          uploadTime: 1675175942184
+          uploadedBy: user1
+          version: 1
+          versionNotes: Initial upload
+        parameters: []
+        progress:
+          cancelled: 0
+          complete: 0
+          failed: 0
+          pending: 2
+          total: 2
+        startDt:
+          date: '2023-01-31'
+          time: '14:39'
+          timestamp: 1675175942516
+        startTime: 1675175942516
+        startedBy: user1
+        status: STARTED
+        statusMessage: Running
+        tasks:
+        - duration: 58
+          endTime: 0
+          id: load-project
+          name: Loaf the project "simple" on the ESP server
+          startTime: 0
+          status: PENDING
+          statusMessage: Scheduled
+          taskProgress:
+            cancelled: 0
+            complete: 0
+            failed: 0
+            pending: 2
+            total: 2
+        - duration: 60
+          endTime: 0
+          id: start-project
+          name: Start the loaded project "simple" on the ESP server
+          startTime: 0
+          status: PENDING
+          statusMessage: Scheduled
+          taskProgress:
+            cancelled: 0
+            complete: 0
+            failed: 0
+            pending: 2
+            total: 2
+    jobRepresentationCluster:
+      description: The status of the job used to deploy a project to an ESP server
+        that runs in a Kubernetes cluster.
+      value:
+        archived: false
+        failedTasks: []
+        id: 088e6ef9-5a1f-4af0-b065-50de6033b558
+        startDt:
+          date: '2023-01-31'
+          time: '14:39'
+          timestamp: 1675175942516
+        startTime: 1675175942516
+        startedBy: user1
+        status: STARTED
+        statusMessage: Running
+    projectHasUnsavedChanges:
+      description: >-
+        An error response when the project "example_project" has unsaved changes
+        and cannot be promoted or reverted at this time.
+      value:
+        details: []
+        errorCode: 5086
+        httpStatusCode: 409
+        message: >-
+          The project "example_project" cannot be versioned as it has unsaved
+          changes. Save the changes first and then try again.
+        version: 2
+    projectIsLocked:
+      description: >-
+        An error response when the project "example_project" is locked by another
+        user and cannot be altered at this time.
+      value:
+        details: []
+        errorCode: 5080
+        httpStatusCode: 409
+        message: >-
+          The project "example_project" is locked by another user and cannot be
+          altered at this time.
+        version: 2
+    projectPackagingNotEnabled:
+      description: An error response when functionality for project packages is not
+        enabled.
+      value:
+        details: []
+        errorCode: 5081
+        httpStatusCode: 503
+        message: Functionality for project packages is not enabled.
+        version: 2
+    projectStatsResponse:
+      description: >-
+        This example shows the object that is returned when the pod performance
+        data is fetched for a pod that is running the project `TimerSimple`.
+      value:
+        projectStats:
+        - name: TimerSimple
+          queryStats:
+          - name: cq1
+            windowStats: []
+        serverStats:
+          residentMemory: '12'
+          systemMemory: '12345'
+          virtualMemory: '1234'
+    projectVersioningInternalImplementationError:
+      description: An implementation error occurred during project versioning.
+      value:
+        details: []
+        errorCode: 5085
+        httpStatusCode: 500
+        message: >-
+          Versioning of project "a_project_name" has failed due to an internal
+          implementation error. See the application logs for more details.
+        version: 2
+    projectVersioningNotEnabled:
+      description: An error response when functionality for project versions is not
+        enabled.
+      value:
+        details: []
+        errorCode: 5082
+        httpStatusCode: 503
+        message: Functionality for project versions is not enabled.
+        version: 2
+    remoteGitNotEnabled:
+      description: >-
+        An error response when the functionality for remote Git connections is not
+        enabled.
+      value:
+        details: []
+        errorCode: 5095
+        httpStatusCode: 503
+        message: Functionality for remote Git is not enabled.
+        version: 2
+    resourceCollectionDeploymentRepresentation:
+      description: >-
+        This example shows a list that contains two deployments, `deployment1` and
+        `deploy2`.
+      value:
+        accept: application/json
+        count: 2
+        items:
+        - createdBy: user1
+          createdOn: 1675175931010
+          deleted: false
+          description: Created by user1
+          label: deploy2
+          modifiedBy: user1
+          modifiedOn: 1675175931010
+          production: true
+          projectStatuses: {}
+          serverCount: 0
+          serverStatuses: {}
+          servers:
+          - adminPort: 7010
+            autoRegistered: false
+            clusterServer: false
+            combinedWindows: []
+            equipment:
+              diskSpace: 0
+              friendlyName: espServer1
+              health: 0
+              hostName: esp-server01.sas.com
+              id: '-1358091958'
+              ipAddress: esp-server01.sas.com
+              memoryUse: 0
+            espServerId: fba3b637-c55c-4ddb-91f5-f5635adfcb13
+            friendlyName: ESPServer1
+            health: true
+            hostName: esp-server01.sas.com
+            httpPort: 7010
+            id: '-1358091958'
+            ipAddress: esp-server01.sas.com
+            kerberosEnabled: false
+            memoryUsage: 0
+            metering: false
+            parameters: []
+            projects: []
+            pubSubPort: 7010
+            residentMemoryUsage: 0
+            ssl: false
+            state: AVAILABLE
+            useAuthzHeader: false
+            version: 2022.12(7.32#2731)
+            virtualMemoryUsage: 0
+          tags:
+          - Second deployment
+          type: cluster
+          uuid: b61a2dc9-beef-4f11-ab9b-ad0aa74f3e9f
+        - createdBy: user1
+          createdOn: 1675175930968
+          deleted: false
+          description: Created by user1
+          label: deployment1
+          modifiedBy: user1
+          modifiedOn: 1675175930968
+          production: true
+          projectStatuses: {}
+          serverCount: 0
+          serverStatuses: {}
+          servers: []
+          tags:
+          - First deployment
+          type: cluster
+          uuid: b0d4a2df-3e04-4212-b0bb-bd5b74870144
+        limit: 50
+        name: items
+        start: 0
+        version: 2
+    resourceCollectionEsmEspServerRepresentation:
+      description: >-
+        This example shows a list that contains an ESP server called `ESPServer1`,
+        with the IP address `esp-server01.sas.com` and the port 7010.
+      value:
+        accept: application/json
+        count: 1
+        items:
+        - adminPort: 7010
+          autoRegistered: false
+          clusterServer: false
+          combinedWindows: []
+          equipment:
+            diskSpace: 0
+            friendlyName: espServer1
+            health: 0
+            hostName: esp-server01.sas.com
+            id: '-1358091958'
+            ipAddress: esp-server01.sas.com
+            memoryUse: 0
+          espServerId: fba3b637-c55c-4ddb-91f5-f5635adfcb13
+          friendlyName: ESPServer1
+          health: true
+          hostName: esp-server01.sas.com
+          httpPort: 7010
+          id: '-1358091958'
+          ipAddress: esp-server01.sas.com
+          kerberosEnabled: false
+          memoryUsage: 0
+          metering: false
+          parameters: []
+          projects: []
+          pubSubPort: 7010
+          residentMemoryUsage: 0
+          ssl: false
+          state: AVAILABLE
+          useAuthzHeader: false
+          version: 2022.12(7.32#2731)
+          virtualMemoryUsage: 0
+        limit: 50
+        name: items
+        start: 0
+        version: 2
+    espProjectRepresentation:
+      description: This example shows an ESP project
+      value:
+        archived: false
+        configurationLevel: 0
+        deployments: 0
+        description: Project description.
+        flowId: 77d60de4-5950-4b2e-9971-2b1dc44a441e
+        friendlyName: testProject
+        hasMasModules: false
+        majorVersion: 1
+        minorVersion: 0
+        packaged: false
+        production: true
+        promotionLevel: 0
+        tags:
+        - Tag1
+        - Tag2
+        updateTime: 1675175938303
+        uploadTime: 1675175938303
+        uploadedBy: user1
+        uuid: '547340017'
+        version: 1
+        versionNotes: This is the initial version.
+    resourceCollectionEspProjectRepresentation:
+      description: This example shows a list of three projects, excluding their XML
+        code.
+      value:
+        accept: application/json
+        count: 3
+        items:
+        - archived: false
+          configurationLevel: 0
+          deployments: 0
+          description: Project description.
+          flowId: 77d60de4-5950-4b2e-9971-2b1dc44a441e
+          friendlyName: simple2
+          hasMasModules: false
+          majorVersion: 1
+          minorVersion: 0
+          packaged: false
+          production: true
+          promotionLevel: 0
+          tags:
+          - Tag1
+          - Tag2
+          updateTime: 1675175938303
+          uploadTime: 1675175938303
+          uploadedBy: user1
+          uuid: '547340017'
+          version: 1
+          versionNotes: This is the initial version.
+        - archived: false
+          configurationLevel: 0
+          deployments: 0
+          description: Project description.
+          flowId: df9cba7c-78dc-49d2-bd0b-0079dc0d27f1
+          friendlyName: simple1
+          hasMasModules: false
+          majorVersion: 1
+          minorVersion: 0
+          packaged: false
+          production: false
+          promotionLevel: 0
+          tags:
+          - Tag1
+          - Tag2
+          updateTime: 1675175938265
+          uploadTime: 1675175938265
+          uploadedBy: user1
+          uuid: '1245504538'
+          version: 1
+          versionNotes: This is the initial version.
+        - archived: false
+          configurationLevel: 0
+          deployments: 0
+          description: Project description.
+          flowId: 3f783dd4-534a-4511-a958-0c406531ecf4
+          friendlyName: timerDemo
+          hasMasModules: false
+          majorVersion: 1
+          minorVersion: 0
+          packaged: false
+          production: false
+          promotionLevel: 0
+          tags:
+          - connector
+          updateTime: 1675175922858
+          uploadTime: 1675175922858
+          uploadedBy: user1
+          uuid: '2001076455'
+          version: 1
+          versionNotes: This is the initial version.
+        limit: 50
+        name: items
+        start: 0
+        version: 2
+    rootResponse200:
+      description: Root response
+      value:
+        links:
+        - href: /SASEventStreamManager/v4/deployments
+          method: GET
+          rel: deployments
+          type: application/vnd.sas.collection+json
+          uri: /SASEventStreamManager/v4/deployments
+        version: 4
+    updateDeploymentRepresentation:
+      description: >-
+        An example of updating the following information for a deployment: the
+        deployment's tags, the deployment's description, and whether the
+        deployment is a production deployment.
+      value:
+        description: A description for a new deployment.
+        production: true
+        tags:
+        - new
+        - tags
+    updateDeploymentServerListRepresentation:
+      description: This example shows how to add or remove ESP servers from a deployment.
+      value:
+        serverNames:
+        - 'server1'
+        - 'server2'
+    createServerRepresentation:
+      description: An example of a representation for creating an ESP server called
+        `espServer1`.
+      value:
+        ipAddress: esp-edge-server01.sas.com
+        pubSubPort: 7010
+        friendlyName: espServer1
+    projectVersionHistoryRepresentation:
+      description: This example shows a response that contains information about several
+        versions and levels of a project.
+      value:
+        projectName: a_project_name
+        versions:
+        - operation: CREATE_VERSION
+          version: 1
+          level: 1
+          createdOn: 1682074612
+          createdByName: a_user
+          createdByEmail: a_user@company.com
+          commitDetails:
+            type: MAJOR_VERSION
+            notes: Creating a new version
+            tags:
+            - tag1
+            - tag2
+            version: 1
+            level: 1
+        - operation: PROMOTE_LEVEL
+          version: 1
+          level: 2
+          createdOn: 1682074613
+          createdByName: a_user
+          createdByEmail: a_user@company.com
+          commitDetails:
+            type: PROMOTE
+            notes: Promoting a project version to Test
+            tags:
+            - tag1
+            - tag2
+            version: 1
+            level: 2
+        - operation: PROMOTE_LEVEL
+          version: 1
+          level: 3
+          createdOn: 1682074614
+          createdByName: a_user
+          createdByEmail: a_user@company.com
+          commitDetails:
+            type: PROMOTE
+            notes: Promoting a project version to Production
+            tags:
+            - tag1
+            - tag2
+            version: 1
+            level: 3
+        - operation: CREATE_VERSION
+          version: 2
+          level: 1
+          createdOn: 1682074616
+          createdByName: a_user
+          createdByEmail: a_user@company.com
+          commitDetails:
+            type: MAJOR_VERSION
+            notes: Creating a new version
+            tags:
+            - tag1
+            - tag2
+            version: 2
+            level: 1
+    esmEspServerRepresentation:
+      description: An example of an ESP server called `espServer1` in SAS Event Stream
+        Manager.
+      value:
+        ssl: false
+        metering: false
+        health: true
+        httpPort: 7010
+        id: '-1358091958'
+        friendlyName: espServer1
+        ipAddress: esp-edge-server01.sas.com
+        version: 2022.12(7.32#2731)
+        projects: []
+        kerberosEnabled: false
+        useAuthzHeader: false
+        hostName: esp-edge-server01.sas.com
+        clusterServer: false
+        espServerId: fba3b637-c55c-4ddb-91f5-f5635adfcb13
+        state: AVAILABLE
+        equipment:
+          id: '-1358091958'
+          friendlyName: espServer1
+          health: 0
+          ipAddress: esp-edge-server01.sas.com
+          diskSpace: 0
+          memoryUse: 0
+          hostName: esp-edge-server01.sas.com
+        parameters: []
+        memoryUsage: 0
+        virtualMemoryUsage: 0
+        residentMemoryUsage: 0
+        combinedWindows: []
+        autoRegistered: false
+        pubSubPort: 7010
+        adminPort: 7010
+    resourceCollectionRunningProjectRepresentation:
+      description: An example response for running projects that SAS Event Stream
+        Manager is aware of.
+      value:
+        accept: application/json
+        count: 1
+        items:
+        - combinedWindows: []
+          events: 0
+          expectedStatus:
+            status: STARTED
+            statusMessage: Running
+          flow:
+            archived: false
+            deployments: 1
+            description: Project description.
+            flowId: f5117e7c-3b75-4ddb-976a-78034d756b56
+            friendlyName: simple
+            hasMasModules: false
+            majorVersion: 1
+            minorVersion: 0
+            production: false
+            tags:
+            - connector
+            - trades
+            updateTime: 1675175959521
+            uploadTime: 1675175959521
+            uploadedBy: user1
+            uuid: "-282618337"
+            version: 1
+            versionNotes: This is the initial version
+            xml: |-
+              <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+              <project heartbeat-interval="1" name="simple" pubsub="auto" threads="1">
+                <contqueries>
+                  <contquery name="cq1">
+                    <windows>
+                      <window-source name="source" pubsub="true">
+                        <schema>
+                          <fields>
+                            <field key="true" name="id" type="int64"/>
+                            <field name="time" type="stamp"/>
+                            <field name="label" type="string"/>
+                          </fields>
+                        </schema>
+                        <connectors>
+                          <connector class="timer" name="source_timer">
+                            <properties>
+                              <property name="type"><![CDATA[pub]]></property>
+                              <property name="timeformat"><![CDATA[%Y-%m-%d %H:%M:%S]]></property>
+                              <property name="basetime"><![CDATA[2022-01-01 00:00:00]]></property>
+                              <property name="interval"><![CDATA[2]]></property>
+                              <property name="unit"><![CDATA[second]]></property>
+                            </properties>
+                          </connector>
+                        </connectors>
+                      </window-source>
+                      <window-copy name="copy" pubsub="true">
+                        <retention type="bycount_sliding">5</retention>
+                      </window-copy>
+                      <window-filter pubsub="true" name="even">
+                        <use><![CDATA[id]]></use>
+                        <code><![CDATA[function filter(data)
+                        return data.id % 2 == 0
+                        end]]></code>
+                      </window-filter>
+                      <window-filter pubsub="true" name="odd">
+                        <use><![CDATA[id]]></use>
+                        <code><![CDATA[function filter(data)
+                        return data.id % 2 == 1
+                        end]]></code>
+                      </window-filter>
+                    </windows>
+                    <edges>
+                      <edge source="source" target="copy"/>
+                      <edge source="source" target="even"/>
+                      <edge source="source" target="odd"/>
+                    </edges>
+                  </contquery>
+                </contqueries>
+              </project>
+          health: AVAILABLE
+          id: "1259368555"
+          lastStartedTime: 1675175962157
+          loadedTime: 1675175959943
+          majorVersion: 1
+          minorVersion: 0
+          name: simple
+          newMasModuleAvailable: false
+          queries: []
+          status:
+            status: STARTED
+            statusMessage: Running
+          stoppedTime: 0
+          tags:
+          - connector
+          - trades
+          target:
+            adminPort: 7010
+            analyticsLicense: true
+            authType: none
+            autoRegistered: false
+            clusterServer: false
+            combinedWindows: []
+            deployment:
+              createdBy: user1
+              createdOn: 1675175959556
+              deleted: false
+              description: Created by user1
+              label: deploy
+              modifiedBy: user1
+              modifiedOn: 1675175959669
+              production: false
+              projectStatuses: {}
+              serverCount: 1
+              serverStatuses: {}
+              servers: []
+              tags: []
+              type: edge
+              uuid: 9c7d27d6-ba1d-4daf-bf0e-5550cb50e301
+            equipment:
+              diskSpace: 0
+              friendlyName: ESPServer1
+              health: 0
+              hostName: esp-edge-server01.sas.com
+              id: "-1358091958"
+              ipAddress: esp-edge-server01.sas.com
+              memoryUse: 32012
+              tags: []
+            espServerId: fba3b637-c55c-4ddb-91f5-f5635adfcb13
+            friendlyName: ESPServer1
+            health: true
+            hostName: esp-edge-server01.sas.com
+            httpPort: 7010
+            id: "-1358091958"
+            ipAddress: esp-edge-server01.sas.com
+            kerberosEnabled: false
+            memoryUsage: 32012
+            metering: false
+            parameters: []
+            projects:
+            - expectedStatus:
+                status: STARTED
+                statusMessage: Running
+              health: AVAILABLE
+              name: simple
+              status:
+                status: STARTED
+                statusMessage: Running
+              tags:
+              - connector
+              - trades
+            pubSubPort: 7010
+            residentMemoryUsage: 426
+            ssl: false
+            state: AVAILABLE
+            tags: []
+            type: STANDARD
+            useAuthzHeader: false
+            version: 2022.12(7.32#2731)
+            virtualMemoryUsage: 1845
+        limit: 50
+        name: items
+        start: 0
+        version: 2
+    runningClusterProjectRepresentation:
+      description: An example of a running project. TODO
+      value:
+        health: true
+    runningProjectRepresentation:
+      description: An example of a running project. TODO
+      value:
+        health: true

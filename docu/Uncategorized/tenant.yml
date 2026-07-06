@@ -1,0 +1,1805 @@
+---
+openapi: 3.0.3
+info:
+  title: Tenants
+  description: Manages information about tenants and multi-tenant services.
+  version: "3"
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: devex@sas.com
+externalDocs:
+  description: Developer documentation
+  url: "https://developer.sas.com"
+servers:
+- url: http://mock-tenant.apifirst.unx.sas.com/tenant
+  description: mock tenant server
+x-sas-traits:
+  resources:
+  - name: tenant
+    description: Information about a tenant
+    mediaTypes:
+    - application/vnd.sas.tenant
+    collection: tenants
+    resourceId: tenantId
+    paginated: true
+    sortable: true
+    filterable: true
+    excludeSummary: true
+  - name: service
+    description: Information about a (multi-tenant) service
+    mediaTypes:
+    - application/vnd.sas.tenant.service
+    collection: services
+    resourceId: serviceId
+    paginated: true
+    sortable: true
+    filterable: true
+    excludeOperations:
+    - post
+    excludeSummary: true
+  - name: serviceTenancy
+    description: Information about a service for a particular tenant
+    mediaTypes:
+    - application/vnd.sas.tenant.service.tenancy
+    collection: tenancies
+    resourceId: tenantId
+    paginated: true
+    sortable: true
+    filterable: true
+    excludeOperations:
+    - post
+    - delete
+    excludeSummary: true
+tags:
+- name: Tenants
+  description: The operations for the tenants resource.
+- name: Services
+  description: The operations for the services resource.
+- name: Service Tenancies
+  description: The operations for the service tenancies resource.
+- name: Root
+  description: The operations for the root resource.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the links for the API
+      description: Returns the links to the top-level resources for the API.
+      operationId: root
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.api+json;version=1:
+              schema:
+                $ref: "#/components/schemas/api"
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+    head:
+      tags:
+      - Root
+      summary: Get the headers for the API
+      description: Returns the headers for the API. Also used to determine whether
+        the service provided by the API is available.
+      operationId: headersForRoot
+      responses:
+        "200":
+          description: The request succeeded.
+  /tenants:
+    get:
+      summary: Get a collection of tenants
+      description: "Returns a collection of tenants based on the specified pagination,\
+        \ filtering, and sorting options. The items in the collection use the `application/vnd.sas.tenant+json`\
+        \ media type."
+      operationId: getTenants
+      tags:
+      - Tenants
+      parameters:
+      - name: start
+        in: query
+        description: The index of the first item to return. The default value is 0.
+        schema:
+          type: integer
+          format: int32
+      - name: limit
+        in: query
+        description: The maximum number of items to return. The default value is 10.
+        schema:
+          type: integer
+          format: int32
+      - name: sortBy
+        in: query
+        description: "The criteria for sorting the items. See [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting)."
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: "The criteria for filtering the items. See [Filtering in REST\
+          \ APIs](https://developer.sas.com/apis/rest/Topics/#filters)."
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/tenantCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenantCollection"
+    head:
+      summary: Check if tenant collection exists
+      description: Determine if the collection of tenants exists.
+      operationId: headersForTenants
+      tags:
+      - Tenants
+      parameters:
+      - name: start
+        in: query
+        description: The index of the first item to return. The default value is 0.
+        schema:
+          type: integer
+          format: int32
+      - name: limit
+        in: query
+        description: The maximum number of items to return. The default value is 10.
+        schema:
+          type: integer
+          format: int32
+      - name: sortBy
+        in: query
+        description: "The criteria for sorting the items. See [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting)."
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: "The criteria for filtering the items. See [Filtering in REST\
+          \ APIs](https://developer.sas.com/apis/rest/Topics/#filters)."
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+    post:
+      summary: Create a new tenant
+      description: |-
+        Creates a new tenant based on the representation in the request body and then creates the tenant's goal.
+        The `name`, `description` and `accessPolicy` properties are optional. If not specified, `name` will be set to the value of the `id` property.
+        `accessPolicy` will always be set to `providerTenantUsersOnly`. It can be changed to `allUsers` after the `state` property for the tenant's goal has been set to `onboarded`. Though, clients may want to wait until the `state` property for the tenant's goal result is also `onboarded`.
+        The `state` property for the goal will be initialized to `undefined`.
+      operationId: createTenant
+      requestBody:
+        content:
+          application/vnd.sas.tenant+json:
+            schema:
+              $ref: "#/components/schemas/createTenant"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createTenant"
+        description: The representation of a tenant.
+        required: true
+      tags:
+      - Tenants
+      responses:
+        "201":
+          description: A tenant was created.
+          headers:
+            ETag:
+              description: The entity tag for the tenant.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the tenant was last modified."
+              schema:
+                type: string
+            Location:
+              description: The URL of the tenant.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.tenant+json:
+              schema:
+                $ref: "#/components/schemas/tenant"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenant"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/vnd.sas.empty:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "409":
+          description: The requested ID conflicts with an existing tenant.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/vnd.sas.empty:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  "/tenants/{tenantId}":
+    parameters:
+    - name: tenantId
+      in: path
+      description: The unique identifier for the tenant.
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get a tenant
+      description: "Returns the representation of the specified tenant. A tenant resource\
+        \ is created using `POST /tenants` and deleted using `DELETE /tenants/{tenantId}`."
+      operationId: getTenant
+      tags:
+      - Tenants
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the tenant.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the tenant was last modified."
+              schema:
+                type: string
+          content:
+            application/vnd.sas.tenant+json:
+              schema:
+                $ref: "#/components/schemas/tenant"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenant"
+        "404":
+          description: No tenant exists at the requested path.
+    head:
+      summary: Get the headers for a tenant
+      description: Returns the headers for the specified tenant. Also used to determine
+        whether a particular tenant exists.
+      operationId: headersForTenant
+      tags:
+      - Tenants
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the tenant.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the tenant was last modified."
+              schema:
+                type: string
+        "404":
+          description: No tenant exists at the requested path.
+    put:
+      summary: Update a tenant
+      description: "Updates the specified tenant based on the representation in the\
+        \ request body. Only the `name`, `description`, and `accessPolicy` properties\
+        \ may be updated."
+      operationId: updateTenant
+      parameters:
+      - name: If-Match
+        in: header
+        description: The entity tag obtained from the most recent `ETag` response
+          header. Must match the current entity tag for the tenant.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: "The timestamp obtained from the most recent `Last-Modified`\
+          \ response header. Ignored when `If-Match` is specified, otherwise must\
+          \ match the timestamp when the tenant was last modified."
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.tenant+json:
+            schema:
+              $ref: "#/components/schemas/updateTenant"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/updateTenant"
+        description: The representation of a tenant.
+        required: true
+      tags:
+      - Tenants
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the tenant.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the tenant was last modified."
+              schema:
+                type: string
+          content:
+            application/vnd.sas.tenant+json:
+              schema:
+                $ref: "#/components/schemas/tenant"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenant"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/vnd.sas.empty:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "404":
+          description: No tenant exists at the requested path.
+        "409":
+          description: The requested accessPolicy conflicts with the state of the
+            tenant's goal.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/vnd.sas.empty:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "412":
+          description: "The values for the request header field `If-Match` and the\
+            \ resource's entity tag are not the same, or the request header field\
+            \ `If-Unmodified-Since` has an earlier value than the resource's last-modified\
+            \ timestamp."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "428":
+          description: "One of the following request header fields is required: `If-Match`\
+            \ or `If-Unmodified-Since`."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+    delete:
+      summary: Delete a tenant
+      description: "Deletes the specified tenant and its goal and goal result, as\
+        \ well as any associated service tenancies."
+      operationId: deleteTenant
+      tags:
+      - Tenants
+      responses:
+        "204":
+          description: The tenant was deleted.
+        "404":
+          description: No tenant exists at the requested path.
+        "409":
+          description: The tenant was not deleted because it is not offboarded.
+  "/tenants/{tenantId}/goal":
+    parameters:
+    - name: tenantId
+      in: path
+      description: The unique identifier for the tenant.
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get a tenant's goal
+      description: "Returns the representation of the specified tenant's goal. A goal\
+        \ is automatically created when a tenant is created and deleted when a tenant\
+        \ is deleted. The possible values for the `state` property are `onboarded`,\
+        \ `offboarded`, and `undefined`."
+      operationId: getTenantGoal
+      tags:
+      - Tenants
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the goal.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the goal was last modified."
+              schema:
+                type: string
+          content:
+            application/vnd.sas.tenant.goal+json:
+              schema:
+                $ref: "#/components/schemas/tenantGoal"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenantGoal"
+        "404":
+          description: No goal exists at the requested path.
+    head:
+      summary: Get the headers for a tenant's goal
+      description: Returns the headers for the specified tenant's goal. Also used
+        to determine whether a particular tenant's goal exists.
+      operationId: headersForTenantGoal
+      tags:
+      - Tenants
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the goal.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the goal was last modified."
+              schema:
+                type: string
+        "404":
+          description: No goal exists at the requested path.
+    put:
+      summary: Update a tenant's goal
+      description: |-
+        Updates the specified tenant's goal based on the representation in the request body.
+        Only the `state` property may be updated. Valid `state` values for update are `onboarded` and `offboarded`.
+        The first time that the goal `state` is modified a set of service tenancies will be created for this tenant for all currently registered services. The `state` property for each new service tenancy will be initialized to `undefined`.
+      operationId: updateTenantGoal
+      parameters:
+      - name: If-Match
+        in: header
+        description: The entity tag obtained from the most recent `ETag` response
+          header. Must match the current entity tag for the goal.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: "The timestamp obtained from the most recent `Last-Modified`\
+          \ response header. Ignored when `If-Match` is specified, otherwise must\
+          \ match the timestamp when the goal was last modified."
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.tenant.goal+json:
+            schema:
+              $ref: "#/components/schemas/updateTenantGoal"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/updateTenantGoal"
+        description: The representation of a goal.
+        required: true
+      tags:
+      - Tenants
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the goal.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the goal was last modified."
+              schema:
+                type: string
+          content:
+            application/vnd.sas.tenant.goal+json:
+              schema:
+                $ref: "#/components/schemas/tenantGoal"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenantGoal"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/vnd.sas.empty:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "404":
+          description: No goal exists at the requested path.
+        "412":
+          description: "The values for the request header field `If-Match` and the\
+            \ resource's entity tag are not the same, or the request header field\
+            \ `If-Unmodified-Since` has an earlier value than the resource's last-modified\
+            \ timestamp."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "428":
+          description: "One of the following request header fields is required: `If-Match`\
+            \ or `If-Unmodified-Since`."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  "/tenants/{tenantId}/goalResult":
+    parameters:
+    - name: tenantId
+      in: path
+      description: The unique identifier for the tenant.
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get a tenant's goal result
+      description: "Returns the representation for the specified tenant's goal result.\
+        \ A goal result is automatically created when a tenant is created and deleted\
+        \ when a tenant is deleted. The value returned for the `state` property will\
+        \ be a function of the state of the tenant's goal and the tenant's service\
+        \ tenancies. If the goal's state is `onboarded` then the goal result's state\
+        \ will be `onboarded` if all service tenancy states for the tenant are `onboarded`,\
+        \ `onboardingFailed` if any service tenancy state for the tenant is `onboardingFailed`,\
+        \ and `onboarding` otherwise. If the goal's state is `offboarded` then the\
+        \ goal result's state will be `offboarded` if all service tenancy states for\
+        \ the tenant are `offboarded`, `offboardingFailed` if any service tenancy\
+        \ state for the tenant is `offboardingFailed`, and `offboarding` otherwise.\
+        \ If the goal's state is `undefined` then the goal result's state will be\
+        \ `undefined`."
+      operationId: getTenantGoalResult
+      tags:
+      - Tenants
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.tenant.goal.result+json:
+              schema:
+                $ref: "#/components/schemas/tenantGoalResult"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenantGoalResult"
+        "404":
+          description: No goal result exists at the requested path.
+    head:
+      summary: Get the headers for a tenant's goal result
+      description: Returns the headers for the specified tenant's goal result. Also
+        used to determine whether a particular tenant's goal result exists.
+      operationId: headersForTenantGoalResult
+      tags:
+      - Tenants
+      responses:
+        "200":
+          description: The request succeeded.
+        "404":
+          description: No goal result exists at the requested path.
+  "/tenants/{tenantId}/tenancies":
+    parameters:
+    - name: tenantId
+      in: path
+      description: The unique identifier for the tenant.
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get service tenancies for a tenant
+      description: |-
+        Returns a collection of service tenancies for the specified tenant based on the specified pagination, filtering, and sorting options. The items in the collection use the `application/vnd.sas.tenant.service.tenancy+json` media type.
+        The response items will NOT contain any transition link relations, such as `start` or `repeat`.
+      operationId: getServiceTenanciesForTenant
+      tags:
+      - Tenants
+      parameters:
+      - name: start
+        in: query
+        description: The index of the first item to return. The default value is 0.
+        schema:
+          type: integer
+          format: int32
+      - name: limit
+        in: query
+        description: The maximum number of items to return. The default value is 10.
+        schema:
+          type: integer
+          format: int32
+      - name: sortBy
+        in: query
+        description: "The criteria for sorting the items. See [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting)."
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: "The criteria for filtering the items. See [Filtering in REST\
+          \ APIs](https://developer.sas.com/apis/rest/Topics/#filters)."
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/serviceTenancyCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/serviceTenancyCollection"
+        "404":
+          description: No service tenancies collection exists at the requested path.
+    head:
+      summary: Check if services tenancies for the specified tenant exists
+      description: Determine if the collection of service tenancies for the specified
+        tenant exists.
+      operationId: headersForServiceTenanciesForTenant
+      tags:
+      - Tenants
+      parameters:
+      - name: start
+        in: query
+        description: The index of the first item to return. The default value is 0.
+        schema:
+          type: integer
+          format: int32
+      - name: limit
+        in: query
+        description: The maximum number of items to return. The default value is 10.
+        schema:
+          type: integer
+          format: int32
+      - name: sortBy
+        in: query
+        description: "The criteria for sorting the items. See [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting)."
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: "The criteria for filtering the items. See [Filtering in REST\
+          \ APIs](https://developer.sas.com/apis/rest/Topics/#filters)."
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+        "404":
+          description: No service tenancies collection exists at the requested path.
+  /services:
+    get:
+      summary: Get a collection of services
+      description: "Returns a collection of services based on the specified pagination,\
+        \ filtering, and sorting options. The items in the collection use the `application/vnd.sas.tenant.service+json`\
+        \ media type."
+      operationId: getServices
+      tags:
+      - Services
+      parameters:
+      - name: start
+        in: query
+        description: The index of the first item to return. The default value is 0.
+        schema:
+          type: integer
+          format: int32
+      - name: limit
+        in: query
+        description: The maximum number of items to return. The default value is 10.
+        schema:
+          type: integer
+          format: int32
+      - name: sortBy
+        in: query
+        description: "The criteria for sorting the items. See [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting)."
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: "The criteria for filtering the items. See [Filtering in REST\
+          \ APIs](https://developer.sas.com/apis/rest/Topics/#filters)."
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/serviceCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/serviceCollection"
+    head:
+      summary: Check if service collection exists
+      description: Determine if the collection of services exists.
+      operationId: headersForServices
+      tags:
+      - Services
+      parameters:
+      - name: start
+        in: query
+        description: The index of the first item to return. The default value is 0.
+        schema:
+          type: integer
+          format: int32
+      - name: limit
+        in: query
+        description: The maximum number of items to return. The default value is 10.
+        schema:
+          type: integer
+          format: int32
+      - name: sortBy
+        in: query
+        description: "The criteria for sorting the items. See [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting)."
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: "The criteria for filtering the items. See [Filtering in REST\
+          \ APIs](https://developer.sas.com/apis/rest/Topics/#filters)."
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+  "/services/{serviceId}":
+    parameters:
+    - name: serviceId
+      in: path
+      description: The unique identifier for the service.
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get a service
+      description: "Returns the representation for the specified service. A service\
+        \ resource is created using PUT /services/{serviceId} and deleted using DELETE\
+        \ /services/{serviceId}."
+      operationId: getService
+      tags:
+      - Services
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the service.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the service was last modified."
+              schema:
+                type: string
+          content:
+            application/vnd.sas.tenant.service+json:
+              schema:
+                $ref: "#/components/schemas/service"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/service"
+        "404":
+          description: No service exists at the requested path.
+    head:
+      summary: Get the headers for a service
+      description: Returns the headers for the specified service. Also used to determine
+        whether a particular service exists.
+      operationId: headersForService
+      tags:
+      - Services
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the service.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the service was last modified."
+              schema:
+                type: string
+        "404":
+          description: No service exists at the requested path.
+    put:
+      summary: Create a new service or update an existing one
+      description: |-
+        Creates a new service or updates an existing one based on the representation in the request body.
+        If the `id` in the request body matches an existing service then that service will be updated, otherwise a new service will be created. When updating, only the `buildVersion` property can be updated and at least one precondition header (`If-Match` or `If-Unmodified-Since`) must be specified.
+        Creation of a new service will automatically create a new service tenancy for all tenants that have an `onboarded` or `offboarded` goal state. The `state` property for each service tenancy will be initialized to `undefined`.
+      operationId: updateService
+      parameters:
+      - name: If-Match
+        in: header
+        description: The entity tag obtained from the most recent `ETag` response
+          header. Must match the current entity tag for the service.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: "The timestamp obtained from the most recent `Last-Modified`\
+          \ response header. Ignored when `If-Match` is specified, otherwise must\
+          \ match the timestamp when the service was last modified."
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.tenant.service+json:
+            schema:
+              $ref: "#/components/schemas/persistService"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/persistService"
+        description: The representation of a service.
+        required: true
+      tags:
+      - Services
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the service.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the service was last modified."
+              schema:
+                type: string
+          content:
+            application/vnd.sas.tenant.service+json:
+              schema:
+                $ref: "#/components/schemas/service"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/service"
+        "201":
+          description: A service was created.
+          headers:
+            ETag:
+              description: The entity tag for the service.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the service was last modified."
+              schema:
+                type: string
+            Location:
+              description: The URL of the service.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.tenant.service+json:
+              schema:
+                $ref: "#/components/schemas/service"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/service"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/vnd.sas.empty:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "404":
+          description: No service exists at the requested path.
+        "412":
+          description: "(Occurs when PUT is used to update an existing service and\
+            \ not when creating a new one.) The values for the request header field\
+            \ `If-Match` and the resource's entity tag are not the same, or the request\
+            \ header field `If-Unmodified-Since` has an earlier value than the resource's\
+            \ last-modified timestamp."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "428":
+          description: "(Occurs when PUT is used to update an existing service and\
+            \ not when creating a new one.) One of the following request header fields\
+            \ is required: `If-Match` or `If-Unmodified-Since`."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+    delete:
+      summary: Delete a service
+      description: Deletes the specified service and its service tenancies.
+      operationId: deleteService
+      tags:
+      - Services
+      responses:
+        "204":
+          description: The service was deleted.
+        "404":
+          description: No service exists at the requested path.
+  "/services/{serviceId}/tenancies":
+    parameters:
+    - name: serviceId
+      in: path
+      description: The unique identifier for the service.
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get service tenancies for a service
+      description: |-
+        Returns a collection of service tenancies for the specified service based on the specified pagination, filtering, and sorting options. The items in the collection use the `application/vnd.sas.tenant.service.tenancy+json` media type.
+        The response body items may contain transition link relations, 'start' or 'repeat', which should be used to help determine the next step in the workflow.
+      operationId: getServiceTenanciesForService
+      tags:
+      - Service Tenancies
+      parameters:
+      - name: start
+        in: query
+        description: The index of the first item to return. The default value is 0.
+        schema:
+          type: integer
+          format: int32
+      - name: limit
+        in: query
+        description: The maximum number of items to return. The default value is 10.
+        schema:
+          type: integer
+          format: int32
+      - name: sortBy
+        in: query
+        description: "The criteria for sorting the items. See [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting)."
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: "The criteria for filtering the items. See [Filtering in REST\
+          \ APIs](https://developer.sas.com/apis/rest/Topics/#filters)."
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/serviceTenancyCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/serviceTenancyCollection"
+        "404":
+          description: No service tenancies collection exists at the requested path.
+    head:
+      summary: Check if services tenancies for the specified service exists
+      description: Determine if the collection of service tenancies for the specified
+        service exists.
+      operationId: headersForServiceTenanciesForService
+      tags:
+      - Service Tenancies
+      parameters:
+      - name: start
+        in: query
+        description: The index of the first item to return. The default value is 0.
+        schema:
+          type: integer
+          format: int32
+      - name: limit
+        in: query
+        description: The maximum number of items to return. The default value is 10.
+        schema:
+          type: integer
+          format: int32
+      - name: sortBy
+        in: query
+        description: "The criteria for sorting the items. See [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting)."
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: "The criteria for filtering the items. See [Filtering in REST\
+          \ APIs](https://developer.sas.com/apis/rest/Topics/#filters)."
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+        "404":
+          description: No service tenancies collection exists at the requested path.
+  "/services/{serviceId}/tenancies/{tenantId}":
+    parameters:
+    - name: serviceId
+      in: path
+      description: The unique identifier for the service.
+      required: true
+      schema:
+        type: string
+    - name: tenantId
+      in: path
+      description: The unique identifier for the tenant.
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get a service tenancy
+      description: |-
+        Returns the representation for the specified service tenancy. Service tenancies are automatically created when a tenant's goal is first updated or when a new service is registered. Service tenancies are automatically deleted when a tenant or a service is deleted. The possible values for the `state` property are `onboarding`, `onboarded`, `onboardingFailed`, `offboarding`, `offboarded`, `offboardingFailed`, and `undefined`.
+        The response body may contain transition link relations, 'start' or 'repeat', which should be used to help determine the next step in the workflow.
+      operationId: getServiceTenancy
+      tags:
+      - Service Tenancies
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the service tenancy.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the service tenancy was last modified."
+              schema:
+                type: string
+          content:
+            application/vnd.sas.tenant.service.tenancy+json:
+              schema:
+                $ref: "#/components/schemas/serviceTenancy"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/serviceTenancy"
+        "404":
+          description: No service tenancy exists at the requested path.
+    head:
+      summary: Get the headers for a service tenancy
+      description: Returns the headers for the specified service tenancy. Also used
+        to determine whether a particular service tenancy exists.
+      operationId: headersForServiceTenancy
+      tags:
+      - Service Tenancies
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the service tenancy.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the service tenancy was last modified."
+              schema:
+                type: string
+        "404":
+          description: No service tenancy exists at the requested path.
+    put:
+      summary: Update a service tenancy
+      description: |-
+        Updates the specified service tenancy based on the representation in the request body.
+        The `serviceId` and `tenantId` properties must match the path parameters `{serviceId}` and `{tenantId}` respectively.
+        Only the `state` property may be modified. The valid values are `onboarding`, `onboardingFailed`, `onboarded`, `offboarding`, `offboardingFailed`, and `offboarded`.
+        The response body may contain transition link relations, 'start', 'succeeded', and / or 'failed', which should be used to help determine the next step in the workflow.
+      operationId: updateServiceTenancy
+      parameters:
+      - name: If-Match
+        in: header
+        description: The entity tag obtained from the most recent `ETag` response
+          header. Must match the current entity tag for the service tenancy.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: "The timestamp obtained from the most recent `Last-Modified`\
+          \ response header. Ignored when `If-Match` is specified, otherwise must\
+          \ match the timestamp when the service tenancy was last modified."
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.tenant.service.tenancy+json:
+            schema:
+              $ref: "#/components/schemas/updateServiceTenancy"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/updateServiceTenancy"
+        description: The representation of a service tenancy.
+        required: true
+      tags:
+      - Service Tenancies
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the service tenancy.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the service tenancy was last modified."
+              schema:
+                type: string
+          content:
+            application/vnd.sas.tenant.service.tenancy+json:
+              schema:
+                $ref: "#/components/schemas/serviceTenancy"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/serviceTenancy"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/vnd.sas.empty:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "404":
+          description: No service tenancy exists at the requested path.
+        "412":
+          description: "The values for the request header field `If-Match` and the\
+            \ resource's entity tag are not the same, or the request header field\
+            \ `If-Unmodified-Since` has an earlier value than the resource's last-modified\
+            \ timestamp."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "428":
+          description: "One of the following request header fields is required: `If-Match`\
+            \ or `If-Unmodified-Since`."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  "/services/{serviceId}/tenancies/{tenantId}/state":
+    parameters:
+    - name: serviceId
+      in: path
+      description: The unique identifier for the service.
+      required: true
+      schema:
+        type: string
+    - name: tenantId
+      in: path
+      description: The unique identifier for the tenant.
+      required: true
+      schema:
+        type: string
+    - name: oldValue
+      in: query
+      description: The expected old Tenancy State value.
+      required: true
+      schema:
+        type: string
+    - name: newValue
+      in: query
+      description: The desired new Tenancy State value.
+      required: true
+      schema:
+        type: string
+    put:
+      summary: Update the state field of a service tenancy resource
+      description: |-
+        Updates the specified service tenancy based on the Tenancy State values in the oldValue and newValue query parameters. No request body is expected.
+        The valid values for oldValue and newValue are `onboarding`, `onboardingFailed`, `onboarded`, `offboarding`, `offboardingFailed`, and `offboarded`. In addition, oldValue may have the value 'undefined'.
+        The response body may contain transition link relations, 'start', 'succeeded', and / or 'failed', which should be used to help determine the next step in the workflow.
+        If there is an unreconcilable conflict with the current state value on the server and the supplied oldValue and newValue parameters, then a 409 Conflict error will be returned and the state value on the server will be unchanged. In this case, the caller should reset its internal state to `undefined` and call the `getServiceTenancy` operation again to examine the link relations that are now available.
+        In many cases, the server will still be able to resolve potential conflicts in the state value and will want to record the most recently reported state from any caller. However, the caller should always examine the response body object to see if new transition links have been added as a result of other changes on the server.
+      operationId: updateServiceTenancyState
+      tags:
+      - Service Tenancies
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the service tenancy.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the service tenancy was last modified."
+              schema:
+                type: string
+          content:
+            application/vnd.sas.tenant.service.tenancy+json:
+              schema:
+                $ref: "#/components/schemas/serviceTenancy"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/serviceTenancy"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/vnd.sas.empty:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "404":
+          description: No service tenancy exists at the requested path.
+        "409":
+          description: The requested state transition conflicts with the current state.
+          content:
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/vnd.sas.empty:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+components:
+  schemas:
+    api:
+      type: object
+      description: The links array member contains links to the top-level resources
+        in the API.
+      required:
+      - version
+      properties:
+        version:
+          type: integer
+          description: |
+            This media type's schema version number. This representation is
+            version 1.
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+          description: |
+            Zero or more link objects. See the above link relations table for a
+            description of the link types.
+    link:
+      type: object
+      description: A link to another resource.
+      required:
+      - rel
+      - method
+      properties:
+        rel:
+          type: string
+          description: |
+            The link relation: a mnemonic string which indicates the meaning of
+            this link. Use standard IANA link relations where appropriate; SAS
+            custom link relations must be lowerCamelCase identifiers. This is
+            not a user-visible (UI) string.
+        method:
+          type: string
+          description: >
+            The HTTP method, one of GET, HEAD, PUT, POST, PATCH, DELETE
+            (although we typically do not list HEAD links in link collections.)
+        uri:
+          type: string
+          description: |
+            The URI of the target resource,relative to the root of the API. Must
+            start with /. One of uri or href is required.
+        href:
+          type: string
+          description: |
+            The full URL. Must start with /. One of uri or href is required.
+        title:
+          type: string
+          description: |
+            The human-readable title of this link.
+        type:
+          type: string
+          description: |
+            The primary link type. Required except for DELETE links.
+        itemType:
+          type: string
+          description: |
+            Optional; used if the link type is a collection.
+        responseType:
+          type: string
+          description: |
+            Optional; used if response content type is not the
+            same as the request content type.
+        responseItemType:
+          type: string
+          description: |
+            Optional; used if the items in the response
+            body is not the same as the item type of the request body.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    error2:
+      type: object
+      description: A standard error object.
+      required:
+      - version
+      properties:
+        version:
+          type: integer
+          description: |
+            Version information for this error format (integer, value 2).
+          default: 2
+        id:
+          type: string
+          description: |
+            Optional error identifier string.
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+          description: |
+            A list of vnd.sas.link objects as per Link representation.
+        errorCode:
+          type: integer
+          format: int64
+          description: |
+            The system error code for reference (64-bit integer), often used for
+            correlation with back-end service error message identifiers.
+            Services should reserve a range in error code ranges and list
+            specific error codes in error codes.
+        httpStatusCode:
+          type: integer
+          description: |
+            The HTTP status code error number (integer), 1xx, 2xx, 3xx, 4xx, or
+            5xx values.
+        message:
+          type: string
+          description: |
+            The back end system error message string. The message should be
+            localized as per the Accept-Language of the request.
+        details:
+          type: array
+          items:
+            type: string
+          description: |
+            Detailed information specific to this error; a list of strings. If
+            appropriate, these strings should be localized as per the
+            Accept-Language of the request.
+        remediation:
+          type: array
+          items:
+            type: string
+          description: |
+            Recommended actions to resolve the error; a list of strings. The
+            remediation string should be localized as per the Accept-Language of
+            the request.
+        errors:
+          type: array
+          items:
+            type: string
+          description: |
+            An array of nested error objects.
+    tenantCollection:
+      title: Tenant Collection
+      description: A collection of tenant representations.
+      x-sas-media-type:
+        name: application/vnd.sas.collection
+        version: 2
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The array of `application/vnd.sas.tenant` representations.
+            items:
+              $ref: "#/components/schemas/tenant"
+    serviceCollection:
+      title: Service Collection
+      description: A collection of service representations.
+      x-sas-media-type:
+        name: application/vnd.sas.collection
+        version: 2
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The array of `application/vnd.sas.tenant.service` representations.
+            items:
+              $ref: "#/components/schemas/service"
+    serviceTenancyCollection:
+      title: Service Tenancy Collection
+      description: A collection of service tenancy representations.
+      x-sas-media-type:
+        name: application/vnd.sas.collection
+        version: 2
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The array of `application/vnd.sas.tenant.service.tenancy`
+              representations.
+            items:
+              $ref: "#/components/schemas/serviceTenancy"
+    tenant:
+      title: Tenant
+      description: The representation of a tenant.
+      x-sas-media-type:
+        name: application/vnd.sas.tenant
+        version: 1
+      properties:
+        id:
+          type: string
+          description: "The unique identifier for the tenant. The value will match\
+            \ the `{tenantId}` in the path."
+        name:
+          type: string
+          description: The name of the tenant.
+        description:
+          type: string
+          description: "The description of the tenant, if any."
+        accessPolicy:
+          type: string
+          description: The access policy for the tenant. The possible values are `allUsers`
+            and `providerTenantUsersOnly`.
+        createdBy:
+          type: string
+          description: The user who created the tenant.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the tenant.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: "The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the\
+            \ tenant was created."
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: "The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the\
+            \ tenant was last modified."
+        links:
+          type: array
+          description: The links that apply to the tenant.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the tenant representation. `1` is the
+            only supported version.
+    tenantGoal:
+      title: Tenant Goal
+      description: The representation of a tenant's goal.
+      x-sas-media-type:
+        name: application/vnd.sas.tenant.goal
+        version: 1
+      properties:
+        tenantId:
+          type: string
+          description: "The unique identifier for the tenant. The value will match\
+            \ the `{tenantId}` in the path."
+        state:
+          type: string
+          description: "The state of the goal. The possible values are `onboarded`,\
+            \ `offboarded`, and `undefined`."
+        createdBy:
+          type: string
+          description: The user who created the goal.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the goal.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: "The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the\
+            \ goal was created."
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: "The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the\
+            \ goal was last modified."
+        links:
+          type: array
+          description: The links that apply to the goal.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the goal representation. `1` is the only
+            supported version.
+    tenantGoalResult:
+      title: Tenant Goal Result
+      description: The representation of a tenant's goal result.
+      x-sas-media-type:
+        name: application/vnd.sas.tenant.goal.result
+        version: 1
+      properties:
+        tenantId:
+          type: string
+          description: "The unique identifier for the tenant. The value will match\
+            \ the `{tenantId}` in the path."
+        state:
+          type: string
+          description: "The collective state of the tenant's service tenancies. The\
+            \ possible values are `onboarding`, `onboarded`, `onboardingFailed`, `offboarding`,\
+            \ `offboarded`, `offboardingFailed`, and `undefined`."
+        links:
+          type: array
+          description: The links that apply to the goal result.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the goal result representation. `1` is
+            the only supported version.
+    service:
+      title: Service
+      description: The representation of a service.
+      x-sas-media-type:
+        name: application/vnd.sas.tenant.service
+        version: 2
+      properties:
+        id:
+          type: string
+          description: "The unique identifier for the service. The value will match\
+            \ the `{serviceId}` in the path."
+        buildVersion:
+          type: string
+          description: "The build version for the service, if any."
+        createdBy:
+          type: string
+          description: The user who created the service.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the service.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: "The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the\
+            \ service was created."
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: "The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the\
+            \ service was last modified."
+        links:
+          type: array
+          description: The links that apply to the service.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the service representation. The supported
+            versions are `1` and `2`.
+    serviceTenancy:
+      title: Service Tenancy
+      description: The representation of a service tenancy.
+      x-sas-media-type:
+        name: application/vnd.sas.tenant.service.tenancy
+        version: 1
+      properties:
+        serviceId:
+          type: string
+          description: "The unique identifier for the service. The value will match\
+            \ the `{serviceId}` in the path."
+        tenantId:
+          type: string
+          description: "The unique identifier for the tenant. The value will match\
+            \ the `{tenantId}` in the path."
+        state:
+          type: string
+          description: "The state of the service for the tenant. The possible values\
+            \ are `onboarding`, `onboarded`, `onboardingFailed`, `offboarding`, `offboarded`,\
+            \ `offboardingFailed`, and `undefined`."
+        createdBy:
+          type: string
+          description: The user who created the service tenancy.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the service tenancy.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: "The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the\
+            \ service tenancy was created."
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: "The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the\
+            \ service tenancy was last modified."
+        links:
+          type: array
+          description: The links that apply to the service tenancy.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the service tenancy representation. `1`
+            is the only supported version.
+    createTenant:
+      title: Create Tenant
+      description: The representation used to create a new tenant.
+      required:
+      - id
+      properties:
+        id:
+          type: string
+          description: "The unique identifier for the tenant. In addition to being\
+            \ unique, the ID must contain at least 1 character and not more than 16\
+            \ characters, the first character must be a lowercase letter and the other\
+            \ characters must be numbers or lowercase letters. The following IDs are\
+            \ reserved: `default`, `provider`, `spre`, `shared`, `sharedservices`,\
+            \ `uaa`, and `viya` plus any ID that starts with `sas`."
+        name:
+          type: string
+          default: The value of the `id` property.
+          description: "The name of the tenant. The name is not unique, but must contain\
+            \ at least 1 character and not more than 100 characters, and must not\
+            \ begin or end with a whitespace character."
+        description:
+          type: string
+          description: "The description of the tenant. A description is not required,\
+            \ but if specified must contain at least 1 character and not more than\
+            \ 100 characters, and must not begin or end with a whitespace character."
+        version:
+          type: integer
+          description: The version number of the tenant representation. `1` is the
+            only supported version.
+    updateTenant:
+      title: Update Tenant
+      description: The representation used to update a tenant.
+      required:
+      - id
+      - name
+      - accessPolicy
+      properties:
+        id:
+          type: string
+          description: "The unique identifier for the tenant. The value must match\
+            \ the `{tenantId}` in the path."
+          readOnly: true
+        name:
+          type: string
+          description: "The name of the tenant. The name is not unique, but must contain\
+            \ at least 1 character and not more than 100 characters, and must not\
+            \ begin or end with a whitespace character."
+        description:
+          type: string
+          description: "The description of the tenant. A description is not required,\
+            \ but if specified must contain at least 1 character and not more than\
+            \ 100 characters, and must not begin or end with a whitespace character."
+        accessPolicy:
+          type: string
+          description: The access policy for the tenant. The valid values are `allUsers`
+            and `providerTenantUsersOnly`.
+        version:
+          type: integer
+          description: The version number of the tenant representation. `1` is the
+            only supported version.
+          readOnly: true
+    updateTenantGoal:
+      title: Update Tenant Goal
+      description: The representation used to update a tenant's goal.
+      required:
+      - tenantId
+      - state
+      properties:
+        tenantId:
+          type: string
+          description: "The unique identifier for the tenant. The value must match\
+            \ the `{tenantId}` in the path."
+          readOnly: true
+        state:
+          type: string
+          description: The state of the goal. The valid values are `onboarded` and
+            `offboarded`.
+        version:
+          type: integer
+          description: The version number of the goal representation. `1` is the only
+            supported version.
+          readOnly: true
+    persistService:
+      title: Persist Service
+      description: The representation used to create or update a service.
+      required:
+      - id
+      properties:
+        id:
+          type: string
+          description: "The unique identifier for the service. The value must match\
+            \ the `{serviceId}` in the path. When creating a new service, the value\
+            \ must be unique, must contain at least 1 character and not more than\
+            \ 100 characters, and must begin with a letter and otherwise contain any\
+            \ combination of letters, numbers, dashes, or underscores. When updating\
+            \ a service, the value must match the ID for an existing service."
+        buildVersion:
+          type: string
+          description: "The build version for the service. This member was not availble\
+            \ in version 1. A value is not not required, but if specified must contain\
+            \ at least 1 character and not more than 100 characters, and must begin\
+            \ with a letter or number and otherwise contain any combination of letters,\
+            \ numbers, dashes, dots, or underscores."
+        version:
+          type: integer
+          description: The version number of the service representation. The supported
+            versions are `1` and `2`.
+          readOnly: true
+    updateServiceTenancy:
+      title: Update Service Tenancy
+      description: The representation used to update a service tenancy.
+      required:
+      - serviceId
+      - tenantId
+      properties:
+        serviceId:
+          type: string
+          description: "The unique identifier for the service. The value must match\
+            \ the `{serviceId}` in the path."
+          readOnly: true
+        tenantId:
+          type: string
+          description: "The unique identifier for the tenant. The value must match\
+            \ the `{tenantId}` in the path."
+          readOnly: true
+        state:
+          type: string
+          description: "The state of the service for the tenant. The valid values\
+            \ are `onboarding`, `onboarded`, `onboardingFailed`, `offboarding`, `offboarded`,\
+            \ `offboardingFailed`, and `undefined`."
+        version:
+          type: integer
+          description: The version number of the service tenancy representation. `1`
+            is the only supported version.
+          readOnly: true

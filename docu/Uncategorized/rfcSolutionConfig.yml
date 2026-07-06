@@ -1,0 +1,796 @@
+---
+openapi: 3.0.3
+info:
+  title: RFC Solution Config
+  description: |
+    RFC Solution Config lays down solution specific configurations into your system, depending on licenses. This current version includes
+    message schemas. This API provides operations used to check the status of your system and see what level of SAS RFC Config your system
+    is licensed for, as well as which solution configurations are laid down.
+  version: "1"
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: devex@sas.com
+  termsOfService: "https://www.sas.com/en_us/legal/copyright.html"
+servers:
+- url: "https://example.com/rfcSolutionConfig"
+  description: local mock server
+tags:
+- name: Root
+  description: The operations for the root resource.
+- name: Status
+  description: The operations to get information on what configurations are included.
+- name: Manifest
+  description: The operations to lay down a manifest for RFC Solution Config.
+- name: Migration
+  description: The operations to migrate SFM exports into RFC Solution Config manifests.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Return a list of top-level links
+      description: Return a list of top-level links.
+      operationId: root
+      responses:
+        "200":
+          description: OK
+          headers:
+            Last-Modified:
+              $ref: "#/components/headers/lastModifiedHeader"
+            Location:
+              $ref: "#/components/headers/locationHeader"
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/api"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/api"
+        "404":
+          description: Service is not available
+          headers:
+            Last-Modified:
+              $ref: "#/components/headers/lastModifiedHeader"
+            Location:
+              $ref: "#/components/headers/locationHeader"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/service_not_available_error_404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/service_not_available_error_404"
+  /status:
+    get:
+      summary: Return licensed level and solutions
+      operationId: getStatus
+      tags:
+      - Status
+      description: |
+        This endpoint returns a description of what your system includes. This could be a Standard, Advanced, or Premier level,
+        and whatever solutions your system has licenses for.
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentType"
+          content:
+            application/vnd.sas.config.status+json:
+              schema:
+                $ref: "#/components/schemas/status"
+              examples:
+                default:
+                  $ref: "#/components/examples/status"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/status"
+              examples:
+                default:
+                  $ref: "#/components/examples/status"
+        "404":
+          description: Service is not available
+          headers:
+            Last-Modified:
+              $ref: "#/components/headers/lastModifiedHeader"
+            Location:
+              $ref: "#/components/headers/locationHeader"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/service_not_available_error_404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/service_not_available_error_404"
+  /status/schemas:
+    get:
+      summary: Return licensed message schemas managed by sas-rfc-solution-config
+      operationId: getSchemas
+      tags:
+      - Status
+      description: |
+        This endpoint returns a list of message schema summaries that give details about the managed message
+        schemas licensed in your sas-rfc-solution-config deployment
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/messageSchemaList"
+              examples:
+                default:
+                  $ref: "#/components/examples/message_schema_list"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/messageSchemaList"
+              examples:
+                default:
+                  $ref: "#/components/examples/message_schema_list"
+        "404":
+          description: Service is not available
+          headers:
+            Last-Modified:
+              $ref: "#/components/headers/lastModifiedHeader"
+            Location:
+              $ref: "#/components/headers/locationHeader"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/service_not_available_error_404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/service_not_available_error_404"
+  /manifest:
+    post:
+      summary: Create a RFC Solution Config Manifest Job
+      operationId: createPostManifest
+      tags:
+      - Manifest
+      description: |
+        This endpoint allows you to upload a manifest in YAML format for the RFC Solution Config Reference Implementation.
+        The input is validated and, if successful, the manifest is processed and returned in the response.
+      requestBody:
+        description: A YAML document representing the RFC Solution Config Reference
+          Implementation Manifest. It can be provided in either plain YAML format
+          or base64 encoded.
+        required: true
+        content:
+          application/yaml:
+            schema:
+              $ref: "#/components/schemas/manifest"
+            examples:
+              default:
+                $ref: "#/components/examples/manifest"
+          application/base64:
+            schema:
+              type: string
+              format: base64
+            examples:
+              default:
+                $ref: "#/components/examples/manifest_base64"
+          application/zip:
+            schema:
+              type: string
+              format: binary
+            example: "Binary content of a binary manifest"
+      responses:
+        "202":
+          description: Manifest job created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                    format: uuid
+                    description: Unique identifier for the manifest job
+                  statusUrl:
+                    type: string
+                    description: Relative URL to check the status of the manifest
+                      job
+                required:
+                - requestId
+                - statusUrl
+              example:
+                requestId: "6b81eea7-b97c-444f-a54e-125b0999f1f3"
+                statusUrl: "/rfcSolutionConfig/manifest/status/6b81eea7-b97c-444f-a54e-125b0999f1f3"
+        "400":
+          description: Bad request, validation errors in the manifest
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+              examples:
+                default:
+                  value: ["Validation Error 1", "Validation Error 2"]
+        "404":
+          description: Service is not available
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/service_not_available_error_404"
+  /manifest/status/{jobRequestId}:
+    get:
+      summary: Get status of an RFC Solution Config manifest job
+      operationId: getManifestStatus
+      tags:
+      - Manifest
+      description: |
+        Returns the current status of a previously submitted manifest job. Provide the `jobRequestId` path parameter
+        returned from the async manifest creation endpoint. Useful to poll for completion or error details.
+      parameters:
+      - name: jobRequestId
+        in: path
+        required: true
+        description: UUID of the manifest job to query.
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Job status retrieved successfully
+          headers:
+            Etag:
+              $ref: "#/components/headers/etagHeader"
+            Last-Modified:
+              $ref: "#/components/headers/lastModifiedHeader"
+            Location:
+              $ref: "#/components/headers/locationHeader"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: Current job state.
+                    enum: [PENDING, RUNNING, DONE, ERROR]
+                  message:
+                    type: string
+                    description: |
+                      Human-readable status message. While running this includes active progress,
+                      for example "running sdaSchema: AQSM".
+                    nullable: true
+                  errors:
+                    type: array
+                    description: Detailed error messages. Present when available for
+                      failed jobs.
+                    items:
+                      type: string
+                    nullable: true
+                  durationMs:
+                    type: integer
+                    format: int64
+                    description: Elapsed processing time in milliseconds.
+                  startedAt:
+                    type: string
+                    format: date-time
+                    description: UTC time when the job started processing.
+                  completedAt:
+                    type: string
+                    format: date-time
+                    description: UTC time when the job reached DONE or ERROR.
+                    nullable: true
+                required:
+                - status
+                - durationMs
+                - startedAt
+              examples:
+                default:
+                  $ref: "#/components/examples/manifest_status_200"
+        "404":
+          description: Job ID not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Request ID not found"
+              examples:
+                default:
+                  $ref: "#/components/examples/manifest_status_404"
+  /manifest/status:
+    get:
+      summary: List RFC Solution Config manifest jobs
+      operationId: getManifestStatuses
+      tags:
+      - Manifest
+      description: |
+        Returns the currently tracked manifest jobs and their statuses.
+      responses:
+        "200":
+          description: Job statuses retrieved successfully
+          headers:
+            Etag:
+              $ref: "#/components/headers/etagHeader"
+            Last-Modified:
+              $ref: "#/components/headers/lastModifiedHeader"
+            Location:
+              $ref: "#/components/headers/locationHeader"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    requestId:
+                      type: string
+                      format: uuid
+                      description: Unique identifier for the manifest job
+                    status:
+                      type: string
+                      description: Current job state.
+                      enum: [PENDING, RUNNING, DONE, ERROR]
+                    message:
+                      type: string
+                      description: Human-readable status message, including live running
+                        progress when available.
+                      nullable: true
+                    durationMs:
+                      type: integer
+                      format: int64
+                      description: Elapsed processing time in milliseconds.
+                  required:
+                  - requestId
+                  - status
+                  - durationMs
+              examples:
+                default:
+                  $ref: "#/components/examples/manifest_status_list_200"
+  /migration:
+    post:
+      summary: Create a Manifest from SFM export files
+      operationId: createPostMigration
+      tags:
+      - Migration
+      description: |
+        This endpoint lets you upload a zip file with extracted SFM rules and config that will be migrated into a RFC manifest that can be modified and applied to an environment.
+      requestBody:
+        description: A zip file of extracted SFM Rules and/or Configuration.
+        required: true
+        content:
+          application/zip:
+            schema:
+              type: string
+              format: binary
+            example: "sfm_export.zip"
+      responses:
+        "200":
+          description: Returns a manifest with an addition issues array that will
+            return a list of validation and migration issues if they exist
+          content:
+            application/yaml:
+              schema:
+                $ref: "#/components/schemas/manifest"
+              examples:
+                default:
+                  $ref: "#/components/examples/manifest"
+        "400":
+          description: Bad request. Possible issues include - misconfigured request,
+            missing valid zip file, or migration file issues
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Missing Content-type header"
+        "404":
+          description: Service is not available
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/service_not_available_error_404"
+        "415":
+          description: Unsupported Content-Type. Only `application/zip` is accepted.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Unsupported Content-Type: application/json"
+components:
+  schemas:
+    status:
+      title: Status
+      description: Description of the SFD level and licensed solutions
+      properties:
+        level:
+          type: string
+          enum:
+          - Standard
+          - Advanced
+          - Premier
+        solutions:
+          type: array
+          items:
+            type: string
+    messageSchemaSummary:
+      title: MessageSchemaSummary
+      description: Information about a message schema, including name, type, state,
+        ID, and timestamp related fields.
+      properties:
+        id:
+          type: string
+          description: schema's unique identifier
+        name:
+          type: string
+          description: name of the schema
+        type:
+          type: string
+          description: type of the schema
+        state:
+          type: string
+          description: state of the schema. For SFD managed schemas, this should always
+            be Deployed.
+          enum:
+          - Developing
+          - Deployment-Ready
+          - Deployed
+        revision:
+          type: integer
+        creationTimeStamp:
+          type: string
+        createdBy:
+          type: string
+        modifiedTimeStamp:
+          type: string
+        modifiedBy:
+          type: string
+    messageSchemaList:
+      title: MessageSchemas
+      description: A list of message schema summaries
+      properties:
+        items:
+          type: array
+          description: array of message schema summary objects
+          items:
+            allOf:
+            - $ref: "#/components/schemas/messageSchemaSummary"
+    manifest:
+      description: Sample RFC Solution Config Manifest
+      type: object
+      properties:
+        name:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        setinit:
+          type: string
+        configuration:
+          type: object
+          properties:
+            config:
+              type: object
+              additionalProperties: true
+            identitiesConfig:
+              type: object
+              additionalProperties: true
+            alertsConfig:
+              type: object
+              additionalProperties: true
+            sdaConfig:
+              type: object
+              additionalProperties: true
+            evConfig:
+              type: object
+              additionalProperties: true
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+  parameters:
+    startParam:
+      name: start
+      in: query
+      description: The 0-based offset of the first resource to return.  Defaults to
+        0.
+      schema:
+        type: integer
+    limitParam:
+      name: limit
+      in: query
+      description: The maximum number of resources to return.  Defaults to 100.
+      schema:
+        type: integer
+    filterParam:
+      name: filter
+      in: query
+      description: "The filter criteria for returned resources. For more information,\
+        \ see [Filtering in REST APIs](https://developer.sas.com/apis/rest/Topics/#filters)."
+      schema:
+        type: string
+        format: filter-criteria
+    sortByParam:
+      name: sortBy
+      in: query
+      description: "Specifies the sorting for returned resources. For more information,\
+        \ see [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting)."
+      schema:
+        type: string
+        format: sort-criteria
+    projectIdParam:
+      name: projectId
+      in: path
+      description: The UUID of the project.
+      required: true
+      schema:
+        type: string
+        format: uuid
+    languageIdParam:
+      name: languageId
+      in: path
+      description: The programming language code.
+      required: true
+      schema:
+        type: string
+        enum: [ds2]
+  headers:
+    locationHeader:
+      description: Location of URI for the endpoint.
+      schema:
+        type: string
+    lastModifiedHeader:
+      description: Data and Time of last modification.
+      schema:
+        type: string
+    etagHeader:
+      description: An hash-code for the response resource.
+      schema:
+        type: string
+    contentType:
+      schema:
+        type: string
+      description: The indication the original media type of the resource.
+  examples:
+    manifest_status_200:
+      description: A successful response containing the manifest status.
+      value:
+        status: RUNNING
+        message: "running sdaSchema: AQSM"
+        durationMs: 8498
+        startedAt: "2026-05-21T19:00:36.9659Z"
+    manifest_status_404:
+      description: Manifest job was not found.
+      value:
+        errorCode: 404
+        message: "Request ID not found"
+    service_not_available_error_404:
+      description: Service not available 404 Response Example
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 1000000, "message": "Service\
+          \ not available"}
+    message_schema_list:
+      description: Return a list of the licensed message schemas manage by sas-rfc-solution-config
+      value: {"items": [{"id": "184cce0d-9d29-4c3c-9ba6-0ced9dd246f0", "name": "RFC\
+              \ Solution", "type": "variable_set_by_sas", "state": "Deployed", "revision": 2,
+            "creationTimeStamp": "2023-05-28T02:36:55.107841Z", "createdBy": "sas.rfcSolutionConfig",
+            "modifiedTimeStamp": "2023-05-28T02:37:04.521693Z", "modifiedBy": "sas.rfcSolutionConfig"},
+          {"id": "7e2f9cca-6dbf-4d29-8d31-bc4fdccb7d7d", "name": "Customer", "type": "variable_set_by_sas",
+            "state": "Deployed", "revision": 2, "creationTimeStamp": "2023-05-28T02:36:55.841972Z",
+            "createdBy": "sas.rfcSolutionConfig", "modifiedTimeStamp": "2023-05-28T02:37:04.711885Z",
+            "modifiedBy": "sas.rfcSolutionConfig"}, {"id": "754cc93a-ebc0-4b0f-bc55-992a31dacbe7",
+            "name": "Fraud Debit Account", "type": "variable_set_by_sas", "state": "Deployed",
+            "revision": 2, "creationTimeStamp": "2023-05-28T02:36:56.92896Z", "createdBy": "sas.rfcSolutionConfig",
+            "modifiedTimeStamp": "2023-05-28T02:37:04.881846Z", "modifiedBy": "sas.rfcSolutionConfig"},
+          {"id": "b8278e3b-920b-49a4-83e9-4c76d9266d0c", "name": "Demographic", "type": "variable_set_by_sas",
+            "state": "Deployed", "revision": 2, "creationTimeStamp": "2023-05-28T02:36:58.10382Z",
+            "createdBy": "sas.rfcSolutionConfig", "modifiedTimeStamp": "2023-05-28T02:37:05.025055Z",
+            "modifiedBy": "sas.rfcSolutionConfig"}, {"id": "190d3861-7958-48c5-9683-2ecab49f0f98",
+            "name": "Merchant Acquiring", "type": "variable_set_by_sas", "state": "Deployed",
+            "revision": 2, "creationTimeStamp": "2023-05-28T02:36:58.908457Z", "createdBy": "sas.rfcSolutionConfig",
+            "modifiedTimeStamp": "2023-05-28T02:37:05.210077Z", "modifiedBy": "sas.rfcSolutionConfig"},
+          {"id": "50abc354-c493-4bbd-832c-11dfd5759985", "name": "Credit Card", "type": "variable_set_by_sas",
+            "state": "Deployed", "revision": 2, "creationTimeStamp": "2023-05-28T02:36:59.773821Z",
+            "createdBy": "sas.rfcSolutionConfig", "modifiedTimeStamp": "2023-05-28T02:37:05.346878Z",
+            "modifiedBy": "sas.rfcSolutionConfig"}, {"id": "23bafba0-8d78-43ec-83fd-abdfff99a712",
+            "name": "Debit Card", "type": "variable_set_by_sas", "state": "Deployed",
+            "revision": 2, "creationTimeStamp": "2023-05-28T02:37:01.347443Z", "createdBy": "sas.rfcSolutionConfig",
+            "modifiedTimeStamp": "2023-05-28T02:37:05.490332Z", "modifiedBy": "sas.rfcSolutionConfig"},
+          {"id": "2ffa059a-6be7-4a1f-bcfb-a77baf699305", "name": "Credit Card", "type": "solution_by_sas",
+            "state": "Deployed", "revision": 2, "creationTimeStamp": "2023-05-28T02:37:02.453652Z",
+            "createdBy": "sas.rfcSolutionConfig", "modifiedTimeStamp": "2023-05-28T02:37:05.639756Z",
+            "modifiedBy": "sas.rfcSolutionConfig"}, {"id": "3df47a6e-9402-4948-8884-dbc6bdbdd3b5",
+            "name": "Debit Card", "type": "solution_by_sas", "state": "Deployed",
+            "revision": 2, "creationTimeStamp": "2023-05-28T02:37:03.929553Z", "createdBy": "sas.rfcSolutionConfig",
+            "modifiedTimeStamp": "2023-05-28T02:37:05.791424Z", "modifiedBy": "sas.rfcSolutionConfig"}]}
+    manifest_base64:
+      description: Base64 Manifest Request
+      value: LS0tCmRlc2NyaXB0aW9uOiBZYW1sIE1hbmlmZXN0IFJlcXVlc3QKdmFsdWU6CiAgbmFtZTogRW5kcG9pbnQgUmVmZXJlbmNlIEltcGxlbWVudGF0aW9uCiAgZGlzcGxheU5hbWU6IEVuZHBvaW50IFJlZmVyZW5jZSBJbXBsZW1lbnRhdGlvbgogIGRlc2NyaXB0aW9uOiBSZWZlcmVuY2UgSW1wbGVtZW50YXRpb24gZm9yIEVuZHBvaW50CiAgc2V0aW5pdFZhbHVlczoKICAgIC0gUkZDU09MVVRJT05DT05GSUcKICBjb25maWd1cmF0aW9uOgogICAgc2RhQ29uZmlnOgogICAgICBvcmdhbml6YXRpb25zOgogICAgICAgIC0gbmFtZTogU0FTX0VORFBPSU5UCiAgICAgICAgICBkaXNwbGF5TmFtZTogU0FTIEVuZHBvaW50IE9yZ2FuaXphdGlvbgogICAgICAgICAgbWVzc2FnZUNsYXNzaWZpY2F0aW9uTmFtZTogR2xvYmFsCiAgICAgICAgICByb2xlSWRzOgogICAgICAgICAgICAtIFNEQVN5c3RlbUFkbWluCiAgICAgICAgICBzY2hlbWFSZWxhdGlvbnM6CiAgICAgICAgICAgIC0gUGF5bWVudCBGcmF1ZAogICAgICAgICAgcHJvamVjdHM6CiAgICAgICAgICAgIC0gbmFtZTogU0FTIEVuZHBvaW50IFByb2plY3QKICAgICAgICAgICAgICBtZXNzYWdlQ2xhc3NpZmljYXRpb25OYW1lczoKICAgICAgICAgICAgICAgIC0gR2xvYmFsCiAgICAgICAgICAgICAgc2NoZW1hTmFtZXM6CiAgICAgICAgICAgICAgICAtIFBheW1lbnQgRnJhdWQKICAgICAgICAgICAgICByb2xlSWRzOgogICAgICAgICAgICAgICAgLSBTREFTeXN0ZW1BZG1pbgo=
+    manifest_status_list_200:
+      description: List of manifest job statuses
+      value:
+      - requestId: "6b81eea7-b97c-444f-a54e-125b0999f1f3"
+        status: RUNNING
+        message: "running sdaSchema: AQSM"
+        durationMs: 8498
+      - requestId: "7e4e00c3-1b6c-4c3d-9b5a-5f3b3f45f9d0"
+        status: DONE
+        message: "Manifest laid down successfully"
+        durationMs: 12422
+    manifest:
+      description: Yaml Manifest Request
+      value:
+        name: Endpoint Reference Implementation
+        displayName: Endpoint Reference Implementation
+        description: Reference Implementation for Endpoint
+        setinitValues:
+        - RFCSOLUTIONCONFIG
+        configuration:
+          sdaConfig:
+            organizations:
+            - name: SAS_ENDPOINT
+              displayName: SAS Endpoint Organization
+              messageClassificationName: Global
+              roleRelations:
+              - roleId: SDASystemAdmin
+                roleType: Editor
+              schemaRelations:
+              - Payment Fraud
+              projects:
+              - name: SAS Endpoint Project
+                messageClassificationNames:
+                - Global
+                schemaNames:
+                - Payment Fraud
+                roleIds:
+                - SDASystemAdmin
+    api:
+      description: Return a list of API Links
+      value: {"version": 1, "links": [{"method": "GET", "rel": "getAPI", "href": "/rfcSolutionConfig",
+            "uri": "/rfcSolutionConfig", "responseType": "application/vnd.sas.api+json"},
+          {"method": "GET", "rel": "getStatus", "href": "/rfcSolutionConfig/status",
+            "uri": "/rfcSolutionConfig/status", "responseType": "application/vnd.sas.config.status+json"},
+          {"method": "GET", "rel": "getSchemas", "href": "/rfcSolutionConfig/status/schemas",
+            "uri": "/rfcSolutionConfig/status/schemas", "responseType": "application/vnd.sas.collection+json"},
+          {"method": "POST", "rel": "layDownManifest", "href": "/rfcSolutionConfig/manifest",
+            "uri": "/rfcSolutionConfig/manifest", "responseType": "text/plain"}, {
+            "method": "GET", "rel": "getMigrationStatuses", "href": "/rfcSolutionConfig/manifest/status",
+            "uri": "/rfcSolutionConfig/manifest/status", "responseType": "application/json"},
+          {"method": "GET", "rel": "getMigrationStatus", "href": "/rfcSolutionConfig/manifest/status/{requestId}",
+            "uri": "/rfcSolutionConfig/manifest/status/{requestId}", "responseType": "application/json"},
+          {"method": "POST", "rel": "migrateToRFCManifest", "href": "/rfcSolutionConfig/migration",
+            "uri": "/rfcSolutionConfig/migration", "responseType": "application/yaml"}]}
+    status:
+      description: Return a description of the SFD level and licensed solutions
+      value: {"level": "Premier", "solutions": ["SAS Fraud Decisioning Common", "SAS\
+            \ Fraud Decisioning Card Fraud"]}

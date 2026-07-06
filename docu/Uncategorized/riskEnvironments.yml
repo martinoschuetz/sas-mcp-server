@@ -1,0 +1,1016 @@
+---
+openapi: 3.0.3
+info:
+  version: "7"
+  title: Risk Environments
+  description: The Risk Environments API supports the creation and management of risk
+    environment files.  These environments are used with the SAS Risk Explorer application.
+  termsOfService: "https://www.sas.com/en_us/legal/copyright.html"
+  contact:
+    name: "SAS Developers"
+    url: "https://developer.sas.com"
+    email: "devex@sas.com"
+tags:
+- name: Root
+  description: The operations for the root resource.
+- name: Environments
+  description: The operations for a RiskEnvironment resource.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get a list of top-level links
+      description: Returns a list of links to the top-level collections surfaced through
+        this API.  HEAD is also supported and will return status and headers only.
+      operationId: root
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                root-links:
+                  $ref: "#/components/examples/rootLinksV1"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                root-links:
+                  $ref: "#/components/examples/rootLinksV1"
+        "404":
+          description: Service is not available.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/notFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/notFound"
+  /environments:
+    get:
+      tags:
+      - Environments
+      summary: Get environments
+      description: Returns a list of environments. Standard paging and sorting options
+        are provided. The media type of the returned collection items will be either
+        application/vnd.sas.risk.environment. Default sorting for this collection
+        will be name:ascending.  HEAD is also supported and will return status and
+        headers only.
+      operationId: getEnvironments
+      parameters:
+      - name: start
+        in: query
+        description: pagination parameter, what is the starting index.
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: limit
+        in: query
+        description: pagination parameter, how many items to return.
+        schema:
+          type: integer
+          format: int32
+          default: 100
+      - name: filter
+        in: query
+        description: The criteria for filtering the environments.
+        schema:
+          type: string
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the environments.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Environments
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/environmentCollection"
+              examples:
+                risk-environments:
+                  $ref: "#/components/examples/riskEnvironmentsV1"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/environmentCollection"
+              examples:
+                risk-environments:
+                  $ref: "#/components/examples/riskEnvironmentsV1"
+        "400":
+          description: An invalid filter or combination of request parameters was
+            provided.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/badRequest"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/badRequest"
+    post:
+      tags:
+      - Environments
+      summary: Create new environment
+      description: Creates a new environment. Name uniqueness across environments
+        in a folder is enforced. Only the name, description, dataSources, parentUri,
+        properties, and analysis fields are editable.
+      operationId: createEnvironment
+      parameters:
+      - name: parentFolderUri
+        in: query
+        description: Folder uri to save the environment in
+        required: false
+        schema:
+          type: string
+      - name: parentFolderDisplayPath
+        in: query
+        description: The full display folder path to save the environment in
+        required: false
+        schema:
+          type: string
+      - name: createFolder
+        in: query
+        description: Create the folder display path passed in if it does not exist.
+        required: false
+        schema:
+          type: boolean
+          default: false
+      requestBody:
+        content:
+          application/vnd.sas.risk.environment+json:
+            schema:
+              $ref: "#/components/schemas/newEnvironment"
+            examples:
+              new-risk-environment:
+                $ref: "#/components/examples/newRiskEnvironmentV1"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/newEnvironment"
+            examples:
+              new-risk-environment:
+                $ref: "#/components/examples/newRiskEnvironmentV1"
+        required: true
+      responses:
+        "201":
+          description: New environment created
+          headers:
+            Location:
+              description: The URI of the newly created environment
+              schema:
+                type: string
+            Last-Modified:
+              description: The ISO8601 date string representing the timestamp of the
+                last update to this environment.
+              schema:
+                type: string
+            ETag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.environment+json:
+              schema:
+                $ref: "#/components/schemas/environment"
+              examples:
+                risk-environment:
+                  $ref: "#/components/examples/riskEnvironmentV1"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/environment"
+              examples:
+                risk-environment:
+                  $ref: "#/components/examples/riskEnvironmentV1"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.risk.environment+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/badRequest"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/badRequest"
+        "409":
+          description: The environment name already exists.
+          content:
+            application/vnd.sas.risk.environment+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/conflict"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/conflict"
+  "/environments/{environmentId}":
+    get:
+      tags:
+      - Environments
+      summary: Get environment
+      description: Returns the specified environment.  HEAD is also supported and
+        will return status and headers only.
+      operationId: getEnvironment
+      parameters:
+      - name: environmentId
+        in: path
+        description: The identifier of a specific environment.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "200":
+          description: Returns the environment.
+          headers:
+            Last-Modified:
+              description: The ISO8601 date string representing the timestamp of the
+                last update to this environment.
+              schema:
+                type: string
+            ETag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.environment+json:
+              schema:
+                $ref: "#/components/schemas/environment"
+              examples:
+                risk-environment:
+                  $ref: "#/components/examples/riskEnvironmentV1"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/environment"
+              examples:
+                risk-environment:
+                  $ref: "#/components/examples/riskEnvironmentV1"
+        "404":
+          description: Environment does not exist.
+          content:
+            application/vnd.sas.risk.environment+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/notFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/notFound"
+    patch:
+      tags:
+      - Environments
+      summary: Patch an existing environment
+      description: Patches an existing environment. Only the name, description, dataSources,
+        parentUri, properties, and analysis fields are editable.
+      operationId: patchEnvironment
+      parameters:
+      - name: environmentId
+        in: path
+        description: The identifier of a specific environment and MUST exactly match
+          environment id sent in body of request.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: If-Match
+        in: header
+        description: The ETag that was returned from a GET, POST or PATCH of this
+          environment.
+        required: false
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: Notes that the patch should be applied only if the object hasn't
+          been modified since the given date.
+        required: false
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: "#/components/schemas/environmentPatch"
+            examples:
+              patch-risk-environment:
+                $ref: "#/components/examples/patchRiskEnvironmentV1"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/environmentPatch"
+            examples:
+              patch-risk-environment:
+                $ref: "#/components/examples/patchRiskEnvironmentV1"
+        required: true
+      responses:
+        "200":
+          description: Environment Patched
+          headers:
+            Last-Modified:
+              description: The ISO8601 date string representing the timestamp of the
+                last update to this environment.
+              schema:
+                type: string
+            ETag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.risk.environment+json:
+              schema:
+                $ref: "#/components/schemas/environment"
+              examples:
+                risk-environment:
+                  $ref: "#/components/examples/riskEnvironmentV1"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/environment"
+              examples:
+                risk-environment:
+                  $ref: "#/components/examples/riskEnvironmentV1"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.risk.environment+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/badRequest"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: Environment does not exist.
+          content:
+            application/vnd.sas.risk.environment+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/notFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/notFound"
+        "409":
+          description: New environment name already exists.
+          content:
+            application/vnd.sas.risk.environment+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/conflict"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/conflict"
+        "412":
+          description: The ETag or Modified date provided does not match the current
+            version of the object.
+          content:
+            application/vnd.sas.risk.environment+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/preConditionFailed"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/preConditionFailed"
+        "422":
+          description: The request could not be processed.
+          content:
+            application/vnd.sas.risk.environment+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/unprocessableEntity"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/unprocessableEntity"
+        "428":
+          description: The ETag or Modified date was not provided when updating an
+            existing type.
+          content:
+            application/vnd.sas.risk.environment+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/preConditionRequired"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error:
+                  $ref: "#/components/examples/preConditionRequired"
+    delete:
+      tags:
+      - Environments
+      summary: Delete environment
+      description: The specified environment is deleted.
+      operationId: deleteEnvironments
+      parameters:
+      - name: environmentId
+        in: path
+        description: The identifier of a specific environment.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "204":
+          description: Environment is deleted.
+servers:
+- url: "http://example.com/riskEnvironments"
+  description: This is an example base URL.
+- url: "https://example.com/riskEnvironments"
+  description: This is an example base URL.
+components:
+  schemas:
+    newEnvironment:
+      title: New Environment
+      description: The representation used to create a new environment.
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          description: Environment name.
+        description:
+          type: string
+          description: Environment description.
+        parentUri:
+          type: string
+          format: uri
+          description: The folder uri to save the risk environment in.
+        serverName:
+          type: string
+          description: The CAS server name associated with the risk environment file.
+        caslibName:
+          type: string
+          description: The CAS library name associated with the risk environment file.
+        tableName:
+          type: string
+          description: The CAS table name associated with the risk environment file.
+        serverType:
+          type: string
+          description: This can be either SAS or VIYA depending on where the risk
+            table exists.
+        version:
+          type: integer
+          description: The version number of the environment representation.  This
+            representation is version 1.
+    environmentPatch:
+      title: Patch Environment
+      description: The representation used to patch an environment.
+      required:
+      - environmentId
+      allOf:
+      - $ref: "#/components/schemas/newEnvironment"
+      - type: object
+        properties:
+          environmentId:
+            type: string
+            format: object-id
+            description: Environment id.
+    environment:
+      title: Environment
+      description: The representation of an environment.
+      allOf:
+        #        - $ref: "#/components/schemas/environmentPatch"
+      - type: object
+        properties:
+          type:
+            type: string
+            description: The type of the risk environment.
+          id:
+            type: string
+            format: object-id
+            description: Environment id.
+          pid:
+            type: string
+            description: The id created by the combination of path and name of the
+              risk environment.
+          documentType:
+            type: string
+            description: The document type of the risk environment.
+          encoding:
+            type: string
+            description: The encoding of the risk environment.
+          relPath:
+            type: string
+            description: The display path of the risk environment.
+          joinType:
+            type: string
+            description: The type of join for the risk environment.
+          stressable:
+            type: boolean
+            description: Indicates if the table associated with the risk environment
+              is stressable.
+          simulation:
+            type: boolean
+            description: Indicates if the table associated with the risk environment
+              a simulation.
+          dataSources:
+            type: array
+            description: An array of data source detail information.
+            items: {}
+          dataSourcesLoaded:
+            type: boolean
+            description: Indicates if the data sources saved with the risk environment
+              are valid on load.
+          label:
+            type: string
+            description: The label of the risk environment shown in the UI.
+          contentType:
+            type: string
+            description: The media type of the risk environment.
+          contentDisposition:
+            type: string
+            description: Value for Content Disposition header which will be set in
+              response while downloading.
+          favorite:
+            type: boolean
+            description: If the risk environment is found in the My Favorites folder
+              true will be set.
+          recent:
+            type: boolean
+            description: If the risk environment is found in the My History folder
+              true will be set.
+          asOfDate:
+            type: string
+            format: date
+            description: The as of date associated with the risk environment.
+          createdBy:
+            type: string
+            description: The userid of the user who created this risk environment.
+          creationTimeStamp:
+            type: string
+            format: date-time
+            description: Timestamp of risk environment creation.
+          modifiedBy:
+            type: string
+            description: The userid of the last user who modified this risk environment.
+          modifiedTimeStamp:
+            type: string
+            format: date-time
+            description: Timestamp of last risk environment modification.
+          links:
+            type: array
+            description: The links that apply to the risk environment.
+            items:
+              $ref: "#/components/schemas/link"
+    environmentCollection:
+      title: Environment Collection
+      description: A collection of risk environment representations.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The array of risk environment representations.
+            items:
+              $ref: "#/components/schemas/environment"
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+  examples:
+    # =====================================
+    #  Response - Collection of Root Links
+    # =====================================
+    rootLinksV1:
+      summary: Response for GET riskEnvironments root links.
+      description: Available root links for riskEnvironments service.
+      value: {"version": 1, "links": [{"method": "HEAD", "rel": "checkState", "href": "/riskEnvironments",
+            "uri": "/riskEnvironments", "type": "application/json"}, {"method": "GET",
+            "rel": "riskEnvironments", "href": "/riskEnvironments/environments", "uri": "/riskEnvironments/environments",
+            "type": "application/vnd.sas.collection"}, {"method": "GET", "rel": "riskEnvironment",
+            "href": "/riskEnvironments/environments/{environmentId}", "uri": "/riskEnvironments/environments/{environmentId}",
+            "type": "application/vnd.sas.risk.environment"}, {"method": "POST", "rel": "createEnvironment",
+            "href": "/riskEnvironments/environments?parentFolderUri={parentFolderUri}&parentFolderDisplayPath={parentFolderDisplayPath}&createFolder={createFolder}",
+            "uri": "/riskEnvironments/environments?parentFolderUri={parentFolderUri}&parentFolderDisplayPath={parentFolderDisplayPath}&createFolder={createFolder}",
+            "type": "application/vnd.sas.risk.environment+json"}, {"method": "POST",
+            "rel": "createRiskSession", "href": "/riskEnvironments/riskSessions",
+            "uri": "/riskEnvironments/riskSessions", "type": "text/plain"}]}
+    riskEnvironmentsV1:
+      summary: Response for GET risk environments collection.
+      description: Info for collection of existing risk environments.
+      value: {"links": [{"method": "GET", "rel": "collection", "href": "/riskEnvironments/environments",
+            "uri": "/riskEnvironments/environments", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.risk.environment"}, {"method": "GET",
+            "rel": "self", "href": "/riskEnvironments/environments?start=0&limit=1000",
+            "uri": "/riskEnvironments/environments?start=0&limit=1000", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.risk.environment"}, {"method": "POST",
+            "rel": "createEnvironment", "href": "/riskEnvironments/environments?parentFolderUri={parentFolderUri}&parentFolderDisplayPath={parentFolderDisplayPath}&createFolder={createFolder}",
+            "uri": "/riskEnvironments/environments?parentFolderUri={parentFolderUri}&parentFolderDisplayPath={parentFolderDisplayPath}&createFolder={createFolder}",
+            "type": "application/vnd.sas.risk.environment+json"}], "name": "riskEnvironments",
+        "accept": "application/vnd.sas.risk.environment", "count": 3, "items": [{
+            "creationTimeStamp": "2021-10-25T12:07:41.468Z", "modifiedTimeStamp": "2021-10-25T12:07:43.302Z",
+            "createdBy": "daappl", "modifiedBy": "daappl", "id": "0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+            "type": "riskEnvironment", "name": "KitchSinkMtM_Cube1.rskenv", "description": "Everything\
+              \ but the kitchen sink1!", "links": [{"method": "GET", "rel": "persistedSelf",
+                "href": "/riskEnvironments/environments/V3flh9em1wcgz0vzythcr5611wa6awgo0ovt3zau++8dw1emy08i1qrmhyjj0p36roegt8zyoza1wxtskzv8du65gfw3x",
+                "uri": "/riskEnvironments/environments/V3flh9em1wcgz0vzythcr5611wa6awgo0ovt3zau++8dw1emy08i1qrmhyjj0p36roegt8zyoza1wxtskzv8du65gfw3x",
+                "type": "application/vnd.sas.risk.environment"}, {"method": "GET",
+                "rel": "self", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+                "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+                "type": "application/vnd.sas.risk.environment"}, {"method": "PATCH",
+                "rel": "update", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+                "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+                "type": "application/json-patch+json", "responseType": "application/vnd.sas.risk.environment"},
+              {"method": "DELETE", "rel": "delete", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+                "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+                "type": "application/vnd.sas.risk.environment"}, {"method": "GET",
+                "rel": "metadata", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/metadata",
+                "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/metadata",
+                "type": "application/vnd.sas.risk.cube+json;charset=utf-8"}, {"method": "GET",
+                "rel": "scenarioContext", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/scenarioContext",
+                "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/scenarioContext",
+                "type": "application/vnd.sas.risk.scenario.context"}, {"method": "POST",
+                "rel": "save", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/save",
+                "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/save",
+                "type": "application/vnd.sas.risk.environment.save.request"}, {"method": "POST",
+                "rel": "loadPromote", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/loadPromote",
+                "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/loadPromote",
+                "type": "application/vnd.sas.risk.environment.loadpromote.request"},
+              {"method": "POST", "rel": "unload", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/unload",
+                "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/unload",
+                "type": "application/vnd.sas.risk.environment.clean.request"}, {"method": "POST",
+                "rel": "drop", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/drop",
+                "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/drop",
+                "type": "application/vnd.sas.risk.environment.clean.request"}], "version": 1,
+            "pid": "V3flh9em1wcgz0vzythcr5611wa6awgo0ovt3zau++8dw1emy08i1qrmhyjj0p36roegt8zyoza1wxtskzv8du65gfw3x",
+            "serverType": "VIYA", "relPath": "/Public/Environments/KitchSinkMtM",
+            "serverName": "cas-shared-default", "caslibName": "Public", "tableName": "KitchSinkMtM_Cube1",
+            "tableLoaded": true, "cubeName": "KitchSinkMtM_cube1", "cubeLabel": "KitchSinkMtM_cube1",
+            "cubeVersion": "1.0", "cubeType": "stress", "cubeCreationTime": "2021-10-25T12:07:40.000Z",
+            "joinType": "NONE", "stressable": true, "parentUri": "/folders/folders/8d0e2e30-3d09-406b-bed7-4473ae42aa23",
+            "asOfDate": "2019-09-30", "favorite": false, "recent": true, "cubeInfos": [
+              {"name": "KitchSinkMtM_cube1", "label": "", "cubeType": "unknown", "joinType": "none",
+                "sasCreationDate": "2021-10-25T12:07:40.000Z", "sasExpirationDate": "1960-01-01T00:00:00.000Z",
+                "sasAlertDate": "1960-01-01T00:00:00.000Z", "staleness": 0.0, "runDate": "2019-09-30",
+                "numSubCubes": 0, "numSamples": 1, "positions": 101, "currency": "USD",
+                "filterPageSize": 2500}], "label": "Everything but the kitchen sink1!"},
+          {"creationTimeStamp": "2021-10-25T12:07:44.168Z", "modifiedTimeStamp": "2021-10-25T12:07:46.002Z",
+            "createdBy": "daappl", "modifiedBy": "daappl", "id": "37038b79-d9bf-4979-b7e9-5d4d4c026e0b",
+            "type": "riskEnvironment", "name": "KitchSinkMtM_Cube2.rskenv", "description": "Everything\
+              \ but the kitchen sink2!", "links": [{"method": "GET", "rel": "persistedSelf",
+                "href": "/riskEnvironments/environments/V3flh9em1wcgz0vzythcr5611wa6bg66aylfcj1y++8dw1emy08i1qrmhyjj0p36roegt8zyoza1wxtskzv8du65gfw3x",
+                "uri": "/riskEnvironments/environments/V3flh9em1wcgz0vzythcr5611wa6bg66aylfcj1y++8dw1emy08i1qrmhyjj0p36roegt8zyoza1wxtskzv8du65gfw3x",
+                "type": "application/vnd.sas.risk.environment"}, {"method": "GET",
+                "rel": "self", "href": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b",
+                "uri": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b",
+                "type": "application/vnd.sas.risk.environment"}, {"method": "PATCH",
+                "rel": "update", "href": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b",
+                "uri": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b",
+                "type": "application/json-patch+json", "responseType": "application/vnd.sas.risk.environment"},
+              {"method": "DELETE", "rel": "delete", "href": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b",
+                "uri": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b",
+                "type": "application/vnd.sas.risk.environment"}, {"method": "GET",
+                "rel": "metadata", "href": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b/metadata",
+                "uri": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b/metadata",
+                "type": "application/vnd.sas.risk.cube+json;charset=utf-8"}, {"method": "GET",
+                "rel": "scenarioContext", "href": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b/scenarioContext",
+                "uri": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b/scenarioContext",
+                "type": "application/vnd.sas.risk.scenario.context"}, {"method": "POST",
+                "rel": "save", "href": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b/save",
+                "uri": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b/save",
+                "type": "application/vnd.sas.risk.environment.save.request"}, {"method": "POST",
+                "rel": "loadPromote", "href": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b/loadPromote",
+                "uri": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b/loadPromote",
+                "type": "application/vnd.sas.risk.environment.loadpromote.request"},
+              {"method": "POST", "rel": "unload", "href": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b/unload",
+                "uri": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b/unload",
+                "type": "application/vnd.sas.risk.environment.clean.request"}, {"method": "POST",
+                "rel": "drop", "href": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b/drop",
+                "uri": "/riskEnvironments/environments/37038b79-d9bf-4979-b7e9-5d4d4c026e0b/drop",
+                "type": "application/vnd.sas.risk.environment.clean.request"}], "version": 1,
+            "pid": "V3flh9em1wcgz0vzythcr5611wa6bg66aylfcj1y++8dw1emy08i1qrmhyjj0p36roegt8zyoza1wxtskzv8du65gfw3x",
+            "serverType": "VIYA", "relPath": "/Public/Environments/KitchSinkMtM",
+            "serverName": "cas-shared-default", "caslibName": "Public", "tableName": "KitchSinkMtM_Cube2",
+            "tableLoaded": true, "cubeName": "KitchSinkMtM_cube2", "cubeLabel": "KitchSinkMtM_cube2",
+            "cubeVersion": "1.0", "cubeType": "stress", "cubeCreationTime": "2021-10-25T12:07:44.000Z",
+            "joinType": "NONE", "stressable": true, "parentUri": "/folders/folders/8d0e2e30-3d09-406b-bed7-4473ae42aa23",
+            "asOfDate": "2019-09-30", "favorite": false, "recent": true, "cubeInfos": [
+              {"name": "KitchSinkMtM_cube2", "label": "", "cubeType": "unknown", "joinType": "none",
+                "sasCreationDate": "2021-10-25T12:07:44.000Z", "sasExpirationDate": "1960-01-01T00:00:00.000Z",
+                "sasAlertDate": "1960-01-01T00:00:00.000Z", "staleness": 0.0, "runDate": "2019-09-30",
+                "numSubCubes": 0, "numSamples": 1, "positions": 102, "currency": "USD",
+                "filterPageSize": 2500}], "label": "Everything but the kitchen sink2!"},
+          {"creationTimeStamp": "2021-10-25T12:07:46.936Z", "modifiedTimeStamp": "2021-10-25T12:07:48.687Z",
+            "createdBy": "daappl", "modifiedBy": "daappl", "id": "e2937c20-746c-4736-80cc-b72b08d28d1e",
+            "type": "riskEnvironment", "name": "KitchSinkMtM_Cube3.rskenv", "description": "Everything\
+              \ but the kitchen sink3!", "links": [{"method": "GET", "rel": "persistedSelf",
+                "href": "/riskEnvironments/environments/V3flh9em1wcgz0vzythcr5611wa6bzvol8b1l2t2++8dw1emy08i1qrmhyjj0p36roegt8zyoza1wxtskzv8du65gfw3x",
+                "uri": "/riskEnvironments/environments/V3flh9em1wcgz0vzythcr5611wa6bzvol8b1l2t2++8dw1emy08i1qrmhyjj0p36roegt8zyoza1wxtskzv8du65gfw3x",
+                "type": "application/vnd.sas.risk.environment"}, {"method": "GET",
+                "rel": "self", "href": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e",
+                "uri": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e",
+                "type": "application/vnd.sas.risk.environment"}, {"method": "PATCH",
+                "rel": "update", "href": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e",
+                "uri": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e",
+                "type": "application/json-patch+json", "responseType": "application/vnd.sas.risk.environment"},
+              {"method": "DELETE", "rel": "delete", "href": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e",
+                "uri": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e",
+                "type": "application/vnd.sas.risk.environment"}, {"method": "GET",
+                "rel": "metadata", "href": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e/metadata",
+                "uri": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e/metadata",
+                "type": "application/vnd.sas.risk.cube+json;charset=utf-8"}, {"method": "GET",
+                "rel": "scenarioContext", "href": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e/scenarioContext",
+                "uri": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e/scenarioContext",
+                "type": "application/vnd.sas.risk.scenario.context"}, {"method": "POST",
+                "rel": "save", "href": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e/save",
+                "uri": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e/save",
+                "type": "application/vnd.sas.risk.environment.save.request"}, {"method": "POST",
+                "rel": "loadPromote", "href": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e/loadPromote",
+                "uri": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e/loadPromote",
+                "type": "application/vnd.sas.risk.environment.loadpromote.request"},
+              {"method": "POST", "rel": "unload", "href": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e/unload",
+                "uri": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e/unload",
+                "type": "application/vnd.sas.risk.environment.clean.request"}, {"method": "POST",
+                "rel": "drop", "href": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e/drop",
+                "uri": "/riskEnvironments/environments/e2937c20-746c-4736-80cc-b72b08d28d1e/drop",
+                "type": "application/vnd.sas.risk.environment.clean.request"}], "version": 1,
+            "pid": "V3flh9em1wcgz0vzythcr5611wa6bzvol8b1l2t2++8dw1emy08i1qrmhyjj0p36roegt8zyoza1wxtskzv8du65gfw3x",
+            "serverType": "VIYA", "relPath": "/Public/Environments/KitchSinkMtM",
+            "serverName": "cas-shared-default", "caslibName": "Public", "tableName": "KitchSinkMtM_Cube3",
+            "tableLoaded": true, "cubeName": "KitchSinkMtM_cube3", "cubeLabel": "KitchSinkMtM_cube3",
+            "cubeVersion": "1.0", "cubeType": "stress", "cubeCreationTime": "2021-10-25T12:07:46.000Z",
+            "joinType": "NONE", "stressable": true, "parentUri": "/folders/folders/8d0e2e30-3d09-406b-bed7-4473ae42aa23",
+            "asOfDate": "2019-09-30", "favorite": false, "recent": true, "cubeInfos": [
+              {"name": "KitchSinkMtM_cube3", "label": "", "cubeType": "unknown", "joinType": "none",
+                "sasCreationDate": "2021-10-25T12:07:46.000Z", "sasExpirationDate": "1960-01-01T00:00:00.000Z",
+                "sasAlertDate": "1960-01-01T00:00:00.000Z", "staleness": 0.0, "runDate": "2019-09-30",
+                "numSubCubes": 0, "numSamples": 1, "positions": 103, "currency": "USD",
+                "filterPageSize": 2500}], "label": "Everything but the kitchen sink3!"}]}
+    newRiskEnvironmentV1:
+      summary: Request for POST risk environment.
+      description: Info for new risk environment.
+      value: {"name": "KitchSinkMtM_Cube1.rskenv", "label": "Everything but the kitchen\
+          \ sink1!", "description": "Everything but the kitchen sink1!", "serverType": "VIYA",
+        "serverName": "cas-shared-default", "caslibName": "Public", "tableName": "KitchSinkMtM_Cube1"}
+    riskEnvironmentV1:
+      summary: Response for GET risk environment.
+      description: Info for existing risk environment.
+      value: {"creationTimeStamp": "2021-10-25T12:07:41.468Z", "modifiedTimeStamp": "2021-10-25T12:07:43.302Z",
+        "createdBy": "daappl", "modifiedBy": "daappl", "id": "0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+        "type": "riskEnvironment", "name": "KitchSinkMtM_Cube1.rskenv", "description": "Everything\
+          \ but the kitchen sink1!", "links": [{"method": "GET", "rel": "persistedSelf",
+            "href": "/riskEnvironments/environments/V3flh9em1wcgz0vzythcr5611wa6awgo0ovt3zau++8dw1emy08i1qrmhyjj0p36roegt8zyoza1wxtskzv8du65gfw3x",
+            "uri": "/riskEnvironments/environments/V3flh9em1wcgz0vzythcr5611wa6awgo0ovt3zau++8dw1emy08i1qrmhyjj0p36roegt8zyoza1wxtskzv8du65gfw3x",
+            "type": "application/vnd.sas.risk.environment"}, {"method": "GET", "rel": "self",
+            "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+            "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+            "type": "application/vnd.sas.risk.environment"}, {"method": "PATCH", "rel": "update",
+            "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+            "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+            "type": "application/json-patch+json", "responseType": "application/vnd.sas.risk.environment"},
+          {"method": "DELETE", "rel": "delete", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+            "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4",
+            "type": "application/vnd.sas.risk.environment"}, {"method": "GET", "rel": "metadata",
+            "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/metadata",
+            "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/metadata",
+            "type": "application/vnd.sas.risk.cube+json;charset=utf-8"}, {"method": "GET",
+            "rel": "scenarioContext", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/scenarioContext",
+            "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/scenarioContext",
+            "type": "application/vnd.sas.risk.scenario.context"}, {"method": "POST",
+            "rel": "save", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/save",
+            "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/save",
+            "type": "application/vnd.sas.risk.environment.save.request"}, {"method": "POST",
+            "rel": "loadPromote", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/loadPromote",
+            "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/loadPromote",
+            "type": "application/vnd.sas.risk.environment.loadpromote.request"}, {
+            "method": "POST", "rel": "unload", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/unload",
+            "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/unload",
+            "type": "application/vnd.sas.risk.environment.clean.request"}, {"method": "POST",
+            "rel": "drop", "href": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/drop",
+            "uri": "/riskEnvironments/environments/0fa90635-06c1-4be5-a9c2-2a544d2d54a4/drop",
+            "type": "application/vnd.sas.risk.environment.clean.request"}], "version": 1,
+        "pid": "V3flh9em1wcgz0vzythcr5611wa6awgo0ovt3zau++8dw1emy08i1qrmhyjj0p36roegt8zyoza1wxtskzv8du65gfw3x",
+        "serverType": "VIYA", "relPath": "/Public/Environments/KitchSinkMtM", "serverName": "cas-shared-default",
+        "caslibName": "Public", "tableName": "KitchSinkMtM_Cube1", "tableLoaded": true,
+        "cubeName": "KitchSinkMtM_cube1", "cubeLabel": "KitchSinkMtM_cube1", "cubeVersion": "1.0",
+        "cubeType": "stress", "cubeCreationTime": "2021-10-25T12:07:40.000Z", "joinType": "NONE",
+        "stressable": true, "parentUri": "/folders/folders/8d0e2e30-3d09-406b-bed7-4473ae42aa23",
+        "asOfDate": "2019-09-30", "favorite": false, "recent": true, "cubeInfos": [
+          {"name": "KitchSinkMtM_cube1", "label": "", "cubeType": "unknown", "joinType": "none",
+            "sasCreationDate": "2021-10-25T12:07:40.000Z", "sasExpirationDate": "1960-01-01T00:00:00.000Z",
+            "sasAlertDate": "1960-01-01T00:00:00.000Z", "staleness": 0.0, "runDate": "2019-09-30",
+            "numSubCubes": 0, "numSamples": 1, "positions": 101, "currency": "USD",
+            "filterPageSize": 2500}], "label": "Everything but the kitchen sink1!"}
+    patchRiskEnvironmentV1:
+      summary: Request for PATCH risk environment.
+      description: Update info for risk environment.
+      value: {"environmentId": "0fa90635-06c1-4be5-a9c2-2a544d2d54a4", "name": "KitchSinkMtM_Cube1.rskenv",
+        "label": "Everything but the kitchen sink1!", "description": "Everything but\
+          \ the kitchen sink1!", "serverType": "VIYA", "serverName": "cas-shared-default",
+        "caslibName": "Public", "tableName": "KitchSinkMtM_Cube1"}
+    badRequest:
+      description: Bad request.
+      value:
+        httpStatusCode: 400
+        version: 2
+    notFound:
+      description: Not found.
+      value:
+        httpStatusCode: 404
+        version: 2
+    conflict:
+      description: The request conflicts with the current state.
+      value:
+        httpStatusCode: 409
+        version: 2
+    preConditionFailed:
+      description: Pre-condition failed.
+      value:
+        httpStatusCode: 412
+        version: 2
+    unprocessableEntity:
+      description: Could not be processed.
+      value:
+        httpStatusCode: 422
+        version: 2
+    preConditionRequired:
+      description: Pre-condition required.
+      value:
+        httpStatusCode: 428
+        version: 2

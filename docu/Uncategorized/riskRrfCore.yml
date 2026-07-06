@@ -1,0 +1,847 @@
+---
+openapi: 3.0.3
+info:
+  title: Regulatory Reporting Framework
+  description: The Regulatory Reporting Framework (RRF) API enables generation and
+    validation of XBRL and CSV files for regulatory compliance. It also supports saving
+    spreadsheet UI data to backend fact tables, and retrieving metadata definitions
+    and validation messages.
+  version: "1"
+  termsOfService: "https://www.sas.com/en_us/legal/copyright.html"
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+servers:
+- url: 'https://example.com:8080/riskRrfCore'
+  description: Generated server url
+tags:
+- name: Root Controller
+  description: Contains endpoints for the root of the API.
+- name: Rrf Core
+  description: Contains endpoints for the core functionality of the Regulatory Reporting
+    Framework API.
+paths:
+  /:
+    get:
+      tags:
+      - Root Controller
+      description: Returns a list containing a link to only top-level collections
+        surfaced by this API.
+      summary: Get a collection of top-level links
+      operationId: root
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/links"
+              examples:
+                json:
+                  $ref: "#/components/examples/rootLinks"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/links"
+              examples:
+                json:
+                  $ref: "#/components/examples/rootLinks"
+  /meta:
+    get:
+      summary: Return meta definition json
+      operationId: getMeta
+      description: Returns meta definition json.
+      tags:
+      - Rrf Core
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/metaDefinition"
+              examples:
+                getMetaResp:
+                  $ref: "#/components/examples/getMetaResp"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/metaDefinition"
+              examples:
+                createClientResp:
+                  $ref: "#/components/examples/getMetaResp"
+        "400":
+          description: The request was invalid. An invalid query parameter was specified.
+          content:
+            'application/vnd.sas.error+json':
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                error:
+                  $ref: '#/components/examples/error400'
+      parameters:
+      - name: tableId
+        required: true
+        in: query
+        description: TableId for which meta definition is required.
+        schema:
+          type: string
+      - name: taxonomyCd
+        required: true
+        in: query
+        description: Taxonomy code.
+        schema:
+          type: string
+      - name: instance
+        required: true
+        in: query
+        description: InstanceId of filing instance.
+        schema:
+          type: number
+      - name: solutionCd
+        required: true
+        in: query
+        description: Solution code to identify the solution.
+        schema:
+          type: string
+          enum:
+          - ICM
+          - IRR
+      - name: cadence
+        required: true
+        in: query
+        description: Cadence version.
+        schema:
+          type: string
+  /message:
+    get:
+      summary: Return validations messages json
+      operationId: getMessage
+      description: Returns validations messages json.
+      tags:
+      - Rrf Core
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/messageDefinition"
+              examples:
+                getMessageResp:
+                  $ref: "#/components/examples/getMessageResp"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/messageDefinition"
+              examples:
+                getMessageResp:
+                  $ref: "#/components/examples/getMessageResp"
+        "400":
+          description: The request was invalid. An invalid query parameter was specified.
+          content:
+            'application/vnd.sas.error+json':
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                error:
+                  $ref: '#/components/examples/error400'
+      parameters:
+      - name: folder
+        in: query
+        description: Taxonomy folder name
+        required: true
+        schema:
+          type: string
+      - name: instance
+        in: query
+        description: Instance Id for the cycle
+        required: true
+        schema:
+          type: integer
+      - name: solutionCd
+        in: query
+        description: To identify the solution calling the API.
+        required: true
+        schema:
+          type: string
+          enum:
+          - ICM
+          - IRR
+      - name: start
+        in: query
+        description: Offset of first set of validation messages to return. Defaults
+          to 0.
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        description: Maximum number of set of validation messages to return. Defaults
+          to 1000.
+        schema:
+          type: integer
+          default: 1000
+      - name: sortBy
+        in: query
+        description: Parameter used to sort the list of returned validation messages.
+        schema:
+          type: string
+          default: messageid:ascending
+      - name: filter
+        in: query
+        description: Filter criteria
+        schema:
+          type: string
+  /data:
+    get:
+      summary: Return fact table data
+      operationId: getData
+      description: >
+        Returns data from fact tables.
+      tags:
+      - Rrf Core
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getData"
+              examples:
+                getDataResp:
+                  $ref: "#/components/examples/getDataResp"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/getData"
+              examples:
+                getDataResp:
+                  $ref: "#/components/examples/getDataResp"
+        "400":
+          description: The request was invalid. An invalid query parameter was specified.
+          content:
+            'application/vnd.sas.error+json':
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                error:
+                  $ref: '#/components/examples/error400'
+      parameters:
+      - name: taxonomyCd
+        required: true
+        in: query
+        description: Taxonomy code.
+        schema:
+          type: string
+      - name: instance
+        required: true
+        in: query
+        description: InstanceId of filing instance.
+        schema:
+          type: number
+      - name: solutionCd
+        required: true
+        in: query
+        description: Solution code to identify the solution.
+        schema:
+          type: string
+          enum:
+          - ICM
+          - IRR
+      - name: cadence
+        required: true
+        in: query
+        description: Cadence version.
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: Filter.
+        schema:
+          type: string
+      - name: precpara
+        in: query
+        description: Decimal Precision.
+        schema:
+          type: string
+    post:
+      summary: Save updated spreadsheet data
+      operationId: createSaveData
+      description: Modify the data from spreadsheet cell ui to fact table at the backend.
+      tags:
+      - Rrf Core
+      responses:
+        "200":
+          description: Data is saved successfully.
+          headers:
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/saveData"
+              examples:
+                createClientResp:
+                  $ref: "#/components/examples/saveData"
+            application/vnd.com.sas.risk.rrf.data+json:
+              schema:
+                $ref: "#/components/schemas/saveData"
+              examples:
+                createClientResp:
+                  $ref: "#/components/examples/saveData"
+        "201":
+          description: A client object was created.
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+        "400":
+          description: The request was invalid.
+          content:
+            'application/vnd.sas.error+json':
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                error:
+                  $ref: '#/components/examples/error400'
+      parameters:
+      - name: solutionCd
+        required: true
+        in: query
+        description: Solution code to identify the solution.
+        schema:
+          type: string
+          enum:
+          - ICM
+          - IRR
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/saveData"
+            examples:
+              createClientBody:
+                $ref: "#/components/examples/saveData"
+          application/vnd.sas.collection+json:
+            schema:
+              $ref: "#/components/schemas/saveData"
+            examples:
+              createClientBody:
+                $ref: "#/components/examples/saveData"
+        description: The client to be created.
+        required: true
+  /status/{requestId}:
+    get:
+      summary: Return status of requested action
+      operationId: getStatus
+      description: >
+        Return status of requested action.
+      tags:
+      - Rrf Core
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getStatus"
+              examples:
+                getStatusResponse:
+                  $ref: "#/components/examples/getStatusResp"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/getStatus"
+              examples:
+                getStatusResponse:
+                  $ref: "#/components/examples/getStatusResp"
+        "400":
+          description: The request was invalid. An invalid query parameter was specified.
+          content:
+            'application/vnd.sas.error+json':
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                error:
+                  $ref: '#/components/examples/error400'
+      parameters:
+      - name: requestId
+        required: true
+        in: path
+        description: Request Id.
+        schema:
+          type: string
+  /action/{actionName}:
+    post:
+      summary: Save the action request
+      operationId: createAction
+      description: Store the requested action to the backend for the batch process
+        to trigger.
+      tags:
+      - Rrf Core
+      responses:
+        "200":
+          description: Data is saved successfully.
+          headers:
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/saveActionResponse"
+              examples:
+                saveActionResponse:
+                  $ref: "#/components/examples/saveActionResponse"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/saveActionResponse"
+              examples:
+                saveActionResponse:
+                  $ref: "#/components/examples/saveActionResponse"
+        "201":
+          description: A client object was created.
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+        "400":
+          description: The request was invalid.
+          content:
+            'application/vnd.sas.error+json':
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+              examples:
+                error:
+                  $ref: '#/components/examples/error400'
+      parameters:
+      - name: actionName
+        required: true
+        in: path
+        description: Action Name to be submitted to the backend.
+        schema:
+          type: string
+          enum:
+          - GenerateXBRL
+          - RunValidation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/saveActionRequest"
+            examples:
+              saveActionRequestBody:
+                $ref: "#/components/examples/saveActionRequest"
+          application/vnd.sas.collection+json:
+            schema:
+              $ref: "#/components/schemas/saveActionRequest"
+            examples:
+              saveActionRequestBody:
+                $ref: "#/components/examples/saveActionRequest"
+        description: The client to be created.
+        required: true
+components:
+  headers:
+    ContentLength:
+      description: The size of the exported spreadsheet.
+      schema:
+        type: integer
+    ContentDisposition:
+      description: Indicates the file is to be saved as an attachment with a suggested
+        name.
+      schema:
+        type: string
+    ContentRange:
+      description: Indicates the portion of the file transferred
+      schema:
+        type: string
+      examples:
+        startOfFile:
+          summary: An example of the first 5 (out of 20) thousand bytes transferred
+          value: bytes 0-5000/20000
+    ETag:
+      description: The specific version of the resource.
+      schema:
+        type: string
+    Location:
+      description: The location of the created resource.
+      schema:
+        type: string
+    ContentType:
+      description: Indicates the type of the response
+      schema:
+        type: string
+    AcceptItem:
+      description: Indicates the type of data held in a resource collection.
+      schema:
+        type: string
+  schemas:
+    messageDefinition:
+      title: Get Message
+      description: Get Message Field schema
+      type: object
+      properties:
+        count:
+          type: integer
+        limit:
+          type: integer
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              errormessage:
+                type: string
+              messagelevel:
+                type: string
+              scope:
+                type: string
+              messagecode:
+                type: string
+              messageid:
+                type: string
+              value:
+                type: string
+    getData:
+      title: Get Data
+      description: Get Data Field schema
+      type: object
+      properties:
+        start:
+          type: integer
+        limit:
+          type: integer
+        count:
+          type: integer
+        items:
+          type: array
+          items:
+            type: object
+    saveData:
+      title: Save Data representation
+      description: Save Data Field schema
+      x-sas-media-type:
+        name: application/vnd.com.sas.risk.rrf.data+json
+        version: 1
+      type: object
+      properties:
+        tableId:
+          description: Table Id
+          type: string
+        taxonomyCd:
+          description: taxonomy code
+          type: string
+        moduleCd:
+          description: Module code
+          type: string
+        instance:
+          description: Instance id
+          type: integer
+        metaJson:
+          description: Valid json String of meta data
+          type: string
+        patchJson:
+          description: Valid json String of update data
+          type: string
+    metaDefinition:
+      title: Meta Definition
+      description: Meta Definition Field schema
+      type: object
+      properties:
+        cells:
+          type: object
+        columns:
+          type: array
+          items:
+            type: object
+        table:
+          type: object
+    getStatus:
+      title: Get status for request action
+      description: Get status for request action
+      type: object
+      properties:
+        status:
+          type: string
+        message:
+          type: string
+    saveActionResponse:
+      title: Save Action Response representation
+      description: Save Action Response representation
+      x-sas-media-type:
+        name: application/vnd.com.sas.risk.rrf.data+json
+        version: 1
+      type: object
+      properties:
+        instance:
+          description: Instance id
+          type: integer
+        requestId:
+          description: Request Id
+          type: string
+        action:
+          description: action requested
+          type: string
+        message:
+          description: status of the request
+          type: string
+    saveActionRequest:
+      title: Save Action Request representation
+      description: Save Action Request representation
+      x-sas-media-type:
+        name: application/vnd.com.sas.risk.rrf.data+json
+        version: 1
+      type: object
+      properties:
+        diagnostics:
+          description: Diagnostics Flag
+          type: boolean
+        instance:
+          description: instance id
+          type: integer
+        solutionCd:
+          description: solution code
+          type: string
+          enum:
+          - ICM
+          - IRR
+        objectKey:
+          description: object key
+          type: string
+        moduleCd:
+          description: Module Code
+          type: string
+        taxonomyCd:
+          description: Taxonomy Code
+          type: string
+        selTemplates:
+          description: action requested
+          type: array
+          items:
+            type: string
+        xbrlExecValidations:
+          description: Execute Xbrl Validations
+          type: boolean
+        truncateOnClean:
+          description: Truncate On Clean Flag
+          type: boolean
+        xbrlComments:
+          description: Xbrl Comments Flag
+          type: boolean
+        maxWaitTime:
+          description: maximum wait time
+          type: integer
+        cadence:
+          description: cadence version
+          type: string
+    link:
+      title: Link
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method to invoke this endpoint.
+        rel:
+          type: string
+          description: The relationship of this URL to the object.
+        uri:
+          type: string
+          description: The relative URI of the REST endpoint.
+        href:
+          type: string
+          description: The full URL of the REST endpoint.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type consumed/produced.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    links:
+      title: Links
+      description: A list of links related to an operation or resource
+      properties:
+        version:
+          type: integer
+          description: The version of the links model.
+          default: 1
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    errorResponse:
+      title: Error
+      description: The representation of an error.
+      properties:
+        message:
+          type: string
+          description: The error message.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred
+          items:
+            $ref: "#/components/schemas/errorResponse"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+  examples:
+    error400:
+      description: Example Bad Request error response
+      summary: Bad Request Error
+      value:
+        version: 2
+        errorCode: 123456
+        message: Something went wrong
+        id: saveValidationError
+        httpStatusCode: 400
+        details:
+        - 'path: /path/of/request'
+    rootLinks:
+      summary: List of root links
+      description: Get root links
+      value: {"links": [{"method": "GET", "rel": "info", "href": "/riskRrfCore/info",
+            "uri": "/riskRrfCore/info", "type": "application/json"}], "version": 1}
+    getMetaResp:
+      summary: Meta definition
+      description: A GET request to get meta definition.
+      value: {"cells": {}, "columns": [{"options": {"filterable": true, "visible": true,
+              "dynColRequired": true, "useAllFilter": true, "dps": "s2c_dim:PX(*)",
+              "dynColNm": "C0050", "width": "317px", "istypeddomain": true, "id": "C0050",
+              "label": ["PEPP registration number(C0050)", "C0050"]}, "cellOptions": {
+              "cellType": "dropdown", "choices": [{"label": "1000110101", "value": "1000110101"},
+                {"label": "1000110102", "value": "1000110102"}]}}, {"options": {"width": "135px",
+              "id": "C0060", "label": ["PEPP name", "C0060"]}, "cellOptions": {"cellType": "string",
+              "choices": []}}, {"options": {"width": "135px", "id": "C0070", "label": [
+                "Product still commercialised?", "C0070"]}, "cellOptions": {"cellType": "dropdown",
+              "choices": [{"level": 2, "domainxbrlcode": "s2c_exp:LB", "label": "1\
+                    \ - Still commercialised", "value": "s2c_LB:x23", "order": 1},
+                {"level": 2, "domainxbrlcode": "s2c_exp:LB", "label": "2 - In run-off",
+                  "value": "s2c_LB:x89", "order": 2}]}}, {"options": {"width": "135px",
+              "id": "C0080", "label": ["Use of common pool of assets for all investments\
+                  \ options"]}, "cellOptions": {"cellType": "dropdown", "choices": [
+                {"level": 1, "domainxbrlcode": "s2c_exp:AP", "label": "1 - Yes", "value": "s2c_AP:x7000",
+                  "order": 1}, {"level": 1, "domainxbrlcode": "s2c_exp:AP", "label": "2\
+                    \ - No", "value": "s2c_AP:x7001", "order": 2}]}}], "table": {
+          "options": {"defaultFilterCriteria": {"abc": {"columnIds": ["C0050", "C0060",
+                  "C0070", "C0080"], "filterSimple": {"children": [{"name": "tableID",
+                      "type": "sas.risk.common.widgets.spreadsheet.filter.StringFilter",
+                      "value": "S.01.02.01.02", "operator": "eq"}], "type": "sas.risk.common.widgets.spreadsheet.filter.AndFilter"}}},
+            "visibleRowCount": 12, "yAxisOpen": ["C0050"], "xAxisClosed": ["C0060",
+              "C0070", "C0080"], "pageSize": 1000, "openColMap": {"pk_id": {"name": "pk_id",
+                "type": "java.lang.Long", "columnName": "pk_id"}, "removeOpenAxis": {
+                "name": "removeOpenAxisPk", "type": "bypass", "columnName": "removeOpenAxis"},
+              "C0050": {"name": "C0050", "type": "java.lang.String", "columnName": "C0050"},
+              "tableID": {"name": "tableID", "type": "bypass", "columnName": "tableID"},
+              "phantomPk": {"name": "phantomPk", "type": "bypass", "columnName": "phantomPk"},
+              "zClosedCd": {"name": "zClosedCd", "type": "bypass", "columnName": "zClosedCd"}},
+            "noData": "", "showTableOptions": false, "tableNm": "t_s2_v280_S_01_02_01_02",
+            "selectionMode": "MultiToggle", "defaultFilterExp": ""}, "columnOptions": {
+            "visible": true, "autoResizable": true, "defaultVisible": true}, "cellOptions": {
+            "cellType": "string", "readonly": false, "styler": "column_style|{0}_STATUS|validationStatus_{1}"}}}
+    saveData:
+      summary: Request Body
+      description: An example of a request body for save data
+      value: {"description": "Save Data post request", "value": {"tableID": "E.01.01.16.01",
+          "taxonomyCd": "eiopa_full_sii_2_8_0", "moduleCd": "qeb", "instance": 10000,
+          "metaJson": "[]", "patchJSON": "{}"}}
+    getDataResp:
+      summary: Get data response
+      description: A GET request to get fact data.
+      value: {"description": "Save Data post request", "value": {"start": 0, "limit": 1000,
+          "count": 45, "items": ["C0300": ""]}}
+    getMessageResp:
+      summary: Message definition
+      description: A GET request to get message definition.
+      value: {"count": 116, "limit": 5, "items": [{"messagelevel": "Skipped", "scope": "M.03.00\
+              \ (r0100;0110;0200;0210;0220;0230;0240;0250;0260;0295;0400;0420;0440;0500;0510;0520;0530;0540;0610,\
+              \ c0020)", "messagecode": "v10840_s", "messageid": "0440b53b-86d1-44cc-b949-50d3c1f218e1",
+            "value": "{\"variables\":{},\"expression\":\" $a  >= 0\",\"rule\":\"v10840_s\"\
+              ,\"formula\":\"{M.03.00} >= 0\"}"}, {"messagelevel": "Passed", "scope": "M.06.00\
+              \ (All rows)", "messagecode": "v10810_m", "messageid": "07855b02-6125-4f09-9ec3-6bca98f50085",
+            "value": "{\"variables\":{\"a\":{\"raw_value\":0,\"x\":\"c0050\",\"type\"\
+              :\"single\",\"facts\":[],\"value\":\"<empty> defaults to: 0\",\"table\"\
+              :\"M.06.00\"},\"b\":{\"raw_value\":0,\"x\":\"c0060\",\"type\":\"single\"\
+              ,\"facts\":[],\"value\":\"<empty> defaults to: 0\",\"table\":\"M.06.00\"\
+              }},\"expression\":\" $a  >=  $b \",\"rule\":\"v10810_m\",\"formula\"\
+              :\"{M.06.00,c0050} >= {M.06.00,c0060}\"}"}, {"messagelevel": "Skipped",
+            "scope": "M.02.00.a (r0010;0020;0030;0040;0050;0070;0080;0090;0132;0135;0140;0162;0165)",
+            "messagecode": "v10767_m", "messageid": "079daecd-6a08-4819-a9a1-bc756876d266",
+            "value": "{\"variables\":{},\"expression\":\"if ( not(emptyFunc($a)))\
+              \  then ( $b  =  $c  -  $a ) else true\",\"rule\":\"v10767_m\",\"formula\"\
+              :\"if ({M.02.00.a, c0020} != empty) then ({M.02.00.c, c0030} = {M.02.00.a,\
+              \ c0010} - {M.02.00.a, c0020})\"}"}, {"messagelevel": "Skipped", "scope": "M.03.00\
+              \ (c0010)", "messagecode": "v10776_m", "messageid": "07ea6e5a-3728-45bc-a065-4e7358f4c815",
+            "value": "{\"variables\":{},\"expression\":\" $a  =  $b  +  $c  +  $d\
+              \  +  $e  +  $f \",\"rule\":\"v10776_m\",\"formula\":\"{M.03.00,r0250}\
+              \ = {M.03.00,r0260} + {M.03.00,r0265} + {M.03.00,r0270} + {M.03.00,r0290}\
+              \ + {M.03.00,r0295}\"}"}, {"messagelevel": "Skipped", "scope": "M.01.00\
+              \ (r0100;0110;0200;0210;0220;0230;0250;0260;0270;0280;0285;0290;0300;0310;0320;0330,\
+              \ c0010)", "messagecode": "v10833_s", "messageid": "0848fc2e-8c6b-4299-acd0-4e44f59dc169",
+            "value": "{\"variables\":{},\"expression\":\" $a  >= 0\",\"rule\":\"v10833_s\"\
+              ,\"formula\":\"{M.01.00} >= 0\"}"}]}
+    getStatusResp:
+      summary: Get status response
+      description: A GET request to get status response.
+      value: {"status": "Passed", "message": "Submission Passed"}
+    saveActionResponse:
+      summary: Submit Action Response
+      description: A POST request to submit the action response.
+      value: {"instance": 10000, "requestId": "4a7460b3-4523-4e27-86d7-1b3711ee1979",
+        "action": "RunValidation", "message": "Submission Passed"}
+    saveActionRequest:
+      summary: Submit Action Request
+      description: A POST request to submit the action response.
+      value: {"diagnostics": false, "instance": 10000, "solutionCd": "IRR", "objectKey": "39231e11-92a5-43a0-b090-809e2e454837",
+        "moduleCd": "IRRBB", "taxonomyCd": "eba_full_tax_3_4_0", "selTemplates": [
+          "J.02.00", "J.01.00"], "xbrlExecValidations": false, "truncateOnClean": true,
+        "xbrlComments": true, "maxWaitTime": 3600, "cadence": "2024.08"}

@@ -1,0 +1,2109 @@
+---
+openapi: 3.0.3
+info:
+  version: '4'
+  title: Feature
+  description: |
+    The Feature API exposes functionality to assign capabilities to a group managed by Identities to authorize members of that group to perform actions. Note: groups inherit permissions from their parent groups recursively.
+
+    The Feature API also provides functions to assign Read, Create, Update and Delete permission operations on a DataHub entity type.
+
+    It also exposes endpoints for checking the lifecycle of asynchronous background jobs.
+
+    The "capability" and "license check" functionality formerly provided by the feature service has been moved to the SAS authorization service.
+  contact:
+    name: SAS Developers
+    email: devex@sas.com
+    url: 'https://developer.sas.com'
+tags:
+- name: Root
+  description: The root of the API.
+- name: JobMonitoring
+  description: Endpoints related to Job Monitoring.
+- name: EntityLevelSecurity
+  description: Endpoints related to Entity Level Security.
+- name: UserManagement
+  description: Endpoints related to User Management.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: The root level of the REST API
+      operationId: root
+      description: The root level of the REST API. Used to retrieve a CSRF token via
+        the response headers.
+      responses:
+        '200':
+          description: Returns links for the Feature service. Also used to determine
+            whether the service provided by the API is available.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: '#/components/schemas/api'
+              examples:
+                Api Example:
+                  $ref: '#/components/examples/Top-Level-Links-Example'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/api'
+              examples:
+                Api Example:
+                  $ref: '#/components/examples/Top-Level-Links-Example'
+  /jobMonitor/jobs:
+    get:
+      tags:
+      - JobMonitoring
+      summary: Get information about the status of the background jobs that have been
+        started
+      operationId: getJobs
+      deprecated: true
+      description: This endpoint is deprecated and replaced by SASVisualInvestigator/jobMonitor/jobs.
+        It will be removed from the Feature API in 2025.03.
+      parameters:
+      - name: start
+        in: query
+        required: false
+        description: Set the start position for paging.
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        required: false
+        description: Set the limit for paging.
+        schema:
+          type: integer
+          default: 10
+      - name: sortBy
+        in: query
+        required: false
+        description: The sorting criteria for the response collection
+        schema:
+          type: string
+      - name: filter
+        in: query
+        required: false
+        description: The criteria to filter the response collection by.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/jobCollection'
+              examples:
+                A small list of jobs:
+                  $ref: '#/components/examples/Jobs-Collection'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/jobCollection'
+              examples:
+                A small list of jobs:
+                  $ref: '#/components/examples/Jobs-Collection'
+        '403':
+          description: Forbidden. The user does not have the required svi.feature.jobs
+            permission.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.feature.jobs permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.feature.jobs permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+  '/jobMonitor/jobs/{jobId}':
+    get:
+      tags:
+      - JobMonitoring
+      summary: Get information about the status of a background job
+      operationId: getJobStatus
+      deprecated: true
+      description: This endpoint is deprecated and replaced by SASVisualInvestigator/jobMonitor/jobs/{jobId}.
+        It will be removed from the Feature API in 2025.03.
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        description: The job ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.sas.investigation.job.monitor.job+json:
+              schema:
+                $ref: '#/components/schemas/jobV1'
+              examples:
+                A completed configuration import job:
+                  $ref: '#/components/examples/Completed-Configuration-Import-JobV1'
+            application/vnd.sas.job.monitor.job+json:
+              schema:
+                $ref: '#/components/schemas/job'
+              examples:
+                A completed configuration import job:
+                  $ref: '#/components/examples/Completed-Configuration-Import-Job'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/job'
+              examples:
+                A completed configuration import job:
+                  $ref: '#/components/examples/Completed-Configuration-Import-Job'
+        '403':
+          description: Forbidden. The user does not have the required svi.feature.jobs
+            permission.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.feature.jobs permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.feature.jobs permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+  '/jobMonitor/tasks/{taskId}':
+    get:
+      tags:
+      - JobMonitoring
+      summary: Get information about the progress of a task
+      operationId: getTaskStatus
+      deprecated: true
+      description: This endpoint is deprecated and replaced by SASVisualInvestigator/jobMonitor/jobs/{taskId}.
+        It will be removed from the Feature API in 2025.03.
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        description: The task ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.sas.investigation.job.monitor.task+json:
+              schema:
+                $ref: '#/components/schemas/taskV1'
+              examples:
+                Running Indexer task example:
+                  $ref: '#/components/examples/Running-Indexer-TaskV1'
+            application/vnd.sas.job.monitor.task+json:
+              schema:
+                $ref: '#/components/schemas/task'
+              examples:
+                Running Indexer task example:
+                  $ref: '#/components/examples/Running-Indexer-Task'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/task'
+              examples:
+                Running Indexer task example:
+                  $ref: '#/components/examples/Running-Indexer-Task'
+        '403':
+          description: Forbidden. The user does not have the required svi.feature.jobs
+            permission.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.feature.jobs permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.feature.jobs permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+  /access:
+    get:
+      summary: Get security rules for all entity types
+      tags:
+      - EntityLevelSecurity
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/entityLevelRules'
+              examples:
+                List of entity level rules:
+                  $ref: '#/components/examples/entityLevelRules'
+            application/vnd.sas.investigation.entity.rules:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/entityLevelRules'
+              examples:
+                List of entity level rules:
+                  $ref: '#/components/examples/entityLevelRules'
+        '403':
+          description: Forbidden. The user does not have the required svi.access.entity.read
+            permission.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User doesn't have svi.access.entity.read permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User doesn't have svi.access.entity.read permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+      operationId: getEntitySecurityRulesForAllEntities
+      description: Retrieve the list of entity level security rules that are configured
+        for all entity types.
+  '/access/groups/{groupId}':
+    delete:
+      tags:
+      - EntityLevelSecurity
+      parameters:
+      - name: groupId
+        description: the ID of the group to remove from all defined security rules.
+        in: path
+        required: true
+        schema:
+          type: string
+      summary: Removes all references to a group from the security rules that have
+        been defined
+      operationId: deleteGroupsForEntityRules
+      description: Removes all references to a group from the security rules that
+        have been defined.
+      responses:
+        '204':
+          description: No content
+        '403':
+          description: Forbidden. The user does not have the required svi.access.entity.edit
+            permission.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.access.entity.edit permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.access.entity.edit permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+  '/access/{entityType}':
+    get:
+      tags:
+      - EntityLevelSecurity
+      summary: Get the security rules for a given entity type
+      operationId: getEntitySecurityRulesForEntity
+      description: Retrieve the list of entity level security rules that are configured
+        for a given entity type.
+      parameters:
+      - name: entityType
+        in: path
+        required: true
+        description: The entity type
+        schema:
+          type: string
+      - name: groups
+        in: query
+        required: false
+        description: Filter entity level security rules to ones that apply to one
+          or more groups
+        style: form
+        explode: false
+        schema:
+          type: array
+          items:
+            type: string
+      responses:
+        '200':
+          headers:
+            ETag:
+              description: The up-to-date version number of the type
+              schema:
+                type: integer
+          description: OK
+          content:
+            application/vnd.sas.investigation.entity.rules+json:
+              schema:
+                $ref: '#/components/schemas/entityLevelRules'
+              examples:
+                entityRules:
+                  $ref: '#/components/examples/entityLevelRules'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/entityLevelRules'
+              examples:
+                entityRules:
+                  $ref: '#/components/examples/entityLevelRules'
+        '403':
+          description: Forbidden. The user does not have the required svi.access.entity.read
+            permission.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User doesn't have svi.access.entity.read permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User doesn't have svi.access.entity.read permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+    delete:
+      tags:
+      - EntityLevelSecurity
+      summary: Delete entity level security rules
+      operationId: deleteEntitySecurityRulesForEntity
+      description: Delete all entity level security rules for a given entity type.
+      parameters:
+      - name: entityType
+        in: path
+        required: true
+        description: The entity type
+        schema:
+          type: string
+      responses:
+        '204':
+          description: No content
+        '403':
+          description: Forbidden. The user does not have the required svi.access.entity.edit
+            permission.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.access.entity.edit permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.access.entity.edit permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+    post:
+      tags:
+      - EntityLevelSecurity
+      summary: Create entity level security rules
+      operationId: createEntitySecurityRulesForEntity
+      description: Create a list of new entity level security rule for the given entity
+        type.
+      requestBody:
+        content:
+          application/vnd.sas.investigation.entity.rules+json:
+            schema:
+              $ref: '#/components/schemas/entityLevelRules'
+            examples:
+              entityRules:
+                $ref: '#/components/examples/entityLevelRules'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/entityLevelRules'
+            examples:
+              entityRules:
+                $ref: '#/components/examples/entityLevelRules'
+      parameters:
+      - name: entityType
+        in: path
+        required: true
+        description: The entity type
+        schema:
+          type: string
+      responses:
+        '201':
+          headers:
+            Location:
+              description: The URL of the created rule.
+              schema:
+                type: string
+          description: Created
+          content:
+            application/vnd.sas.investigation.entity.rules+json:
+              schema:
+                $ref: '#/components/schemas/entityLevelRules'
+              examples:
+                entityRules:
+                  $ref: '#/components/examples/entityLevelRules'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/entityLevelRules'
+              examples:
+                entityRules:
+                  $ref: '#/components/examples/entityLevelRules'
+        '400':
+          description: Bad request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Entity types mismatched between path and body:
+                  $ref: '#/components/examples/Entity-Type-Mismatch'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Entity types mismatched between path and body:
+                  $ref: '#/components/examples/Entity-Type-Mismatch'
+        '403':
+          description: Forbidden. The user does not have the required svi.access.entity.edit
+            permission.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.access.entity.edit permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.access.entity.edit permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+    put:
+      tags:
+      - EntityLevelSecurity
+      summary: Update entity level security rules
+      operationId: updateEntitySecurityRulesForEntity
+      description: Update the list of entity level security rules for the given entity
+        type.
+      parameters:
+      - name: entityType
+        in: path
+        required: true
+        description: The entity type
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: 'ETag header. If the ETag does not match, the update will fail.'
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            Location:
+              description: The URI of the new type
+              schema:
+                type: string
+            ETag:
+              description: The up-to-date version number of the type
+              schema:
+                type: integer
+            Last-Modified:
+              description: The new last modified timestamp
+              schema:
+                type: integer
+          description: OK
+          content:
+            application/vnd.sas.investigation.entity.rules+json:
+              schema:
+                $ref: '#/components/schemas/entityLevelRules'
+              examples:
+                entityRules:
+                  $ref: '#/components/examples/entityLevelRules'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/entityLevelRules'
+              examples:
+                entityRules:
+                  $ref: '#/components/examples/entityLevelRules'
+        '400':
+          description: Bad request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Malformed Request:
+                  $ref: '#/components/examples/Request-Invalid-Body'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Malformed Request:
+                  $ref: '#/components/examples/Request-Invalid-Body'
+        '403':
+          description: Forbidden. The user does not have the required svi.access.entity.edit
+            permission.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.access.entity.edit permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires svi.access.entity.edit permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+        '412':
+          description: The request refers to an out-of-date version of the resource.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Request to update an out-of-date version of the resource:
+                  $ref: '#/components/examples/Expired-Etag-Details'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Request to update an out-of-date version of the resource:
+                  $ref: '#/components/examples/Expired-Etag-Details'
+        '428':
+          description: The request is missing the If-Match header.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Request to update the resource missing Etag details:
+                  $ref: '#/components/examples/Missing-Etag-Details'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Request to update the resource missing Etag details:
+                  $ref: '#/components/examples/Missing-Etag-Details'
+  '/groups/{parentGroupId}/groupMembers/{groupId}':
+    post:
+      tags:
+      - UserManagement
+      summary: Add a group as a member of another group
+      operationId: addGroupToGroupDeprecated
+      deprecated: true
+      description: This endpoint will be removed in 2025.03 - use the equivalent PUT
+        endpoint at SASVisualInvestigator/groups/{parentGroupId}/groupMembers/{groupId}
+      parameters:
+      - name: parentGroupId
+        description: The ID of the parent group.
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: groupId
+        description: The ID of the group.
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Malformed Request:
+                  $ref: '#/components/examples/Request-Invalid-Body'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Malformed Request:
+                  $ref: '#/components/examples/Request-Invalid-Body'
+        '403':
+          description: Forbidden. The user does not have the required sas.capability.assign.group
+            permission.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires sas.capability.assign.group permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+                Error-Cannot-Elevate-Own-Capabilities:
+                  $ref: '#/components/examples/Error-Cannot-Elevate-Own-Capabilities'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires sas.capability.assign.group permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+                Error-Cannot-Elevate-Own-Capabilities:
+                  $ref: '#/components/examples/Error-Cannot-Elevate-Own-Capabilities'
+    put:
+      tags:
+      - UserManagement
+      summary: Add a group as a member of another group
+      operationId: addGroupToGroup
+      deprecated: true
+      description: This endpoint is deprecated and replaced by SASVisualInvestigator/groups/{parentGroupId}/groupMembers/{groupId}.
+        It will be removed from the Feature API in 2025.05.
+      parameters:
+      - name: parentGroupId
+        description: The ID of the parent group.
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: groupId
+        description: The ID of the group.
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Malformed Request:
+                  $ref: '#/components/examples/Request-Invalid-Body'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Malformed Request:
+                  $ref: '#/components/examples/Request-Invalid-Body'
+        '403':
+          description: Forbidden. The user does not have the required sas.capability.assign.group
+            permission.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires sas.capability.assign.group permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+                Error-Cannot-Elevate-Own-Capabilities:
+                  $ref: '#/components/examples/Error-Cannot-Elevate-Own-Capabilities'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires sas.capability.assign.group permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+                Error-Cannot-Elevate-Own-Capabilities:
+                  $ref: '#/components/examples/Error-Cannot-Elevate-Own-Capabilities'
+  '/groups/{parentGroupId}/userMembers/{userId}':
+    post:
+      tags:
+      - UserManagement
+      summary: Add a user as a member of a group
+      operationId: addUserToGroupDeprecated
+      deprecated: true
+      description: This endpoint will be removed in 2025.03 - use the equivalent PUT
+        endpoint at SASVisualInvestigator/groups/{parentGroupId}/userMembers/{userId}
+      parameters:
+      - name: parentGroupId
+        description: The ID of the parent group.
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: userId
+        description: The ID of the user.
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Malformed Request:
+                  $ref: '#/components/examples/Request-Invalid-Body'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Malformed Request:
+                  $ref: '#/components/examples/Request-Invalid-Body'
+        '403':
+          description: Forbidden. The user does not have the required sas.capability.assign.group
+            permission.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires sas.capability.assign.group permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+                Cannot elevate own capabilities:
+                  $ref: '#/components/examples/Error-Cannot-Elevate-Own-Capabilities'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires sas.capability.assign.group permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+                Cannot elevate own capabilities:
+                  $ref: '#/components/examples/Error-Cannot-Elevate-Own-Capabilities'
+    put:
+      tags:
+      - UserManagement
+      summary: Add a user as a member of a group
+      operationId: addUserToGroup
+      deprecated: true
+      description: This endpoint is deprecated and replaced by SASVisualInvestigator/groups/{parentGroupId}/userMembers/{userId}.
+        It will be removed from the Feature API in 2025.05.
+      parameters:
+      - name: parentGroupId
+        description: The ID of the parent group.
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: userId
+        description: The ID of the user.
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Malformed Request:
+                  $ref: '#/components/examples/Request-Invalid-Body'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                Malformed Request:
+                  $ref: '#/components/examples/Request-Invalid-Body'
+        '403':
+          description: Forbidden. The user does not have the required sas.capability.assign.group
+            permission.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires sas.capability.assign.group permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+                Cannot elevate own capabilities:
+                  $ref: '#/components/examples/Error-Cannot-Elevate-Own-Capabilities'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                User requires sas.capability.assign.group permission:
+                  $ref: '#/components/examples/Error-User-Not-Authorized'
+                Cannot elevate own capabilities:
+                  $ref: '#/components/examples/Error-Cannot-Elevate-Own-Capabilities'
+servers:
+- url: 'https://example.com/svi-feature'
+  description: An example URL including the base path for this API
+components:
+  schemas:
+    jobCollection:
+      title: Job collection
+      description: A collection of job representations.
+      allOf:
+      - $ref: '#/components/schemas/baseCollection2'
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/job'
+    entityLevelRules:
+      title: Entity-Level Security Rules
+      description: 'Entity-Level Security Rules govern what rights a user has on documents
+        of a particular entity type. A user may search and read, create, update or
+        delete a document if they meet the entity level security rules defined for
+        the given action for that entity.'
+      x-sas-media-type:
+        name: application/vnd.sas.investigation.entity.rules
+        version: 1
+      properties:
+        version:
+          type: integer
+          description: The version of this set of entity level rules
+        name:
+          type: string
+          description: The name of the entity type these rules are applied to
+        rules:
+          description: The set of entity level rules that are applied to this entity
+            type
+          type: array
+          items:
+            type: object
+            properties:
+              group:
+                type: string
+                description: The group that the rule is assigned to.
+              conditionName:
+                type: string
+                description: A description of the rule.
+              permissions:
+                type: object
+                description: 'A map of permission action type (read, write, update,
+                  delete, search) to boolean. Describes whether the group has the
+                  permission to do the given action type on the entity.'
+              conditions:
+                type: array
+                description: The conditions that form the rule.
+                items:
+                  properties:
+                    type:
+                      type: string
+                      description: The type of the condition.  Describes an operator
+                        that should be applied to the field and value.
+                    field:
+                      type: string
+                      description: The field the condition will operate on.
+                    value:
+                      type: string
+                      description: The value of the field that is evaluated against
+                        the condition.
+    jobV1:
+      title: Job
+      description: |
+        A representation of a job that has been registered with the SAS Visual Investigator job monitor.
+
+        A collection of tasks that can be executed in the background while the user is interacting with the application. These tasks work towards a common goal.
+
+        For example, an administrator may click a button on the interface to index the data in the system to make it searchable. This creates a background job called 'index.' This job is made up of sub-tasks which must be completed successfully for the whole job to be completed successfully. In this example, each subtask is the indexing job for a particular entity type.
+      x-sas-type: Job
+      x-media-type:
+        name: application/vnd.sas.investigation.job.monitor.job
+        version: 1
+      properties:
+        version:
+          type: integer
+          description: The version of the media type
+        id:
+          type: string
+          description: The unique identifier of the job.
+        name:
+          type: string
+          description: The name of the job.
+        description:
+          type: string
+          description: A human readable description of the job.
+        status:
+          type: string
+          description: The status of the job.
+        startedBy:
+          type: string
+          description: The user who started the job.
+        startedTimeStamp:
+          type: string
+          format: date-time
+          description: 'The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            job started.'
+        endedTimeStamp:
+          type: string
+          format: date-time
+          description: 'The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            job ended.'
+        message:
+          type: string
+          description: A localized message describing the job failure if it failed.
+        parameters:
+          type: object
+          description: The parameters that are required to run the job.
+        tasks:
+          type: array
+          description: The status of any tasks that are children of the job.
+          items:
+            $ref: '#/components/schemas/taskV1'
+        tags:
+          type: array
+          description: Any tags that apply to the job for filtering purposes.
+          items:
+            type: string
+        links:
+          type: array
+          description: The REST link relations.
+          items:
+            $ref: '#/components/schemas/link'
+    job:
+      title: Job
+      description: |
+        A representation of a job that has been registered with the SAS Visual Investigator job monitor.
+
+        A collection of tasks that can be executed in the background while the user is interacting with the application. These tasks work towards a common goal.
+
+        For example, an administrator may click a button on the interface to index the data in the system to make it searchable. This creates a background job called 'index.' This job is made up of sub-tasks which must be completed successfully for the whole job to be completed successfully. In this example, each subtask is the indexing job for a particular entity type.
+      x-sas-type: Job
+      x-media-type:
+        name: application/vnd.sas.job.monitor.job
+        version: 1
+      properties:
+        version:
+          type: integer
+          description: The version of the media type
+        id:
+          type: string
+          description: The unique identifier of the job.
+        name:
+          type: string
+          description: The name of the job.
+        description:
+          type: string
+          description: A human readable description of the job.
+        status:
+          type: string
+          description: The status of the job.
+        startedBy:
+          type: string
+          description: The user who started the job.
+        startedAt:
+          type: string
+          format: date-time
+          description: The timestamp in the UNIX epoch format.
+        endedAt:
+          type: string
+          format: date-time
+          description: The timestamp in the UNIX epoch format.
+        message:
+          type: string
+          description: A localized message describing the job failure if it failed.
+        parameters:
+          type: object
+          description: The parameters that are required to run the job.
+        tasks:
+          type: array
+          description: The status of any tasks that are children of the job.
+          items:
+            $ref: '#/components/schemas/task'
+        tags:
+          type: array
+          description: Any tags that apply to the job for filtering purposes.
+          items:
+            type: string
+        links:
+          type: array
+          description: The REST link relations.
+          items:
+            $ref: '#/components/schemas/link'
+    taskV1:
+      title: Task
+      description: A representation of a task that has been registered under a job
+        in the SAS Visual Investigator job monitor.
+      x-sas-type: Task
+      x-media-type:
+        name: application/vnd.sas.investigation.job.monitor.task
+        version: 1
+      properties:
+        version:
+          type: integer
+          description: The version of the media type
+        parent:
+          type: string
+          description: The UUID of the parent job or task.
+        id:
+          type: string
+          description: The UUID of the task.
+        name:
+          type: string
+          description: The name of the task.
+        description:
+          type: string
+          description: A human readable description for the task.
+        parameters:
+          type: object
+          description: The parameters that are required to run the task.
+        status:
+          type: string
+          description: the status of the task.
+        startedTimeStamp:
+          type: string
+          format: date-time
+          description: 'The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            task started.'
+        endedTimeStamp:
+          type: string
+          format: date-time
+          description: 'The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            task ended.'
+        message:
+          type: string
+          description: a localized message describing a failure that occurred if there
+            was a failure.
+        subTasks:
+          type: array
+          description: Any subtasks to be completed as part of this task.
+          items:
+            $ref: '#/components/schemas/taskV1'
+        links:
+          type: array
+          description: The REST link relations for this resource.
+          items:
+            $ref: '#/components/schemas/link'
+    task:
+      title: Task
+      description: A representation of a task that has been registered under a job
+        in the SAS Visual Investigator job monitor.
+      x-sas-type: Task
+      x-media-type:
+        name: application/vnd.sas.job.monitor.task
+        version: 1
+      properties:
+        version:
+          type: integer
+          description: The version of the media type
+        parent:
+          type: string
+          description: The UUID of the parent job or task.
+        id:
+          type: string
+          description: The UUID of the task.
+        name:
+          type: string
+          description: The name of the task.
+        description:
+          type: string
+          description: A human readable description for the task.
+        parameters:
+          type: object
+          description: The parameters that are required to run the task.
+        status:
+          type: string
+          description: the status of the task.
+        startedAt:
+          type: string
+          format: date-time
+          description: The timestamp in the UNIX epoch format.
+        endedAt:
+          type: string
+          format: date-time
+          description: The timestamp in the UNIX epoch format.
+        message:
+          type: string
+          description: a localized message describing a failure that occurred if there
+            was a failure.
+        subTasks:
+          type: array
+          description: Any subtasks to be completed as part of this task.
+          items:
+            $ref: '#/components/schemas/task'
+        links:
+          type: array
+          description: The REST link relations for this resource.
+          items:
+            $ref: '#/components/schemas/link'
+    api:
+      properties:
+        links:
+          description: The API's top-level links.
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+        version:
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+          type: integer
+    error2:
+      properties:
+        details:
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+          type: array
+        errorCode:
+          description: The numeric ID for the error.
+          type: integer
+        errors:
+          description: Any additional errors that occurred.
+          items:
+            $ref: '#/components/schemas/error2'
+          type: array
+        httpStatusCode:
+          description: The HTTP status code for the error.
+          type: integer
+        id:
+          description: The string ID for the error.
+          type: string
+        links:
+          description: The links that apply to the error.
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+        message:
+          description: The message for the error.
+          type: string
+        remediation:
+          description: A message that describes how to resolve the error.
+          type: string
+        version:
+          description: The version number of the error representation. This representation
+            is version 2.
+          type: integer
+    baseCollection2:
+      properties:
+        accept:
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+          type: string
+        count:
+          description: If populated indicates the number of items in the collection.
+          format: int64
+          type: integer
+        limit:
+          description: The number of items that were requested for the collection.
+          type: integer
+        links:
+          description: The links that apply to the collection.
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+        name:
+          description: The name of the collection.
+          type: string
+        start:
+          description: The zero-based index of the first item in the collection.
+          format: int64
+          type: integer
+        version:
+          description: The version number of the collection representation. This representation
+            is version 2.
+          type: integer
+    link:
+      properties:
+        href:
+          description: The URL for the link.
+          type: string
+        itemType:
+          description: 'If this is a link to a container, `itemType` is the media
+            type or link type for the items in the container.'
+          type: string
+        method:
+          description: The HTTP method for the link.
+          type: string
+        rel:
+          description: The relationship of the link to the resource.
+          type: string
+        responseItemType:
+          description: 'The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.'
+          type: string
+        responseType:
+          description: 'The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.'
+          type: string
+        title:
+          description: The title for the link.
+          type: string
+        type:
+          description: The media type or link type for the link.
+          type: string
+        uri:
+          description: The relative URI for the link.
+          type: string
+  examples:
+    entityLevelRules:
+      description: An example of entity level rules.
+      value:
+        version: 1528883503711
+        name: business_customers
+        rules:
+        - group: sviusrs
+          permissions:
+            create: true
+            read: true
+            update: true
+            delete: true
+          conditions:
+          - type: not_equals
+            field: alert_origin
+            value: "false"
+          - type: equals
+            field: level
+            value: "Secret"
+          conditionName: My Conditions
+        - group: sviaudt
+          permissions:
+            create: true
+            read: true
+            update: true
+            delete: true
+    Top-Level-Links-Example:
+      description: An example of top level links provided by the svi-feature API.
+      value:
+        version: 1
+        links:
+        - method: GET
+          rel: entityLevelAccess
+          href: /access/{entityType}
+          uri: /access/{entityType}
+        - method: GET
+          rel: jobs
+          href: /jobMonitor/jobs
+          uri: /jobMonitor/jobs
+    Error-Cannot-Elevate-Own-Capabilities:
+      description: Error that occurs when an unauthorized user attempts to elevate
+        their own capabilities.
+      value:
+        httpStatusCode: 403
+        errorCode: "403"
+        message: You do not have the necessary permission to elevate your own capabilities.
+        details: []
+        remediation: ""
+        links: []
+        version: 1
+    Error-User-Not-Authorized:
+      description: Error that occurs when an unauthorized user attempts to access
+        an API endpoint.
+      value:
+        httpStatusCode: 403
+        errorCode: 12900
+        message: Access is denied.
+        details: []
+        remediation: ""
+        links: []
+        version: 1
+    Request-Invalid-Body:
+      description: An example error that is returned when a request has an invalid
+        body.
+      value:
+        httpStatusCode: 400
+        errorCode: "400"
+        message: The request was malformed.
+        details: []
+        remediation: ""
+        links: []
+        version: 1
+    Entity-Type-Mismatch:
+      description: Error that is returned when the entity type is mismatched in the
+        path and body of a request.
+      value:
+        httpStatusCode: 400
+        errorCode: "400"
+        message: Entity types in the path and the body of the request must match.
+        details: []
+        remediation: ""
+        links: []
+        version: 1
+    Missing-Etag-Details:
+      description: The eTag details were missing.
+      value:
+        errorCode: 1011
+        message: "One of the following request header fields is required: 'If-Match'\
+          \ or 'If-Unmodified-Since'."
+        id: '428'
+        links: []
+        version: 2
+        httpStatusCode: 428
+        remediation:
+    Expired-Etag-Details:
+      description: The eTag precondition validation failed.
+      value:
+        errorCode: 1014
+        message: The request header field "If-Unmodified-Since" has an earlier value
+          (<timestamp>) than the resource''s last-modified timestamp (<laterTimestamp>).
+        id: '412'
+        links: []
+        version: 2
+        httpStatusCode: 412
+    Running-Indexer-TaskV1:
+      description: A currently running Indexer task.
+      value:
+        version: 1
+        parent: f436cbe0-e95d-4dc0-9143-e4d70571037e
+        id: a817bae0-ea3a-4d4e-88b2-2416b8260ede
+        name: "Indexing: Intelligence_Report"
+        description: Task for indexing Intelligence_Report
+        parameters:
+          type: LOAD_DOCUMENT
+          name: Intelligence_Report
+          partitionSize: 50000
+          chunkSize: 2000
+          partitionMultiplier: 1.0
+        status: running
+        startedTimeStamp: 2024-09-03T10:32:16.052000Z
+        message: ""
+        subTasks: []
+        links:
+        - method: GET
+          rel: self
+          href: /jobMonitor/tasks/a817bae0-ea3a-4d4e-88b2-2416b8260ede
+          uri: /jobMonitor/tasks/a817bae0-ea3a-4d4e-88b2-2416b8260ede
+          type: application/vnd.sas.investigation.job.monitor.task
+    Running-Indexer-Task:
+      description: A currently running Indexer task.
+      value:
+        version: 1
+        parent: f436cbe0-e95d-4dc0-9143-e4d70571037e
+        id: a817bae0-ea3a-4d4e-88b2-2416b8260ede
+        name: "Indexing: Intelligence_Report"
+        description: Task for indexing Intelligence_Report
+        parameters:
+          type: LOAD_DOCUMENT
+          name: Intelligence_Report
+          partitionSize: 50000
+          chunkSize: 2000
+          partitionMultiplier: 1.0
+        status: running
+        startedAt: 1695017199248
+        endedAt:
+        message: ""
+        subTasks: []
+        links:
+        - method: GET
+          rel: self
+          href: /jobMonitor/tasks/a817bae0-ea3a-4d4e-88b2-2416b8260ede
+          uri: /jobMonitor/tasks/a817bae0-ea3a-4d4e-88b2-2416b8260ede
+          type: application/vnd.sas.job.monitor.task
+    Completed-Configuration-Import-JobV1:
+      description: An example job, representing a completed configuration import
+      value:
+        version: 1
+        id: 9d928998-d815-4840-9af6-f0ad2c1fb03a
+        name: Configuration Import
+        description: Imports a configuration ZIP file
+        parameters: {}
+        tags:
+        - VI
+        status: completed
+        startedBy: sasboot
+        startedTimeStamp: 2024-09-03T10:32:13.861000Z
+        endedTimeStamp: 2024-09-03T10:32:20.052000Z
+        message: The job was completed successfully.
+        tasks:
+        - version: 1
+          parent: 9d928998-d815-4840-9af6-f0ad2c1fb03a
+          id: 446ee446-5d93-4d70-8c12-68a1c93c86bb
+          name: ZIP File Data Preparation
+          description: A task in the configuration import job
+          parameters: {}
+          status: completed
+          startedTimeStamp: 2024-09-03T10:32:14.861000Z
+          endedTimeStamp: 2024-09-03T10:32:15.052000Z
+          message:
+          subTasks: []
+          links:
+          - method: GET
+            rel: self
+            href: /jobMonitor/tasks/446ee446-5d93-4d70-8c12-68a1c93c86bb
+            uri: /jobMonitor/tasks/446ee446-5d93-4d70-8c12-68a1c93c86bb
+            type: application/vnd.sas.investigation.job.monitor.task
+        - version: 1
+          parent: 9d928998-d815-4840-9af6-f0ad2c1fb03a
+          id: 322afa3e-9abb-4f3c-8504-2b7877827939
+          name: Feature
+          description: A task in the configuration import job
+          parameters: {}
+          status: completed
+          startedTimeStamp: 2024-09-03T10:32:16.052000Z
+          endedTimeStamp: 2024-09-03T10:32:20.052000Z
+          message: 3 Visual Investigator Groups, 98 Feature assignments, 6 User group
+            memberships, 81 Resource Strings
+          subTasks: []
+          links:
+          - method: GET
+            rel: self
+            href: /jobMonitor/tasks/322afa3e-9abb-4f3c-8504-2b7877827939
+            uri: /jobMonitor/tasks/322afa3e-9abb-4f3c-8504-2b7877827939
+            type: application/vnd.sas.investigation.job.monitor.task
+        links:
+        - method: GET
+          rel: self
+          href: /jobMonitor/jobs/9d928998-d815-4840-9af6-f0ad2c1fb03a
+          uri: /jobMonitor/jobs/9d928998-d815-4840-9af6-f0ad2c1fb03a
+          type: application/vnd.sas.investigation.job.monitor.job
+        - method: GET
+          rel: up
+          href: /jobMonitor/jobs
+          uri: /jobMonitor/jobs
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.investigation.job.monitor.job
+    Completed-Configuration-Import-Job:
+      description: An example job, representing a completed configuration import
+      value:
+        version: 1
+        id: 9d928998-d815-4840-9af6-f0ad2c1fb03a
+        name: Configuration Import
+        description: Imports a configuration ZIP file
+        parameters: {}
+        tags:
+        - VI
+        status: completed
+        startedBy: sasboot
+        startedAt: 1695028017464
+        endedAt: 1695028027310
+        message: The job was completed successfully.
+        tasks:
+        - version: 1
+          parent: 9d928998-d815-4840-9af6-f0ad2c1fb03a
+          id: 446ee446-5d93-4d70-8c12-68a1c93c86bb
+          name: ZIP File Data Preparation
+          description: A task in the configuration import job
+          parameters: {}
+          status: completed
+          startedAt: 1695028017464
+          endedAt: 1695028017474
+          message:
+          subTasks: []
+          links:
+          - method: GET
+            rel: self
+            href: /jobMonitor/tasks/446ee446-5d93-4d70-8c12-68a1c93c86bb
+            uri: /jobMonitor/tasks/446ee446-5d93-4d70-8c12-68a1c93c86bb
+            type: application/vnd.sas.job.monitor.task
+        - version: 1
+          parent: 9d928998-d815-4840-9af6-f0ad2c1fb03a
+          id: 322afa3e-9abb-4f3c-8504-2b7877827939
+          name: Feature
+          description: A task in the configuration import job
+          parameters: {}
+          status: completed
+          startedAt: 1695028017477
+          endedAt: 1695028027309
+          message: 3 Visual Investigator Groups, 98 Feature assignments, 6 User group
+            memberships, 81 Resource Strings
+          subTasks: []
+          links:
+          - method: GET
+            rel: self
+            href: /jobMonitor/tasks/322afa3e-9abb-4f3c-8504-2b7877827939
+            uri: /jobMonitor/tasks/322afa3e-9abb-4f3c-8504-2b7877827939
+            type: application/vnd.sas.job.monitor.task
+        links:
+        - method: GET
+          rel: self
+          href: /jobMonitor/jobs/9d928998-d815-4840-9af6-f0ad2c1fb03a
+          uri: /jobMonitor/jobs/9d928998-d815-4840-9af6-f0ad2c1fb03a
+          type: application/vnd.sas.job.monitor.job
+        - method: GET
+          rel: up
+          href: /jobMonitor/jobs
+          uri: /jobMonitor/jobs
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.job.monitor.job
+    Jobs-Collection:
+      description: An illustrative list of jobs.
+      value:
+        links:
+        - method: GET
+          rel: self
+          href: /jobMonitor/jobs?start=0&limit=10
+          uri: /jobMonitor/jobs?start=0&limit=10
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.job.monitor.job
+        - method: GET
+          rel: collection
+          href: /jobMonitor/jobs
+          uri: /jobMonitor/jobs
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.job.monitor.job
+        - method: POST
+          rel: createJob
+          href: /jobMonitor/events
+          uri: /jobMonitor/events
+          type: application/vnd.sas.job.monitor.job.created.event
+        name: jobs
+        accept: application/vnd.sas.job.monitor.job
+        start: 0
+        count: 2
+        items:
+        - version: 1
+          id: 47748b08-e8f9-45bd-b514-df67aee2d728
+          name: Configuration Import
+          description: Configuration import job
+          parameters: {}
+          tags:
+          - VI
+          status: failed
+          startedBy: videmo
+          startedAt: 1694182034966
+          endedAt: 1694182051303
+          message: The configuration cannot be imported because it is from a more
+            recent version (10.8.1) than the current version (10.8.0).
+          tasks:
+          - version: 1
+            parent: 47748b08-e8f9-45bd-b514-df67aee2d728
+            id: 54e3c798-bf40-46ed-86c5-be6389a95645
+            name: Feature
+            description: Configuration import task
+            parameters: {}
+            status: completed
+            startedAt: 1694182035050
+            endedAt: 1694182036154
+            message: 2 Entity level rules, 75 Resource Strings
+            subTasks: []
+            links:
+            - method: GET
+              rel: self
+              href: /jobMonitor/tasks/54e3c798-bf40-46ed-86c5-be6389a95645
+              uri: /jobMonitor/tasks/54e3c798-bf40-46ed-86c5-be6389a95645
+              type: application/vnd.sas.job.monitor.task
+            - method: POST
+              rel: create
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.created.event
+            - method: POST
+              rel: update
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.updated.event
+          - version: 1
+            parent: 47748b08-e8f9-45bd-b514-df67aee2d728
+            id: 55ba1eb0-c206-402e-b80e-66dbbd4ba76c
+            name: Datahub
+            description: Configuration import task
+            parameters: {}
+            status: failed
+            startedAt: 1694182036176
+            endedAt: 1694182036314
+            message: The configuration cannot be imported because it is from a more
+              recent version (10.8.1) than the current version (10.8.0).
+            subTasks: []
+            links:
+            - method: GET
+              rel: self
+              href: /jobMonitor/tasks/55ba1eb0-c206-402e-b80e-66dbbd4ba76c
+              uri: /jobMonitor/tasks/55ba1eb0-c206-402e-b80e-66dbbd4ba76c
+              type: application/vnd.sas.job.monitor.task
+            - method: POST
+              rel: create
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.created.event
+            - method: POST
+              rel: update
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.updated.event
+          - version: 1
+            parent: 47748b08-e8f9-45bd-b514-df67aee2d728
+            id: f299813b-d994-4bee-a89a-eca08a2c7dcf
+            name: SAND
+            description: Configuration import task
+            parameters: {}
+            status: cancelled
+            startedAt:
+            endedAt: 1694182051303
+            message:
+            subTasks: []
+            links:
+            - method: GET
+              rel: self
+              href: /jobMonitor/tasks/f299813b-d994-4bee-a89a-eca08a2c7dcf
+              uri: /jobMonitor/tasks/f299813b-d994-4bee-a89a-eca08a2c7dcf
+              type: application/vnd.sas.job.monitor.task
+            - method: POST
+              rel: create
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.created.event
+            - method: POST
+              rel: update
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.updated.event
+          - version: 1
+            parent: 47748b08-e8f9-45bd-b514-df67aee2d728
+            id: 2ec2fe5a-f602-44f7-b6f9-eb89a5994fb6
+            name: Prepare ZIP File Data
+            description: Configuration import task
+            parameters: {}
+            status: completed
+            startedAt: 1694182034964
+            endedAt: 1694182035021
+            message:
+            subTasks: []
+            links:
+            - method: GET
+              rel: self
+              href: /jobMonitor/tasks/2ec2fe5a-f602-44f7-b6f9-eb89a5994fb6
+              uri: /jobMonitor/tasks/2ec2fe5a-f602-44f7-b6f9-eb89a5994fb6
+              type: application/vnd.sas.job.monitor.task
+            - method: POST
+              rel: create
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.created.event
+            - method: POST
+              rel: update
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.updated.event
+          links:
+          - method: GET
+            rel: self
+            href: /jobMonitor/jobs/47748b08-e8f9-45bd-b514-df67aee2d728
+            uri: /jobMonitor/jobs/47748b08-e8f9-45bd-b514-df67aee2d728
+            type: application/vnd.sas.job.monitor.job
+          - method: GET
+            rel: up
+            href: /jobMonitor/jobs
+            uri: /jobMonitor/jobs
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.job.monitor.job
+          - method: POST
+            rel: create
+            href: /jobMonitor/events
+            uri: /jobMonitor/events
+            type: application/vnd.sas.job.monitor.job.created.event
+          - method: POST
+            rel: update
+            href: /jobMonitor/events
+            uri: /jobMonitor/events
+            type: application/vnd.sas.job.monitor.job.updated.event
+        - version: 1
+          id: 597d65b9-310c-405d-8ac6-5eaec1375f98
+          name: Entity Resolution
+          description: Resolves the configured entities and relationships from the
+            source data.
+          parameters: {}
+          tags:
+          - VI
+          - EntityResolution
+          status: completed
+          startedBy: sasboot
+          startedAt: 1694171759371
+          endedAt: 1694171888987
+          message:
+          tasks:
+          - version: 1
+            parent: 597d65b9-310c-405d-8ac6-5eaec1375f98
+            id: 525a105a-3c4d-4200-8626-ed9b6685a222
+            name: Data Load
+            description: Loads the source data.
+            parameters: {}
+            status: completed
+            startedAt: 1694171759780
+            endedAt: 1694171767004
+            message:
+            subTasks:
+            - version: 1
+              parent: 525a105a-3c4d-4200-8626-ed9b6685a222
+              id: cb601a7d-0a4b-4fe5-bdef-a09c74c1a74d
+              name: individual_customers
+              description: "Load the source data \"individual_customers\" for resolved\
+                \ entity \"employer\"."
+              parameters: {}
+              status: completed
+              startedAt: 1694171759948
+              endedAt: 1694171761914
+              message:
+              subTasks: []
+              links:
+              - method: GET
+                rel: self
+                href: /jobMonitor/tasks/cb601a7d-0a4b-4fe5-bdef-a09c74c1a74d
+                uri: /jobMonitor/tasks/cb601a7d-0a4b-4fe5-bdef-a09c74c1a74d
+                type: application/vnd.sas.job.monitor.task
+              - method: POST
+                rel: create
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.created.event
+              - method: POST
+                rel: update
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.updated.event
+            - version: 1
+              parent: 525a105a-3c4d-4200-8626-ed9b6685a222
+              id: a4eb8d5c-cb16-47e2-a038-d1430aed868c
+              name: individual_details_addres
+              description: "Load the source data \"individual_details_addres\" for\
+                \ resolved entity \"address\"."
+              parameters: {}
+              status: completed
+              startedAt: 1694171761918
+              endedAt: 1694171763237
+              message:
+              subTasks: []
+              links:
+              - method: GET
+                rel: self
+                href: /jobMonitor/tasks/a4eb8d5c-cb16-47e2-a038-d1430aed868c
+                uri: /jobMonitor/tasks/a4eb8d5c-cb16-47e2-a038-d1430aed868c
+                type: application/vnd.sas.job.monitor.task
+              - method: POST
+                rel: create
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.created.event
+              - method: POST
+                rel: update
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.updated.event
+            - version: 1
+              parent: 525a105a-3c4d-4200-8626-ed9b6685a222
+              id: fb73c376-901c-4278-8ef2-9a5c7438417d
+              name: individual_details_teleph
+              description: "Load the source data \"individual_details_teleph\" for\
+                \ resolved entity \"telephone\"."
+              parameters: {}
+              status: completed
+              startedAt: 1694171763237
+              endedAt: 1694171764149
+              message:
+              subTasks: []
+              links:
+              - method: GET
+                rel: self
+                href: /jobMonitor/tasks/fb73c376-901c-4278-8ef2-9a5c7438417d
+                uri: /jobMonitor/tasks/fb73c376-901c-4278-8ef2-9a5c7438417d
+                type: application/vnd.sas.job.monitor.task
+              - method: POST
+                rel: create
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.created.event
+              - method: POST
+                rel: update
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.updated.event
+            - version: 1
+              parent: 525a105a-3c4d-4200-8626-ed9b6685a222
+              id: 9f441e4f-e845-48f2-9c89-17d7444f2c43
+              name: business_customers
+              description: "Load the source data \"business_customers\" for resolved\
+                \ entity \"business\"."
+              parameters: {}
+              status: completed
+              startedAt: 1694171764118
+              endedAt: 1694171764832
+              message:
+              subTasks: []
+              links:
+              - method: GET
+                rel: self
+                href: /jobMonitor/tasks/9f441e4f-e845-48f2-9c89-17d7444f2c43
+                uri: /jobMonitor/tasks/9f441e4f-e845-48f2-9c89-17d7444f2c43
+                type: application/vnd.sas.job.monitor.task
+              - method: POST
+                rel: create
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.created.event
+              - method: POST
+                rel: update
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.updated.event
+            - version: 1
+              parent: 525a105a-3c4d-4200-8626-ed9b6685a222
+              id: dc03f3cf-3fa9-43d9-8759-3f72acf1cb15
+              name: business_details_address
+              description: "Load the source data \"business_details_address\" for\
+                \ resolved entity \"address\"."
+              parameters: {}
+              status: completed
+              startedAt: 1694171764830
+              endedAt: 1694171765893
+              message:
+              subTasks: []
+              links:
+              - method: GET
+                rel: self
+                href: /jobMonitor/tasks/dc03f3cf-3fa9-43d9-8759-3f72acf1cb15
+                uri: /jobMonitor/tasks/dc03f3cf-3fa9-43d9-8759-3f72acf1cb15
+                type: application/vnd.sas.job.monitor.task
+              - method: POST
+                rel: create
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.created.event
+              - method: POST
+                rel: update
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.updated.event
+            - version: 1
+              parent: 525a105a-3c4d-4200-8626-ed9b6685a222
+              id: f58724d8-98c3-4689-a8a9-b60427720a97
+              name: business_details_telephon
+              description: "Load the source data \"business_details_telephon\" for\
+                \ resolved entity \"telephone\"."
+              parameters: {}
+              status: completed
+              startedAt: 1694171765946
+              endedAt: 1694171767004
+              message:
+              subTasks: []
+              links:
+              - method: GET
+                rel: self
+                href: /jobMonitor/tasks/f58724d8-98c3-4689-a8a9-b60427720a97
+                uri: /jobMonitor/tasks/f58724d8-98c3-4689-a8a9-b60427720a97
+                type: application/vnd.sas.job.monitor.task
+              - method: POST
+                rel: create
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.created.event
+              - method: POST
+                rel: update
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.updated.event
+            links:
+            - method: GET
+              rel: self
+              href: /jobMonitor/tasks/525a105a-3c4d-4200-8626-ed9b6685a222
+              uri: /jobMonitor/tasks/525a105a-3c4d-4200-8626-ed9b6685a222
+              type: application/vnd.sas.job.monitor.task
+            - method: POST
+              rel: create
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.created.event
+            - method: POST
+              rel: update
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.updated.event
+          - version: 1
+            parent: 597d65b9-310c-405d-8ac6-5eaec1375f98
+            id: 55aa157a-1765-43c5-bdb3-90fb2b14f09b
+            name: Entity Resolution
+            description: Resolve entities and relationships.
+            parameters: {}
+            status: completed
+            startedAt: 1694171767005
+            endedAt: 1694171773877
+            message:
+            subTasks: []
+            links:
+            - method: GET
+              rel: self
+              href: /jobMonitor/tasks/55aa157a-1765-43c5-bdb3-90fb2b14f09b
+              uri: /jobMonitor/tasks/55aa157a-1765-43c5-bdb3-90fb2b14f09b
+              type: application/vnd.sas.job.monitor.task
+            - method: POST
+              rel: create
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.created.event
+            - method: POST
+              rel: update
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.updated.event
+          - version: 1
+            parent: 597d65b9-310c-405d-8ac6-5eaec1375f98
+            id: e8a48d10-3468-42e9-a49e-f357db0683c0
+            name: Index
+            description: Index the resolved entities and relationships.
+            parameters: {}
+            status: completed
+            startedAt: 1694171773878
+            endedAt: 1694171888986
+            message:
+            subTasks:
+            - version: 1
+              parent: e8a48d10-3468-42e9-a49e-f357db0683c0
+              id: 4c7b3d66-6cf6-402e-94e5-deeb0af71059
+              name: address
+              description: "Indexes the data for the resolved entity \"address\"."
+              parameters: {}
+              status: completed
+              startedAt: 1694171780501
+              endedAt: 1694171823614
+              message:
+              subTasks: []
+              links:
+              - method: GET
+                rel: self
+                href: /jobMonitor/tasks/4c7b3d66-6cf6-402e-94e5-deeb0af71059
+                uri: /jobMonitor/tasks/4c7b3d66-6cf6-402e-94e5-deeb0af71059
+                type: application/vnd.sas.job.monitor.task
+              - method: POST
+                rel: create
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.created.event
+              - method: POST
+                rel: update
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.updated.event
+            - version: 1
+              parent: e8a48d10-3468-42e9-a49e-f357db0683c0
+              id: 8da917ee-e207-44ff-b31f-a1b2387b1b40
+              name: telephone
+              description: "Indexes the data for the resolved entity \"telephone\"\
+                ."
+              parameters: {}
+              status: completed
+              startedAt: 1694171783051
+              endedAt: 1694171860577
+              message:
+              subTasks: []
+              links:
+              - method: GET
+                rel: self
+                href: /jobMonitor/tasks/8da917ee-e207-44ff-b31f-a1b2387b1b40
+                uri: /jobMonitor/tasks/8da917ee-e207-44ff-b31f-a1b2387b1b40
+                type: application/vnd.sas.job.monitor.task
+              - method: POST
+                rel: create
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.created.event
+              - method: POST
+                rel: update
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.updated.event
+            - version: 1
+              parent: e8a48d10-3468-42e9-a49e-f357db0683c0
+              id: 2930eef1-9ac1-417a-91d7-711d01596bf6
+              name: business
+              description: "Indexes the data for the resolved entity \"business\"."
+              parameters: {}
+              status: completed
+              startedAt: 1694171781637
+              endedAt: 1694171834747
+              message:
+              subTasks: []
+              links:
+              - method: GET
+                rel: self
+                href: /jobMonitor/tasks/2930eef1-9ac1-417a-91d7-711d01596bf6
+                uri: /jobMonitor/tasks/2930eef1-9ac1-417a-91d7-711d01596bf6
+                type: application/vnd.sas.job.monitor.task
+              - method: POST
+                rel: create
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.created.event
+              - method: POST
+                rel: update
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.updated.event
+            - version: 1
+              parent: e8a48d10-3468-42e9-a49e-f357db0683c0
+              id: ed836e1f-2691-44f5-92d6-98bad752ec6d
+              name: employer
+              description: "Indexes the data for the resolved entity \"employer\"."
+              parameters: {}
+              status: completed
+              startedAt: 1694171782256
+              endedAt: 1694171845488
+              message:
+              subTasks: []
+              links:
+              - method: GET
+                rel: self
+                href: /jobMonitor/tasks/ed836e1f-2691-44f5-92d6-98bad752ec6d
+                uri: /jobMonitor/tasks/ed836e1f-2691-44f5-92d6-98bad752ec6d
+                type: application/vnd.sas.job.monitor.task
+              - method: POST
+                rel: create
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.created.event
+              - method: POST
+                rel: update
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.updated.event
+            - version: 1
+              parent: e8a48d10-3468-42e9-a49e-f357db0683c0
+              id: 86c25fba-b180-426c-9b08-4cdbfd42ad28
+              name: Relationships
+              description: Indexes the relationship data.
+              parameters: {}
+              status: completed
+              startedAt: 1694171784779
+              endedAt: 1694171888986
+              message:
+              subTasks: []
+              links:
+              - method: GET
+                rel: self
+                href: /jobMonitor/tasks/86c25fba-b180-426c-9b08-4cdbfd42ad28
+                uri: /jobMonitor/tasks/86c25fba-b180-426c-9b08-4cdbfd42ad28
+                type: application/vnd.sas.job.monitor.task
+              - method: POST
+                rel: create
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.created.event
+              - method: POST
+                rel: update
+                href: /jobMonitor/events
+                uri: /jobMonitor/events
+                type: application/vnd.sas.job.monitor.task.updated.event
+            links:
+            - method: GET
+              rel: self
+              href: /jobMonitor/tasks/e8a48d10-3468-42e9-a49e-f357db0683c0
+              uri: /jobMonitor/tasks/e8a48d10-3468-42e9-a49e-f357db0683c0
+              type: application/vnd.sas.job.monitor.task
+            - method: POST
+              rel: create
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.created.event
+            - method: POST
+              rel: update
+              href: /jobMonitor/events
+              uri: /jobMonitor/events
+              type: application/vnd.sas.job.monitor.task.updated.event
+          links:
+          - method: GET
+            rel: self
+            href: /jobMonitor/jobs/597d65b9-310c-405d-8ac6-5eaec1375f98
+            uri: /jobMonitor/jobs/597d65b9-310c-405d-8ac6-5eaec1375f98
+            type: application/vnd.sas.job.monitor.job
+          - method: GET
+            rel: up
+            href: /jobMonitor/jobs
+            uri: /jobMonitor/jobs
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.job.monitor.job
+          - method: POST
+            rel: create
+            href: /jobMonitor/events
+            uri: /jobMonitor/events
+            type: application/vnd.sas.job.monitor.job.created.event
+          - method: POST
+            rel: update
+            href: /jobMonitor/events
+            uri: /jobMonitor/events
+            type: application/vnd.sas.job.monitor.job.updated.event
+        limit: 10
+        version: 2

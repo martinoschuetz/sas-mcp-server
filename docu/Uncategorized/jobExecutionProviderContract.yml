@@ -1,0 +1,666 @@
+---
+openapi: 3.0.3
+info:
+  version: "2"
+  title: Job Execution Provider
+  description: 'The Job Execution Provider API is a contract that an Execution Provider
+    must implement to plug into the Job Execution API. <details> <summary><b>Overview</b></summary>
+    The Job Execution API (JES) provides a common mechanism for executing and managing
+    asynchronous jobs across various environments.  It works in conjunction with the
+    Job Definitions API.  A client creates a Job Definition, specifying a type appropriate
+    for the desired Job Execution Provider, and persists it using the Job Definition
+    API.  Then, by creating a Job Request that references the Job Definition, a client
+    can execute the created Job Definition using JES.  Alternatively, a Job Request
+    can embed a Job Definition instead of referencing a persisted Job Definition.
+    <P> JES acts as a gateway.  On receiving a Job Request, JES creates a Job to represent
+    that execution instance and then POSTs the created Job to the Execution Provider
+    designed to execute that type of job.  The Execution Provider may perform provider
+    specific validation of the Job Request, embedded in the Job, and either accept
+    the Job for execution or reject it as a bad request.  After receiving the response
+    to the POST from the Execution Provider, JES returns the location of the newly
+    created Job to the client.  If the job was rejected by the Execution Provider,
+    any status code returned by the Execution Provider is enclosed in the error object
+    of the Job.  The Execution Provider executes the Job in an asynchronous thread
+    and updates the Job object.  The client can use the Job to query for job completion
+    status and output.
+
+    </details> </br> <details> <summary><b>API Dependencies</b></summary> This version
+    of the contract requires version 2 or greater of the Job Execution API. The examples
+    in this document were created using version 3 of the Job Execution API and version
+    2 of the Job Definitions API. </details> </br> <details> <summary><b>Terminology</b></summary>
+    <ul> <li><b>Job Definition:</b> Definition of a Job. These are managed by the
+    Job Definitions REST API. </li> </p> <li><b>Job Request:</b> A job request contains
+    a link to the JobDefinition to be executed and the list of runtime arguments needed
+    for this particular JobRequest. Instead of the link to the JobDefinition a JobRequest
+    can embed a JobDefinition. </li> </p> <li><b>Job:</b> A job is what is created
+    by the Job Execution API when a JobRequest is submitted to it for execution. It
+    represents an execution instance of the JobRequest. The Job object embeds a copy
+    of the original JobRequest with the following modifications <ul> <li>If the original
+    JobRequest contained a link to a JobDefinition (as opposed to an embedded JobDefinition),
+    the embedded JobRequest will contain a snapshot of the JobDefinition at the time
+    the JobRequest was submitted for execution. <li>The <i>arguments</i> member of
+    the embedded JobRequest will contain the complete set of arguments to be used
+    in the execution by the provider.  Arguments present in the original JobRequest
+    are left unchanged.  If there are parameters in the JobDefinition which are not
+    present in the original JobRequest arguments map, those JobDefinition parameters
+    together with any default value are added to the arguments map. </ul> </li> </p>
+    <li><b>Job Execution Provider:</b> A Job Execution Provider is an execution environment,
+    usually an independent API, for a specific type of JobDefinition that is called
+    by the Job Execution API when a JobRequest of the corresponding type is submitted.  The
+    Execution Provider takes the Job instance created by Job Execution API and executes
+    it in an environment appropriate for that type of Job. An Execution Provider can
+    handle more than one type of Job, though this is not common. </li> </details>
+    </br> <details> <summary><b>Security</b></summary> <ul> <li><p>Authorization</br>Only
+    authenticated users or OAuth clients can access any of the end points.  See the
+    actual endpoint for additional authorization information. </li> <li><p>Authentication</br>The
+    Job Execution Provider should "save" the OAuth token that it gets from the POST
+    to its "/jobs" endpoint by the Job Execution API and use the same OAuth token
+    for REST calls back to JES, e.g., to update the state, send a heartbeat or update
+    the Job with results.  Depending on the provider configuration, that OAuth token
+    may also be used to execute code on backend servers. <p> More information on OAuth
+    token handling by JES can be found in Job Execution API doc. </li> </details>
+    </br> <details> <summary><b>API Version</b></summary> This is version 2 of the
+    Job Execution Provider Contract API. </details> </br> <details> <summary><b>Error
+    Codes</b></summary> <p> If the job submitted to the provider is inconsistent in
+    any way the provider returns a HTTP status code of 400 with a provider specific
+    error code. <table> <tr> <th>HTTP Status Code</th> <th>Error Code</th> <th>Description</th>
+    </tr> <tr> <td>400</td> <td>provider specific</td> <td>Error with the job passed
+    in, including in the enclosed job</td> </tr> </table> </p> Since jobs run asynchronously
+    in the provider, if an error occurs in asynchronous execution the error field
+    in the Job object is set by the provider and the Job updated using the Job Execution
+    API. </details> </br> '
+  termsOfService: 'https://www.sas.com/en_us/legal/copyright.html'
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+servers:
+- url: http://example.com/jobExecutionProviderContract
+  description: kubernetes mock server
+tags:
+- name: Jobs
+  description: The operations for submitting jobs.
+- name: Settings
+  description: The settings for the providers.
+paths:
+  /jobs:
+    post:
+      operationId: submitJob
+      summary: Submit a job execution Job
+      description: >
+        Submit a job that has been created by the Job Execution API.</br>
+        Authorization: Any authenticated user or OAuth client.  JES uses
+        a token with the same userid as the token that submitted
+         the Job Request for execution to invoke this end point.  If a 403 is
+         returned that will be set as the http status code in the
+         error object in the Job object returned by the post to JES.
+      tags:
+      - Jobs
+      parameters:
+      - name: ETag
+        in: header
+        description: >
+          The ETag of the job in this request.  This request header is
+          deprecated and may be removed in a future version of this
+          contract.  If a provider uses the heartbeat mechanism, once this
+          endpoint returns a 204, the Job Execution API will set an
+          initial heartbeatTimeStamp, which results in this ETag no longer
+          being valid.  A provider should precede any update with a GET of the
+          job and extract the ETag to be used from the response header.
+          It is strongly recommended that a new provider not depend on this
+          request header present.  If written in Java and not using the
+          heartbeat mechanism, the ETag is easily obtainable via a method call
+          on the required job parameter.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.job.execution.job+json:
+            schema:
+              $ref: '#/components/schemas/job'
+            examples:
+              json:
+                $ref: "#/components/examples/submitJobSampleBody"
+          application/json:
+            schema:
+              $ref: '#/components/schemas/job'
+            examples:
+              json:
+                $ref: "#/components/examples/submitJobSampleBody"
+        description: Job that has been created by the Job Execution API and is to
+          be executed by the provider.  The links for the Job described in the Resources
+          section of the Job Execution API are guaranteed to be available for needed
+          provider operations.
+        required: true
+      responses:
+        "204":
+          description: Job execution started successfully
+        "400":
+          description: Bad request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                json:
+                  $ref: "#/components/examples/submitJob400Response"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                json:
+                  $ref: "#/components/examples/submitJob400Response"
+  /commons/settings:
+    get:
+      operationId: getCommonSettings
+      summary: Get the settings for this provider
+      description: >
+        Returns an application/vnd.sas.attributes resource containing among
+        other settings the jobExecution provider specific settings to be
+        retrieved by the job execution API. See example response for details
+        on format. <P>
+        Any authenticated user or OAuth client.  JES uses a token with the
+        same userid as the token that submitted
+         the Job Request for execution to invoke this end point.  If a 403 is returned,
+        JES treats it no differently
+         than if no settings are available.
+      tags:
+      - Settings
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.attributes+json:
+              schema:
+                $ref: '#/components/schemas/resourceAttribute'
+              examples:
+                json:
+                  $ref: "#/components/examples/getCommonSettingsSampleResponse"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resourceAttribute'
+              examples:
+                json:
+                  $ref: "#/components/examples/getCommonSettingsSampleResponse"
+components:
+  schemas:
+    job:
+      title: Execution Job Schema
+      description: The execution job.
+      properties:
+        id:
+          type: string
+          description: The unique identifier that is generated by the API.
+        state:
+          type: string
+          description: The current state of the job.
+          enum:
+          - pending
+          - running
+          - canceled
+          - completed
+          - failed
+          - timedOut
+        stateDetails:
+          type: string
+          description: Details that supplement the "state" by providing a hint that
+            additional information is available. It is a hint and not the actual information.
+            The purpose of this field is for providers to provide a hint, where applicable,
+            about the state set and for that hint to be used by components which convey
+            state information to clients. It should be set in conjunction with "state".
+        results:
+          type: object
+          description: The output of the job execution as a map of string keys and
+            values.
+          additionalProperties:
+            type: string
+        error:
+          $ref: "#/components/schemas/error2"
+        jobRequest:
+          $ref: "#/components/schemas/jobRequest"
+        heartbeatInterval:
+          type: integer
+          format: int32
+          description: The interval in seconds that the heartbeatTimeStamp is updated
+            by the provider before the job times out. This is 0 if there is no heartbeat.
+        heartbeatTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for when the last heartbeat was received, in
+            the format of YYYY-MM-DDThh:mm:ss.sssZ.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for when the job was created, in the format of
+            YYYY-MM-DDThh:mm:ss.sssZ.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp when the job was last modified, in the format
+            of YYYY-MM-DDThh:mm:ss.sssZ.
+        endTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp when the job state changed to completed or failed,
+            in the format of YYYY-MM-DDThh:mm:ss.sssZ.
+        elapsedTime:
+          type: number
+          description: If the job has ended, the value is the difference between the
+            endTimeStamp and the creationTimeStamp. If the job has not ended, the
+            value is the difference between the time that this representation was
+            created and the creationTimeStamp. The units are in milliseconds. A value
+            of -1 is returned, if a value is not set for the creationTimeStamp.
+        logLocation:
+          type: string
+          description: The URI for the log, if one exists. The provider may provide
+            additional information.
+        expirationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp when the job expires and will be deleted by the
+            Job Execution service, in the format of YYYY-MM-DDThh:mm:ss.sssZ. This
+            is set by the service after the job has completed based on the value of
+            the expiresAfter member of the job request.
+        createdBy:
+          type: string
+          description: The name of the user who created or submitted the job.
+        modifiedBy:
+          type: string
+          description: The name of the last user who modified this object.
+        submittedByApplication:
+          type: string
+          description: Value of the query parameter "submitter" on the POST endpoints
+            to submit a job. If the query parameter is not present, the createdByApplication
+            value from the embedded JobRequest is used. The createdByApplication value
+            in the embedded JobRequest that is used is the same as what was in the
+            submitted job request if one was present; if not the value "jobExecution"
+            is used. The submittedByApplication value is used as the "submitter" in
+            the routing routing key of Job State Change events. Only characters in
+            the set [a-zA-Z0-9] and dash are valid for submitter.
+          maxLength: 64
+        links:
+          type: array
+          description: Links that apply to this object. Includes "self", "state",
+            "update", "delete", "updateState", "updateHeartbeatTimeStamp", "jobRequest"
+            and "log".
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the representation.
+    jobDefinition:
+      title: Job Definition Schema
+      description: The job definition.
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the job that is generated by the
+            API.
+        name:
+          type: string
+          description: The name of the job.
+          maxLength: 100
+        description:
+          type: string
+          description: The description of the job.
+          maxLength: 1000
+        type:
+          type: string
+          description: The type of job. This property determines the execution provider
+            that executes this job.
+          maxLength: 250
+        code:
+          type: string
+          description: Execution provider specific code to be executed.
+        parameters:
+          type: array
+          description: An array of input parameters to be collected when executing
+            this job definition
+          items:
+            $ref: "#/components/schemas/jobDefinitionParameter"
+        properties:
+          type: array
+          description: An array of name/value pairs needed to execute a job definition
+            The maximum name length is 100.
+          items:
+            $ref: "#/components/schemas/resourceProperty"
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp when the job was created, in the format of YYYY-MM-DDThh:mm:ss.sssZ.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp when the job was last modified, in the format
+            of YYYY-MM-DDThh:mm:ss.sssZ.
+        createdBy:
+          type: string
+          description: The name of the user who created the job.
+        modifiedBy:
+          type: string
+          description: The name of the last user who modified this object.
+        links:
+          type: array
+          description: Links that apply to this object. Includes "self" and "alternate".
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the representation.
+    jobDefinitionParameter:
+      title: Job Definition Parameter Schema
+      description: Job definition parameter.
+      properties:
+        name:
+          type: string
+          description: The name of the parameter.
+          maxLength: 100
+        type:
+          type: string
+          description: The type of the parameter (TABLE, NUMERIC, DATE, CHARACTER).
+          maxLength: 20
+        label:
+          type: string
+          description: The display value for the name of this parameter.
+          maxLength: 250
+        required:
+          type: boolean
+          description: Specifies if the parameter is required for execution.
+        defaultValue:
+          type: string
+          description: The default value for this parameter, if one is not specified
+            at execution time.
+        version:
+          type: integer
+          description: The version number of the representation.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: '#/components/schemas/error2'
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: '#/components/schemas/link'
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    jobRequest:
+      title: Job Request Schema
+      description: The job request.
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the job request. This is only required
+            for a persisted job request.
+        name:
+          type: string
+          description: The name of the job request.
+        description:
+          type: string
+          description: The description of the job request.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp when the job request was created, in the format
+            of YYYY-MM-DDThh:mm:ss.sssZ. This is set only on a persisted job request.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp when the job request was last modified, in the
+            format of YYYY-MM-DDThh:mm:ss.sssZ. This is set only on a persisted job
+            request.
+        createdBy:
+          type: string
+          description: The name of the user who created the job request. This is set
+            only on a persisted job request.
+        modifiedBy:
+          type: string
+          description: The name of the last user who modified this object. This is
+            set only on a persisted job request
+        jobDefinitionUri:
+          type: string
+          description: The URI of the job definition that is to be executed. Either
+            the jobDefinitionUri or the jobDefinition property must be set in a job
+            request submitted to Job Execution service for execution.
+        jobDefinition:
+          $ref: "#/components/schemas/jobDefinition"
+        expiresAfter:
+          type: string
+          description: The duration of time (in W3C XML duration format) after the
+            completion of the job when the job should be deleted by the Job Execution
+            service. If a value is specified for this property, it overrides any value
+            specified by the provider's /commons/settings endpoint for the job request.  For
+            a job request that is embedded in the application/vnd.sas.job.execution.job
+            media type, if a value is not already set for the expiresAfter property,
+            the value is set by the Job Execution service to the provider's value,
+            if one exists.
+        arguments:
+          type: object
+          description: The values of the arguments are name value pairs specified
+            as a map of string keys and values. Values can be supplied for parameters
+            not defined in the job definition. The maximum name length is 100. <p>
+            Hibernate does not persist a map entry with a null value. Therefore, a
+            persisted Job Request will not contain any such entries. <p> For a job
+            request that is embedded in the 'application/vnd.sas.job.execution.job'
+            media type, this value is set by the Job Execution service and contains
+            the complete set of arguments that are to be used in the execution by
+            the provider. Arguments that already exist in the original job request
+            are left unchanged. If there are arguments in the job definition that
+            do not exist in the original job request arguments map, those arguments
+            and any default values, including null values, are added to the arguments
+            map. However, since the Job object is persisted before being sent to the
+            provider, no entries for such null-value arguments in the Job are sent
+            to the provider (because of the Hibernate behavior of not persisting map/collection
+            entries with null values). The Job Execution service also guarantees that
+            any required argument has an associated non-null value.
+          additionalProperties:
+            type: string
+        properties:
+          type: array
+          description: The value of properties are name value pairs specified as a
+            map of string keys and values. The maximum name length is 100.
+          items:
+            $ref: "#/components/schemas/resourceProperty"
+        createdByApplication:
+          type: string
+          description: The application that created the job request. The value is
+            typically from the spring.application.name property. The value is used
+            as the "creator" in the routing key of the Job State Change events, and
+            if it is not present in the job request the value "jobExecution" is used.
+            Valid characters are [a-zA-Z0-9] and the hyphen.
+          maxLength: 64
+        links:
+          type: array
+          description: Links that apply to this object. Includes "self", "alternate",
+            "export", "delete", "update", "import", "up", "jobs" and "submitJob".
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the representation.
+    resourceProperty:
+      title: Resource Property
+      type: object
+      description: A simple name value pair.
+      properties:
+        name:
+          type: string
+          description: The name.
+        value:
+          type: string
+          description: The value.
+    resourceAttribute:
+      title: Resource Attribute
+      type: object
+      description: A simple name value pair.
+      properties:
+        name:
+          type: string
+          description: The name.
+        value:
+          type: object
+          description: The value.
+    provider:
+      title: Provider
+      type: object
+      required:
+      - id
+      description: Information about a provider.
+      properties:
+        version:
+          type: integer
+          description: The version of the provider schema, currently 1
+        id:
+          type: string
+          description: The unique provider identifier, which is also used to suffix
+            "jobExecution-provider-" to form the corresponding Consul tag.
+        heartbeatInterval:
+          type: integer
+          format: int32
+          description: The interval in seconds that the heartbeatTimeStamp should
+            be updated by the provider or the job will be timed out by JES. If not
+            specified, a value of zero is assumed by JES. If the value is less than
+            or equal to zero heartbeat functionality is disabled.
+        expiresAfter:
+          type: string
+          description: 'The duration of time (in W3C XML duration format) after the
+            job is complete when the job should be deleted by the JES. For example,
+            to indicate that the job would expire after 30 days, write: `P30D`. A
+            value of null means jobs never expire. If not specified, a value of null
+            is assumed by JES.'
+      example:
+        version: 1
+        id: SomeProviderId
+        heartbeatInterval: 600
+        expiresAfter: P30D
+  examples:
+    getCommonSettingsSampleResponse:
+      summary: Get common settings
+      description: This is an example response when using GET to obtain the common
+        settings from the provider. This example is invoking the Compute provider.
+      value: {"version": 1, "attributes": {"jobExecution": {"providers": [{"version": 1,
+                "id": "Compute", "heartbeatInterval": 600}]}}}
+    submitJobSampleBody:
+      summary: Submit job response
+      description: This is example body when using POST to submit a job to the provider.
+      value: {"creationTimeStamp": "2018-03-12T19:21:15.877Z", "modifiedTimeStamp": "2018-03-12T19:21:16.105Z",
+        "createdBy": "user1", "modifiedBy": "user1", "version": 3, "id": "f9dbe76c-1a13-491e-b1e4-eda2219a2320",
+        "jobRequest": {"version": 3, "name": "proc print example", "description": "ods\
+            \ output with age 14 cutoff", "jobDefinitionUri": "/jobDefinitions/definitions/dabd2a63-ae2f-4559-b110-ad989ff642a5",
+          "jobDefinition": {"creationTimeStamp": "2018-03-12T19:20:22.136Z", "modifiedTimeStamp": "2018-03-12T19:20:22.136Z",
+            "createdBy": "user1", "modifiedBy": "user1", "version": 2, "id": "dabd2a63-ae2f-4559-b110-ad989ff642a5",
+            "name": "Simple proc print", "type": "Compute", "parameters": [{"version": 1,
+                "name": "_contextName", "defaultValue": "SAS Job Execution compute\
+                  \ context", "type": "CHARACTER", "label": "Context Name", "required": false}],
+            "code": "ods html style=HTMLBlue;\nproc print data=sashelp.class; run;\
+              \ quit;\nods html close;", "links": [{"method": "GET", "rel": "self",
+                "href": "/jobDefinitions/definitions/dabd2a63-ae2f-4559-b110-ad989ff642a5",
+                "uri": "/jobDefinitions/definitions/dabd2a63-ae2f-4559-b110-ad989ff642a5",
+                "type": "application/vnd.sas.job.definition"}, {"method": "PUT", "rel": "update",
+                "href": "/jobDefinitions/definitions/dabd2a63-ae2f-4559-b110-ad989ff642a5",
+                "uri": "/jobDefinitions/definitions/dabd2a63-ae2f-4559-b110-ad989ff642a5",
+                "type": "application/vnd.sas.job.definition", "responseType": "application/vnd.sas.job.definition"},
+              {"method": "DELETE", "rel": "delete", "href": "/jobDefinitions/definitions/dabd2a63-ae2f-4559-b110-ad989ff642a5",
+                "uri": "/jobDefinitions/definitions/dabd2a63-ae2f-4559-b110-ad989ff642a5"}],
+            "properties": []}, "arguments": {"_contextName": "SAS Job Execution compute\
+              \ context"}, "properties": [], "createdByApplication": "jobExecution"},
+        "state": "running", "submittedByApplication": "jobExecution", "heartbeatInterval": 600,
+        "elapsedTime": 10, "results": {}, "links": [{"method": "GET", "rel": "self",
+            "href": "/jobExecution/jobs/f9dbe76c-1a13-491e-b1e4-eda2219a2320", "uri": "/jobExecution/jobs/f9dbe76c-1a13-491e-b1e4-eda2219a2320",
+            "type": "application/vnd.sas.job.execution.job"}, {"method": "GET", "rel": "state",
+            "href": "/jobExecution/jobs/f9dbe76c-1a13-491e-b1e4-eda2219a2320/state",
+            "uri": "/jobExecution/jobs/f9dbe76c-1a13-491e-b1e4-eda2219a2320/state",
+            "type": "text/plain"}, {"method": "PUT", "rel": "update", "href": "/jobExecution/jobs/f9dbe76c-1a13-491e-b1e4-eda2219a2320",
+            "uri": "/jobExecution/jobs/f9dbe76c-1a13-491e-b1e4-eda2219a2320", "type": "application/vnd.sas.job.execution.job",
+            "responseType": "application/vnd.sas.job.execution.job"}, {"method": "DELETE",
+            "rel": "delete", "href": "/jobExecution/jobs/f9dbe76c-1a13-491e-b1e4-eda2219a2320",
+            "uri": "/jobExecution/jobs/f9dbe76c-1a13-491e-b1e4-eda2219a2320"}, {"method": "PUT",
+            "rel": "updateState", "href": "/jobExecution/jobs/f9dbe76c-1a13-491e-b1e4-eda2219a2320/state",
+            "uri": "/jobExecution/jobs/f9dbe76c-1a13-491e-b1e4-eda2219a2320/state",
+            "type": "text/plain"}, {"method": "POST", "rel": "updateHeartbeatTimeStamp",
+            "href": "/jobExecution/jobs/f9dbe76c-1a13-491e-b1e4-eda2219a2320/heartbeatTimeStamp",
+            "uri": "/jobExecution/jobs/f9dbe76c-1a13-491e-b1e4-eda2219a2320/heartbeatTimeStamp",
+            "type": "text/plain"}, {"method": "GET", "rel": "jobDefinition", "href": "/jobDefinitions/definitions/dabd2a63-ae2f-4559-b110-ad989ff642a5",
+            "uri": "/jobDefinitions/definitions/dabd2a63-ae2f-4559-b110-ad989ff642a5",
+            "type": "application/vnd.sas.job.definition"}]}
+    submitJob400Response:
+      summary: Submit job 400 response
+      description: This is an example of a Bad Request response to POST job to provider.
+        This example is using the Compute provider.
+      value: {"errorCode": 5700, "message": "A job request does not exist for the\
+          \ job.", "details": ["traceId: 3bde71b81ee51316", "path: /compute/jobs"],
+        "links": [], "version": 2, "httpStatusCode": 400}

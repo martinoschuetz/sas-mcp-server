@@ -1,0 +1,1997 @@
+---
+openapi: 3.0.3
+info:
+  version: "6"
+  title: Comments
+  description: "The Comments Service REST API enables clients to retrieve collection\
+    \ of comments for single resourceUri as well as multiple resourceUris. The api\
+    \ to get recent comments for a associated object is provided. \nVersion 4 provides\
+    \ functionality to associate a comment with sub-element of an object."
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+tags:
+- name: Root
+  description: Root API of Comments Service.
+- name: Comments
+  description: API for CRUD operations of comments.
+- name: ParentComments
+  description: API to get the parent comments fitting the filter.
+paths:
+  /:
+    head:
+      summary: Check if comment service is available
+      description: Returns whether comment service is running. It also returns headers
+        that get "/" Api returns.
+      operationId: headersForRoot
+      tags:
+      - Root
+      responses:
+        "200":
+          description: (OK) The service is available and running
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+        "503":
+          description: Service Temporarily Unavailable
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error10"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error10"
+    get:
+      summary: Get list of top-level links
+      description: Returns top level links of comment service surfaced through this
+        API.
+      operationId: root
+      tags:
+      - Root
+      responses:
+        "200":
+          description: OK
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/commentsRoot"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/commentsRoot"
+        "503":
+          description: Service Temporarily Unavailable
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error10"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error10"
+  /comments:
+    post:
+      summary: Create a new comment
+      description: Create a new comment.
+      operationId: createComment
+      tags:
+      - Comments
+      requestBody:
+        content:
+          application/vnd.sas.comment+json:
+            schema:
+              $ref: "#/components/schemas/commentToCreate"
+            examples:
+              json:
+                $ref: "#/components/examples/createCommentRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/commentToCreate"
+            examples:
+              json:
+                $ref: "#/components/examples/createCommentRequest"
+        description: Comment to create
+      responses:
+        "201":
+          description: "(Created): The new comment created and returned in the response\
+            \ body."
+          headers:
+            ETag:
+              description: ETag for current resource
+              schema:
+                type: string
+            Last-Modified:
+              description: Last modified time stamp of the resource
+              schema:
+                type: string
+            Location:
+              description: URI of the created resource
+              schema:
+                type: string
+            Sas-Application-Name:
+              description: Application name
+              schema:
+                type: string
+          content:
+            application/vnd.sas.comment+json:
+              schema:
+                $ref: "#/components/schemas/comment"
+              examples:
+                json:
+                  $ref: "#/components/examples/createComment"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/comment"
+              examples:
+                json:
+                  $ref: "#/components/examples/createComment"
+        "400":
+          description: Bad request if Null value is assigned to resourceUri field.
+            Valid values for priority are low , medium and high else bad request is
+            thrown.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error3"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error3"
+        "404":
+          description: Creating a comment with invalid resourceUri
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error11"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error11"
+        "503":
+          description: Service Temporarily Unavailable
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error10"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error10"
+    head:
+      summary: Check if comments exist for given resourceUri
+      description: Returns whether comments exist for given resourceUri.
+      operationId: headersForGetComments
+      tags:
+      - Comments
+      parameters:
+      - name: resourceUri
+        in: query
+        required: false
+        description: Path of resourceUri
+        schema:
+          type: string
+      - name: elementId
+        in: query
+        required: false
+        description: Path of sub element id.
+        schema:
+          type: string
+      - name: start
+        in: query
+        required: false
+        description: The starting index of the first entry in a page. Defaults to
+          0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of entries to return in this page of results.
+          The actual number of returned entries may be less if the collection has
+          been exhausted. Defaults to 10.
+        schema:
+          type: integer
+          default: 10
+      - name: filter
+        in: query
+        required: false
+        description: Filter criteria for returned collection of comments.Filter will
+          be applied on comments database and result will contain all the comments
+          matching to filter expression and sorted by creation time stamp
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        required: false
+        description: Sorted collection of comments. When value for sortBy field is
+          not provided default sort order is ascending by creationTimeStamp.
+        schema:
+          type: string
+          format: sort-criteria
+      - name: If-Match
+        required: false
+        description: The entity tag obtained from the most recent ETag response header.
+          It must match the current entity tag.
+        in: header
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "(OK): The comments for given resourceUri exist"
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+        "503":
+          description: Service Temporarily Unavailable
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error10"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error10"
+    get:
+      summary: Find comments by provided filter
+      description: Find comments by provided filter and if provided resourceUri. Standard
+        paging, filtering and sorting options are available.
+      operationId: getComments
+      tags:
+      - Comments
+      parameters:
+      - name: resourceUri
+        in: query
+        required: false
+        description: URI of associated/parent object
+        schema:
+          type: string
+      - name: elementId
+        in: query
+        required: false
+        description: Path of sub element id.
+        schema:
+          type: string
+      - name: start
+        in: query
+        required: false
+        description: The starting index of the first entry in a page. Defaults to
+          0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of entries to return in this page of results.
+          The actual number of returned entries may be less if the collection has
+          been exhausted. Defaults to 10.
+        schema:
+          type: integer
+          default: 10
+      - name: filter
+        in: query
+        required: false
+        description: Filter criteria for returned collection of comments.Filter will
+          be applied on comments database and result will contain all the comments
+          matching to filter expression and sorted by creation time stamp
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        required: false
+        description: Sorted collection of comments. When value for sortBy field is
+          not provided default sort order is ascending by creationTimeStamp.
+        schema:
+          type: string
+          format: sort-criteria
+      - name: If-Match
+        required: false
+        description: The entity tag obtained from the most recent ETag response header.
+          It must match the current entity tag.
+        in: header
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/commentsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/commentsCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commentsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/commentsCollection"
+        "400":
+          description: (Bad Request) An Invalid filter or combination of request parameters
+            was provided
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error4"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error4"
+  /comments#multi:
+    post:
+      summary: Get comments for multiple resourceUri
+      description: This POST operation is used to obtain the comments for multiple
+        resources. Since some requests may be too large to fit in a request URL and
+        query parameter, this POST allow passing the list of resources in the request
+        body using the application/vnd.sas.selection+json media type. The response
+        is the set of comments associated with all the resources in the request. It
+        is recommended to provide limit value as 500 or less. If limit is not provided
+        for this API, it will provide all matching records, as by default limit is
+        set to maximum value.
+      operationId: createCommentsForMultipleResourcesUri
+      tags:
+      - Comments
+      parameters:
+      - name: start
+        in: query
+        required: false
+        description: The starting index of the first entry in a page. Defaults to
+          0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of entries to return in this page of results.
+          The actual number of returned entries may be less if the collection has
+          been exhausted. Defaults to Maximum value i.e.; 2,147,483,647.
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/vnd.sas.selection+json:
+            schema:
+              $ref: "#/components/schemas/selection"
+            examples:
+              json:
+                $ref: "#/components/examples/multiCommentRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/selection"
+            examples:
+              json:
+                $ref: "#/components/examples/multiCommentRequest"
+        description: Multiple resourceUri's specified as array of string.
+        required: true
+      responses:
+        "200":
+          description: "(OK): The comments for the given resourceUri were found and\
+            \ returned as a List of comments."
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/commentsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/multiComments"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commentsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/multiComments"
+        "400":
+          description: "(Bad Request):  Request body is malformed."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error4"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error4"
+  /parentComments:
+    get:
+      summary: This REST end point gives only parent/topic comments which fits in
+        filter criteria
+      description: This REST end point gives only parent/topic comments which fits
+        in filter criteria. Standard paging, filtering and sorting options are available.
+      operationId: getParentComments
+      tags:
+      - ParentComments
+      parameters:
+      - name: resourceUri
+        in: query
+        required: true
+        description: Path of resourceUri
+        schema:
+          type: string
+      - name: start
+        in: query
+        required: false
+        description: The starting index of the first entry in a page. Defaults to
+          0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of entries to return in this page of results.
+          The actual number of returned entries may be less if the collection has
+          been exhausted. Defaults to 10.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        required: true
+        description: Filter criteria for returned collection of comments.Filter will
+          be applied on comments database and result will contain parent comments
+          matching to filter expression and sorted by creation time stamp
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        required: false
+        description: Sorted collection of comments. When value for sortBy field is
+          not provided default sort order is ascending by creationTimeStamp.
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: OK
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/commentsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/parentComments"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commentsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/parentComments"
+        "400":
+          description: (Bad Request):An Invalid filter or combination of request parameters
+            was provided
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error9"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error9"
+  /recentComments:
+    get:
+      summary: Find recent comments by resourceUri
+      description: Find recent comments by their resourceUri.
+      operationId: getRecentComments
+      tags:
+      - Comments
+      parameters:
+      - name: resourceUri
+        in: query
+        required: true
+        description: Path of resourceUri
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of entries to return in this page of results.
+          The actual number of returned entries may be less if the collection has
+          been exhausted. Defaults to 10.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        required: false
+        description: Filter criteria for returned collection of comments.Filter will
+          be applied on comments database and result will contain all the comments
+          matching to filter expression and sorted by creation time stamp
+        schema:
+          type: string
+          format: filter-criteria
+      responses:
+        "200":
+          description: OK
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/commentsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/recentComments"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commentsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/recentComments"
+        "400":
+          description: (Bad Request):An Invalid filter or combination of request parameters
+            was provided
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error5"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error5"
+  /comments/{commentId}:
+    head:
+      summary: Check if comment with given id exist
+      description: Returns whether or not comment with given id exist.
+      operationId: headersForGetComment
+      tags:
+      - Comments
+      parameters:
+      - name: commentId
+        in: path
+        description: Id of the comment
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        required: false
+        description: The entity tag obtained from the most recent ETag response header.
+          It must match the current entity tag.
+        in: header
+        schema:
+          type: string
+      responses:
+        "200":
+          description: (OK). The comment exist.
+          headers:
+            ETag:
+              description: ETag for the resource
+              schema:
+                type: string
+            Last-Modified:
+              description: Last modified time stamp of the resource
+              schema:
+                type: string
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+        "404":
+          description: "(Not Found): No comment found for given identifier."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+    get:
+      summary: Get a comment by id
+      description: Get a comment by its id.
+      operationId: getComment
+      tags:
+      - Comments
+      parameters:
+      - name: commentId
+        in: path
+        description: Id of the comment to get
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "(OK): The comment is found and returned in the response body"
+          headers:
+            ETag:
+              description: ETag for the resource
+              schema:
+                type: string
+            Last-Modified:
+              description: Last modified time stamp of the resource
+              schema:
+                type: string
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.comment+json:
+              schema:
+                $ref: "#/components/schemas/comment"
+              examples:
+                json:
+                  $ref: "#/components/examples/getComment"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/comment"
+              examples:
+                json:
+                  $ref: "#/components/examples/getComment"
+        "404":
+          description: "(Not Found): No comment found for given identifier"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error6"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error6"
+    put:
+      summary: Update or replace a comment
+      description: Update or replace a comment.
+      operationId: updateComment
+      tags:
+      - Comments
+      parameters:
+      - name: If-Match
+        in: header
+        description: Client needs to specify priously pulled <b>ETag</b> as <b>If-Match</b>
+          header.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: Client needs to specify priously pulled <b>Last-Modified</b>
+          timestamp as <b>If-Unmodified-Since</b> header.
+        schema:
+          type: string
+      - name: commentId
+        in: path
+        description: Id of the comment to update
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.comment+json:
+            schema:
+              $ref: "#/components/schemas/commentToUpdate"
+            examples:
+              json:
+                $ref: "#/components/examples/updateCommentRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/commentToUpdate"
+            examples:
+              json:
+                $ref: "#/components/examples/updateCommentRequest"
+        description: Updated comment
+        required: true
+      responses:
+        "200":
+          description: "(OK): Comment is updated and returned the response"
+          headers:
+            ETag:
+              description: ETag for current resource
+              schema:
+                type: string
+            Last-Modified:
+              description: Last modified time stamp of the resource
+              schema:
+                type: string
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.comment+json:
+              schema:
+                $ref: "#/components/schemas/comment"
+              examples:
+                json:
+                  $ref: "#/components/examples/updateComment"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/comment"
+              examples:
+                json:
+                  $ref: "#/components/examples/updateComment"
+        "400":
+          description: "(Bad Request): There was a validation error for the request"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error7"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error7"
+        "404":
+          description: "(Not Found): No comment found for given identifier."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error6"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error6"
+        "412":
+          description: "(Precondition Failed): Another operation modified the resource.\
+            \ Get updated representation of resource, before retrying."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/updateCommentErr"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/updateCommentErr"
+        "428":
+          description: "(Precondition Required): Request must have 'if-unmodified-since'\
+            \ or 'if-match' header. Set appropriate values for 'if-unmodified-since'\
+            \ or 'if-match' headers, before retrying."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error8"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error8"
+    delete:
+      summary: Delete a comment
+      description: Delete a comment by id.
+      operationId: deleteComment
+      tags:
+      - Comments
+      parameters:
+      - name: commentId
+        in: path
+        description: Id of the comment to delete
+        required: true
+        schema:
+          type: string
+      - name: recursive
+        in: query
+        description: do a recursive delete of the comment
+        required: false
+        schema:
+          type: boolean
+          default: true
+      responses:
+        "204":
+          description: "(No Content): Comment is deleted"
+          headers:
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+        "404":
+          description: "(Not Found): No comment found for given identifier."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error6"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error6"
+  /comments/{commentId}#summary:
+    get:
+      summary: Get a comment summary by id
+      description: Get a comment by its id.
+      operationId: getCommentsSummary
+      tags:
+      - Comments
+      parameters:
+      - name: commentId
+        in: path
+        description: Id of the comment to get
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "(OK): The comment is found and returned in the response body"
+          headers:
+            ETag:
+              description: ETag for the resource
+              schema:
+                type: string
+            Last-Modified:
+              description: Last modified time stamp of the resource
+              schema:
+                type: string
+            Cache-Control:
+              description: The caching policy for the media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/commentResourceSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/commentSummaryByID"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/commentResourceSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/commentSummaryByID"
+        "404":
+          description: "(Not Found): No comment found for given identifier"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error6"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/error6"
+servers:
+- url: http://example.com/comments
+  description: This is an example server.
+components:
+  schemas:
+    commentToCreate:
+      title: comment to create
+      description: A structure to be used while creating a comment
+      required:
+      - resourceUri
+      properties:
+        resourceUri:
+          type: string
+          description: Object that comment is associated with
+        elementId:
+          type: string
+          description: Sub element of object that comment is associated with
+        parentId:
+          type: string
+          description: Id of parent comment
+        subject:
+          type: string
+          description: Subject of the comment
+        text:
+          type: string
+          description: Text of the comment
+        priority:
+          type: string
+          default: medium
+          enum:
+          - medium
+          - low
+          - high
+          description: Priority of the comment. 1 is low priority, 2 medium, and 3
+            high.
+    commentToUpdate:
+      title: comment to update
+      description: A structure to be used while updating a comment
+      required:
+      - resourceUri
+      properties:
+        id:
+          type: string
+          description: Id of the comment
+        resourceUri:
+          type: string
+          description: Object that comment is associated with
+        elementId:
+          type: string
+          description: Sub element of object that comment is associated with
+        parentId:
+          type: string
+          description: Id of parent comment
+        subject:
+          type: string
+          description: Subject of the comment
+        text:
+          type: string
+          description: Text of the comment
+        priority:
+          type: string
+          default: medium
+          enum:
+          - medium
+          - low
+          - high
+          description: Priority of the comment. 1 is low priority, 2 medium, and 3
+            high.
+    comment:
+      title: comment
+      description: A general structure of a comment
+      properties:
+        id:
+          type: string
+          description: Id of the comment
+        resourceUri:
+          type: string
+          description: Object that comment is associated with
+        elementId:
+          type: string
+          description: Sub element of object that comment is associated with
+        parentId:
+          type: string
+          description: Id of parent comment
+        createdBy:
+          type: string
+          description: User id of person who created the comment
+        modifiedBy:
+          type: string
+          description: User id of person who modified the comment
+        subject:
+          type: string
+          description: Subject of the comment
+        text:
+          type: string
+          description: Text of the comment
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp of when comment was created
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp of when comment was last modified
+        priority:
+          type: string
+          default: medium
+          enum:
+          - medium
+          - low
+          - high
+          description: Priority of the comment. 1 is low priority, 2 medium, and 3
+            high.
+        version:
+          type: integer
+          description: entry schema version
+        childCount:
+          type: integer
+          description: Total number of replies for a topic comment.
+        searchCount:
+          type: integer
+          description: Number of only those replies which fits in filter criteria.
+        links:
+          type: array
+          description: Links that apply to this resource.
+          items:
+            $ref: "#/components/schemas/link"
+    commentsCollection:
+      title: commentsCollection
+      description: application /vnd.sas.collection of type comment
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/comment"
+    commentResourceSummary:
+      title: Comment Resource Summary
+      description: A structure for comment resource summary
+      properties:
+        createdBy:
+          type: string
+          description: The name of the author.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp of when comment was created.
+        id:
+          type: string
+          description: The identifier of the comment resource.
+        links:
+          type: array
+          description: The alternate link to fetch the complete representation of
+            the comment resource, for example, vnd.sas.comment.
+          items:
+            $ref: "#/components/schemas/link"
+        modifiedBy:
+          type: string
+          description: The name of the user who modified the comment resource.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp of when comment resource was modified.
+        name:
+          type: string
+          description: Subject of comment if populated.
+        version:
+          type: integer
+          description: The version of the media type.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    selection:
+      title: Selection
+      description: Identifies a set of resources.
+      x-sas-media-type:
+        name: application/vnd.sas.selection
+        version: 1
+      required:
+      - version
+      - resources
+      properties:
+        version:
+          description: The schema version number of this media type. This representation
+            is version 1.
+          type: integer
+        template:
+          description: 'A URI template in which the {id} parameter can be replaced
+            with a value from the "resources" array in order to yield the URI of the
+            identified resource. '
+          type: string
+          format: uri
+        type:
+          description: "Specifies whether the resources array contains IDs, URIs,\
+            \ or both. \n<dl>\n<dt>\"id\"</dt><dd>the array contains resource identifiers\
+            \ only. This is the default if \"type\" is omitted.</dd>\n<dt>\"uri\"\
+            </dt><dd>the array contains resource URIs</dd>\n<dt>\"mixed\"</dt><dd>the\
+            \ array contains a mixture of identifiers and URIs.</dd>\n</dl>"
+          type: string
+          enum:
+          - id
+          - uri
+          - mixed
+        resources:
+          description: An array of resource IDs or URIs
+          type: array
+          items:
+            type: string
+        links:
+          type: array
+          description: An array of links to related resources and actions.
+          items:
+            $ref: "#/components/schemas/link"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+  examples:
+    commentsRoot:
+      summary: Comments service endpoints
+      description: List of endpoints for comments service.
+      value:
+        version: 1
+        links:
+        - method: HEAD
+          rel: commentsExist
+          href: "/comments/comments"
+          uri: "/comments/comments"
+          type: application/json
+        - method: GET
+          rel: comments
+          href: "/comments/comments"
+          uri: "/comments/comments"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: recentcomments
+          href: "/comments/recentComments"
+          uri: "/comments/recentComments"
+          type: application/vnd.sas.collection
+        - method: POST
+          rel: multipleObjectsComments
+          href: "/comments/comments"
+          uri: "/comments/comments"
+          type: application/vnd.sas.collection
+        - method: POST
+          rel: createcomment
+          href: "/comments/comments"
+          uri: "/comments/comments"
+          type: application/vnd.sas.comment
+        - method: GET
+          rel: parentComments
+          href: "/comments/parentComments"
+          uri: "/comments/parentComments"
+          type: application/vnd.sas.collection
+    error3:
+      summary: missing body parameters
+      value:
+        version: 2
+        hhtpStatusCode: 400
+        errorCode: 1177
+        message: The body member \"resourceUri\" is missing or does not have a value.
+        details:
+        - path /comments/comments
+        - correlator 1b48de08-809c-4b74-b52d-6380e720c308
+      description: "this is an example of an error that could be returned for missing\
+        \ request body parameters"
+    error4:
+      summary: Request body is malformed
+      value:
+        version: 2
+        hhtpStatusCode: 400
+        errorCode: 73701
+        message: The query could not be parsed because one or more parameters are
+          invalid. Details- InvalidInputError- Field name is invalid for the target
+          type. Error Code- 1020.
+        details:
+        - path /comments/comments
+        - correlator eb95e7f2-058a-4524-95ba-e3141d61827a
+      description: "this is an example of an error that could be returned for malformed\
+        \ request body"
+    error5:
+      summary: An Invalid filter or combination of request parameters
+      value:
+        version: 2
+        hhtpStatusCode: 400
+        errorCode: 73608
+        message: The request could not be completed because the "resourceUri" parameter
+          is empty.
+        details:
+        - path /comments/recentComments
+        - correlator 87b2b31a-043f-4b1a-97b0-d0e4d3a7ad03
+      description: "this is an example of an error that could be returned for invlaid\
+        \ filter or combination of request parameters"
+    error6:
+      summary: Comment not found
+      value:
+        version: 2
+        hhtpStatusCode: 404
+        errorCode: 73500
+        message: The comment could not be found.
+        details:
+        - path /comments/comments/26b3067d-6295-4c76-b860-37445c0062741
+        - correlator 362ad01c-9e85-417f-9a1a-b9edc53e7098
+      description: "this is an example of an error that could be returned for comment\
+        \ not found for specific comment id"
+    error7:
+      summary: Update comment invalid
+      value:
+        version: 2
+        hhtpStatusCode: 400
+        errorCode: 1177
+        message: The type "comment" is invalid.
+        details:
+        - The value "high1" for the field "Priority" is invalid. The supported values
+          are "low medium high".
+        - path /comments/comments/71dac1ff-52cf-4a53-862b-22d4ac213530
+        - correlator 5d2ff2b2-688b-499d-af9a-fe67086434c9
+      description: "this is an example of an error that could be returned while updating\
+        \ the comment"
+    error8:
+      summary: Modification need headers
+      value:
+        version: 2
+        hhtpStatusCode: 428
+        errorCode: 73607
+        message: The comment could not be updated. The request must include at least
+          one of the following headers- if-unmodified-since, if-match.
+        details:
+        - path /comments/comments/26b3067d-6295-4c76-b860-37445c0062741
+        - correlator 362ad01c-9e85-417f-9a1a-b9edc53e7098
+      description: "this is an example of an error that could be returned while updaing\
+        \ the comment but required header is missing"
+    error9:
+      summary: Invalid parameters
+      value:
+        version: 2
+        hhtpStatusCode: 400
+        errorCode: 73701
+        message: The query could not be parsed because one or more parameters are
+          invalid. Details- InvalidInputError- Field name is invalid for the target
+          type. Error Code- 1020
+        details:
+        - path /comments/parentComments
+        - correlator 96c582d2-0272-4e20-9a45-d786f0f3f758
+      description: "this is an example of an error that could be returned while getting\
+        \ parent comments and one or more parameters are invalid"
+    error10:
+      summary: Service Temporarily Unavailable
+      value:
+      description: "this is an example of an error that could be returned for 503\
+        \ for HEAD"
+    error11:
+      summary: Invalid resourceUri
+      value:
+        version: 2
+        hhtpStatusCode: 404
+        errorCode: 73609
+        message: An unexpected error occurred while trying to get resource uri
+        details:
+        - path /comments/comments
+        - correlator 338ca25d-a108-46c4-a3f8-f15ecaebe35f
+      description: "this is an example of an error that could be returned while creating\
+        \ a comment with invalid resourceUri"
+    notFoundError:
+      summary: Not Found
+      value:
+        message: "not found"
+        httpStatusCode: 404
+        version: 2
+      description: example of an error that might be returned on a 404 response
+    getComment:
+      summary: Get a comment by ID.
+      description: Get a comment by it's ID
+      value:
+        createdBy: "sasin"
+        creationTimeStamp: "2025-03-17T12:51:21.51521Z"
+        id: "0ff96b83-f8a1-4d67-a2d4-38bdc5c27bda"
+        links:
+        - method: "GET"
+          rel: "self"
+          href: "/comments/comments/0ff96b83-f8a1-4d67-a2d4-38bdc5c27bda"
+          uri: "/comments/comments/0ff96b83-f8a1-4d67-a2d4-38bdc5c27bda"
+          type: "application/vnd.sas.comment"
+        - method: "PUT"
+          rel: "update"
+          href: "/comments/comments/0ff96b83-f8a1-4d67-a2d4-38bdc5c27bda"
+          uri: "/comments/comments/0ff96b83-f8a1-4d67-a2d4-38bdc5c27bda"
+          type: "application/vnd.sas.comment"
+        - method: "DELETE"
+          rel: "delete"
+          href: "/comments/comments/0ff96b83-f8a1-4d67-a2d4-38bdc5c27bda"
+          uri: "/comments/comments/0ff96b83-f8a1-4d67-a2d4-38bdc5c27bda"
+        - method: "GET"
+          rel: "up"
+          href: "/comments/comments"
+          uri: "/comments/comments"
+        - method: "GET"
+          rel: "transferExport"
+          href: "/comments/comments/0ff96b83-f8a1-4d67-a2d4-38bdc5c27bda"
+          uri: "/comments/comments/0ff96b83-f8a1-4d67-a2d4-38bdc5c27bda"
+          responseType: "application/vnd.sas.transfer.object"
+        - method: "PUT"
+          rel: "transferImportUpdate"
+          href: "/comments/comments/0ff96b83-f8a1-4d67-a2d4-38bdc5c27bda"
+          uri: "/comments/comments/0ff96b83-f8a1-4d67-a2d4-38bdc5c27bda"
+          type: "application/vnd.sas.transfer.object"
+          responseType: "application/vnd.sas.summary"
+        - method: "POST"
+          rel: "transferImport"
+          href: "/comments/comments"
+          uri: "/comments/comments"
+          type: "application/vnd.sas.transfer.object"
+          responseType: "application/vnd.sas.summary"
+        modifiedBy: "sasin"
+        modifiedTimeStamp: "2025-03-17T12:51:21.515216Z"
+        priority: "medium"
+        resourceUri: "/reports/reports/eb897d90-e4fd-4bdf-a764-b61af5c339b8"
+        text: "Test664 [[@stpweb1]]"
+        version: 6
+    commentsCollection:
+      summary: Comments.
+      description: Get all comments.
+      value:
+        accept: "application/vnd.sas.comment"
+        count: 1
+        items:
+        - createdBy: "sasin"
+          creationTimeStamp: "2025-03-13T09:55:53.438714Z"
+          id: "33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+          links:
+          - method: "GET"
+            rel: "self"
+            href: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            uri: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            type: "application/vnd.sas.comment"
+          - method: "PUT"
+            rel: "update"
+            href: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            uri: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            type: "application/vnd.sas.comment"
+          - method: "DELETE"
+            rel: "delete"
+            href: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            uri: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+          - method: "GET"
+            rel: "up"
+            href: "/comments/comments"
+            uri: "/comments/comments"
+          - method: "GET"
+            rel: "transferExport"
+            href: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            uri: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            responseType: "application/vnd.sas.transfer.object"
+          - method: "PUT"
+            rel: "transferImportUpdate"
+            href: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            uri: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            type: "application/vnd.sas.transfer.object"
+            responseType: "application/vnd.sas.summary"
+          - method: "POST"
+            rel: "transferImport"
+            href: "/comments/comments"
+            uri: "/comments/comments"
+            type: "application/vnd.sas.transfer.object"
+            responseType: "application/vnd.sas.summary"
+          modifiedBy: "sasin"
+          modifiedTimeStamp: "2025-03-13T09:55:53.438719Z"
+          priority: "medium"
+          resourceUri: "/folders/folders/183b4eca-7d89-4889-82fc-8560a2529b30"
+          text: "[[@tester3]]"
+          version: 6
+        limit: 10
+        links:
+        - method: "GET"
+          rel: "collection"
+          href: "/comments/comments"
+          uri: "/comments/comments"
+          type: "application/vnd.sas.collection"
+          itemType: "application/vnd.sas.comment"
+        - method: "GET"
+          rel: "self"
+          href: "/comments/comments?start=0&limit=10&filter=and%28contains%28modifiedBy%2C%27snkalm%27%29+%2C+eq%28priority%2C+medium%29%29&resourceUri=/folders/folders/183b4eca-7d89-4889-82fc-8560a2529b30"
+          uri: "/comments/comments?start=0&limit=10&filter=and%28contains%28modifiedBy%2C%27snkalm%27%29+%2C+eq%28priority%2C+medium%29%29&resourceUri=/folders/folders/183b4eca-7d89-4889-82fc-8560a2529b30"
+          type: "application/vnd.sas.collection"
+          itemType: "application/vnd.sas.comment"
+        name: comments
+        start: 0
+        version: 2
+    createComment:
+      summary: Create a new comment.
+      description: Response body for comments end point method POST.
+      value:
+        creationTimeStamp: "2025-03-17T09:13:09.495573Z"
+        createdBy: "sasin"
+        modifiedTimeStamp: "2025-03-17T09:13:09.495579Z"
+        modifiedBy: "sasin"
+        version: 6
+        id: "00c0df26-d9fc-4245-8f90-3c77af5025d1"
+        resourceUri: "/folders/folders/183b4eca-7d89-4889-82fc-8560a2529b30"
+        parentId: "6d3e10a1-6703-4100-af00-3190e20e5af3"
+        subject: "comment"
+        text: "Hello user [[@stpweb1]]"
+        priority: "high"
+        links:
+        - method: "GET"
+          rel: "self"
+          href: "/comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1"
+          uri: "/comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1"
+          type: "application/vnd.sas.comment"
+        - method: "PUT"
+          rel: "update"
+          href: "/comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1"
+          uri: "/comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1"
+          type: "application/vnd.sas.comment"
+        - method: "DELETE"
+          rel: "delete"
+          href: "/comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1"
+          uri: "/comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1"
+        - method: "GET"
+          rel: "up"
+          href: "/comments/comments"
+          uri: "/comments/comments"
+        - method: "GET"
+          rel: "transferExport"
+          href: "/comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1"
+          uri: "/comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1"
+          responseType: "application/vnd.sas.transfer.object"
+        - method: "PUT"
+          rel: "transferImportUpdate"
+          href: "/comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1"
+          uri: "/comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1"
+          type: "application/vnd.sas.transfer.object"
+          responseType: "application/vnd.sas.summary"
+        - method: "POST"
+          rel: "transferImport"
+          href: "/comments/comments"
+          uri: "/comments/comments"
+          type: "application/vnd.sas.transfer.object"
+          responseType: "application/vnd.sas.summary"
+    updateComment:
+      summary: Update or replace a comment.
+      description: Update or replace a comment.
+      value:
+        createdBy: sasin
+        creationTimeStamp: "2025-03-17T09:13:09.495573Z"
+        id: 00c0df26-d9fc-4245-8f90-3c77af5025d1
+        links:
+        - method: GET
+          rel: self
+          href: /comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1
+          uri: /comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1
+          type: application/vnd.sas.comment
+        - method: PUT
+          rel: update
+          href: /comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1
+          uri: /comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1
+          type: application/vnd.sas.comment
+        - method: DELETE
+          rel: delete
+          href: /comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1
+          uri: /comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1
+        - method: GET
+          rel: up
+          href: /comments/comments
+          uri: /comments/comments
+        - method: GET
+          rel: transferExport
+          href: /comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1
+          uri: /comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1
+          responseType: application/vnd.sas.transfer.object
+        - method: PUT
+          rel: transferImportUpdate
+          href: /comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1
+          uri: /comments/comments/00c0df26-d9fc-4245-8f90-3c77af5025d1
+          type: application/vnd.sas.transfer.object
+          responseType: application/vnd.sas.summary
+        - method: POST
+          rel: transferImport
+          href: /comments/comments
+          uri: /comments/comments
+          type: application/vnd.sas.transfer.object
+          responseType: application/vnd.sas.summary
+        modifiedBy: sasin
+        modifiedTimeStamp: "2025-03-17T11:05:45.523564Z"
+        priority: medium
+        resourceUri: /folders/folders/183b4eca-7d89-4889-82fc-8560a2529b30
+        text: test4 modified [[@sasin]]
+        version: 6
+    updateCommentErr:
+      summary: Update or replace a comment.
+      value:
+        errorCode: 73605
+        message: The comment has been updated since you last saved it.
+        details:
+        - correlator 28b004cc-3acb-4466-98aa-bea1bee76d71
+        - path /comments/comments/926da592-1654-461b-8328-6ff381dce6fd
+        version: 2
+        httpStatusCode: 412
+      description: "this is an example of an error that could be returned while updating\
+        \ the comment if the comment has been updated since last saved"
+    commentSummaryByID:
+      summary: Get a comment summary by id
+      description: Get a comment summary by id.
+      value:
+        createdBy: sasin
+        creationTimeStamp: "2025-03-17T04:18:44.742979Z"
+        id: "cd89c7c2-1ba3-4a00-b893-9969458aa40f"
+        links:
+        - method: GET
+          rel: self
+          href: /comments/comments/cd89c7c2-1ba3-4a00-b893-9969458aa40f
+          uri: /comments/comments/cd89c7c2-1ba3-4a00-b893-9969458aa40f
+          type: application/vnd.sas.comment
+        - method: GET
+          rel: alternate
+          href: /comments/comments/cd89c7c2-1ba3-4a00-b893-9969458aa40f
+          uri: /comments/comments/cd89c7c2-1ba3-4a00-b893-9969458aa40f
+          type: application/vnd.sas.summary
+        modifiedBy: sasin
+        modifiedTimeStamp: "2025-03-17T04:18:44.742985Z"
+        name: unnamed
+        type: Comments
+    parentComments:
+      summary: This REST end point gives only parent/topic comments which fits in
+        filter criteria
+      description: This REST end point gives only parent/topic comments which fits
+        in filter criteria.
+      value:
+        accept: application/vnd.sas.comment
+        count: 1
+        items:
+        - childCount: 1
+          createdBy: sasboot
+          creationTimeStamp: "2023-01-15T11:31:13.343423Z"
+          id: 4ad547e4-933c-48ff-8e4c-62000f029190
+          links:
+          - method: GET
+            rel: self
+            href: /comments/comments/4ad547e4-933c-48ff-8e4c-62000f029190
+            uri: /comments/comments/4ad547e4-933c-48ff-8e4c-62000f029190
+            type: application/vnd.sas.comment
+          - method: PUT
+            rel: update
+            href: /comments/comments/4ad547e4-933c-48ff-8e4c-62000f029190
+            uri: /comments/comments/4ad547e4-933c-48ff-8e4c-62000f029190
+            type: application/vnd.sas.comment
+          - method: DELETE
+            rel: delete
+            href: /comments/comments/4ad547e4-933c-48ff-8e4c-62000f029190
+            uri: /comments/comments/4ad547e4-933c-48ff-8e4c-62000f029190
+          - method: GET
+            rel: up
+            href: /comments/comments
+            uri: /comments/comments
+          - method: GET
+            rel: transferExport
+            href: /comments/comments/4ad547e4-933c-48ff-8e4c-62000f029190
+            uri: /comments/comments/4ad547e4-933c-48ff-8e4c-62000f029190
+            responseType: application/vnd.sas.transfer.object
+          - method: PUT
+            rel: transferImportUpdate
+            href: /comments/comments/4ad547e4-933c-48ff-8e4c-62000f029190
+            uri: /comments/comments/4ad547e4-933c-48ff-8e4c-62000f029190
+            type: application/vnd.sas.transfer.object
+            responseType: application/vnd.sas.summary
+          - method: POST
+            rel: transferImport
+            href: /comments/comments
+            uri: /comments/comments
+            type: application/vnd.sas.transfer.object
+            responseType: application/vnd.sas.summary
+          modifiedBy: sasboot
+          modifiedTimeStamp: "2023-01-15T11:31:13.343435Z"
+          priority: medium
+          resourceUri: /folders/folders/7da52c7d-5eea-4b99-985e-23c996b45e1b
+          subject: ""
+          text: Test comment
+          version: 6
+        limit: 10
+        links:
+        - method: GET
+          rel: collection
+          href: /comments/parentComments
+          uri: /comments/parentComments
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.comment
+        - method": GET
+          rel: self
+          href: /comments/parentComments?start=0&limit=10&filter=or%28isNull%28parentId%29%2Ceq%28parentId%2C%22%22%29%29&resourceUri=/folders/folders/7da52c7d-5eea-4b99-985e-23c996b45e1b
+          uri: /comments/parentComments?start=0&limit=10&filter=or%28isNull%28parentId%29%2Ceq%28parentId%2C%22%22%29%29&resourceUri=/folders/folders/7da52c7d-5eea-4b99-985e-23c996b45e1b
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.comment
+        name: parentComments
+        start: 0
+        version: 2
+    recentComments:
+      summary: Find recent comments by resourceUri
+      description: Find recent comments by it's resourceUri
+      value:
+        accept: "application/vnd.sas.comment"
+        count: 1
+        items:
+        - createdBy: "OmiTest"
+          creationTimeStamp: "2025-03-13T09:28:28.278024Z"
+          id: "c80587bf-5fc7-4b3a-9dda-7604e0e3cefd"
+          links:
+          - method: "GET"
+            rel: "self"
+            href: "/comments/comments/c80587bf-5fc7-4b3a-9dda-7604e0e3cefd"
+            uri: "/comments/comments/c80587bf-5fc7-4b3a-9dda-7604e0e3cefd"
+            type: "application/vnd.sas.comment"
+          - method: "PUT"
+            rel: "update"
+            href: "/comments/comments/c80587bf-5fc7-4b3a-9dda-7604e0e3cefd"
+            uri: "/comments/comments/c80587bf-5fc7-4b3a-9dda-7604e0e3cefd"
+            type: "application/vnd.sas.comment"
+          - method: "DELETE"
+            rel: "delete"
+            href: "/comments/comments/c80587bf-5fc7-4b3a-9dda-7604e0e3cefd"
+            uri: "/comments/comments/c80587bf-5fc7-4b3a-9dda-7604e0e3cefd"
+          - method: "GET"
+            rel: "up"
+            href: "/comments/comments"
+            uri: "/comments/comments"
+          - method: "GET"
+            rel: "transferExport"
+            href: "/comments/comments/c80587bf-5fc7-4b3a-9dda-7604e0e3cefd"
+            uri: "/comments/comments/c80587bf-5fc7-4b3a-9dda-7604e0e3cefd"
+            responseType: "application/vnd.sas.transfer.object"
+          - method: "PUT"
+            rel: "transferImportUpdate"
+            href: "/comments/comments/c80587bf-5fc7-4b3a-9dda-7604e0e3cefd"
+            uri: "/comments/comments/c80587bf-5fc7-4b3a-9dda-7604e0e3cefd"
+            type: "application/vnd.sas.transfer.object"
+            responseType: "application/vnd.sas.summary"
+          - method: "POST"
+            rel: "transferImport"
+            href: "/comments/comments"
+            uri: "/comments/comments"
+            type: "application/vnd.sas.transfer.object"
+            responseType: "application/vnd.sas.summary"
+          modifiedBy: "OmiTest"
+          modifiedTimeStamp: "2025-03-13T09:28:28.278035Z"
+          priority: "medium"
+          resourceUri: "/files/files/f97227d1-e3c3-4679-aea0-e9f16d7c0c6f"
+          text: "Check this file [[@adthak]]"
+          version: 6
+        limit: 10
+        links:
+        - method: "GET"
+          rel: "collection"
+          href: "/comments/recentComments"
+          uri: "/comments/recentComments"
+          type: "application/vnd.sas.collection"
+          itemType: "application/vnd.sas.comment"
+        - method: "GET"
+          rel: "self"
+          href: "/comments/recentComments?start=0&limit=10&resourceUri=/files/files/f97227d1-e3c3-4679-aea0-e9f16d7c0c6f"
+          uri: "/comments/recentComments?start=0&limit=10&resourceUri=/files/files/f97227d1-e3c3-4679-aea0-e9f16d7c0c6f"
+          type: "application/vnd.sas.collection"
+          itemType: "application/vnd.sas.comment"
+        name: "recentComments"
+        start: 0
+        version: 2
+    multiComments:
+      summary: Get comments for multiple resourceUri
+      description: A request used to get collection of comments for given multiple
+        resourcUris.
+      value:
+        version: 2
+        accept: "application/vnd.sas.comment"
+        count: 2
+        start: 0
+        limit: 2147483647
+        name: "comments"
+        items:
+        - creationTimeStamp: "2025-03-13T09:55:53.438714Z"
+          createdBy: "omitest"
+          modifiedTimeStamp: "2025-03-13T09:55:53.438719Z"
+          modifiedBy: "omitest"
+          version: 6
+          id: "33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+          resourceUri: "/folders/folders/183b4eca-7d89-4889-82fc-8560a2529b30"
+          text: "[[@tester3]]"
+          priority: "medium"
+          links:
+          - method: "GET"
+            rel: "self"
+            href: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            uri: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            type: "application/vnd.sas.comment"
+          - method: "PUT"
+            rel: "update"
+            href: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            uri: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            type: "application/vnd.sas.comment"
+          - method: "DELETE"
+            rel: "delete"
+            href: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            uri: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+          - method: "GET"
+            rel: "up"
+            href: "/comments/comments"
+            uri: "/comments/comments"
+          - method: "GET"
+            rel: "transferExport"
+            href: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            uri: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            responseType: "application/vnd.sas.transfer.object"
+          - method: "PUT"
+            rel: "transferImportUpdate"
+            href: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            uri: "/comments/comments/33e67f0c-b2f6-4d45-b2e4-12cbf3ad89a8"
+            type: "application/vnd.sas.transfer.object"
+            responseType: "application/vnd.sas.summary"
+          - method: "POST"
+            rel: "transferImport"
+            href: "/comments/comments"
+            uri: "/comments/comments"
+            type: "application/vnd.sas.transfer.object"
+            responseType: "application/vnd.sas.summary"
+        - creationTimeStamp: "2025-03-17T04:06:44.811258Z"
+          createdBy: "sasin"
+          modifiedTimeStamp: "2025-03-17T04:06:44.811265Z"
+          modifiedBy: "sasin"
+          version: 6
+          id: "2287e192-22b1-49f4-8ea0-3da72906c174"
+          resourceUri: "/folders/folders/183b4eca-7d89-4889-82fc-8560a2529b30"
+          text: "test 11"
+          priority: "high"
+          links:
+          - method: "GET"
+            rel: "self"
+            href: "/comments/comments/2287e192-22b1-49f4-8ea0-3da72906c174"
+            uri: "/comments/comments/2287e192-22b1-49f4-8ea0-3da72906c174"
+            type: "application/vnd.sas.comment"
+          - method: "PUT"
+            rel: "update"
+            href: "/comments/comments/2287e192-22b1-49f4-8ea0-3da72906c174"
+            uri: "/comments/comments/2287e192-22b1-49f4-8ea0-3da72906c174"
+            type: "application/vnd.sas.comment"
+          - method: "DELETE"
+            rel: "delete"
+            href: "/comments/comments/2287e192-22b1-49f4-8ea0-3da72906c174"
+            uri: "/comments/comments/2287e192-22b1-49f4-8ea0-3da72906c174"
+          - method: "GET"
+            rel: "up"
+            href: "/comments/comments"
+            uri: "/comments/comments"
+          - method: "GET"
+            rel: "transferExport"
+            href: "/comments/comments/2287e192-22b1-49f4-8ea0-3da72906c174"
+            uri: "/comments/comments/2287e192-22b1-49f4-8ea0-3da72906c174"
+            responseType: "application/vnd.sas.transfer.object"
+          - method: "PUT"
+            rel: "transferImportUpdate"
+            href: "/comments/comments/2287e192-22b1-49f4-8ea0-3da72906c174"
+            uri: "/comments/comments/2287e192-22b1-49f4-8ea0-3da72906c174"
+            type: "application/vnd.sas.transfer.object"
+            responseType: "application/vnd.sas.summary"
+          - method: "POST"
+            rel: "transferImport"
+            href: "/comments/comments"
+            uri: "/comments/comments"
+            type: "application/vnd.sas.transfer.object"
+            responseType: "application/vnd.sas.summary"
+        links:
+        - method: "GET"
+          rel: "collection"
+          href: "/comments/comments"
+          uri: "/comments/comments"
+          type: "application/vnd.sas.collection"
+          itemType: "application/vnd.sas.comment"
+        - method: "GET"
+          rel: "self"
+          href: "/comments/comments?start=0&limit=2147483647"
+          uri: "/comments/comments?start=0&limit=2147483647"
+          type: "application/vnd.sas.collection"
+          itemType: "application/vnd.sas.comment"
+    createCommentRequest:
+      summary: Create a new comment
+      description: Request body for create comment end point.
+      value:
+        resourceUri: folders/folders/
+        version: 6
+        subject: comment
+        text: Hello user [[@stpweb1]]
+        parentID: 6d3e10a1-6703-4100-af00-3190e20e5af3
+        priority: high
+    multiCommentRequest:
+      summary: A request used to get collection of comments for given multiple resourcUris
+      description: A request used to get collection of comments for given multiple
+        resourcUris
+      value:
+        version: 6
+        resources:
+        - "/reports/reports/eb897d90-e4fd-4bdf-a764-b61af5c339b8"
+        - "/folders/folders/183b4eca-7d89-4889-82fc-8560a2529b30"
+
+    updateCommentRequest:
+      summary: A request used to update a comment
+      description: A request used to update a comment by it's ID.
+      value:
+        id: 00c0df26-d9fc-4245-8f90-3c77af5025d1
+        version: 6
+        resourceUri: /folders/folders/183b4eca-7d89-4889-82fc-8560a2529b30
+        text: test4 modified [[@sasin]]
+        priority: medium
