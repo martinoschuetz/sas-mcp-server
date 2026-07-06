@@ -4401,4 +4401,85 @@ def register_tools(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]])
             wait_for_completion=wait_for_completion
         )
 
+    @mcp.tool()
+    async def drop_table_from_memory(
+        caslib_name: str, table_name: str, ctx: Context
+    ) -> dict[str, Any]:
+        """Drop a CAS table from memory in the specified caslib.
+
+        Drops both session-scope and global-scope versions of the table from CAS memory,
+        which is useful for cleaning up temporary tables or freeing up RAM.
+
+        Args:
+            caslib_name: The name of the caslib.
+            table_name: The table to drop.
+        """
+        logger.info(f"--- TOOL USED: drop_table_from_memory ({caslib_name}.{table_name}) ---")
+        token = await get_token(ctx)
+        code = f"""
+        cas mySession;
+        proc cas;
+          table.dropTable / caslib="{caslib_name}" name="{table_name}" quiet=true;
+        quit;
+        """
+        res = await run_one_snippet(code, "drop_table", token)
+        if res.get("state") == "completed":
+            return {
+                "status": "success",
+                "message": f"Table {caslib_name}.{table_name} dropped from CAS memory."
+            }
+        else:
+            return {
+                "status": "failed",
+                "message": f"Failed to drop table. Log: {res.get('log')}"
+            }
+
+    @mcp.tool()
+    async def reload_table_to_memory(
+        caslib_name: str, table_name: str, ctx: Context
+    ) -> dict[str, Any]:
+        """Cleanly reload a table from its caslib data source and promote it to global scope.
+
+        Drops any existing session/global scope instances of the table from memory,
+        finds its source file (e.g. sashdat) dynamically, and reloads/promotes it to global scope.
+        This is highly useful for restoring a clean CAS environment after table corruption or unloading.
+
+        Args:
+            caslib_name: The name of the caslib.
+            table_name: The table to reload.
+        """
+        logger.info(f"--- TOOL USED: reload_table_to_memory ({caslib_name}.{table_name}) ---")
+        token = await get_token(ctx)
+        code = f"""
+        cas mySession;
+        proc cas;
+          table.fileInfo r=f / caslib="{caslib_name}";
+          src_file = "";
+          do row over f.FileInfo;
+            if (upcase(scan(row.Name, 1, '.')) == upcase("{table_name}")) then do;
+              src_file = row.Name;
+            end;
+          end;
+          if (src_file == "") then src_file = "{table_name}.sashdat";
+          
+          table.dropTable / caslib="{caslib_name}" name="{table_name}" quiet=true;
+          table.loadTable / 
+            caslib="{caslib_name}" 
+            path=src_file 
+            casout={{caslib="{caslib_name}" name="{table_name}" promote=true}};
+        quit;
+        """
+        res = await run_one_snippet(code, "reload_table", token)
+        if res.get("state") == "completed":
+            return {
+                "status": "success",
+                "message": f"Table {caslib_name}.{table_name} successfully reloaded and promoted in CAS."
+            }
+        else:
+            return {
+                "status": "failed",
+                "message": f"Failed to reload table. Log: {res.get('log')}"
+            }
+
+
 

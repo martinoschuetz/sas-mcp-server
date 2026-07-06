@@ -22,6 +22,7 @@ import binascii
 import hashlib
 import json
 import ssl
+import time
 
 import httpx
 from cachetools import TTLCache
@@ -115,11 +116,12 @@ class _ComputeSessionCache:
     SESSION_NAME = "sas-mcp-shared"
 
     def __init__(self) -> None:
-        # key -> (session_id, most recent token seen for that session). The
-        # token is kept so :meth:`shutdown` can authenticate the delete calls.
-        self._sessions: dict[tuple[str, str], tuple[str, str]] = {}
+        # key -> (session_id, most recent token seen for that session, last_checked_time).
+        # The token is kept so :meth:`shutdown` can authenticate the delete calls.
+        self._sessions: dict[tuple[str, str], tuple[str, str, float]] = {}
         self._locks: dict[tuple[str, str], asyncio.Lock] = {}
         self._guard = asyncio.Lock()
+        self.check_interval = 30.0
 
     async def _lock_for(self, key: tuple[str, str]) -> asyncio.Lock:
         async with self._guard:
@@ -143,17 +145,19 @@ class _ComputeSessionCache:
         async with lock:
             cached = self._sessions.get(key)
             if cached is not None:
-                sid, _ = cached
-                if await _session_is_alive(client, sid):
+                sid, cached_token, last_checked = cached
+                now = time.time()
+                # Skip HTTP state check if session was created/reused less than self.check_interval ago
+                if now - last_checked < self.check_interval or await _session_is_alive(client, sid):
                     logger.info("Reusing cached compute session %s", sid)
                     # Keep the freshest token so shutdown cleanup can authenticate.
-                    self._sessions[key] = (sid, token)
+                    self._sessions[key] = (sid, token, now)
                     return sid
                 logger.info("Cached compute session %s is gone; recreating", sid)
                 self._sessions.pop(key, None)
             context_id = await get_context_id(client, context_name)
             sid = await create_session(client, context_id, name=self.SESSION_NAME)
-            self._sessions[key] = (sid, token)
+            self._sessions[key] = (sid, token, time.time())
             logger.info("Created and cached compute session %s", sid)
             return sid
 
@@ -170,7 +174,7 @@ class _ComputeSessionCache:
             cached = self._sessions.pop(key, None)
         if cached is None:
             return None
-        sid, _ = cached
+        sid, _, _ = cached
         await delete_session(client, sid)
         return sid
 
@@ -189,7 +193,8 @@ class _ComputeSessionCache:
         if not entries:
             return
         logger.info("Deleting %d cached compute session(s) on shutdown", len(entries))
-        for sid, token in entries:
+        for entry in entries:
+            sid, token = entry[0], entry[1]
             try:
                 async with make_client(token) as client:
                     await delete_session(client, sid)
@@ -205,6 +210,7 @@ class _ComputeSessionCache:
         """
         self._sessions.clear()
         self._locks.clear()
+        self.check_interval = 0.0
 
 
 _SESSION_CACHE = _ComputeSessionCache()
