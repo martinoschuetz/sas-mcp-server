@@ -1,0 +1,3433 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: Optimization
+  description: |
+    The Optimization API provides the core optimization functionality for building general solutions.
+  termsOfService: "https://www.sas.com/en_us/legal/copyright.html"
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: devex@sas.com
+servers:
+- description: Mock server
+  url: "http://mock-optimization.apifirst.unx.sas.com/optimization"
+tags:
+- name: Root
+  description: The operations for the root resource.
+- name: Dictionaries
+  description: The operations for the dictionary resource.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the links for the API
+      description: Returns the links to the top-level resources for the API.
+      operationId: root
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              description: The media type of the response body.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                title: API
+                description: The list of links to top-level resources and operations
+                  available from the root of the API.
+                properties:
+                  version:
+                    type: integer
+                    description: The version number of the API representation. This
+                      is version 1.
+                    minimum: 1
+                  links:
+                    description: The API's top-level links.
+                    type: array
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+              example:
+                version: 1
+                links:
+                - method: GET
+                  rel: getDictionaries
+                  href: /optimization/dictionaries
+                  uri: /optimization/dictionaries
+                  type: application/vnd.sas.collection
+                  itemType: application/vnd.sas.opt.dictionary
+                - method: POST
+                  rel: createDictionary
+                  href: /optimization/dictionaries
+                  uri: /optimization/dictionaries
+                  type: application/vnd.sas.opt.dictionary
+                  responseType: application/vnd.sas.opt.dictionary
+                - method: POST
+                  rel: uploadDictionaries
+                  href: /optimization/dictionaries
+                  uri: /optimization/dictionaries
+                  type: multipart/form-data
+                  responseType: application/vnd.sas.collection
+                  itemType: application/json
+            application/json:
+              schema:
+                title: API
+                description: The list of links to top-level resources and operations
+                  available from the root of the API.
+                properties:
+                  version:
+                    type: integer
+                    description: The version number of the API representation. This
+                      is version 1.
+                    minimum: 1
+                  links:
+                    description: The API's top-level links.
+                    type: array
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+              example:
+                version: 1
+                links:
+                - method: GET
+                  rel: getDictionaries
+                  href: /optimization/dictionaries
+                  uri: /optimization/dictionaries
+                  type: application/vnd.sas.collection
+                  itemType: application/vnd.sas.opt.dictionary
+                - method: POST
+                  rel: createDictionary
+                  href: /optimization/dictionaries
+                  uri: /optimization/dictionaries
+                  type: application/vnd.sas.opt.dictionary
+                  responseType: application/vnd.sas.opt.dictionary
+                - method: POST
+                  rel: uploadDictionaries
+                  href: /optimization/dictionaries
+                  uri: /optimization/dictionaries
+                  type: multipart/form-data
+                  responseType: application/vnd.sas.collection
+                  itemType: application/json
+    head:
+      tags:
+      - Root
+      summary: Get the headers for the API
+      description: |
+        Returns the headers for the API. Also used to determine whether the service provided by the API is available.
+      operationId: headersForRoot
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              description: The media type of the response body.
+              schema:
+                type: string
+  /dictionaries:
+    get:
+      tags:
+      - Dictionaries
+      summary: Get a list of dictionaries
+      description: |
+        Get a list of all dictionaries. The collection returned can be filtered, sorted, and paged. The default sort order will be the dictionary name. It is also possible to filter using the functions eq, gt, ge, lt, le, or contains.<br>Returned items will be of media type application/vnd.sas.opt.dictionary.
+      operationId: getDictionaries
+      parameters:
+      - name: Accept
+        in: header
+        description: |
+          The requested representation of the dictionary collection. Media type 'application/vnd.sas.collection+json' is the default.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.collection+json
+          - application/json
+      - name: Accept-Item
+        in: header
+        description: |
+          The requested representation of the items in the collection. Media type 'application/vnd.sas.opt.dictionary+json' is the default. Must be compatible with Accept header subtype.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.opt.dictionary+json
+          - application/json
+      - name: start
+        in: query
+        description: 0-based Offset of first item to return. Defaults to 0.
+        schema:
+          type: integer
+        example: 100
+      - name: limit
+        in: query
+        description: Maximum number of items to return. Defaults to 20.
+        schema:
+          type: integer
+        example: 10
+      - name: filter
+        in: query
+        description: |
+          Filter criteria for returned items. See [Filtering in REST APIs](https://developer.sas.com/apis/rest/Topics/#filters).
+        schema:
+          type: string
+          format: filter-criteria
+        example: "eq(name,'ACME')"
+      - name: sortBy
+        in: query
+        description: |
+          Sort returned items. See [Sorting in REST APIs](https://developer.sas.com/apis/rest/Topics/#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+        example: name
+      - name: excludeLinks
+        in: query
+        description: |
+          Optional parameter to remove links from items in a collection response. Useful for shrinking response body.
+        schema:
+          type: boolean
+        example: true
+      responses:
+        "200":
+          description: The request succeeded and matching dictionaries are returned.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                title: Collection of Dictionaries
+                description: This is a collection of dictionaries.
+                allOf:
+                - title: Base Collection
+                  description: This is a base schema used to define paginated collections
+                    of resources. This base schema is extended by other schemas in
+                    APIs by adding an 'items' array property. These extensions define
+                    the application/vnd.sas.collection media type (version 2)
+                  properties:
+                    name:
+                      type: string
+                      description: The name of the collection.
+                    start:
+                      type: integer
+                      description: The zero-based index of the first item in the collection.
+                      format: int64
+                    limit:
+                      type: integer
+                      description: The number of items that were requested for the
+                        collection.
+                    count:
+                      type: integer
+                      description: If populated indicates the number of items in the
+                        collection.
+                      format: int64
+                    accept:
+                      type: string
+                      description: A space-delimited list of media types from which
+                        an `Accept` header may be constructed.
+                    links:
+                      type: array
+                      description: The links that apply to the collection.
+                      items:
+                        title: Link
+                        type: object
+                        description: A link to a related operation or resource.
+                        properties:
+                          method:
+                            type: string
+                            description: The HTTP method for the link.
+                          rel:
+                            type: string
+                            description: The relationship of the link to the resource.
+                          uri:
+                            type: string
+                            description: The relative URI for the link.
+                          href:
+                            type: string
+                            description: The URL for the link.
+                          title:
+                            type: string
+                            description: The title for the link.
+                          type:
+                            type: string
+                            description: The media type or link type for the link.
+                          itemType:
+                            type: string
+                            description: "If this is a link to a container, `itemType`\
+                              \ is the media type or link type for the items in the\
+                              \ container."
+                          responseType:
+                            type: string
+                            description: "The media type or link type of the response\
+                              \ body for a `PUT`, `POST`, or `PATCH` operation."
+                          responseItemType:
+                            type: string
+                            description: "The media type or link type of the items\
+                              \ in the response body for a `PUT`, `POST`, or `PATCH`\
+                              \ operation."
+                    version:
+                      type: integer
+                      description: The version number of the collection representation.
+                        This representation is version 2.
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      description: The actual results of a query
+                      items:
+                        title: A Dictionary
+                        description: The dictionary object.
+                        required:
+                        - name
+                        - status
+                        properties:
+                          version:
+                            title: Representation Version
+                            description: This media type's schema version number.
+                              This representation is version 1.
+                            type: integer
+                          id:
+                            title: Dictionary ID
+                            description: |
+                              The unique identifier for a dictionary. If not provided when creating a dictionary, one will be generated for the user. Must be a valid v4 UUID. Must be provided for updates.
+                            type: string
+                            maxLength: 36
+                          name:
+                            title: Dictionary Name
+                            description: The given name for a dictionary. This must
+                              be unique.
+                            type: string
+                            maxLength: 100
+                          description:
+                            title: Dictionary Description
+                            description: The given description for a dictionary. Optional.
+                            type: string
+                            maxLength: 1000
+                          status:
+                            title: Dictionary Status
+                            description: The current status of the dictionary.
+                            type: string
+                            maxLength: 100
+                          createdBy:
+                            title: Dictionary Created By
+                            description: The userid of the user who created this dictionary.
+                            type: string
+                          creationTimeStamp:
+                            title: Dictionary Creation Time
+                            description: Creation date of this dictionary.
+                            type: string
+                            format: date-time
+                          modifiedBy:
+                            title: Dictionary Last Modified By
+                            description: The userid of the user who last modified
+                              the dictionary.
+                            type: string
+                          modifiedTimeStamp:
+                            title: Dictionary Last Modified Time
+                            description: Date of last modification.
+                            type: string
+                            format: date-time
+                          links:
+                            type: array
+                            title: Dictionary Links
+                            description: Links that apply to this object.
+                            items:
+                              title: Link
+                              type: object
+                              description: A link to a related operation or resource.
+                              properties:
+                                method:
+                                  type: string
+                                  description: The HTTP method for the link.
+                                rel:
+                                  type: string
+                                  description: The relationship of the link to the
+                                    resource.
+                                uri:
+                                  type: string
+                                  description: The relative URI for the link.
+                                href:
+                                  type: string
+                                  description: The URL for the link.
+                                title:
+                                  type: string
+                                  description: The title for the link.
+                                type:
+                                  type: string
+                                  description: The media type or link type for the
+                                    link.
+                                itemType:
+                                  type: string
+                                  description: "If this is a link to a container,\
+                                    \ `itemType` is the media type or link type for\
+                                    \ the items in the container."
+                                responseType:
+                                  type: string
+                                  description: "The media type or link type of the\
+                                    \ response body for a `PUT`, `POST`, or `PATCH`\
+                                    \ operation."
+                                responseItemType:
+                                  type: string
+                                  description: "The media type or link type of the\
+                                    \ items in the response body for a `PUT`, `POST`,\
+                                    \ or `PATCH` operation."
+                example:
+                  version: 2
+                  accept: application/vnd.sas.opt.dictionary
+                  count: 1
+                  start: 0
+                  limit: 20
+                  name: dictionaries
+                  items:
+                  - version: 1
+                    id: 01d26343-d19a-4414-a285-081959d44096
+                    name: Development Dictionary
+                    description: Description and notes that apply to Development Dictionary.
+                    status: Testing
+                    createdBy: userid
+                    creationTimeStamp: "2021-06-23T17:21:48.960Z"
+                    modifiedBy: userid
+                    modifiedTimeStamp: "2021-06-23T17:21:48.960Z"
+                    links:
+                    - method: GET
+                      rel: self
+                      href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      type: application/vnd.sas.opt.dictionary
+                    - method: PUT
+                      rel: update
+                      href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      type: application/vnd.sas.opt.dictionary
+                      responseType: application/vnd.sas.opt.dictionary
+                    - method: DELETE
+                      rel: delete
+                      href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  links:
+                  - method: GET
+                    rel: collection
+                    href: /optimization/dictionaries
+                    uri: /optimization/dictionaries
+                    type: application/vnd.sas.collection
+                    itemType: application/vnd.sas.opt.dictionary
+                  - method: GET
+                    rel: self
+                    href: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                    uri: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                    type: application/vnd.sas.collection
+                    itemType: application/vnd.sas.opt.dictionary
+              examples:
+                With Item Links:
+                  value:
+                    version: 2
+                    accept: application/vnd.sas.opt.dictionary
+                    count: 1
+                    start: 0
+                    limit: 20
+                    name: dictionaries
+                    items:
+                    - version: 1
+                      id: 01d26343-d19a-4414-a285-081959d44096
+                      name: Development Dictionary
+                      description: Description and notes that apply to Development
+                        Dictionary.
+                      status: Testing
+                      createdBy: userid
+                      creationTimeStamp: "2021-06-23T17:21:48.960Z"
+                      modifiedBy: userid
+                      modifiedTimeStamp: "2021-06-23T17:21:48.960Z"
+                      links:
+                      - method: GET
+                        rel: self
+                        href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                        uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                        type: application/vnd.sas.opt.dictionary
+                      - method: PUT
+                        rel: update
+                        href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                        uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                        type: application/vnd.sas.opt.dictionary
+                        responseType: application/vnd.sas.opt.dictionary
+                      - method: DELETE
+                        rel: delete
+                        href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                        uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                    links:
+                    - method: GET
+                      rel: collection
+                      href: /optimization/dictionaries
+                      uri: /optimization/dictionaries
+                      type: application/vnd.sas.collection
+                      itemType: application/vnd.sas.opt.dictionary
+                    - method: GET
+                      rel: self
+                      href: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                      uri: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                      type: application/vnd.sas.collection
+                      itemType: application/vnd.sas.opt.dictionary
+                Without Item Links:
+                  value:
+                    version: 2
+                    accept: application/vnd.sas.opt.dictionary
+                    count: 1
+                    start: 0
+                    limit: 20
+                    name: dictionaries
+                    items:
+                    - version: 1
+                      id: 01d26343-d19a-4414-a285-081959d44096
+                      name: Development Dictionary
+                      description: Description and notes that apply to Development
+                        Dictionary.
+                      status: Testing
+                      createdBy: userid
+                      creationTimeStamp: "2021-06-23T17:21:48.960Z"
+                      modifiedBy: userid
+                      modifiedTimeStamp: "2021-06-23T17:21:48.960Z"
+                    links:
+                    - method: GET
+                      rel: collection
+                      href: /optimization/dictionaries
+                      uri: /optimization/dictionaries
+                      type: application/vnd.sas.collection
+                      itemType: application/vnd.sas.opt.dictionary
+                    - method: GET
+                      rel: self
+                      href: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                      uri: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                      type: application/vnd.sas.collection
+                      itemType: application/vnd.sas.opt.dictionary
+            application/json:
+              schema:
+                title: Collection of Dictionaries
+                description: This is a collection of dictionaries.
+                allOf:
+                - title: Base Collection
+                  description: This is a base schema used to define paginated collections
+                    of resources. This base schema is extended by other schemas in
+                    APIs by adding an 'items' array property. These extensions define
+                    the application/vnd.sas.collection media type (version 2)
+                  properties:
+                    name:
+                      type: string
+                      description: The name of the collection.
+                    start:
+                      type: integer
+                      description: The zero-based index of the first item in the collection.
+                      format: int64
+                    limit:
+                      type: integer
+                      description: The number of items that were requested for the
+                        collection.
+                    count:
+                      type: integer
+                      description: If populated indicates the number of items in the
+                        collection.
+                      format: int64
+                    accept:
+                      type: string
+                      description: A space-delimited list of media types from which
+                        an `Accept` header may be constructed.
+                    links:
+                      type: array
+                      description: The links that apply to the collection.
+                      items:
+                        title: Link
+                        type: object
+                        description: A link to a related operation or resource.
+                        properties:
+                          method:
+                            type: string
+                            description: The HTTP method for the link.
+                          rel:
+                            type: string
+                            description: The relationship of the link to the resource.
+                          uri:
+                            type: string
+                            description: The relative URI for the link.
+                          href:
+                            type: string
+                            description: The URL for the link.
+                          title:
+                            type: string
+                            description: The title for the link.
+                          type:
+                            type: string
+                            description: The media type or link type for the link.
+                          itemType:
+                            type: string
+                            description: "If this is a link to a container, `itemType`\
+                              \ is the media type or link type for the items in the\
+                              \ container."
+                          responseType:
+                            type: string
+                            description: "The media type or link type of the response\
+                              \ body for a `PUT`, `POST`, or `PATCH` operation."
+                          responseItemType:
+                            type: string
+                            description: "The media type or link type of the items\
+                              \ in the response body for a `PUT`, `POST`, or `PATCH`\
+                              \ operation."
+                    version:
+                      type: integer
+                      description: The version number of the collection representation.
+                        This representation is version 2.
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      description: The actual results of a query
+                      items:
+                        title: A Dictionary
+                        description: The dictionary object.
+                        required:
+                        - name
+                        - status
+                        properties:
+                          version:
+                            title: Representation Version
+                            description: This media type's schema version number.
+                              This representation is version 1.
+                            type: integer
+                          id:
+                            title: Dictionary ID
+                            description: |
+                              The unique identifier for a dictionary. If not provided when creating a dictionary, one will be generated for the user. Must be a valid v4 UUID. Must be provided for updates.
+                            type: string
+                            maxLength: 36
+                          name:
+                            title: Dictionary Name
+                            description: The given name for a dictionary. This must
+                              be unique.
+                            type: string
+                            maxLength: 100
+                          description:
+                            title: Dictionary Description
+                            description: The given description for a dictionary. Optional.
+                            type: string
+                            maxLength: 1000
+                          status:
+                            title: Dictionary Status
+                            description: The current status of the dictionary.
+                            type: string
+                            maxLength: 100
+                          createdBy:
+                            title: Dictionary Created By
+                            description: The userid of the user who created this dictionary.
+                            type: string
+                          creationTimeStamp:
+                            title: Dictionary Creation Time
+                            description: Creation date of this dictionary.
+                            type: string
+                            format: date-time
+                          modifiedBy:
+                            title: Dictionary Last Modified By
+                            description: The userid of the user who last modified
+                              the dictionary.
+                            type: string
+                          modifiedTimeStamp:
+                            title: Dictionary Last Modified Time
+                            description: Date of last modification.
+                            type: string
+                            format: date-time
+                          links:
+                            type: array
+                            title: Dictionary Links
+                            description: Links that apply to this object.
+                            items:
+                              title: Link
+                              type: object
+                              description: A link to a related operation or resource.
+                              properties:
+                                method:
+                                  type: string
+                                  description: The HTTP method for the link.
+                                rel:
+                                  type: string
+                                  description: The relationship of the link to the
+                                    resource.
+                                uri:
+                                  type: string
+                                  description: The relative URI for the link.
+                                href:
+                                  type: string
+                                  description: The URL for the link.
+                                title:
+                                  type: string
+                                  description: The title for the link.
+                                type:
+                                  type: string
+                                  description: The media type or link type for the
+                                    link.
+                                itemType:
+                                  type: string
+                                  description: "If this is a link to a container,\
+                                    \ `itemType` is the media type or link type for\
+                                    \ the items in the container."
+                                responseType:
+                                  type: string
+                                  description: "The media type or link type of the\
+                                    \ response body for a `PUT`, `POST`, or `PATCH`\
+                                    \ operation."
+                                responseItemType:
+                                  type: string
+                                  description: "The media type or link type of the\
+                                    \ items in the response body for a `PUT`, `POST`,\
+                                    \ or `PATCH` operation."
+                example:
+                  version: 2
+                  accept: application/vnd.sas.opt.dictionary
+                  count: 1
+                  start: 0
+                  limit: 20
+                  name: dictionaries
+                  items:
+                  - version: 1
+                    id: 01d26343-d19a-4414-a285-081959d44096
+                    name: Development Dictionary
+                    description: Description and notes that apply to Development Dictionary.
+                    status: Testing
+                    createdBy: userid
+                    creationTimeStamp: "2021-06-23T17:21:48.960Z"
+                    modifiedBy: userid
+                    modifiedTimeStamp: "2021-06-23T17:21:48.960Z"
+                    links:
+                    - method: GET
+                      rel: self
+                      href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      type: application/vnd.sas.opt.dictionary
+                    - method: PUT
+                      rel: update
+                      href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      type: application/vnd.sas.opt.dictionary
+                      responseType: application/vnd.sas.opt.dictionary
+                    - method: DELETE
+                      rel: delete
+                      href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  links:
+                  - method: GET
+                    rel: collection
+                    href: /optimization/dictionaries
+                    uri: /optimization/dictionaries
+                    type: application/vnd.sas.collection
+                    itemType: application/vnd.sas.opt.dictionary
+                  - method: GET
+                    rel: self
+                    href: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                    uri: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                    type: application/vnd.sas.collection
+                    itemType: application/vnd.sas.opt.dictionary
+              examples:
+                With Item Links:
+                  value:
+                    version: 2
+                    accept: application/vnd.sas.opt.dictionary
+                    count: 1
+                    start: 0
+                    limit: 20
+                    name: dictionaries
+                    items:
+                    - version: 1
+                      id: 01d26343-d19a-4414-a285-081959d44096
+                      name: Development Dictionary
+                      description: Description and notes that apply to Development
+                        Dictionary.
+                      status: Testing
+                      createdBy: userid
+                      creationTimeStamp: "2021-06-23T17:21:48.960Z"
+                      modifiedBy: userid
+                      modifiedTimeStamp: "2021-06-23T17:21:48.960Z"
+                      links:
+                      - method: GET
+                        rel: self
+                        href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                        uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                        type: application/vnd.sas.opt.dictionary
+                      - method: PUT
+                        rel: update
+                        href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                        uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                        type: application/vnd.sas.opt.dictionary
+                        responseType: application/vnd.sas.opt.dictionary
+                      - method: DELETE
+                        rel: delete
+                        href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                        uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                    links:
+                    - method: GET
+                      rel: collection
+                      href: /optimization/dictionaries
+                      uri: /optimization/dictionaries
+                      type: application/vnd.sas.collection
+                      itemType: application/vnd.sas.opt.dictionary
+                    - method: GET
+                      rel: self
+                      href: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                      uri: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                      type: application/vnd.sas.collection
+                      itemType: application/vnd.sas.opt.dictionary
+                Without Item Links:
+                  value:
+                    version: 2
+                    accept: application/vnd.sas.opt.dictionary
+                    count: 1
+                    start: 0
+                    limit: 20
+                    name: dictionaries
+                    items:
+                    - version: 1
+                      id: 01d26343-d19a-4414-a285-081959d44096
+                      name: Development Dictionary
+                      description: Description and notes that apply to Development
+                        Dictionary.
+                      status: Testing
+                      createdBy: userid
+                      creationTimeStamp: "2021-06-23T17:21:48.960Z"
+                      modifiedBy: userid
+                      modifiedTimeStamp: "2021-06-23T17:21:48.960Z"
+                    links:
+                    - method: GET
+                      rel: collection
+                      href: /optimization/dictionaries
+                      uri: /optimization/dictionaries
+                      type: application/vnd.sas.collection
+                      itemType: application/vnd.sas.opt.dictionary
+                    - method: GET
+                      rel: self
+                      href: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                      uri: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                      type: application/vnd.sas.collection
+                      itemType: application/vnd.sas.opt.dictionary
+        "400":
+          description: Bad request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                title: Error
+                type: object
+                description: The representation of an error.
+                properties:
+                  message:
+                    type: string
+                    description: The message for the error.
+                  id:
+                    type: string
+                    description: The string ID for the error.
+                  errorCode:
+                    type: integer
+                    description: The numeric ID for the error.
+                  httpStatusCode:
+                    type: integer
+                    description: The HTTP status code for the error.
+                  details:
+                    type: array
+                    description: Messages that provide additional details about the
+                      cause of the error.
+                    items:
+                      type: string
+                  remediation:
+                    type: string
+                    description: A message that describes how to resolve the error.
+                  errors:
+                    type: array
+                    description: Any additional errors that occurred.
+                  links:
+                    type: array
+                    description: The links that apply to the error.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+                  version:
+                    type: integer
+                    description: The version number of the error representation. This
+                      representation is version 2.
+              examples:
+                Invalid Sort Field:
+                  value:
+                    version: 2
+                    httpStatusCode: 400
+                    errorCode: 1002
+                    message: Bad Request
+                    details:
+                    - Property invalidField not found
+                    - "path: /optimization/dictionaries"
+                    - "correlator: ce9bcf5b-4139-4055-ba75-c58f58ed4a84"
+                Invalid Filter Strength:
+                  value:
+                    version: 2
+                    httpStatusCode: 400
+                    errorCode: 1004
+                    message: Bad Request
+                    details:
+                    - "The collator strength $invalidOption is invalid. Use $primary,\
+                      \ $secondary, $tertiary, $quaternary, or $identical"
+                    - "path: /optimization/dictionaries"
+                    - "correlator: ce9bcf5b-4139-4055-ba75-c58f58ed4a84"
+                Invalid Filter Field:
+                  value:
+                    version: 2
+                    httpStatusCode: 400
+                    errorCode: 1020
+                    message: Bad Request
+                    details:
+                    - Field invalidField is invalid for the target type.
+                    - "path: /optimization/dictionaries"
+                    - "correlator: ce9bcf5b-4139-4055-ba75-c58f58ed4a84"
+                Invalid Start Parameter:
+                  value:
+                    version: 2
+                    httpStatusCode: 400
+                    errorCode: 1125
+                    message: The start parameter must be greater or equal to zero.
+                    details:
+                    - "path: /optimization/dictionaries"
+                    - "correlator: ce9bcf5b-4139-4055-ba75-c58f58ed4a84"
+                Invalid Limit Parameter:
+                  value:
+                    version: 2
+                    httpStatusCode: 400
+                    errorCode: 1126
+                    message: The limit parameter must be greater or equal to zero.
+                    details:
+                    - "path: /optimization/dictionaries"
+                    - "correlator: ce9bcf5b-4139-4055-ba75-c58f58ed4a84"
+                Invalid Sort Option:
+                  value:
+                    version: 2
+                    httpStatusCode: 400
+                    errorCode: 1150
+                    message: Bad Request
+                    details:
+                    - "line 1:15 mismatched input 'invalidOption' expecting {'ascending',\
+                      \ 'descending', 'primary', 'secondary', 'tertiary', 'quaternary',\
+                      \ 'identical'}"
+                    - "path: /optimization/dictionaries"
+                    - "correlator: ce9bcf5b-4139-4055-ba75-c58f58ed4a84"
+    post:
+      tags:
+      - Dictionaries
+      summary: Create a new dictionary or upload a file containing many
+      description: |
+        Create a dictionary from the given request body or file. If uploading a file, a 201 response is given if at least one dictionary was created as a part of the request. The upload success and failures will be returned in the same order the file lists them.
+      operationId: createDictionary
+      requestBody:
+        required: true
+        description: "The dictionary to create, or the file to upload."
+        content:
+          application/vnd.sas.opt.dictionary+json:
+            schema:
+              title: A Dictionary
+              description: The dictionary object.
+              required:
+              - name
+              - status
+              properties:
+                version:
+                  title: Representation Version
+                  description: This media type's schema version number. This representation
+                    is version 1.
+                  type: integer
+                id:
+                  title: Dictionary ID
+                  description: |
+                    The unique identifier for a dictionary. If not provided when creating a dictionary, one will be generated for the user. Must be a valid v4 UUID. Must be provided for updates.
+                  type: string
+                  maxLength: 36
+                name:
+                  title: Dictionary Name
+                  description: The given name for a dictionary. This must be unique.
+                  type: string
+                  maxLength: 100
+                description:
+                  title: Dictionary Description
+                  description: The given description for a dictionary. Optional.
+                  type: string
+                  maxLength: 1000
+                status:
+                  title: Dictionary Status
+                  description: The current status of the dictionary.
+                  type: string
+                  maxLength: 100
+                createdBy:
+                  title: Dictionary Created By
+                  description: The userid of the user who created this dictionary.
+                  type: string
+                creationTimeStamp:
+                  title: Dictionary Creation Time
+                  description: Creation date of this dictionary.
+                  type: string
+                  format: date-time
+                modifiedBy:
+                  title: Dictionary Last Modified By
+                  description: The userid of the user who last modified the dictionary.
+                  type: string
+                modifiedTimeStamp:
+                  title: Dictionary Last Modified Time
+                  description: Date of last modification.
+                  type: string
+                  format: date-time
+                links:
+                  type: array
+                  title: Dictionary Links
+                  description: Links that apply to this object.
+                  items:
+                    title: Link
+                    type: object
+                    description: A link to a related operation or resource.
+                    properties:
+                      method:
+                        type: string
+                        description: The HTTP method for the link.
+                      rel:
+                        type: string
+                        description: The relationship of the link to the resource.
+                      uri:
+                        type: string
+                        description: The relative URI for the link.
+                      href:
+                        type: string
+                        description: The URL for the link.
+                      title:
+                        type: string
+                        description: The title for the link.
+                      type:
+                        type: string
+                        description: The media type or link type for the link.
+                      itemType:
+                        type: string
+                        description: "If this is a link to a container, `itemType`\
+                          \ is the media type or link type for the items in the container."
+                      responseType:
+                        type: string
+                        description: "The media type or link type of the response\
+                          \ body for a `PUT`, `POST`, or `PATCH` operation."
+                      responseItemType:
+                        type: string
+                        description: "The media type or link type of the items in\
+                          \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+            example:
+              name: Development Dictionary
+              description: Description and notes that apply to Development Dictionary.
+              status: Testing
+          application/json:
+            schema:
+              title: A Dictionary
+              description: The dictionary object.
+              required:
+              - name
+              - status
+              properties:
+                version:
+                  title: Representation Version
+                  description: This media type's schema version number. This representation
+                    is version 1.
+                  type: integer
+                id:
+                  title: Dictionary ID
+                  description: |
+                    The unique identifier for a dictionary. If not provided when creating a dictionary, one will be generated for the user. Must be a valid v4 UUID. Must be provided for updates.
+                  type: string
+                  maxLength: 36
+                name:
+                  title: Dictionary Name
+                  description: The given name for a dictionary. This must be unique.
+                  type: string
+                  maxLength: 100
+                description:
+                  title: Dictionary Description
+                  description: The given description for a dictionary. Optional.
+                  type: string
+                  maxLength: 1000
+                status:
+                  title: Dictionary Status
+                  description: The current status of the dictionary.
+                  type: string
+                  maxLength: 100
+                createdBy:
+                  title: Dictionary Created By
+                  description: The userid of the user who created this dictionary.
+                  type: string
+                creationTimeStamp:
+                  title: Dictionary Creation Time
+                  description: Creation date of this dictionary.
+                  type: string
+                  format: date-time
+                modifiedBy:
+                  title: Dictionary Last Modified By
+                  description: The userid of the user who last modified the dictionary.
+                  type: string
+                modifiedTimeStamp:
+                  title: Dictionary Last Modified Time
+                  description: Date of last modification.
+                  type: string
+                  format: date-time
+                links:
+                  type: array
+                  title: Dictionary Links
+                  description: Links that apply to this object.
+                  items:
+                    title: Link
+                    type: object
+                    description: A link to a related operation or resource.
+                    properties:
+                      method:
+                        type: string
+                        description: The HTTP method for the link.
+                      rel:
+                        type: string
+                        description: The relationship of the link to the resource.
+                      uri:
+                        type: string
+                        description: The relative URI for the link.
+                      href:
+                        type: string
+                        description: The URL for the link.
+                      title:
+                        type: string
+                        description: The title for the link.
+                      type:
+                        type: string
+                        description: The media type or link type for the link.
+                      itemType:
+                        type: string
+                        description: "If this is a link to a container, `itemType`\
+                          \ is the media type or link type for the items in the container."
+                      responseType:
+                        type: string
+                        description: "The media type or link type of the response\
+                          \ body for a `PUT`, `POST`, or `PATCH` operation."
+                      responseItemType:
+                        type: string
+                        description: "The media type or link type of the items in\
+                          \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+            example:
+              name: Development Dictionary
+              description: Description and notes that apply to Development Dictionary.
+              status: Testing
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: "Dictionaries file to upload, CSV or XLSX."
+              required:
+              - file
+      responses:
+        "201":
+          description: The request succeeded and the created dictionary is returned.
+          headers:
+            Location:
+              description: The URI of the newly created resource.
+              schema:
+                type: string
+            Etag:
+              description: An entity tag that identifies this revision of this object.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the object was last modified."
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                title: Collection of Dictionaries and Errors
+                description: This is a collection of dictionaries and errors.
+                allOf:
+                - title: Base Collection
+                  description: This is a base schema used to define paginated collections
+                    of resources. This base schema is extended by other schemas in
+                    APIs by adding an 'items' array property. These extensions define
+                    the application/vnd.sas.collection media type (version 2)
+                  properties:
+                    name:
+                      type: string
+                      description: The name of the collection.
+                    start:
+                      type: integer
+                      description: The zero-based index of the first item in the collection.
+                      format: int64
+                    limit:
+                      type: integer
+                      description: The number of items that were requested for the
+                        collection.
+                    count:
+                      type: integer
+                      description: If populated indicates the number of items in the
+                        collection.
+                      format: int64
+                    accept:
+                      type: string
+                      description: A space-delimited list of media types from which
+                        an `Accept` header may be constructed.
+                    links:
+                      type: array
+                      description: The links that apply to the collection.
+                      items:
+                        title: Link
+                        type: object
+                        description: A link to a related operation or resource.
+                        properties:
+                          method:
+                            type: string
+                            description: The HTTP method for the link.
+                          rel:
+                            type: string
+                            description: The relationship of the link to the resource.
+                          uri:
+                            type: string
+                            description: The relative URI for the link.
+                          href:
+                            type: string
+                            description: The URL for the link.
+                          title:
+                            type: string
+                            description: The title for the link.
+                          type:
+                            type: string
+                            description: The media type or link type for the link.
+                          itemType:
+                            type: string
+                            description: "If this is a link to a container, `itemType`\
+                              \ is the media type or link type for the items in the\
+                              \ container."
+                          responseType:
+                            type: string
+                            description: "The media type or link type of the response\
+                              \ body for a `PUT`, `POST`, or `PATCH` operation."
+                          responseItemType:
+                            type: string
+                            description: "The media type or link type of the items\
+                              \ in the response body for a `PUT`, `POST`, or `PATCH`\
+                              \ operation."
+                    version:
+                      type: integer
+                      description: The version number of the collection representation.
+                        This representation is version 2.
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      description: The actual results of a query
+                      items:
+                        anyOf:
+                        - title: A Dictionary
+                          description: The dictionary object.
+                          required:
+                          - name
+                          - status
+                          properties:
+                            version:
+                              title: Representation Version
+                              description: This media type's schema version number.
+                                This representation is version 1.
+                              type: integer
+                            id:
+                              title: Dictionary ID
+                              description: |
+                                The unique identifier for a dictionary. If not provided when creating a dictionary, one will be generated for the user. Must be a valid v4 UUID. Must be provided for updates.
+                              type: string
+                              maxLength: 36
+                            name:
+                              title: Dictionary Name
+                              description: The given name for a dictionary. This must
+                                be unique.
+                              type: string
+                              maxLength: 100
+                            description:
+                              title: Dictionary Description
+                              description: The given description for a dictionary.
+                                Optional.
+                              type: string
+                              maxLength: 1000
+                            status:
+                              title: Dictionary Status
+                              description: The current status of the dictionary.
+                              type: string
+                              maxLength: 100
+                            createdBy:
+                              title: Dictionary Created By
+                              description: The userid of the user who created this
+                                dictionary.
+                              type: string
+                            creationTimeStamp:
+                              title: Dictionary Creation Time
+                              description: Creation date of this dictionary.
+                              type: string
+                              format: date-time
+                            modifiedBy:
+                              title: Dictionary Last Modified By
+                              description: The userid of the user who last modified
+                                the dictionary.
+                              type: string
+                            modifiedTimeStamp:
+                              title: Dictionary Last Modified Time
+                              description: Date of last modification.
+                              type: string
+                              format: date-time
+                            links:
+                              type: array
+                              title: Dictionary Links
+                              description: Links that apply to this object.
+                              items:
+                                title: Link
+                                type: object
+                                description: A link to a related operation or resource.
+                                properties:
+                                  method:
+                                    type: string
+                                    description: The HTTP method for the link.
+                                  rel:
+                                    type: string
+                                    description: The relationship of the link to the
+                                      resource.
+                                  uri:
+                                    type: string
+                                    description: The relative URI for the link.
+                                  href:
+                                    type: string
+                                    description: The URL for the link.
+                                  title:
+                                    type: string
+                                    description: The title for the link.
+                                  type:
+                                    type: string
+                                    description: The media type or link type for the
+                                      link.
+                                  itemType:
+                                    type: string
+                                    description: "If this is a link to a container,\
+                                      \ `itemType` is the media type or link type\
+                                      \ for the items in the container."
+                                  responseType:
+                                    type: string
+                                    description: "The media type or link type of the\
+                                      \ response body for a `PUT`, `POST`, or `PATCH`\
+                                      \ operation."
+                                  responseItemType:
+                                    type: string
+                                    description: "The media type or link type of the\
+                                      \ items in the response body for a `PUT`, `POST`,\
+                                      \ or `PATCH` operation."
+                        - title: Error
+                          type: object
+                          description: The representation of an error.
+                          properties:
+                            message:
+                              type: string
+                              description: The message for the error.
+                            id:
+                              type: string
+                              description: The string ID for the error.
+                            errorCode:
+                              type: integer
+                              description: The numeric ID for the error.
+                            httpStatusCode:
+                              type: integer
+                              description: The HTTP status code for the error.
+                            details:
+                              type: array
+                              description: Messages that provide additional details
+                                about the cause of the error.
+                              items:
+                                type: string
+                            remediation:
+                              type: string
+                              description: A message that describes how to resolve
+                                the error.
+                            errors:
+                              type: array
+                              description: Any additional errors that occurred.
+                            links:
+                              type: array
+                              description: The links that apply to the error.
+                              items:
+                                title: Link
+                                type: object
+                                description: A link to a related operation or resource.
+                                properties:
+                                  method:
+                                    type: string
+                                    description: The HTTP method for the link.
+                                  rel:
+                                    type: string
+                                    description: The relationship of the link to the
+                                      resource.
+                                  uri:
+                                    type: string
+                                    description: The relative URI for the link.
+                                  href:
+                                    type: string
+                                    description: The URL for the link.
+                                  title:
+                                    type: string
+                                    description: The title for the link.
+                                  type:
+                                    type: string
+                                    description: The media type or link type for the
+                                      link.
+                                  itemType:
+                                    type: string
+                                    description: "If this is a link to a container,\
+                                      \ `itemType` is the media type or link type\
+                                      \ for the items in the container."
+                                  responseType:
+                                    type: string
+                                    description: "The media type or link type of the\
+                                      \ response body for a `PUT`, `POST`, or `PATCH`\
+                                      \ operation."
+                                  responseItemType:
+                                    type: string
+                                    description: "The media type or link type of the\
+                                      \ items in the response body for a `PUT`, `POST`,\
+                                      \ or `PATCH` operation."
+                            version:
+                              type: integer
+                              description: The version number of the error representation.
+                                This representation is version 2.
+                example:
+                  version: 2
+                  accept: application/vnd.sas.opt.dictionary
+                  count: 1
+                  start: 0
+                  limit: 20
+                  name: dictionaries
+                  items:
+                  - version: 1
+                    id: 01d26343-d19a-4414-a285-081959d44096
+                    name: Development Dictionary
+                    description: Description and notes that apply to Development Dictionary.
+                    status: Testing
+                    createdBy: userid
+                    creationTimeStamp: "2021-06-23T17:21:48.960Z"
+                    modifiedBy: userid
+                    modifiedTimeStamp: "2021-06-23T17:21:48.960Z"
+                    links:
+                    - method: GET
+                      rel: self
+                      href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      type: application/vnd.sas.opt.dictionary
+                    - method: PUT
+                      rel: update
+                      href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      type: application/vnd.sas.opt.dictionary
+                      responseType: application/vnd.sas.opt.dictionary
+                    - method: DELETE
+                      rel: delete
+                      href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                      uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  links:
+                  - method: GET
+                    rel: collection
+                    href: /optimization/dictionaries
+                    uri: /optimization/dictionaries
+                    type: application/vnd.sas.collection
+                    itemType: application/vnd.sas.opt.dictionary
+                  - method: GET
+                    rel: self
+                    href: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                    uri: /optimization/dictionaries?start=0&limit=20&sortBy=name
+                    type: application/vnd.sas.collection
+                    itemType: application/vnd.sas.opt.dictionary
+              example:
+                version: 2
+                accept: application/json
+                count: 3
+                start: 0
+                limit: 3
+                name: dictionariesAndErrors
+                items:
+                - version: 1
+                  id: befe5ed4-88ed-49ac-b1a4-6fa8a2e3c299
+                  name: DictionaryFromUpload1
+                  description: Description
+                  status: State
+                  links:
+                  - method: GET
+                    rel: self
+                    href: /optimization/dictionaries/befe5ed4-88ed-49ac-b1a4-6fa8a2e3c299
+                    uri: /optimization/dictionaries/befe5ed4-88ed-49ac-b1a4-6fa8a2e3c299
+                    type: application/vnd.sas.opt.dictionary
+                  - method: PUT
+                    rel: update
+                    href: /optimization/dictionaries/befe5ed4-88ed-49ac-b1a4-6fa8a2e3c299
+                    uri: /optimization/dictionaries/befe5ed4-88ed-49ac-b1a4-6fa8a2e3c299
+                    type: application/vnd.sas.opt.dictionary
+                    responseType: application/vnd.sas.opt.dictionary
+                  - method: DELETE
+                    rel: delete
+                    href: /optimization/dictionaries/befe5ed4-88ed-49ac-b1a4-6fa8a2e3c299
+                    uri: /optimization/dictionaries/befe5ed4-88ed-49ac-b1a4-6fa8a2e3c299
+                  creationTimeStamp: "2023-04-25T17:46:51.741616Z"
+                  createdBy: naasse
+                  modifiedTimeStamp: "2023-04-25T17:46:51.741616Z"
+                  modifiedBy: naasse
+                - version: 2
+                  httpStatusCode: 400
+                  errorCode: 1000
+                  message: The resource is invalid or missing.
+                  details:
+                  - Status is required.
+                  remediation: Fix the errors and try again.
+                - version: 1
+                  id: 96a3ce91-64ec-4017-b930-e3ae0e8a1481
+                  name: DictionaryFromUpload3
+                  status: Another State
+                  links:
+                  - method: GET
+                    rel: self
+                    href: /optimization/dictionaries/96a3ce91-64ec-4017-b930-e3ae0e8a1481
+                    uri: /optimization/dictionaries/96a3ce91-64ec-4017-b930-e3ae0e8a1481
+                    type: application/vnd.sas.opt.dictionary
+                  - method: PUT
+                    rel: update
+                    href: /optimization/dictionaries/96a3ce91-64ec-4017-b930-e3ae0e8a1481
+                    uri: /optimization/dictionaries/96a3ce91-64ec-4017-b930-e3ae0e8a1481
+                    type: application/vnd.sas.opt.dictionary
+                    responseType: application/vnd.sas.opt.dictionary
+                  - method: DELETE
+                    rel: delete
+                    href: /optimization/dictionaries/96a3ce91-64ec-4017-b930-e3ae0e8a1481
+                    uri: /optimization/dictionaries/96a3ce91-64ec-4017-b930-e3ae0e8a1481
+                  creationTimeStamp: "2023-04-25T17:46:51.850023Z"
+                  createdBy: naasse
+                  modifiedTimeStamp: "2023-04-25T17:46:51.850023Z"
+                  modifiedBy: naasse
+            application/vnd.sas.opt.dictionary+json:
+              schema:
+                title: A Dictionary
+                description: The dictionary object.
+                required:
+                - name
+                - status
+                properties:
+                  version:
+                    title: Representation Version
+                    description: This media type's schema version number. This representation
+                      is version 1.
+                    type: integer
+                  id:
+                    title: Dictionary ID
+                    description: |
+                      The unique identifier for a dictionary. If not provided when creating a dictionary, one will be generated for the user. Must be a valid v4 UUID. Must be provided for updates.
+                    type: string
+                    maxLength: 36
+                  name:
+                    title: Dictionary Name
+                    description: The given name for a dictionary. This must be unique.
+                    type: string
+                    maxLength: 100
+                  description:
+                    title: Dictionary Description
+                    description: The given description for a dictionary. Optional.
+                    type: string
+                    maxLength: 1000
+                  status:
+                    title: Dictionary Status
+                    description: The current status of the dictionary.
+                    type: string
+                    maxLength: 100
+                  createdBy:
+                    title: Dictionary Created By
+                    description: The userid of the user who created this dictionary.
+                    type: string
+                  creationTimeStamp:
+                    title: Dictionary Creation Time
+                    description: Creation date of this dictionary.
+                    type: string
+                    format: date-time
+                  modifiedBy:
+                    title: Dictionary Last Modified By
+                    description: The userid of the user who last modified the dictionary.
+                    type: string
+                  modifiedTimeStamp:
+                    title: Dictionary Last Modified Time
+                    description: Date of last modification.
+                    type: string
+                    format: date-time
+                  links:
+                    type: array
+                    title: Dictionary Links
+                    description: Links that apply to this object.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+              example:
+                version: 1
+                id: 01d26343-d19a-4414-a285-081959d44096
+                name: Development Dictionary
+                description: Description and notes that apply to Development Dictionary.
+                status: Testing
+                createdBy: userid
+                creationTimeStamp: "2021-06-23T17:21:48.960Z"
+                modifiedBy: userid
+                modifiedTimeStamp: "2021-06-23T17:21:48.960Z"
+                links:
+                - method: GET
+                  rel: self
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  type: application/vnd.sas.opt.dictionary
+                - method: PUT
+                  rel: update
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  type: application/vnd.sas.opt.dictionary
+                  responseType: application/vnd.sas.opt.dictionary
+                - method: DELETE
+                  rel: delete
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+            application/json:
+              schema:
+                title: A Dictionary
+                description: The dictionary object.
+                required:
+                - name
+                - status
+                properties:
+                  version:
+                    title: Representation Version
+                    description: This media type's schema version number. This representation
+                      is version 1.
+                    type: integer
+                  id:
+                    title: Dictionary ID
+                    description: |
+                      The unique identifier for a dictionary. If not provided when creating a dictionary, one will be generated for the user. Must be a valid v4 UUID. Must be provided for updates.
+                    type: string
+                    maxLength: 36
+                  name:
+                    title: Dictionary Name
+                    description: The given name for a dictionary. This must be unique.
+                    type: string
+                    maxLength: 100
+                  description:
+                    title: Dictionary Description
+                    description: The given description for a dictionary. Optional.
+                    type: string
+                    maxLength: 1000
+                  status:
+                    title: Dictionary Status
+                    description: The current status of the dictionary.
+                    type: string
+                    maxLength: 100
+                  createdBy:
+                    title: Dictionary Created By
+                    description: The userid of the user who created this dictionary.
+                    type: string
+                  creationTimeStamp:
+                    title: Dictionary Creation Time
+                    description: Creation date of this dictionary.
+                    type: string
+                    format: date-time
+                  modifiedBy:
+                    title: Dictionary Last Modified By
+                    description: The userid of the user who last modified the dictionary.
+                    type: string
+                  modifiedTimeStamp:
+                    title: Dictionary Last Modified Time
+                    description: Date of last modification.
+                    type: string
+                    format: date-time
+                  links:
+                    type: array
+                    title: Dictionary Links
+                    description: Links that apply to this object.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+              example:
+                version: 1
+                id: 01d26343-d19a-4414-a285-081959d44096
+                name: Development Dictionary
+                description: Description and notes that apply to Development Dictionary.
+                status: Testing
+                createdBy: userid
+                creationTimeStamp: "2021-06-23T17:21:48.960Z"
+                modifiedBy: userid
+                modifiedTimeStamp: "2021-06-23T17:21:48.960Z"
+                links:
+                - method: GET
+                  rel: self
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  type: application/vnd.sas.opt.dictionary
+                - method: PUT
+                  rel: update
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  type: application/vnd.sas.opt.dictionary
+                  responseType: application/vnd.sas.opt.dictionary
+                - method: DELETE
+                  rel: delete
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+        "400":
+          description: Bad request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                title: Error
+                type: object
+                description: The representation of an error.
+                properties:
+                  message:
+                    type: string
+                    description: The message for the error.
+                  id:
+                    type: string
+                    description: The string ID for the error.
+                  errorCode:
+                    type: integer
+                    description: The numeric ID for the error.
+                  httpStatusCode:
+                    type: integer
+                    description: The HTTP status code for the error.
+                  details:
+                    type: array
+                    description: Messages that provide additional details about the
+                      cause of the error.
+                    items:
+                      type: string
+                  remediation:
+                    type: string
+                    description: A message that describes how to resolve the error.
+                  errors:
+                    type: array
+                    description: Any additional errors that occurred.
+                  links:
+                    type: array
+                    description: The links that apply to the error.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+                  version:
+                    type: integer
+                    description: The version number of the error representation. This
+                      representation is version 2.
+              examples:
+                Invalid Body:
+                  value:
+                    version: 2
+                    httpStatusCode: 400
+                    errorCode: 1000
+                    message: The resource is invalid or missing.
+                    details:
+                    - Name is required.
+                    - Status is required.
+                    - "path: /optimization/dictionaries"
+                    - "correlator: e0fbc0c3-b134-4967-a66b-c4efd8a32bd9"
+                    remediation: Fix the errors and try again.
+                Empty Body:
+                  value:
+                    version: 2
+                    httpStatusCode: 400
+                    errorCode: 1000
+                    message: The resource is invalid or missing.
+                    details:
+                    - The resource body was empty.
+                    - "path: /optimization/dictionaries"
+                    - "correlator: e0fbc0c3-b134-4967-a66b-c4efd8a32bd9"
+                    remediation: Fix the errors and try again.
+                Upload No File:
+                  value:
+                    version: 2
+                    httpStatusCode: 400
+                    message: Bad Request
+                    details:
+                    - No file found in request.
+                    - "path: /optimization/dictionaries"
+                    - "correlator: ce9bcf5b-4139-4055-ba75-c58f58ed4a84"
+                Upload Empty CSV:
+                  value:
+                    version: 2
+                    httpStatusCode: 400
+                    message: The resource is invalid or missing.
+                    details:
+                    - empty csv file given.
+                    - "path: /optimization/dictionaries"
+                    - "correlator: ce9bcf5b-4139-4055-ba75-c58f58ed4a84"
+                Upload All Errors:
+                  value:
+                    version: 2
+                    accept: application/json
+                    count: 3
+                    start: 0
+                    limit: 3
+                    name: dictionariesAndErrors
+                    items:
+                    - version: 2
+                      httpStatusCode: 400
+                      errorCode: 1000
+                      message: The resource is invalid or missing.
+                      details:
+                      - The resource name "DictionaryFromUpload1" is already in use.
+                      remediation: Fix the errors and try again.
+                    - version: 2
+                      httpStatusCode: 400
+                      errorCode: 1000
+                      message: The resource is invalid or missing.
+                      details:
+                      - Status is required
+                      remediation: Fix the errors and try again.
+                    - version: 2
+                      httpStatusCode: 400
+                      errorCode: 1000
+                      message: The resource is invalid or missing.
+                      details:
+                      - The resource name "DictionaryFromUpload3" is already in use.
+                      remediation: Fix the errors and try again.
+                Upload Invalid File Type:
+                  value:
+                    version: 2
+                    httpStatusCode: 400
+                    message: "Invalid file type. Supported file types are: CSV, XLSX."
+                    details:
+                    - "path: /optimization/dictionaries"
+                    - "correlator: ce9bcf5b-4139-4055-ba75-c58f58ed4a84"
+  "/dictionaries/{dictionaryId}":
+    parameters:
+    - name: dictionaryId
+      in: path
+      required: true
+      description: The unique identifier for the dictionary.
+      schema:
+        type: string
+      example: 01d26343-d19a-4414-a285-081959d44096
+    get:
+      tags:
+      - Dictionaries
+      summary: Get a dictionary
+      description: Retrieve the specific dictionary with the given ID.
+      operationId: getDictionary
+      parameters:
+      - name: Accept
+        in: header
+        description: |
+          The requested representation of the dictionary. Media type 'application/vnd.sas.opt.dictionary+json' is the default.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.opt.dictionary+json
+          - application/json
+      - name: Content-Type
+        in: header
+        description: |
+          The requested representation of the dictionary in the body. Media type 'application/vnd.sas.opt.dictionary+json' is the default.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.opt.dictionary+json
+          - application/json
+      - name: If-None-Match
+        in: header
+        description: |
+          The value of the ETag that was returned from a GET or previous PUT/POST of this resource. Either of If-None-Match or If-Modified-Since may be provided for conditional get. If the resource has not been modified since the last request, it will not be returned again.
+        required: false
+        schema:
+          type: string
+        example: W/"1623426788185211000"
+      - name: If-Modified-Since
+        in: header
+        description: |
+          The requested resource will not respond again if the resource has not been modified after the date specified by this HTTP header.
+        required: false
+        schema:
+          type: string
+        example: "Wed, 21 Oct 2015 07:28:00 GMT"
+      responses:
+        "200":
+          description: The request succeeded and matching dictionary is returned.
+          headers:
+            Etag:
+              description: An entity tag that identifies this revision of this object.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the object was last modified."
+              schema:
+                type: string
+          content:
+            application/vnd.sas.opt.dictionary+json:
+              schema:
+                title: A Dictionary
+                description: The dictionary object.
+                required:
+                - name
+                - status
+                properties:
+                  version:
+                    title: Representation Version
+                    description: This media type's schema version number. This representation
+                      is version 1.
+                    type: integer
+                  id:
+                    title: Dictionary ID
+                    description: |
+                      The unique identifier for a dictionary. If not provided when creating a dictionary, one will be generated for the user. Must be a valid v4 UUID. Must be provided for updates.
+                    type: string
+                    maxLength: 36
+                  name:
+                    title: Dictionary Name
+                    description: The given name for a dictionary. This must be unique.
+                    type: string
+                    maxLength: 100
+                  description:
+                    title: Dictionary Description
+                    description: The given description for a dictionary. Optional.
+                    type: string
+                    maxLength: 1000
+                  status:
+                    title: Dictionary Status
+                    description: The current status of the dictionary.
+                    type: string
+                    maxLength: 100
+                  createdBy:
+                    title: Dictionary Created By
+                    description: The userid of the user who created this dictionary.
+                    type: string
+                  creationTimeStamp:
+                    title: Dictionary Creation Time
+                    description: Creation date of this dictionary.
+                    type: string
+                    format: date-time
+                  modifiedBy:
+                    title: Dictionary Last Modified By
+                    description: The userid of the user who last modified the dictionary.
+                    type: string
+                  modifiedTimeStamp:
+                    title: Dictionary Last Modified Time
+                    description: Date of last modification.
+                    type: string
+                    format: date-time
+                  links:
+                    type: array
+                    title: Dictionary Links
+                    description: Links that apply to this object.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+              example:
+                version: 1
+                id: 01d26343-d19a-4414-a285-081959d44096
+                name: Development Dictionary
+                description: Description and notes that apply to Development Dictionary.
+                status: Testing
+                createdBy: userid
+                creationTimeStamp: "2021-06-23T17:21:48.960Z"
+                modifiedBy: userid
+                modifiedTimeStamp: "2021-06-23T17:21:48.960Z"
+                links:
+                - method: GET
+                  rel: self
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  type: application/vnd.sas.opt.dictionary
+                - method: PUT
+                  rel: update
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  type: application/vnd.sas.opt.dictionary
+                  responseType: application/vnd.sas.opt.dictionary
+                - method: DELETE
+                  rel: delete
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+            application/json:
+              schema:
+                title: A Dictionary
+                description: The dictionary object.
+                required:
+                - name
+                - status
+                properties:
+                  version:
+                    title: Representation Version
+                    description: This media type's schema version number. This representation
+                      is version 1.
+                    type: integer
+                  id:
+                    title: Dictionary ID
+                    description: |
+                      The unique identifier for a dictionary. If not provided when creating a dictionary, one will be generated for the user. Must be a valid v4 UUID. Must be provided for updates.
+                    type: string
+                    maxLength: 36
+                  name:
+                    title: Dictionary Name
+                    description: The given name for a dictionary. This must be unique.
+                    type: string
+                    maxLength: 100
+                  description:
+                    title: Dictionary Description
+                    description: The given description for a dictionary. Optional.
+                    type: string
+                    maxLength: 1000
+                  status:
+                    title: Dictionary Status
+                    description: The current status of the dictionary.
+                    type: string
+                    maxLength: 100
+                  createdBy:
+                    title: Dictionary Created By
+                    description: The userid of the user who created this dictionary.
+                    type: string
+                  creationTimeStamp:
+                    title: Dictionary Creation Time
+                    description: Creation date of this dictionary.
+                    type: string
+                    format: date-time
+                  modifiedBy:
+                    title: Dictionary Last Modified By
+                    description: The userid of the user who last modified the dictionary.
+                    type: string
+                  modifiedTimeStamp:
+                    title: Dictionary Last Modified Time
+                    description: Date of last modification.
+                    type: string
+                    format: date-time
+                  links:
+                    type: array
+                    title: Dictionary Links
+                    description: Links that apply to this object.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+              example:
+                version: 1
+                id: 01d26343-d19a-4414-a285-081959d44096
+                name: Development Dictionary
+                description: Description and notes that apply to Development Dictionary.
+                status: Testing
+                createdBy: userid
+                creationTimeStamp: "2021-06-23T17:21:48.960Z"
+                modifiedBy: userid
+                modifiedTimeStamp: "2021-06-23T17:21:48.960Z"
+                links:
+                - method: GET
+                  rel: self
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  type: application/vnd.sas.opt.dictionary
+                - method: PUT
+                  rel: update
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  type: application/vnd.sas.opt.dictionary
+                  responseType: application/vnd.sas.opt.dictionary
+                - method: DELETE
+                  rel: delete
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+        "304":
+          description: The resource has not been modified since the last time it was
+            requested.
+          headers:
+            Etag:
+              description: An entity tag that identifies this revision of this object.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the object was last modified."
+              schema:
+                type: string
+        "404":
+          description: The request failed. No dictionary with the given ID was found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                title: Error
+                type: object
+                description: The representation of an error.
+                properties:
+                  message:
+                    type: string
+                    description: The message for the error.
+                  id:
+                    type: string
+                    description: The string ID for the error.
+                  errorCode:
+                    type: integer
+                    description: The numeric ID for the error.
+                  httpStatusCode:
+                    type: integer
+                    description: The HTTP status code for the error.
+                  details:
+                    type: array
+                    description: Messages that provide additional details about the
+                      cause of the error.
+                    items:
+                      type: string
+                  remediation:
+                    type: string
+                    description: A message that describes how to resolve the error.
+                  errors:
+                    type: array
+                    description: Any additional errors that occurred.
+                  links:
+                    type: array
+                    description: The links that apply to the error.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+                  version:
+                    type: integer
+                    description: The version number of the error representation. This
+                      representation is version 2.
+              examples:
+                Not Found:
+                  value:
+                    version: 2
+                    httpStatusCode: 404
+                    errorCode: 1002
+                    message: No dictionary with the given ID was found.
+                    details:
+                    - abc66d39-fb77-4d75-a1b9-5b2b2970a263
+                    - "path: /optimization/dictionaries/abc66d39-fb77-4d75-a1b9-5b2b2970a263"
+                    - "correlator: 3b300d47-3c68-471b-aa91-2532c7d56be2"
+    head:
+      tags:
+      - Dictionaries
+      summary: Check dictionary exists
+      description: Determines if a dictionary with the given ID exists and retrieve
+        the headers.
+      operationId: headersForDictionary
+      parameters:
+      - name: Accept
+        in: header
+        description: |
+          The requested representation of the dictionary. Media type 'application/vnd.sas.opt.dictionary+json' is the default.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.opt.dictionary+json
+          - application/json
+      - name: Content-Type
+        in: header
+        description: |
+          The requested representation of the dictionary in the body. Media type 'application/vnd.sas.opt.dictionary+json' is the default.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.opt.dictionary+json
+          - application/json
+      - name: If-None-Match
+        in: header
+        description: |
+          The value of the ETag that was returned from a GET or previous PUT/POST of this resource. Either of If-None-Match or If-Modified-Since may be provided for conditional get. If the resource has not been modified since the last request, it will not be returned again.
+        required: false
+        schema:
+          type: string
+        example: W/"1623426788185211000"
+      - name: If-Modified-Since
+        in: header
+        description: |
+          The requested resource will not respond again if the resource has not been modified after the date specified by this HTTP header.
+        required: false
+        schema:
+          type: string
+        example: "Wed, 21 Oct 2015 07:28:00 GMT"
+      responses:
+        "200":
+          description: The request succeeded and matching dictionary headers are returned
+            with no content.
+          headers:
+            Etag:
+              description: An entity tag that identifies this revision of this object.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the object was last modified."
+              schema:
+                type: string
+        "404":
+          description: The request failed. No dictionary with the given ID was found.
+    put:
+      tags:
+      - Dictionaries
+      summary: Update a dictionary
+      description: |
+        Update the dictionary with the given ID with the given request body. Conditional PUT is required. If the If-Match header is not provided or does not match the existing dictionary with the given ID, the request will fail.
+      operationId: updateDictionary
+      parameters:
+      - name: Accept
+        in: header
+        description: |
+          The requested representation of the dictionary. Media type 'application/vnd.sas.opt.dictionary+json' is the default.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.opt.dictionary+json
+          - application/json
+      - name: Content-Type
+        in: header
+        description: |
+          The requested representation of the dictionary in the body. Media type 'application/vnd.sas.opt.dictionary+json' is the default.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.opt.dictionary+json
+          - application/json
+      - name: If-Match
+        in: header
+        description: |
+          The value of the ETag that was returned from a GET or previous PUT/POST of this resource. Either of If-Match or If-Unmodified-Since must be provided for conditional updates.
+        required: false
+        schema:
+          type: string
+        example: W/"1623426788185211000"
+      - name: If-Unmodified-Since
+        in: header
+        description: |
+          The requested resource will update in the case of a PUT only if the resource has not been modified after the date specified by this HTTP header.
+        required: false
+        schema:
+          type: string
+        example: "Wed, 21 Oct 2015 07:28:00 GMT"
+      requestBody:
+        required: true
+        description: The dictionary to update.
+        content:
+          application/vnd.sas.opt.dictionary+json:
+            schema:
+              title: A Dictionary
+              description: The dictionary object.
+              required:
+              - id
+              - name
+              - status
+              properties:
+                version:
+                  title: Representation Version
+                  description: This media type's schema version number. This representation
+                    is version 1.
+                  type: integer
+                id:
+                  title: Dictionary ID
+                  description: |
+                    The unique identifier for a dictionary. If not provided when creating a dictionary, one will be generated for the user. Must be a valid v4 UUID. Must be provided for updates.
+                  type: string
+                  maxLength: 36
+                name:
+                  title: Dictionary Name
+                  description: The given name for a dictionary. This must be unique.
+                  type: string
+                  maxLength: 100
+                description:
+                  title: Dictionary Description
+                  description: The given description for a dictionary. Optional.
+                  type: string
+                  maxLength: 1000
+                status:
+                  title: Dictionary Status
+                  description: The current status of the dictionary.
+                  type: string
+                  maxLength: 100
+                createdBy:
+                  title: Dictionary Created By
+                  description: The userid of the user who created this dictionary.
+                  type: string
+                creationTimeStamp:
+                  title: Dictionary Creation Time
+                  description: Creation date of this dictionary.
+                  type: string
+                  format: date-time
+                modifiedBy:
+                  title: Dictionary Last Modified By
+                  description: The userid of the user who last modified the dictionary.
+                  type: string
+                modifiedTimeStamp:
+                  title: Dictionary Last Modified Time
+                  description: Date of last modification.
+                  type: string
+                  format: date-time
+                links:
+                  type: array
+                  title: Dictionary Links
+                  description: Links that apply to this object.
+                  items:
+                    title: Link
+                    type: object
+                    description: A link to a related operation or resource.
+                    properties:
+                      method:
+                        type: string
+                        description: The HTTP method for the link.
+                      rel:
+                        type: string
+                        description: The relationship of the link to the resource.
+                      uri:
+                        type: string
+                        description: The relative URI for the link.
+                      href:
+                        type: string
+                        description: The URL for the link.
+                      title:
+                        type: string
+                        description: The title for the link.
+                      type:
+                        type: string
+                        description: The media type or link type for the link.
+                      itemType:
+                        type: string
+                        description: "If this is a link to a container, `itemType`\
+                          \ is the media type or link type for the items in the container."
+                      responseType:
+                        type: string
+                        description: "The media type or link type of the response\
+                          \ body for a `PUT`, `POST`, or `PATCH` operation."
+                      responseItemType:
+                        type: string
+                        description: "The media type or link type of the items in\
+                          \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+            example:
+              id: 2f313a95-0445-4f17-a77c-bbdbcd8e67be
+              name: Development Dictionary
+              description: Description and notes that apply to Development Dictionary.
+              status: Testing
+          application/json:
+            schema:
+              title: A Dictionary
+              description: The dictionary object.
+              required:
+              - id
+              - name
+              - status
+              properties:
+                version:
+                  title: Representation Version
+                  description: This media type's schema version number. This representation
+                    is version 1.
+                  type: integer
+                id:
+                  title: Dictionary ID
+                  description: |
+                    The unique identifier for a dictionary. If not provided when creating a dictionary, one will be generated for the user. Must be a valid v4 UUID. Must be provided for updates.
+                  type: string
+                  maxLength: 36
+                name:
+                  title: Dictionary Name
+                  description: The given name for a dictionary. This must be unique.
+                  type: string
+                  maxLength: 100
+                description:
+                  title: Dictionary Description
+                  description: The given description for a dictionary. Optional.
+                  type: string
+                  maxLength: 1000
+                status:
+                  title: Dictionary Status
+                  description: The current status of the dictionary.
+                  type: string
+                  maxLength: 100
+                createdBy:
+                  title: Dictionary Created By
+                  description: The userid of the user who created this dictionary.
+                  type: string
+                creationTimeStamp:
+                  title: Dictionary Creation Time
+                  description: Creation date of this dictionary.
+                  type: string
+                  format: date-time
+                modifiedBy:
+                  title: Dictionary Last Modified By
+                  description: The userid of the user who last modified the dictionary.
+                  type: string
+                modifiedTimeStamp:
+                  title: Dictionary Last Modified Time
+                  description: Date of last modification.
+                  type: string
+                  format: date-time
+                links:
+                  type: array
+                  title: Dictionary Links
+                  description: Links that apply to this object.
+                  items:
+                    title: Link
+                    type: object
+                    description: A link to a related operation or resource.
+                    properties:
+                      method:
+                        type: string
+                        description: The HTTP method for the link.
+                      rel:
+                        type: string
+                        description: The relationship of the link to the resource.
+                      uri:
+                        type: string
+                        description: The relative URI for the link.
+                      href:
+                        type: string
+                        description: The URL for the link.
+                      title:
+                        type: string
+                        description: The title for the link.
+                      type:
+                        type: string
+                        description: The media type or link type for the link.
+                      itemType:
+                        type: string
+                        description: "If this is a link to a container, `itemType`\
+                          \ is the media type or link type for the items in the container."
+                      responseType:
+                        type: string
+                        description: "The media type or link type of the response\
+                          \ body for a `PUT`, `POST`, or `PATCH` operation."
+                      responseItemType:
+                        type: string
+                        description: "The media type or link type of the items in\
+                          \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+            example:
+              id: 2f313a95-0445-4f17-a77c-bbdbcd8e67be
+              name: Development Dictionary
+              description: Description and notes that apply to Development Dictionary.
+              status: Testing
+      responses:
+        "200":
+          description: The request succeeded and the updated dictionary is returned.
+          headers:
+            Location:
+              description: The URI of the updated resource.
+              schema:
+                type: string
+            Etag:
+              description: An entity tag that identifies this revision of this object.
+              schema:
+                type: string
+            Last-Modified:
+              description: "The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format\
+                \ when the object was last modified."
+              schema:
+                type: string
+          content:
+            application/vnd.sas.opt.dictionary+json:
+              schema:
+                title: A Dictionary
+                description: The dictionary object.
+                required:
+                - name
+                - status
+                properties:
+                  version:
+                    title: Representation Version
+                    description: This media type's schema version number. This representation
+                      is version 1.
+                    type: integer
+                  id:
+                    title: Dictionary ID
+                    description: |
+                      The unique identifier for a dictionary. If not provided when creating a dictionary, one will be generated for the user. Must be a valid v4 UUID. Must be provided for updates.
+                    type: string
+                    maxLength: 36
+                  name:
+                    title: Dictionary Name
+                    description: The given name for a dictionary. This must be unique.
+                    type: string
+                    maxLength: 100
+                  description:
+                    title: Dictionary Description
+                    description: The given description for a dictionary. Optional.
+                    type: string
+                    maxLength: 1000
+                  status:
+                    title: Dictionary Status
+                    description: The current status of the dictionary.
+                    type: string
+                    maxLength: 100
+                  createdBy:
+                    title: Dictionary Created By
+                    description: The userid of the user who created this dictionary.
+                    type: string
+                  creationTimeStamp:
+                    title: Dictionary Creation Time
+                    description: Creation date of this dictionary.
+                    type: string
+                    format: date-time
+                  modifiedBy:
+                    title: Dictionary Last Modified By
+                    description: The userid of the user who last modified the dictionary.
+                    type: string
+                  modifiedTimeStamp:
+                    title: Dictionary Last Modified Time
+                    description: Date of last modification.
+                    type: string
+                    format: date-time
+                  links:
+                    type: array
+                    title: Dictionary Links
+                    description: Links that apply to this object.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+              example:
+                version: 1
+                id: 01d26343-d19a-4414-a285-081959d44096
+                name: Development Dictionary
+                description: Description and notes that apply to Development Dictionary.
+                status: Testing
+                createdBy: userid
+                creationTimeStamp: "2021-06-23T17:21:48.960Z"
+                modifiedBy: userid
+                modifiedTimeStamp: "2021-06-23T17:21:48.960Z"
+                links:
+                - method: GET
+                  rel: self
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  type: application/vnd.sas.opt.dictionary
+                - method: PUT
+                  rel: update
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  type: application/vnd.sas.opt.dictionary
+                  responseType: application/vnd.sas.opt.dictionary
+                - method: DELETE
+                  rel: delete
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+            application/json:
+              schema:
+                title: A Dictionary
+                description: The dictionary object.
+                required:
+                - name
+                - status
+                properties:
+                  version:
+                    title: Representation Version
+                    description: This media type's schema version number. This representation
+                      is version 1.
+                    type: integer
+                  id:
+                    title: Dictionary ID
+                    description: |
+                      The unique identifier for a dictionary. If not provided when creating a dictionary, one will be generated for the user. Must be a valid v4 UUID. Must be provided for updates.
+                    type: string
+                    maxLength: 36
+                  name:
+                    title: Dictionary Name
+                    description: The given name for a dictionary. This must be unique.
+                    type: string
+                    maxLength: 100
+                  description:
+                    title: Dictionary Description
+                    description: The given description for a dictionary. Optional.
+                    type: string
+                    maxLength: 1000
+                  status:
+                    title: Dictionary Status
+                    description: The current status of the dictionary.
+                    type: string
+                    maxLength: 100
+                  createdBy:
+                    title: Dictionary Created By
+                    description: The userid of the user who created this dictionary.
+                    type: string
+                  creationTimeStamp:
+                    title: Dictionary Creation Time
+                    description: Creation date of this dictionary.
+                    type: string
+                    format: date-time
+                  modifiedBy:
+                    title: Dictionary Last Modified By
+                    description: The userid of the user who last modified the dictionary.
+                    type: string
+                  modifiedTimeStamp:
+                    title: Dictionary Last Modified Time
+                    description: Date of last modification.
+                    type: string
+                    format: date-time
+                  links:
+                    type: array
+                    title: Dictionary Links
+                    description: Links that apply to this object.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+              example:
+                version: 1
+                id: 01d26343-d19a-4414-a285-081959d44096
+                name: Development Dictionary
+                description: Description and notes that apply to Development Dictionary.
+                status: Testing
+                createdBy: userid
+                creationTimeStamp: "2021-06-23T17:21:48.960Z"
+                modifiedBy: userid
+                modifiedTimeStamp: "2021-06-23T17:21:48.960Z"
+                links:
+                - method: GET
+                  rel: self
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  type: application/vnd.sas.opt.dictionary
+                - method: PUT
+                  rel: update
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  type: application/vnd.sas.opt.dictionary
+                  responseType: application/vnd.sas.opt.dictionary
+                - method: DELETE
+                  rel: delete
+                  href: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+                  uri: /optimization/dictionaries/01d26343-d19a-4414-a285-081959d44096
+        "400":
+          description: Bad request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                title: Error
+                type: object
+                description: The representation of an error.
+                properties:
+                  message:
+                    type: string
+                    description: The message for the error.
+                  id:
+                    type: string
+                    description: The string ID for the error.
+                  errorCode:
+                    type: integer
+                    description: The numeric ID for the error.
+                  httpStatusCode:
+                    type: integer
+                    description: The HTTP status code for the error.
+                  details:
+                    type: array
+                    description: Messages that provide additional details about the
+                      cause of the error.
+                    items:
+                      type: string
+                  remediation:
+                    type: string
+                    description: A message that describes how to resolve the error.
+                  errors:
+                    type: array
+                    description: Any additional errors that occurred.
+                  links:
+                    type: array
+                    description: The links that apply to the error.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+                  version:
+                    type: integer
+                    description: The version number of the error representation. This
+                      representation is version 2.
+              examples:
+                Invalid Body:
+                  value:
+                    version: 2
+                    httpStatusCode: 400
+                    errorCode: 1000
+                    message: The resource is invalid or missing.
+                    details:
+                    - Name is required.
+                    - Status is required.
+                    - "path: /optimization/dictionaries"
+                    - "correlator: e0fbc0c3-b134-4967-a66b-c4efd8a32bd9"
+                    remediation: Fix the errors and try again.
+                Empty Body:
+                  value:
+                    version: 2
+                    httpStatusCode: 400
+                    errorCode: 1000
+                    message: The resource is invalid or missing.
+                    details:
+                    - The resource body was empty.
+                    - "path: /optimization/dictionaries"
+                    - "correlator: e0fbc0c3-b134-4967-a66b-c4efd8a32bd9"
+                    remediation: Fix the errors and try again.
+        "404":
+          description: The request failed. No dictionary with the given ID was found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                title: Error
+                type: object
+                description: The representation of an error.
+                properties:
+                  message:
+                    type: string
+                    description: The message for the error.
+                  id:
+                    type: string
+                    description: The string ID for the error.
+                  errorCode:
+                    type: integer
+                    description: The numeric ID for the error.
+                  httpStatusCode:
+                    type: integer
+                    description: The HTTP status code for the error.
+                  details:
+                    type: array
+                    description: Messages that provide additional details about the
+                      cause of the error.
+                    items:
+                      type: string
+                  remediation:
+                    type: string
+                    description: A message that describes how to resolve the error.
+                  errors:
+                    type: array
+                    description: Any additional errors that occurred.
+                  links:
+                    type: array
+                    description: The links that apply to the error.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+                  version:
+                    type: integer
+                    description: The version number of the error representation. This
+                      representation is version 2.
+              examples:
+                Not Found:
+                  value:
+                    version: 2
+                    httpStatusCode: 404
+                    errorCode: 1002
+                    message: No dictionary with the given ID was found.
+                    details:
+                    - abc66d39-fb77-4d75-a1b9-5b2b2970a263
+                    - "path: /optimization/dictionaries/abc66d39-fb77-4d75-a1b9-5b2b2970a263"
+                    - "correlator: 3b300d47-3c68-471b-aa91-2532c7d56be2"
+        "409":
+          description: The request failed. The ID in the body and URI conflict.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                title: Error
+                type: object
+                description: The representation of an error.
+                properties:
+                  message:
+                    type: string
+                    description: The message for the error.
+                  id:
+                    type: string
+                    description: The string ID for the error.
+                  errorCode:
+                    type: integer
+                    description: The numeric ID for the error.
+                  httpStatusCode:
+                    type: integer
+                    description: The HTTP status code for the error.
+                  details:
+                    type: array
+                    description: Messages that provide additional details about the
+                      cause of the error.
+                    items:
+                      type: string
+                  remediation:
+                    type: string
+                    description: A message that describes how to resolve the error.
+                  errors:
+                    type: array
+                    description: Any additional errors that occurred.
+                  links:
+                    type: array
+                    description: The links that apply to the error.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+                  version:
+                    type: integer
+                    description: The version number of the error representation. This
+                      representation is version 2.
+              examples:
+                ID Mismatch:
+                  value:
+                    version: 2
+                    httpStatusCode: 409
+                    errorCode: 1001
+                    message: The resource ID "86c23776-aae8-48cb-b4f0-fb0036d3487f"
+                      in the URI does not match the ID "86c23776-aae8-48cb-b4f0-fb0036d34zzz"
+                      in the body of the request.
+                    details:
+                    - 86c23776-aae8-48cb-b4f0-fb0036d3487f
+                    - "path: /optimization/dictionaries/86c23776-aae8-48cb-b4f0-fb0036d3487f"
+                    - "correlator: 3b300d47-3c68-471b-aa91-2532c7d56be2"
+        "412":
+          description: The Dictionary last modified date does not correspond to the
+            submitted ETag.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                title: Error
+                type: object
+                description: The representation of an error.
+                properties:
+                  message:
+                    type: string
+                    description: The message for the error.
+                  id:
+                    type: string
+                    description: The string ID for the error.
+                  errorCode:
+                    type: integer
+                    description: The numeric ID for the error.
+                  httpStatusCode:
+                    type: integer
+                    description: The HTTP status code for the error.
+                  details:
+                    type: array
+                    description: Messages that provide additional details about the
+                      cause of the error.
+                    items:
+                      type: string
+                  remediation:
+                    type: string
+                    description: A message that describes how to resolve the error.
+                  errors:
+                    type: array
+                    description: Any additional errors that occurred.
+                  links:
+                    type: array
+                    description: The links that apply to the error.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+                  version:
+                    type: integer
+                    description: The version number of the error representation. This
+                      representation is version 2.
+              examples:
+                Incorrect If-Match:
+                  value:
+                    version: 2
+                    httpStatusCode: 412
+                    errorCode: 0
+                    message: 'The header field "If-Match" has a value that is different
+                      from the entity tag for the resource. (The specified values
+                      are "W/"1666895593128116000"" and "W/"1666902152934374000"",
+                      respectively.)'
+                    details:
+                    - "path: /optimization/dictionaries/6f999d34-5617-4894-a725-ec54ee04bc84"
+                    - "correlator: 87f423cf-404b-4745-8b73-ae61a5977e52"
+                Earlier Last-Modified:
+                  value:
+                    version: 2
+                    httpStatusCode: 412
+                    errorCode: 0
+                    message: 'The header field \"If-Unmodified-Since\" has a timestamp
+                      that is earlier than the last-modified timestamp for the resource.
+                      (The specified timestamps are \"Tue, 25 Apr 2023 19:08:21 GMT\"
+                      and \"Tue, 25 Apr 2023 19:08:44 GMT\", respectively.)'
+                    details:
+                    - "path: /optimization/dictionaries/6f999d34-5617-4894-a725-ec54ee04bc84"
+                    - "correlator: 87f423cf-404b-4745-8b73-ae61a5977e52"
+        "428":
+          description: No If-Match or If-Unmodified-Since header was provided.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                title: Error
+                type: object
+                description: The representation of an error.
+                properties:
+                  message:
+                    type: string
+                    description: The message for the error.
+                  id:
+                    type: string
+                    description: The string ID for the error.
+                  errorCode:
+                    type: integer
+                    description: The numeric ID for the error.
+                  httpStatusCode:
+                    type: integer
+                    description: The HTTP status code for the error.
+                  details:
+                    type: array
+                    description: Messages that provide additional details about the
+                      cause of the error.
+                    items:
+                      type: string
+                  remediation:
+                    type: string
+                    description: A message that describes how to resolve the error.
+                  errors:
+                    type: array
+                    description: Any additional errors that occurred.
+                  links:
+                    type: array
+                    description: The links that apply to the error.
+                    items:
+                      title: Link
+                      type: object
+                      description: A link to a related operation or resource.
+                      properties:
+                        method:
+                          type: string
+                          description: The HTTP method for the link.
+                        rel:
+                          type: string
+                          description: The relationship of the link to the resource.
+                        uri:
+                          type: string
+                          description: The relative URI for the link.
+                        href:
+                          type: string
+                          description: The URL for the link.
+                        title:
+                          type: string
+                          description: The title for the link.
+                        type:
+                          type: string
+                          description: The media type or link type for the link.
+                        itemType:
+                          type: string
+                          description: "If this is a link to a container, `itemType`\
+                            \ is the media type or link type for the items in the\
+                            \ container."
+                        responseType:
+                          type: string
+                          description: "The media type or link type of the response\
+                            \ body for a `PUT`, `POST`, or `PATCH` operation."
+                        responseItemType:
+                          type: string
+                          description: "The media type or link type of the items in\
+                            \ the response body for a `PUT`, `POST`, or `PATCH` operation."
+                  version:
+                    type: integer
+                    description: The version number of the error representation. This
+                      representation is version 2.
+              examples:
+                Missing Precondition:
+                  value:
+                    version: 2
+                    httpStatusCode: 428
+                    errorCode: 0
+                    message: 'The header requires a value for either the field "If-Match"
+                      or the field "If-Unmodified-Since", but a value was not specified
+                      for either field.'
+                    details:
+                    - "path: /optimization/dictionaries/48ac0588-028c-4869-a756-2ffe5cce0ab4"
+                    - "correlator: fa11496f-e79e-4c01-ac55-7713b3d2031e"
+                    remediation: Specify either the resource's entity tag or the resource's
+                      last-modified timestamp.
+    delete:
+      tags:
+      - Dictionaries
+      summary: Delete a dictionary
+      description: Delete the dictionary with the given ID.
+      operationId: deleteDictionary
+      responses:
+        "204":
+          description: The dictionary was successfully deleted or was not found.
+components: {}

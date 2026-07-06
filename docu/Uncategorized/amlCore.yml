@@ -1,0 +1,2579 @@
+---
+openapi: 3.0.1
+info:
+  title: Anti-Money Laundering Core
+  description: An API for Anti-Money Laundering Solution.
+  version: "1"
+servers:
+- url: http://example.com/amlCore
+  description: Example base url.
+paths:
+  /v1/entityTypes/updatedReportsLinksAndEfile:
+    put:
+      tags:
+      - AML Entity Controller
+      summary: "Update reports, links, and efile"
+      description: "Update reports and links, and optionally, update efile"
+      operationId: updateReportsLinksAndEfile
+      parameters:
+      - name: efileId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: newEfileStatus
+        in: query
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportsAndLinksPayload'
+        required: true
+      responses:
+        "400":
+          description: "reports, links, efile update failed"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportsAndLinksPayload'
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/ReportsAndLinksPayload'
+        "412":
+          description: "reports, links, efile update failed"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportsAndLinksPayload'
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/ReportsAndLinksPayload'
+        "200":
+          description: "reports, links, efile update successful"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportsAndLinksPayload'
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/ReportsAndLinksPayload'
+        "428":
+          description: "reports, links, efile update failed"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportsAndLinksPayload'
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/ReportsAndLinksPayload'
+  /v1/entityTypes/{entityType}/entities/{entityId}/createdReport:
+    post:
+      tags:
+      - AML Entity Controller
+      summary: Create regulatory report
+      description: "Create regulatory report, including child entities"
+      operationId: postCreateReport
+      parameters:
+      - name: entityType
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: entityId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: formConfigurationId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: createType
+        in: query
+        required: false
+        schema:
+          type: string
+          default: default
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntityRep'
+      responses:
+        "404":
+          description: entity not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrichedDocument'
+        "400":
+          description: report creation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrichedDocument'
+        "201":
+          description: report creation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrichedDocument'
+  /v1/entityTypes/{entityType}/entities/{entityId}/clonedEntity:
+    post:
+      tags:
+      - AML Entity Controller
+      summary: Clone DataHub entity
+      description: "Clone DataHub entity, including child entities"
+      operationId: postCloneEntity
+      parameters:
+      - name: entityType
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: entityId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "201":
+          description: entity cloning successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrichedDocument'
+        "404":
+          description: entity not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrichedDocument'
+        "400":
+          description: entity cloning failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrichedDocument'
+  /v1/entityTypes/{entityType}/entities/{entityId}/clonedAndLinkedEntity:
+    post:
+      tags:
+      - AML Entity Controller
+      summary: Clone and link DataHub entity
+      description: "Clone DataHub entity, including child entities, and link to related\
+        \ entity"
+      operationId: postCloneAndLinkEntity
+      parameters:
+      - name: entityType
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: entityId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: fromEntityId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: fromEntityType
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: includeRelationships
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: resetType
+        in: query
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntityRep'
+      responses:
+        "201":
+          description: entity cloning successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentAndLink'
+        "404":
+          description: entity not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentAndLink'
+        "400":
+          description: entity cloning failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentAndLink'
+  /v1/commons/validations/eFilingBatches:
+    post:
+      tags:
+      - AML Validation Controller
+      summary: Validates eFilingBatch against the schema
+      description: "Validates eFilingBatch against the schema, returns list of errors"
+      operationId: postEFilingBatches
+      parameters:
+      - name: schemaName
+        in: query
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/xml:
+            schema:
+              type: string
+        required: true
+      responses:
+        "200":
+          description: Validation was successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceCollectionValidationResponse'
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/ResourceCollectionValidationResponse'
+            application/vnd.sas.validation+json:
+              schema:
+                $ref: '#/components/schemas/ResourceCollectionValidationResponse'
+        "400":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceCollectionValidationResponse'
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/ResourceCollectionValidationResponse'
+            application/vnd.sas.validation+json:
+              schema:
+                $ref: '#/components/schemas/ResourceCollectionValidationResponse'
+  /v1/alerts:
+    post:
+      tags:
+      - AML Alert Controller
+      summary: Closes CRR alert
+      description: Closes CRR alert
+      operationId: closeCRRAlert
+      parameters:
+      - name: disposition
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: partyNumber
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: currentScore
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: overrideScoreCode
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: overrideCrrUpdate
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: action
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Action to be performed
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertRep'
+          application/vnd.sas.investigation.triage.alert+json:
+            schema:
+              $ref: '#/components/schemas/AlertRep'
+      responses:
+        "201":
+          description: The operation was successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CDDEntityFact'
+            application/vnd.sas.aml.alert.parameter+json:
+              schema:
+                $ref: '#/components/schemas/CDDEntityFact'
+        "400":
+          description: The operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CDDEntityFact'
+            application/vnd.sas.aml.alert.parameter+json:
+              schema:
+                $ref: '#/components/schemas/CDDEntityFact'
+    patch:
+      tags:
+      - AML Alert Controller
+      summary: Change network risk
+      description: Change network risk
+      operationId: changeNetworkRisk
+      parameters:
+      - name: overrideNetworkClassification
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: partyNumber
+        in: query
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertRep'
+          application/vnd.sas.investigation.triage.alert+json:
+            schema:
+              $ref: '#/components/schemas/AlertRep'
+      responses:
+        "201":
+          description: The operation was successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkClassification'
+            application/vnd.sas.aml.alert.parameter+json:
+              schema:
+                $ref: '#/components/schemas/NetworkClassification'
+        "400":
+          description: The operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkClassification'
+            application/vnd.sas.aml.alert.parameter+json:
+              schema:
+                $ref: '#/components/schemas/NetworkClassification'
+  /v1/facts:
+    patch:
+      tags:
+      - AML Fact Controller
+      summary: Patch fact table
+      description: Patch arbitrary column in the fact table
+      operationId: patchFact
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/factParameter'
+          application/vnd.sas.aml.fact.parameter+json:
+            schema:
+              $ref: '#/components/schemas/factParameter'
+        required: true
+      responses:
+        "404":
+          description: Patch has failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/factParameter'
+            application/vnd.sas.aml.fact.parameter+json:
+              schema:
+                $ref: '#/components/schemas/factParameter'
+        "200":
+          description: Patch was successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/factParameter'
+            application/vnd.sas.aml.fact.parameter+json:
+              schema:
+                $ref: '#/components/schemas/factParameter'
+        "422":
+          description: Patch has failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/factParameter'
+            application/vnd.sas.aml.fact.parameter+json:
+              schema:
+                $ref: '#/components/schemas/factParameter'
+        "400":
+          description: Patch has failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/factParameter'
+            application/vnd.sas.aml.fact.parameter+json:
+              schema:
+                $ref: '#/components/schemas/factParameter'
+        "412":
+          description: Patch has failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/factParameter'
+            application/vnd.sas.aml.fact.parameter+json:
+              schema:
+                $ref: '#/components/schemas/factParameter'
+  /v1/entityTypes/{entityType}/entities/{entityId}/updatedEntities:
+    patch:
+      tags:
+      - AML Entity Controller
+      summary: Update entity's field
+      description: Update the field of entity and any related entities included
+      operationId: patchEntityField
+      parameters:
+      - name: entityType
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: entityId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: fieldName
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: fieldValue
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: includeRelationships
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: entity update successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnrichedDocument'
+        "404":
+          description: entity not found
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnrichedDocument'
+        "412":
+          description: preconditions not met
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnrichedDocument'
+        "422":
+          description: entity not processable
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnrichedDocument'
+        "400":
+          description: entity update failed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnrichedDocument'
+  /v1/transactions:
+    get:
+      tags:
+      - AML Transaction Controller
+      summary: Returns a list of entity transaction records
+      description: Returns a list of entity transaction records
+      operationId: getEntityTransactionsFromCore
+      parameters:
+      - name: entityNumber
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: entityKey
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: entityLevelCode
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: start
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: previousCount
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: relationships
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceCollectionEntityTransaction'
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/ResourceCollectionEntityTransaction'
+            application/vnd.sas.aml.transaction+json:
+              schema:
+                $ref: '#/components/schemas/ResourceCollectionEntityTransaction'
+  /v1/transactions/{partyNumber}/scoringDates:
+    get:
+      tags:
+      - AML Transaction Controller
+      summary: Returns a list of scoring dates
+      description: Returns a list of scoring dates
+      operationId: getScoringDates
+      parameters:
+      - name: partyNumber
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: date-time
+            application/vnd.sas.collection+json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: date-time
+  /v1/transactions/kcPrepTables:
+    get:
+      tags:
+      - AML Transaction Controller
+      summary: Returns a list tables with prep records from KC
+      description: Returns a list tables with prep records from KC
+      operationId: getKCPrepRecords
+      parameters:
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: tables
+        in: query
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+      - name: mapping
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/table'
+            application/vnd.sas.collection+json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/table'
+  /v1/transactions/search:
+    get:
+      tags:
+      - AML Transaction Controller
+      summary: Returns a list of transaction records
+      description: Returns a list of transaction records. Returns a maximum of 1000
+        records. Use the filter parameter to search on transaction columns.
+      operationId: searchTransactions
+      parameters:
+      - name: filter
+        in: query
+        description: A filter to apply to the transactions.
+        required: false
+        schema:
+          $ref: '#/components/schemas/documentFilterRequest'
+      - name: table
+        in: query
+        description: Name of the AML core table to search in.
+        required: true
+        schema:
+          type: string
+      - name: objectType
+        in: query
+        description: The object type used to search for related transactions.
+        required: false
+        schema:
+          type: string
+      - name: objectId
+        in: query
+        description: The object id used to search for related transactions.
+        required: false
+        schema:
+          type: string
+      - name: relatedTransactionsOnly
+        description: If true, the results are limited to transactions associated with
+          the specified objectType and objectId. These related transactions represent
+          the context records linked to one or more alerts.
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: triggeringTransactionsOnly
+        description: If true, the results are limited to related triggering transactions
+          associated with the specified objectType and objectId.
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: productiveSFEOnly
+        description: If true, the results are limited to related transactions with
+          productive scenario-fired events associated with the specified objectType
+          and objectId.
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceCollectionTransaction'
+            application/vnd.sas.collection+json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceCollectionTransaction'
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/transactions/columns:
+    get:
+      tags:
+      - AML Transaction Controller
+      summary: Returns a list of columns from core transaction tables
+      description: Returns a list of columns from core transaction tables
+      operationId: getTransactionColumns
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/transactionTable'
+            application/vnd.sas.collection+json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/transactionTable'
+  /v1/transactions/processAndLink:
+    post:
+      tags:
+      - AML Transaction Controller
+      summary: Creates/Updates and links a list of transactions
+      description: Creates/Updates and links a list of transactions
+      operationId: processAndLinkTransactions
+      parameters:
+      - name: Accept
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/json
+          - application/vnd.sas.aml.transaction.link.payload
+          - application/vnd.sas.aml.transaction.link.payload.v1
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/json
+          - application/vnd.sas.aml.transaction.link.rep
+          - application/vnd.sas.aml.transaction.link.rep.v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionLinkRep'
+          application/vnd.sas.aml.transaction.link.rep:
+            schema:
+              $ref: '#/components/schemas/TransactionLinkRep'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.aml.transaction.link.payload:
+              schema:
+                $ref: '#/components/schemas/TransactionLinkPayload'
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "415":
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/resources:
+    get:
+      tags:
+      - AML Resources Controller
+      summary: Returns the localized text for the UI
+      description: Returns the localized text for the UI.
+      operationId: getResources
+      parameters:
+      - name: locale
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The operation was successful
+          content:
+            application/vnd.sas.aml.import.resources+json:
+              schema:
+                $ref: '#/components/schemas/resourcesRep'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resourcesRep'
+  /v1/preferences:
+    get:
+      tags:
+      - AML Preferences Controller
+      summary: Returns preferences
+      description: Returns preferences
+      operationId: getPreferences
+      responses:
+        "200":
+          description: The operation was successful
+          content:
+            application/json:
+              schema:
+                type: string
+            application/vnd.sas.collection+json:
+              schema:
+                type: string
+            application/vnd.sas.aml.preference+json:
+              schema:
+                type: string
+        "400":
+          description: One or more request parameters were invalid
+          content:
+            application/json:
+              schema:
+                type: string
+            application/vnd.sas.collection+json:
+              schema:
+                type: string
+            application/vnd.sas.aml.preference+json:
+              schema:
+                type: string
+  /migration/comments:
+    get:
+      tags:
+      - AML Migration Controller
+      summary: comment migration
+      description: comment migration
+      operationId: getCommentMigration
+      parameters:
+      - name: action
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: objectTypeCode
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: objectId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/migrationStatus'
+            application/vnd.sas.aml.migration.status+json:
+              schema:
+                $ref: '#/components/schemas/migrationStatus'
+  /migration/comments/logs:
+    get:
+      tags:
+      - AML Migration Controller
+      summary: Get comment migration logs
+      description: Get comment migration logs
+      operationId: getCommentMigrationLogs
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: start
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      responses:
+        "200":
+          description: Successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceCollectionMigrationLog'
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/ResourceCollectionMigrationLog'
+  /migration/attachments:
+    get:
+      tags:
+      - AML Migration Controller
+      summary: attachment migration
+      description: attachment migration
+      operationId: getAttachmentMigration
+      parameters:
+      - name: action
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: objectTypeCode
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: objectId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/migrationStatus'
+            application/vnd.sas.aml.migration.status+json:
+              schema:
+                $ref: '#/components/schemas/migrationStatus'
+  /migration/attachments/logs:
+    get:
+      tags:
+      - AML Migration Controller
+      summary: Get attachment migration logs
+      description: Get attachment migration logs
+      operationId: getAttachmentMigrationLogs
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: start
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      responses:
+        "200":
+          description: Successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceCollectionMigrationLog'
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/ResourceCollectionMigrationLog'
+  /v1/licenses/{productId}:
+    get:
+      tags:
+      - AML License Information Controller
+      summary: Returns information about license expiration
+      description: "Returns number of days left for license expiration, grace period,\
+        \ and warning period"
+      operationId: getLicenseInformation
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "404":
+          description: License Information not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/licenseInformation'
+            application/vnd.sas.aml.license.information+json:
+              schema:
+                $ref: '#/components/schemas/licenseInformation'
+        "200":
+          description: License Information fetch was successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/licenseInformation'
+            application/vnd.sas.aml.license.information+json:
+              schema:
+                $ref: '#/components/schemas/licenseInformation'
+  /v1/workflows/reviews/{reviewId}/alert-disposition:
+    post:
+      tags:
+      - AML Workflow Controller
+      summary: Alert Disposition
+      description: Alert Disposition
+      operationId: alertDisposition
+      parameters:
+      - name: reviewId
+        in: path
+        description: EDD Review ID
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewDispositionRep'
+      responses:
+        "204":
+          description: Alert Disposition successful
+        "400":
+          description: Alert Disposition failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Review or Alert not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/:
+    get:
+      tags:
+      - /
+      summary: Returns all available collections and top-level resources
+      description: Returns all available collections and top-level resources
+      operationId: root
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Api'
+            application/vnd.sas.api+json:
+              schema:
+                $ref: '#/components/schemas/Api'
+components:
+  schemas:
+    AbstractFileOperation:
+      type: object
+      required:
+      - method
+      properties:
+        method:
+          type: string
+          enum:
+          - CREATE
+          - UPDATE
+          - DELETE
+      discriminator:
+        propertyName: method
+    Cell:
+      required:
+      - type
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        row:
+          type: integer
+          format: int32
+        position:
+          type: integer
+          format: int32
+        height:
+          type: integer
+          format: int32
+        width:
+          type: integer
+          format: int32
+        version:
+          type: integer
+          format: int32
+        lastModified:
+          type: string
+          format: date-time
+        type:
+          type: string
+      discriminator:
+        propertyName: type
+    Comment:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        category:
+          type: string
+        author:
+          $ref: '#/components/schemas/CommentUser'
+        createDate:
+          type: string
+          format: date-time
+        lastUpdatedAt:
+          type: string
+          format: date-time
+        lastUpdatedBy:
+          type: string
+        detail:
+          type: string
+    CommentUser:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    CreateFileOperation:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/AbstractFileOperation'
+      - type: object
+        properties:
+          body:
+            $ref: '#/components/schemas/FileAssociation'
+    DeleteFileOperation:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/AbstractFileOperation'
+      - type: object
+        properties:
+          id:
+            type: string
+            format: uuid
+    DocumentAndLink:
+      type: object
+      properties:
+        document:
+          $ref: '#/components/schemas/EnrichedDocument'
+        documentLink:
+          $ref: '#/components/schemas/DocumentLink'
+    DocumentId:
+      type: object
+      properties:
+        type:
+          type: string
+        id:
+          type: string
+        uniqueId:
+          type: string
+    DocumentLink:
+      type: object
+      properties:
+        relationshipTypeName:
+          type: string
+        relationshipTypeVersion:
+          type: integer
+          format: int64
+        relationshipTypeLabel:
+          type: string
+        id:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastUpdatedAt:
+          type: string
+          format: date-time
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+        displayLabel:
+          type: string
+        fromObjectTypeName:
+          type: string
+        fromObjectTypeVersion:
+          type: integer
+          format: int64
+        fromObjectId:
+          type: string
+        fromObjectDisplayLabel:
+          type: string
+        toObjectTypeName:
+          type: string
+        toObjectTypeVersion:
+          type: integer
+          format: int64
+        toObjectId:
+          type: string
+        toObjectDisplayLabel:
+          type: string
+        fieldValues:
+          $ref: '#/components/schemas/FieldValues'
+        restrictedFields:
+          $ref: '#/components/schemas/RestrictedFields'
+        qualifiedTypeName:
+          type: string
+    EnrichedDocument:
+      type: object
+      properties:
+        objectTypeName:
+          type: string
+        objectTypeId:
+          type: integer
+          format: int64
+        objectTypeVersion:
+          type: integer
+          format: int32
+        id:
+          type: string
+        fieldValues:
+          type: object
+          properties:
+            empty:
+              type: boolean
+          additionalProperties:
+            type: object
+        displayLabel:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastUpdatedAt:
+          type: string
+          format: date-time
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+        sheets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sheet'
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+        fileOperations:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/CreateFileOperation'
+            - $ref: '#/components/schemas/DeleteFileOperation'
+            - $ref: '#/components/schemas/UpdateFileOperation'
+        fieldRestrictions:
+          type: object
+          properties:
+            empty:
+              type: boolean
+          additionalProperties:
+            $ref: '#/components/schemas/RestrictedFields'
+        attachmentsCount:
+          type: integer
+          format: int64
+    FieldRestriction:
+      type: object
+      properties:
+        empty:
+          type: boolean
+      additionalProperties:
+        type: object
+    FieldValues:
+      type: object
+      properties:
+        empty:
+          type: boolean
+      additionalProperties:
+        type: object
+    FileAssociation:
+      type: object
+      properties:
+        version:
+          type: integer
+          format: int32
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        originalName:
+          type: string
+        category:
+          type: string
+        location:
+          type: string
+        type:
+          type: string
+        size:
+          type: integer
+          format: int64
+        description:
+          type: string
+        properties:
+          type: object
+          additionalProperties:
+            type: object
+        uploadedAt:
+          type: string
+          format: date-time
+        uploadedBy:
+          type: string
+        extractedContent:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        link:
+          type: boolean
+        isLink:
+          type: boolean
+    documentFilterRequest:
+      title: Document Filter Request
+      type: object
+      description: A request to filter a collection of documents.
+      properties:
+        filter:
+          type: string
+          description: >
+            Use the filter syntax that is defined in the [SAS REST reference
+            guide](https://developer.sas.com/rest-apis/amlCore/docs/getting-started/usage-notes#filtering).
+
+            Filter examples:
+
+            - `eq(first_name, 'John')`
+            - `and(eq(first_name, 'John'), eq(last_name, 'Smith'))`
+            - `or(eq(first_name, 'John'), eq(last_name, 'Smith'))`
+            - `and(eq(record_id, 1234), or(eq(first_name, 'John'), eq(last_name, 'Smith')))`
+    ImageCell:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/Cell'
+      - type: object
+        properties:
+          image:
+            type: string
+          annotations:
+            type: object
+            additionalProperties:
+              type: object
+    LiveVisualizationCell:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/Cell'
+      - type: object
+        properties:
+          documents:
+            uniqueItems: true
+            type: array
+            items:
+              $ref: '#/components/schemas/DocumentId'
+          entities:
+            uniqueItems: true
+            type: array
+            items:
+              $ref: '#/components/schemas/ResolvedEntity'
+          visualizationType:
+            type: string
+            enum:
+            - Summary
+            - Map
+            - Table
+            - Timeline
+            - Network
+            - TextAnalytics
+          visualizationOptions:
+            type: object
+            additionalProperties:
+              type: object
+          queryOptions:
+            type: object
+            additionalProperties:
+              type: object
+          resultsPerPage:
+            type: integer
+            format: int32
+          filterModel:
+            type: object
+            additionalProperties:
+              type: object
+          networkData:
+            type: object
+            additionalProperties:
+              type: object
+    ReportsAndLinksPayload:
+      type: object
+      properties:
+        reportsAndLinks:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentAndLink'
+        newReportStatuses:
+          type: array
+          items:
+            type: string
+        newLinkStatuses:
+          type: array
+          items:
+            type: string
+        failedLinkUpdateIds:
+          type: array
+          items:
+            type: string
+        successfulLinkUpdateIds:
+          type: array
+          items:
+            type: string
+        failedReportUpdateIds:
+          type: array
+          items:
+            type: string
+        successfulReportUpdateIds:
+          type: array
+          items:
+            type: string
+        failedEfileRejectionIds:
+          type: array
+          items:
+            type: string
+        successfulEfileRejectionIds:
+          type: array
+          items:
+            type: string
+    ResolvedEntity:
+      type: object
+      properties:
+        type:
+          type: string
+        compound:
+          type: string
+    RestrictedFields:
+      type: object
+      properties:
+        empty:
+          type: boolean
+      additionalProperties:
+        $ref: '#/components/schemas/FieldRestriction'
+    Sheet:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum:
+          - WORKSHEET
+          - NOTESHEET
+        name:
+          type: string
+        version:
+          type: integer
+          format: int32
+        created:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        lastModified:
+          type: string
+          format: date-time
+        lastModifiedBy:
+          type: string
+        tabOrder:
+          type: integer
+          format: int32
+        uxState:
+          type: object
+          additionalProperties:
+            type: object
+        cells:
+          type: array
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/ImageCell'
+            - $ref: '#/components/schemas/LiveVisualizationCell'
+            - $ref: '#/components/schemas/StaticVisualizationCell'
+            - $ref: '#/components/schemas/TextCell'
+    StaticVisualizationCell:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/Cell'
+      - type: object
+        properties:
+          result:
+            type: object
+            additionalProperties:
+              type: object
+          visualizationType:
+            type: string
+            enum:
+            - Summary
+            - Map
+            - Table
+            - Timeline
+            - Network
+            - TextAnalytics
+    TextCell:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/Cell'
+      - type: object
+        properties:
+          contents:
+            type: string
+    UpdateFileOperation:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/AbstractFileOperation'
+      - type: object
+        properties:
+          body:
+            $ref: '#/components/schemas/FileAssociation'
+    EntityRep:
+      type: object
+      properties:
+        fieldValues:
+          type: object
+          properties:
+            empty:
+              type: boolean
+          additionalProperties:
+            type: object
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Descriptive message for the error
+        details:
+          type: object
+          additionalProperties:
+            type: string
+            description: Additional details about the error
+          description: Additional details about the error
+          xml:
+            wrapped: true
+        id:
+          type: string
+          description: The numeric ID for the error
+          xml:
+            attribute: true
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2
+          format: int32
+      description: Error that occured during validation
+      xml:
+        name: error
+    Link:
+      type: object
+      properties:
+        method:
+          pattern: GET|PUT|PATCH|DELETE|POST|HEAD|COPY|OPTIONS|CONNECT|TRACE
+          type: string
+          xml:
+            attribute: true
+        rel:
+          maxLength: 100
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+        href:
+          maxLength: 4000
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+        uri:
+          maxLength: 4000
+          minLength: 0
+          pattern: /.*
+          type: string
+          xml:
+            attribute: true
+        type:
+          maxLength: 500
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+        responseType:
+          maxLength: 500
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+        itemType:
+          maxLength: 500
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+        responseItemType:
+          maxLength: 500
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+        title:
+          maxLength: 500
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+      xml:
+        name: link
+    ResourceCollectionValidationResponse:
+      type: object
+      properties:
+        links:
+          type: array
+          xml:
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/Link'
+        name:
+          maxLength: 255
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+        accept:
+          maxLength: 255
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+        start:
+          minimum: 0
+          type: integer
+          format: int64
+          xml:
+            attribute: true
+        count:
+          minimum: 0
+          type: integer
+          format: int64
+          xml:
+            attribute: true
+        items:
+          type: array
+          xml:
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/ValidationResponse'
+        limit:
+          minimum: 0
+          type: integer
+          format: int32
+          xml:
+            attribute: true
+        version:
+          type: integer
+          format: int32
+          xml:
+            attribute: true
+      xml:
+        name: collection
+    ValidationResponse:
+      type: object
+      properties:
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2
+          format: int32
+          xml:
+            attribute: true
+        error:
+          $ref: '#/components/schemas/ErrorResponse'
+        valid:
+          type: boolean
+          description: Indicates if there was an error during validation
+          xml:
+            attribute: true
+      xml:
+        name: validation
+    AlertRep:
+      type: object
+      properties:
+        creationTimeStamp:
+          type: string
+          format: date-time
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+        createdBy:
+          maxLength: 255
+          minLength: 0
+          type: string
+        modifiedBy:
+          maxLength: 255
+          minLength: 0
+          type: string
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+        version:
+          type: integer
+          format: int32
+        domainId:
+          type: string
+        alertId:
+          type: string
+        alertVersion:
+          type: integer
+          format: int32
+        alertVersionTimeStamp:
+          type: string
+          format: date-time
+        actionableEntityType:
+          type: string
+        actionableEntityId:
+          type: string
+        actionableEntityLabel:
+          type: string
+        initialScore:
+          type: integer
+          format: int32
+        currentScore:
+          type: integer
+          format: int32
+        highScore:
+          type: integer
+          format: int32
+        alertOriginCode:
+          type: string
+        alertTypeCode:
+          type: string
+        alertTriggerText:
+          type: string
+        modelName:
+          type: string
+        statusTimeStamp:
+          type: string
+          format: date-time
+        enrichmentJson:
+          type: object
+          additionalProperties:
+            type: object
+        alertDispositionCode:
+          type: string
+        dispositionTimeStamp:
+          type: string
+          format: date-time
+        dispositionReasonCode:
+          type: string
+        dispositionNote:
+          type: string
+        suppressFlag:
+          type: boolean
+        suppressDuration:
+          type: integer
+          format: int32
+        suppressionEndTimeStamp:
+          type: string
+          format: date-time
+        holdFlag:
+          type: boolean
+        holdDuration:
+          type: integer
+          format: int32
+        holdEndTimeStamp:
+          type: string
+          format: date-time
+        holdReasonCode:
+          type: string
+        routeFlag:
+          type: boolean
+        queueEntryTimeStamp:
+          type: string
+          format: date-time
+        assignedUserId:
+          type: string
+        assignmentTimeStamp:
+          type: string
+          format: date-time
+        checkoutUserId:
+          type: string
+        checkoutTimeStamp:
+          type: string
+          format: date-time
+        alertProductiveFlag:
+          type: boolean
+        alertServiceCount:
+          type: integer
+          format: int32
+        userServiceTimeStamp:
+          type: string
+          format: date-time
+        systemServiceTimeStamp:
+          type: string
+          format: date-time
+        dispositionDataJson:
+          type: object
+          additionalProperties:
+            type: object
+        alertStatusId:
+          type: string
+        initialAlertingEventId:
+          type: string
+        currentAlertingEventId:
+          type: string
+        highAlertingEventId:
+          type: string
+        queueId:
+          type: string
+        lastUpdateNumber:
+          type: integer
+          format: int32
+        logicalDeleteFlag:
+          type: boolean
+        alertDispositionId:
+          type: string
+        alertDispositionResolutionCode:
+          type: string
+        autoCloseTimeStamp:
+          type: string
+          format: date-time
+        autoActivateTimeStamp:
+          type: string
+          format: date-time
+        autoActivateScore:
+          type: integer
+          format: int32
+        strategyRangeLow:
+          type: integer
+          format: int32
+        strategyRangeHigh:
+          type: integer
+          format: int32
+        dispositionTimestamp:
+          type: string
+          format: date-time
+        alertVersionTimestamp:
+          type: string
+          format: date-time
+        statusTimestamp:
+          type: string
+          format: date-time
+        suppressionEndTimestamp:
+          type: string
+          format: date-time
+        holdEndTimestamp:
+          type: string
+          format: date-time
+        queueEntryTimestamp:
+          type: string
+          format: date-time
+        assignmentTimestamp:
+          type: string
+          format: date-time
+        checkoutTimestamp:
+          type: string
+          format: date-time
+        userServiceTimestamp:
+          type: string
+          format: date-time
+        systemServiceTimestamp:
+          type: string
+          format: date-time
+        autoCloseTimestamp:
+          type: string
+          format: date-time
+        autoActivateTimestamp:
+          type: string
+          format: date-time
+    CDDEntityFact:
+      type: object
+      properties:
+        primaryEntityNumber:
+          type: string
+        nextReviewDate:
+          type: string
+          format: date-time
+        overrideScoreClassCode:
+          type: string
+        finalDispositionCode:
+          type: string
+        lastReviewDate:
+          type: string
+          format: date-time
+        lastReviewScore:
+          type: integer
+          format: int32
+        overrideCrrUpdate:
+          type: boolean
+        crrUpdateDate:
+          type: string
+          format: date-time
+    factColumn:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the column to be updated
+        stringValue:
+          type: string
+          description: String value
+        integerValue:
+          type: integer
+          description: Integer value
+          format: int32
+        doubleValue:
+          type: number
+          description: Double value
+          format: double
+        dateValue:
+          type: string
+          description: Date value
+          format: date-time
+        type:
+          type: string
+          description: Value type
+      description: List of columns to be updated
+    factParameter:
+      type: object
+      properties:
+        entityNumber:
+          type: string
+          description: Entity number
+        columns:
+          type: array
+          description: List of columns to be updated
+          items:
+            $ref: '#/components/schemas/factColumn'
+        overrideCrrUpdate:
+          type: boolean
+          description: Flag to determine the override of crr update date time field
+    ResourceCollectionEntityTransaction:
+      type: object
+      properties:
+        links:
+          type: array
+          xml:
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/Link'
+        name:
+          maxLength: 255
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+        accept:
+          maxLength: 255
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+        start:
+          minimum: 0
+          type: integer
+          format: int64
+          xml:
+            attribute: true
+        count:
+          minimum: 0
+          type: integer
+          format: int64
+          xml:
+            attribute: true
+        items:
+          type: array
+          xml:
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/entityTransaction'
+        limit:
+          minimum: 0
+          type: integer
+          format: int32
+          xml:
+            attribute: true
+        version:
+          type: integer
+          format: int32
+          xml:
+            attribute: true
+      xml:
+        name: collection
+    ResourceCollectionTransaction:
+      type: object
+      properties:
+        links:
+          type: array
+          xml:
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/Link'
+        accept:
+          maxLength: 255
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+        count:
+          minimum: 0
+          type: integer
+          format: int64
+          xml:
+            attribute: true
+        items:
+          type: array
+          xml:
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/transaction'
+    transactionTable:
+      type: object
+      properties:
+        tableName:
+          type: string
+          description: Table name
+        columns:
+          type: array
+          items:
+            type: string
+    entityTransaction:
+      type: object
+      properties:
+        transactionKey:
+          type: string
+          description: Transaction Key
+        transactionNumber:
+          type: string
+          description: Transaction Number
+        accountNumber:
+          type: string
+          description: Account Number
+        accountName:
+          type: string
+          description: Account Name
+        householdNumber:
+          type: string
+          description: Household Number
+        roleDesc:
+          type: string
+          description: Role Description
+        transactionDate:
+          type: string
+          description: Transaction Date
+          format: date-time
+        currencyCode:
+          type: string
+          description: Currency Code
+        primaryMediumDesc:
+          type: string
+          description: Primary Medium Description
+        secondaryMediumDesc:
+          type: string
+          description: Secondary Medium Description
+        tertiaryMediumDesc:
+          type: string
+          description: Tertiary Medium Description
+        mechanismDesc:
+          type: string
+          description: Mechanism Description
+        countryCode:
+          type: string
+          description: Country Code
+        secondaryAccountNumber:
+          type: string
+          description: Secondary Account Number
+        secondaryAccountName:
+          type: string
+          description: Secondary Account Name
+        relatedInd:
+          type: string
+          description: Related Indicator
+        thirdPartyInd:
+          type: string
+          description: Third Party Indicator
+        currencyAmount:
+          type: number
+          description: Currency Amoount
+        transactionCDIDesc:
+          type: string
+          description: Transaction CDI Description
+        remitterKey:
+          type: string
+          description: Remitter Key
+        remitterName:
+          type: string
+          description: Remitter Name
+        remitterCompKey:
+          type: string
+          description: Remitter Comp Key
+        beneficiaryName:
+          type: string
+          description: Beneficiary Name
+        beneficiaryKey:
+          type: string
+          description: Beneficiary Key
+        beneficiaryCompKey:
+          type: string
+          description: Beneficiary Comp Key
+        executingPartyName:
+          type: string
+          description: Executing Party Name
+        executingPartyNumber:
+          type: string
+          description: Executing Party Number
+        executingExtPartyCompKey:
+          type: string
+          description: Executing Ext Party Comp Key
+        executingExtPartyName:
+          type: string
+          description: Executing Ext Party Name
+        branchName:
+          type: string
+          description: Branch Name
+        associateName:
+          type: string
+          description: Associate Name
+        transactionDesc:
+          type: string
+          description: Transaction Description
+        statusDesc:
+          type: string
+          description: Status Description
+        branchKey:
+          type: string
+          description: Branch Key
+        associateKey:
+          type: string
+          description: Associate Key
+        associateNumber:
+          type: string
+          description: Associate Number
+        branchNumber:
+          type: string
+          description: Branch Number
+        partyNumber:
+          type: string
+          description: Party Number
+        partyName:
+          type: string
+          description: Party Name
+        triggerInd:
+          type: string
+          description: Trigger Indicator
+        alertId:
+          type: string
+          description: Alert ID
+        alertedEntityNumber:
+          type: string
+          description: Alerted Entity Number
+        alertedEntityLevelCode:
+          type: string
+          description: Alerted Entity Level Code
+        alertedEntityKey:
+          type: integer
+          description: Alerted Entity Key
+          format: int64
+        links:
+          type: array
+          xml:
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/Link'
+        transactionDateAsInt:
+          type: integer
+          format: int32
+          writeOnly: true
+        trancode:
+          type: string
+          description: Transaction Code
+      xml:
+        name: entityTransaction
+    transaction:
+      type: object
+      properties:
+        transaction_key:
+          type: string
+          description: Transaction Key
+        transaction_dttm:
+          type: string
+          description: Transaction Date
+          format: date-time
+        aml_analysis_date:
+          type: string
+          description: AML Analysis Date
+          format: date-time
+        currency_amount:
+          type: number
+          description: Currency Amount
+        related_ind:
+          type: string
+          description: Related Indicator
+        third_party_ind:
+          type: string
+          description: Third Party Indicator
+        account_key:
+          type: number
+          description: Account Key
+        country_code:
+          type: string
+          description: Country Code
+        transaction_type_key:
+          type: number
+          description: Transaction Type Key
+        transaction_status_key:
+          type: number
+          description: Transaction Status Key
+        transaction_currency_code:
+          type: string
+          description: Transaction Currency Code
+        branch_key:
+          type: number
+          description: Branch Key
+        remitter_ext_party_key:
+          type: number
+          description: Remitter External Party Key
+        beneficiary_ext_party_key:
+          type: number
+          description: Beneficiary External Party Key
+        posted_dttm:
+          type: string
+          description: Posted Date
+          format: date-time
+        executing_party_key:
+          type: number
+          description: Executing Party Key
+        executing_ext_party_key:
+          type: number
+          description: Executing External Party Key
+        currency_amount_in_txn_ccy:
+          type: number
+          description: Currency Amount in Transaction Currency
+        currency_amount_in_account_ccy:
+          type: number
+          description: Currency Amount in Account Currency
+        associate_key:
+          type: number
+          description: Associate Key
+        secondary_account_key:
+          type: number
+          description: Secondary Account Key
+      xml:
+        name: transaction
+    TransactionLinkRep:
+      type: object
+      properties:
+        transactionType:
+          type: string
+          description: Transaction Type
+        linkEntityType:
+          type: string
+          description: The entity type transactions will be linked too
+        linkEntityId:
+          type: string
+          description: The entity ID transactions will be linked too
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/transaction'
+    TransactionLinkPayload:
+      type: object
+      properties:
+        createdOrUpdatedTransactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionBulkResult'
+        linkedTransactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionLinkResult'
+    TransactionBulkResult:
+      type: object
+      properties:
+        transactionReferenceNumber:
+          type: string
+          description: Transaction Reference Number
+        id:
+          type: string
+          description: Transaction ID
+        entityType:
+          type: string
+          description: Entity Type
+        operation:
+          type: object
+          description: Operation
+        Error:
+          type: object
+          description: Error
+    TransactionLinkResult:
+      type: object
+      properties:
+        transactionReferenceNumber:
+          type: string
+          description: Transaction Reference Number
+        id:
+          type: string
+          description: Transaction ID
+        relationshipTypeName:
+          type: string
+          description: Relationship Type Name
+        fromEntityType:
+          type: string
+          description: From Entity Type
+        fromId:
+          type: string
+          description: From ID
+        toEntityType:
+          type: string
+          description: To Entity Type
+        toId:
+          type: string
+          description: To ID
+        error:
+          type: object
+          description: Error
+        operation:
+          type: object
+          description: Operation
+        linkAlreadyExists:
+          type: boolean
+          description: Link Already Exists
+    row:
+      type: object
+      properties:
+        row:
+          type: object
+          additionalProperties:
+            type: object
+    table:
+      type: object
+      properties:
+        tableName:
+          type: string
+        tableRows:
+          type: array
+          items:
+            $ref: '#/components/schemas/row'
+        columnNames:
+          type: array
+          items:
+            type: string
+    resourcesRep:
+      type: object
+      properties:
+        resources:
+          type: object
+          additionalProperties:
+            type: string
+            description: A map of key/value pairs of localized text for the UI
+          description: A map of key/value pairs of localized text for the UI
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      description: Localized resources for the UI
+    migrationStatus:
+      type: object
+      properties:
+        status:
+          type: string
+        enabled:
+          type: string
+        message:
+          type: string
+    ResourceCollectionMigrationLog:
+      type: object
+      properties:
+        links:
+          type: array
+          xml:
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/Link'
+        name:
+          maxLength: 255
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+        accept:
+          maxLength: 255
+          minLength: 0
+          type: string
+          xml:
+            attribute: true
+        start:
+          minimum: 0
+          type: integer
+          format: int64
+          xml:
+            attribute: true
+        count:
+          minimum: 0
+          type: integer
+          format: int64
+          xml:
+            attribute: true
+        items:
+          type: array
+          xml:
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/migrationLog'
+        limit:
+          minimum: 0
+          type: integer
+          format: int32
+          xml:
+            attribute: true
+        version:
+          type: integer
+          format: int32
+          xml:
+            attribute: true
+      xml:
+        name: collection
+    migrationLog:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date-time
+        message:
+          type: string
+        id:
+          type: string
+        objectTypeCode:
+          type: string
+        objectId:
+          type: string
+        type:
+          type: string
+    NetworkClassification:
+      type: object
+      properties:
+        networkId:
+          type: integer
+          format: int32
+          description: Network ID
+        networkScore:
+          type: integer
+          format: int32
+          description: Network Score
+        networkClassification:
+          type: string
+          description: Network Classification
+        networkClassificationOverride:
+          type: string
+          description: Network Classification Override
+        createDttm:
+          type: string
+          format: date-time
+          description: Create Date Time
+        lastOverrideDttm:
+          type: string
+          format: date-time
+          description: Last Override Date Time
+        scoreJustification:
+          type: string
+          description: Score Justification
+        lastUpdatedByUserId:
+          type: string
+          description: Last Updated By User ID
+        version:
+          type: integer
+          format: int32
+          description: Version
+    licenseInformation:
+      type: object
+      properties:
+        productId:
+          type: integer
+          description: Product ID
+          format: int32
+        productName:
+          type: string
+          description: Product name
+        daysUntilExpiration:
+          type: integer
+          description: Number of days until license expires
+          format: int64
+        daysUntilGracePeriodEnd:
+          type: integer
+          description: Number of days until end of grace period
+          format: int64
+        daysUntilWarningPeriodEnd:
+          type: integer
+          description: Number of days until end of warning period
+          format: int64
+        gracePeriod:
+          type: boolean
+          description: Grace period
+        warningPeriod:
+          type: boolean
+          description: Warning period
+        licenseInactive:
+          type: boolean
+          description: License inactive
+    Api:
+      type: object
+      properties:
+        version:
+          type: integer
+          format: int32
+          xml:
+            attribute: true
+        links:
+          type: array
+          xml:
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/Link'
+      xml:
+        name: resources
+    ReviewDispositionRep:
+      type: object
+      required:
+      - dispositionId
+      properties:
+        dispositionId:
+          type: string
+          description: Alert Disposition ID
+        dispositionNote:
+          type: string
+          description: Note added to the alert disposition

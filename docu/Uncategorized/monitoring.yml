@@ -1,0 +1,590 @@
+---
+openapi: 3.0.3
+info:
+  title: Monitoring
+  version: "2"
+  description: >
+    The monitoring service enables clients to obtain availability information
+    for machines, services, and service instances. Properties for each machine
+    and operational data mart(s) are also available.
+  contact:
+    name: SAS Institute Inc.
+    url: http://www.sas.com
+    email: support@sas.com
+  license:
+    name: SAS Institute Inc.
+tags:
+- name: Root
+  description: Root of Monitoring Service API
+- name: Machines
+  description: Registered hosts in a deployment
+- name: Services
+  description: A collection of instances providing an API or capability in a deployment
+- name: Properties
+  description: Open key-value properties
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the API object.
+      description: The API object contains a set of links for the supported endpoints.
+      operationId: root
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+        "404":
+          description: Not Found
+    head:
+      tags:
+      - Root
+      summary: Get the headers for the API.
+      description: Returns the headers for the API. Also used to determine whether
+        the service provided by the API is available.
+      operationId: headersForRoot
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+  /machines:
+    get:
+      tags:
+      - Machines
+      operationId: getMachines
+      summary: Get the collection of machines registered in the deployment.
+      description: >
+        Returns the collection of machines registered in the deployment <p> <b>Authorization:</b>
+        The ability to view machines is restricted to provider members of the provider
+        tenant. </p>
+      parameters:
+      - name: tag
+        in: query
+        description: Subsets the results by matching the provided tag
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK. The items in the collection use the application/vnd.sas.monitoring.machine+json
+            media type
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/machineCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/machineCollection"
+  "/machines/{machineId}":
+    get:
+      tags:
+      - Machines
+      operationId: getMachine
+      summary: Get details on a machine in the deployment
+      description: >
+        Returns details on the specified machine <p> <b>Authorization:</b> The ability
+        to view a machine is restricted to provider members of the provider tenant.
+        </p>
+      parameters:
+      - name: machineId
+        in: path
+        description: Machine ID
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.monitoring.machine+json:
+              schema:
+                $ref: "#/components/schemas/machine"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/machine"
+        "404":
+          description: Machine does not exist
+          content:
+            application/vnd.sas.monitoring.machine+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  /services:
+    get:
+      tags:
+      - Services
+      operationId: getServices
+      summary: Get the collection of services registered in the deployment
+      description: >
+        Returns the collection of services registered in the deployment <p> <b>Authorization:</b>
+        The ability to view services is restricted to any registered user. Members
+        of non-provider tenants will not receive service instance details. </p>
+      parameters:
+      - name: tag
+        in: query
+        description: Subsets the results by matching the provided tag
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK. The items in the collection use the application/vnd.sas.monitoring.service+json
+            media type
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/serviceCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/serviceCollection"
+  "/services/{serviceId}":
+    get:
+      tags:
+      - Services
+      operationId: getService
+      summary: Get details of a single service
+      description: >
+        Returns details on the specified service <p> <b>Authorization:</b> The ability
+        to view services is restricted to any registered user. Members of non-provider
+        tenants will not receive service instance details. </p>
+      parameters:
+      - name: serviceId
+        in: path
+        description: Service ID
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.monitoring.service+json:
+              schema:
+                $ref: "#/components/schemas/service"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/service"
+        "404":
+          description: Service does not exist
+          content:
+            application/vnd.sas.monitoring.service+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  /systemProperties:
+    get:
+      tags:
+      - Properties
+      operationId: getSystemProperties
+      summary: Get detailed system information for a deployment
+      description: >
+        Returns system information properties <p> <b>Authorization:</b> The ability
+        to view system information is restricted to members of the provider tenant.
+        </p>
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                title: Properties
+                type: object
+        "404":
+          description: Requested properties do not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  /dataMarts:
+    get:
+      tags:
+      - Properties
+      operationId: getDataMarts
+      summary: Get operational data mart properties
+      description: >
+        Returns operational data mart properties <p> <b>Authorization:</b> The ability
+        to view data mart properties is restricted to members of the provider tenant.
+        </p>
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                title: Properties
+                type: object
+        "404":
+          description: Requested properties do not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+servers:
+- url: /monitoring
+components:
+  schemas:
+    machineCollection:
+      title: Machine Collection
+      description: A collection of machines
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/machine"
+            description: Array containing machine resources
+    machine:
+      properties:
+        version:
+          type: integer
+          format: int32
+          description: The version of the representation
+        links:
+          type: array
+          description: Links that apply to this object
+          items:
+            $ref: "#/components/schemas/link"
+        id:
+          type: string
+          description: The unique identifier of the machine
+        name:
+          type: string
+          description: the name of the machine. In practice, this will be the 'node
+            name' registered with Consul
+        address:
+          type: string
+          description: The hostname or IP address of the machine
+        state:
+          enum:
+          - up
+          - down
+          - warn
+          - unknown
+          description: The overall availability state of the machine and services
+            it hosts
+        checkResults:
+          type: array
+          description: Service checks and results associated with this instance
+          items:
+            $ref: "#/components/schemas/checkResult"
+        services:
+          type: array
+          description: Services with instances running on the machine
+          items:
+            $ref: "#/components/schemas/service"
+        properties:
+          type: object
+          description: string/string name/value pairs of attributes of the machine
+        tags:
+          type: array
+          description: Tags associated with the Consul node this machine represents
+          items:
+            type: string
+    serviceCollection:
+      title: Service Collection
+      description: A collection of services
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/service"
+            description: Array containing service resources
+    service:
+      properties:
+        version:
+          type: integer
+          format: int32
+          description: The version of the representation
+        links:
+          type: array
+          description: Links that apply to this object
+          items:
+            $ref: "#/components/schemas/link"
+        id:
+          type: string
+          description: The unique identifier of the service
+        name:
+          type: string
+          description: the legal name of the service
+        description:
+          type: string
+          description: A description of the service
+        state:
+          enum:
+          - up
+          - down
+          - warn
+          - unknown
+          description: The overall availability state of all instances of the service
+        instances:
+          type: array
+          description: Instances of the service
+          items:
+            $ref: "#/components/schemas/serviceInstance"
+        properties:
+          type: object
+          description: string/string name/value pairs of attributes of the service
+        tags:
+          type: array
+          description: Tags associated with the Consul node this service represents
+          items:
+            type: string
+    serviceInstance:
+      properties:
+        version:
+          type: integer
+          format: int32
+          description: The version of the representation
+        links:
+          type: array
+          description: Links that apply to this object
+          items:
+            $ref: "#/components/schemas/link"
+        id:
+          type: string
+          description: The unique identifier of the service instance
+        name:
+          type: string
+          description: the legal name of the service
+        description:
+          type: string
+          description: the description of the service
+        state:
+          enum:
+          - up
+          - down
+          - warn
+          - unknown
+          description: The availability state of the service instance which is a summary
+            of all service checks
+        node:
+          type: string
+          description: The node that this instance is registered with (generally the
+            host that it is running on)
+        serviceId:
+          type: string
+          description: The ID of the service this object is an instance of
+        address:
+          type: string
+          description: The IP address/hostname where the service instance is running
+        port:
+          type: integer
+          format: int32
+          description: The port this service is listening on (or zero if it is not
+            listening)
+        checkResults:
+          type: array
+          description: Service checks and results associated with this instance
+          items:
+            $ref: "#/components/schemas/checkResult"
+        properties:
+          type: object
+          description: string/string name/value pairs of attributes of the service
+            instance
+        tags:
+          type: array
+          description: Tags associated with the Consul service
+          items:
+            type: string
+    checkResult:
+      properties:
+        node:
+          type: string
+          description: The node that this result originated from
+        id:
+          type: string
+          description: Uniquely identifies the check
+        name:
+          type: string
+          description: A readable name describing the check
+        state:
+          enum:
+          - passing
+          - warning
+          - critical
+          description: The state of the check
+        notes:
+          type: string
+          description: Offers additional details on the check beyond the name
+        output:
+          type: string
+          description: The most recent output from the program associated with the
+            check
+        serviceID:
+          type: string
+          description: Internal unique identifier of the service (if any) associated
+            with this check. If this value is empty, the check is a node check.
+        serviceName:
+          type: string
+          description: Identifying name of the service associated with this check.
+            If this value is empty, the check is a node check.
+        serviceInstanceID:
+          type: string
+          description: Internal unique identifier of the service instance (if any)
+            associated with this check. If this value is empty, the check is a node
+            check.
+        serviceTags:
+          type: array
+          description: Tags associated with this check
+          items:
+            type: string
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.

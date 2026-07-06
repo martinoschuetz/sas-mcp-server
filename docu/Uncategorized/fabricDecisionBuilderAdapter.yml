@@ -1,0 +1,2743 @@
+---
+openapi: 3.0.3
+info:
+  title: Fabric Decision Builder Adapter
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+  description: The Fabric Decision Builder Adapter provides an implementation of the
+    Microsoft Fabric Workload and Job APIs.
+  version: "1"
+servers:
+- url: "https://example.com/fabricDecisionBuilderAdapter"
+  description: "This is an example of a base URL."
+tags:
+- name: Root
+  description: Contains the operations for the root resource.
+- name: ViyaAccess
+  description: Contains the operations for accessing other Viya services.
+- name: Items
+  description: Contains the operations for creating items.
+- name: Jobs
+  description: Contains the operations for executing decisions.
+- name: OneLake
+  description: Contains the operations for accessing One Lake.
+- name: TenantParameters
+  description: Contains the operations for mapping Azure tenant to operation parameters.
+- name: JobPayloads
+  description: Contains the operations for saving and retrieving parameters of submitted
+    decision execution.
+- name: JobHistory
+  description: Contains the operations for retrieving execution history of a decision.
+- name: Activities
+  description: Contains the operations for Fabric activities.
+- name: TrialsSupport
+  description: Contains the operations for supporting trials of Decision Builder.
+- name: NoteBookOperations
+  description: Contains the operations for making ML model usable in a decision.
+- name: Workspaces
+  description: Contains the operations for accessing Microsoft Fabric workspaces.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get a list of top-level resource links
+      description: Returns a list of links to the top-level resources that are surfaced
+        through this API.
+      operationId: root
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/api'
+              example:
+                version: 1
+                links:
+                - method: POST
+                  rel: getItem
+                  href: /workspaces/32c601f1-0d31-9481-bhfe-b3c3dc978bfd/items/Org.SASDecisionBuilder.Decision/ad3d63a5-a03d-488d-851d-c8c997903c68
+                  uri: /workspaces/32c601f1-0d31-9481-bhfe-b3c3dc978bfd/items/Org.SASDecisionBuilder.Decision/ad3d63a5-a03d-488d-851d-c8c997903c68
+                  type: application/json
+                - method: DELETE
+                  rel: deleteItem
+                  href: /workspaces/32c601f1-0d31-9481-bhfe-b3c3dc978bfd/items/Org.SASDecisionBuilder.Decision/ad3d63a5-a03d-488d-851d-c8c997903c68
+                  uri: /workspaces/32c601f1-0d31-9481-bhfe-b3c3dc978bfd/items/Org.SASDecisionBuilder.Decision/ad3d63a5-a03d-488d-851d-c8c997903c68
+        "503":
+          description: Service Temporarily Unavailable
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/notFound'
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/notFound'
+  /assertAccess:
+    post:
+      tags:
+      - ViyaAccess
+      summary: Get Viya bearer token
+      description: Exchange possessed token for a Viya token. If the identity of the
+        user does not exist in Viya, the user is first added to Viya's identity collection.
+        The identity of the user is obtained from the subject token.
+      operationId: createViyaAccessToken
+      requestBody:
+        $ref: '#/components/requestBodies/userScimRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/tokenResponse'
+              example:
+                $ref: '#/components/examples/tokenResponse'
+        "400":
+          description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+  /workspaces:
+    get:
+      tags:
+      - Workspaces
+      summary: Get all workspaces with user roles
+      description: Retrieve a list of all Microsoft Fabric workspaces that the authenticated
+        user has access to, along with their role in each workspace.
+      operationId: getWorkspaces
+      parameters:
+      - name: Authorization
+        in: header
+        description: Bearer token for authentication
+        required: true
+        schema:
+          type: string
+        example: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/workspaceWithRole'
+              example:
+              - id: "32c601f1-0d31-9481-bhfe-b3c3dc978bfd"
+                displayName: "My Admin Workspace"
+                description: "Workspace where I have admin access"
+                role: "Admin"
+              - id: "64cfbe15-39dd-417b-bd63-4e3a363d004b"
+                displayName: "Shared Workspace"
+                description: "Collaborative workspace"
+                role: "Contributor"
+              - id: "71538a96-9362-43d7-be2d-7067ce2a31ad"
+                displayName: "Read Only Workspace"
+                description: "Data viewing workspace"
+                role: "Viewer"
+        "400":
+          description: The request was invalid (missing Authorization header).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                message: "missing Authorization bearer token"
+                httpStatusCode: 400
+                version: 2
+        "500":
+          description: An internal error occurred while processing the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                message: "Error getting obo token: (details: invalid_grant)"
+                httpStatusCode: 500
+                version: 2
+  /workspaces/{workspaceId}/items/{itemType}:
+    get:
+      tags:
+      - Items
+      summary: Get a list of items
+      description: Get a list of items contained of the specified type in the specified
+        workspace
+      operationId: getWorkspaceItems
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: itemType
+        in: path
+        description: Type of item.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision
+          - Org.SASDecisionBuilder.PythonCodeFile
+          - Org.SASDecisionBuilder.RuleSet
+        example: Org.SASDecisionBuilder.Decision
+      - name: Authorization
+        in: header
+        description: This header has the following format - SubjectAndAppToken1.0
+          subjectToken="delegated token", appToken="S2S token".
+        required: true
+        schema:
+          type: string
+        example: SubjectAndAppToken1.0 subjectToken="JWT token", appToken="JWT token"
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              example: {"value": [
+
+                 {"id": "b9eb4a71-038a-4ada-b743-d6fa3c20459c", "type": "Org.SASDecisionBuilder.Decision",
+                    "displayName": "DecisionForInsertion", "description": "", "workspaceId": "8a04c4e0-af59-467a-bd54-7df7b7cffee0"},
+                  {"id": "b77d0dc4-33ea-4513-9190-a81a230337e3", "type": "Org.SASDecisionBuilder.Decision",
+                    "displayName": "DecisionForInsertion2", "description": "", "workspaceId": "8a04c4e0-af59-467a-bd54-7df7b7cffee0"}]}
+        "400":
+          description: The request was invalid (missing Authorization header).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                message: "missing Authorization bearer token"
+                httpStatusCode: 400
+                version: 2
+        "500":
+          description: An internal error occurred while processing the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  /workspaces/{workspaceId}/items/{itemType}/{itemId}:
+    post:
+      tags:
+      - Items
+      summary: Create an item
+      description: Create a decision, rule set or Python code file.
+      operationId: createItem
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: itemType
+        in: path
+        description: Type of item to create.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision
+          - Org.SASDecisionBuilder.PythonCodeFile
+          - Org.SASDecisionBuilder.RuleSet
+        example: Org.SASDecisionBuilder.Decision
+      - name: itemId
+        in: path
+        description: Identifier of the item. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: ad3d63a5-a03d-488d-851d-c8c997903c68
+      - name: Authorization
+        in: header
+        description: This header has the following format - SubjectAndAppToken1.0
+          subjectToken="delegated token", appToken="S2S token".
+        required: true
+        schema:
+          type: string
+        example: SubjectAndAppToken1.0 subjectToken="JWT token", appToken="JWT token"
+      - name: skipDualStore
+        in: query
+        description: Skip storing the item's metadata in the item store.
+        required: false
+        schema:
+          type: string
+          enum:
+          - "false"
+          - "true"
+          default: "false"
+      requestBody:
+        $ref: '#/components/requestBodies/itemPostRequest'
+      responses:
+        "200":
+          description: The item created.
+        "400":
+          description: The request was invalid.
+    patch:
+      tags:
+      - Items
+      summary: Update an item
+      description: Update a decision, rule set or Python code file.
+      operationId: patchItem
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: itemType
+        in: path
+        description: Type of item to create.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision
+          - Org.SASDecisionBuilder.PythonCodeFile
+          - Org.SASDecisionBuilder.RuleSet
+        example: Org.SASDecisionBuilder.Decision
+      - name: itemId
+        in: path
+        description: Identifier of the item. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: ad3d63a5-a03d-488d-851d-c8c997903c68
+      - name: Authorization
+        in: header
+        description: This header has the following format - SubjectAndAppToken1.0
+          subjectToken="delegated token", appToken="S2S token".
+        required: true
+        schema:
+          type: string
+        example: SubjectAndAppToken1.0 subjectToken="JWT token", appToken="JWT token"
+      - name: skipDualStore
+        in: query
+        description: Skip storing the item's metadata in the item store.
+        required: false
+        schema:
+          type: string
+          enum:
+          - "false"
+          - "true"
+          default: "false"
+      requestBody:
+        $ref: '#/components/requestBodies/itemPatchRequest'
+      responses:
+        "200":
+          description: The item created.
+        "400":
+          description: The request was invalid.
+        "412":
+          description: The provided ETag does not match the most recent version of
+            the asset
+    delete:
+      tags:
+      - Items
+      summary: Delete an item
+      description: Delete a decision, rule set or Python code file.
+      operationId: deleteItem
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: itemType
+        in: path
+        description: Type of item to create.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision
+          - Org.SASDecisionBuilder.PythonCodeFile
+          - Org.SASDecisionBuilder.RuleSet
+        example: Org.SASDecisionBuilder.Decision
+      - name: itemId
+        in: path
+        description: Identifier of the item. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: ad3d63a5-a03d-488d-851d-c8c997903c68
+      - name: Authorization
+        in: header
+        description: This header has the following format - SubjectAndAppToken1.0
+          subjectToken="delegated token", appToken="S2S token".
+        required: true
+        schema:
+          type: string
+        example: SubjectAndAppToken1.0 subjectToken="JWT token", appToken="JWT token"
+      responses:
+        "200":
+          description: The item was deleted.
+        "400":
+          description: The request was invalid.
+  /workspaces/{workspaceId}/items/{itemType}/{itemId}/jobTypes/{jobType}/instances/{jobInstanceId}:
+    get:
+      tags:
+      - Jobs
+      summary: Get job status
+      description: Get the status of a job.
+      operationId: getJobStatus
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: itemType
+        in: path
+        description: Type of item.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision
+        example: Org.SASDecisionBuilder.Decision
+      - name: itemId
+        in: path
+        description: Identifier of the item. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: ad3d63a5-a03d-488d-851d-c8c997903c68
+      - name: jobType
+        in: path
+        description: Type of job to run.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision.RunTheDecision
+          - Org.SASDecisionBuilder.Decision.ScheduledJob
+          example: Org.SASDecisionBuilder.Decision.RunTheDecision
+      - name: jobInstanceId
+        in: path
+        description: Identifier of the job. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: abbe4138-c6b5-4065-9503-98e44ae500fe
+      - name: Authorization
+        in: header
+        description: This header has the following format - SubjectAndAppToken1.0
+          subjectToken="delegated token", appToken="S2S token".
+        required: true
+        schema:
+          type: string
+        example: SubjectAndAppToken1.0 subjectToken="JWT token", appToken="JWT token"
+      responses:
+        "200":
+          description: The status is obtained successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/jobInstanceState'
+              example:
+                $ref: '#/components/examples/jobStatusResponse'
+        "500":
+          description: An error is encountered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              example:
+                $ref: '#/components/examples/errorResponse'
+    post:
+      tags:
+      - Jobs
+      summary: Run a job
+      description: Run a job for a decision.
+      operationId: createJob
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: itemType
+        in: path
+        description: Type of item.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision
+        example: Org.SASDecisionBuilder.Decision
+      - name: itemId
+        in: path
+        description: Identifier of the item. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: ad3d63a5-a03d-488d-851d-c8c997903c68
+      - name: jobType
+        in: path
+        description: Type of job to run.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision.RunTheDecision
+          - Org.SASDecisionBuilder.Decision.ScheduledJob
+          example: Org.SASDecisionBuilder.Decision.RunTheDecision
+      - name: jobInstanceId
+        in: path
+        description: Identifier of the job. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: abbe4138-c6b5-4065-9503-98e44ae500fe
+      - name: refreshTokenLeadTime
+        in: query
+        description: to make refresh token lead time configurable.
+        required: false
+        schema:
+          type: string
+      - name: Authorization
+        in: header
+        description: This header has the following format- SubjectAndAppToken1.0 subjectToken="delegated
+          token", appToken="S2S token".
+        required: true
+        schema:
+          type: string
+        example: SubjectAndAppToken1.0 subjectToken="JWT token", appToken="JWT token"
+      requestBody:
+        $ref: '#/components/requestBodies/jobCreationRequest'
+      responses:
+        "202":
+          description: The job is accepted.
+        "400":
+          description: The request was invalid.
+  /workspaces/{workspaceId}/items/{itemType}/{itemId}/jobTypes/{jobType}/instances/{jobInstanceId}/cancel:
+    post:
+      tags:
+      - Jobs
+      summary: Cancel a job
+      description: Cancel a job in progress.
+      operationId: createCancelJobRequest
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: itemType
+        in: path
+        description: Type of item.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision
+        example: Org.SASDecisionBuilder.Decision
+      - name: itemId
+        in: path
+        description: Identifier of the item. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: ad3d63a5-a03d-488d-851d-c8c997903c68
+      - name: jobType
+        in: path
+        description: Type of job to run.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision.RunTheDecision
+          - Org.SASDecisionBuilder.Decision.ScheduledJob
+          example: Org.SASDecisionBuilder.Decision.RunTheDecision
+      - name: jobInstanceId
+        in: path
+        description: Identifier of the job. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: abbe4138-c6b5-4065-9503-98e44ae500fe
+      - name: Authorization
+        in: header
+        description: This header has the following format - SubjectAndAppToken1.0
+          subjectToken="delegated token", appToken="S2S token".
+        required: true
+        schema:
+          type: string
+        example: SubjectAndAppToken1.0 subjectToken="JWT token", appToken="JWT token"
+      requestBody:
+        required: false
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: cancel
+      responses:
+        "200":
+          description: The job is cancelled successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/jobInstanceState'
+              example:
+                $ref: '#/components/examples/jobStatusResponse'
+        "500":
+          description: An error is encountered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              example:
+                $ref: '#/components/examples/errorResponse'
+  /workspaces/{workspaceId}/items/{itemType}/{itemId}/jobTypes/{jobType}/payloads:
+    post:
+      tags:
+      - JobPayloads
+      summary: Record the parameters of a submitted execution
+      description: Record the parameters of a submitted execution to facilitate re-run
+        of an on-demand execution or to provide execution parameters for a scheduled
+        execution. Each user can independently record execution parameters for the
+        same item. The record is private to each user.
+      operationId: createJobPayloadRecord
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: itemType
+        in: path
+        description: Type of item.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision
+        example: Org.SASDecisionBuilder.Decision
+      - name: itemId
+        in: path
+        description: Identifier of the item. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: ad3d63a5-a03d-488d-851d-c8c997903c68
+      - name: jobType
+        in: path
+        description: Type of job to run.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision.RunTheDecision
+          - Org.SASDecisionBuilder.Decision.ScheduledJob
+          example: Org.SASDecisionBuilder.Decision.RunTheDecision
+      - name: Authorization
+        in: header
+        description: This header has the following format - SubjectAndAppToken1.0
+          subjectToken="delegated token", appToken="S2S token".
+        required: true
+        schema:
+          type: string
+        example: SubjectAndAppToken1.0 subjectToken="JWT token", appToken="JWT token"
+      requestBody:
+        $ref: '#/components/requestBodies/createScheduledJobPayload'
+      responses:
+        "201":
+          description: The payload was recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/createScheduledJobPayload'
+              example:
+                destination: wbAzure
+                itemId: ad3d63a5-a03d-488d-851d-c8c997903c68
+                itemName: loan_decision
+                itemType: Org.SASDecisionBuilder.Decision
+                runType: Org.SASDecisionBuilder.Decision.RunTheDecision
+                itemWorkspaceId: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+                inputLakehouseName: DecisionTables
+                inputLakehouseId: 71538a96-9362-43d7-be2d-7067ce2a31ad
+                inputWorkspaceId: 32c103f1-0d31-9481-bhfe-c-b3c3dc978bfd
+                inputLakehouseServer: lrg4dmjfg2mf4-st6g27q2e64a2dsyvja.datawarehouse.fabric.microsoft.com
+                inputTableName: ProjectLoan
+                inputLakehouseRegion: East US 2
+                outputLakehouseId: 64cfbe15-39dd-417b-bd63-4e3a363d004b
+                outputLakehouseName: ExecutionResults
+                outputTableName: ProjectLoan2024_09_02_13_56_23
+                outputWorkspaceId: ac230b07a-f726-4bd7-8eff-696e1287cc5f
+                outputLakehouseRegion: East US 2
+                sourceJobInstanceId: abbe4138-c6b5-4065-9503-98e44ae500fe
+                tenantId: f38099fe-4a85-482b-aec8-54ac8180bb7c
+        "404":
+          description: The payload record does not exist for you.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+  /workspaces/{workspaceId}/items/{itemType}/{itemId}/jobTypes/{jobType}/payloads/current:
+    get:
+      tags:
+      - JobPayloads
+      summary: Retrieve the recorded parameters of a submitted execution
+      description: Retrieve the parameters of a submitted execution to facilitate
+        re-run of an on-demand execution or to provide execution parameters for a
+        scheduled execution. The record is private to each user.
+      operationId: getJobPayloadRecord
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: itemType
+        in: path
+        description: Type of item.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision
+        example: Org.SASDecisionBuilder.Decision
+      - name: itemId
+        in: path
+        description: Identifier of the item. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: ad3d63a5-a03d-488d-851d-c8c997903c68
+      - name: jobType
+        in: path
+        description: Type of job to run.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision.RunTheDecision
+          - Org.SASDecisionBuilder.Decision.ScheduledJob
+          example: Org.SASDecisionBuilder.Decision.RunTheDecision
+      - name: Authorization
+        in: header
+        description: This header has the following format - SubjectAndAppToken1.0
+          subjectToken="delegated token", appToken="S2S token".
+        required: true
+        schema:
+          type: string
+        example: SubjectAndAppToken1.0 subjectToken="JWT token", appToken="JWT token"
+      responses:
+        "200":
+          description: The payload record was updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/createScheduledJobPayload'
+              example:
+                destination: wbAzure
+                itemId: ad3d63a5-a03d-488d-851d-c8c997903c68
+                itemName: loan_decision
+                itemType: Org.SASDecisionBuilder.Decision
+                runType: Org.SASDecisionBuilder.Decision.RunTheDecision
+                itemWorkspaceId: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+                inputLakehouseName: DecisionTables
+                inputLakehouseId: 71538a96-9362-43d7-be2d-7067ce2a31ad
+                inputWorkspaceId: 32c103f1-0d31-9481-bhfe-c-b3c3dc978bfd
+                inputLakehouseServer: lrg4dmjfg2mf4-st6g27q2e64a2dsyvja.datawarehouse.fabric.microsoft.com
+                inputTableName: ProjectLoan
+                inputLakehouseRegion: East US 2
+                outputLakehouseId: 64cfbe15-39dd-417b-bd63-4e3a363d004b
+                outputLakehouseName: ExecutionResults
+                outputTableName: ProjectLoan2024_09_02_13_56_23
+                outputWorkspaceId: ac230b07a-f726-4bd7-8eff-696e1287cc5f
+                outputLakehouseRegion: East US 2
+                sourceJobInstanceId: abbe4138-c6b5-4065-9503-98e44ae500fe
+                tenantId: f38099fe-4a85-482b-aec8-54ac8180bb7c
+        "404":
+          description: The payload record does not exist for you.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+    put:
+      tags:
+      - JobPayloads
+      summary: Update the recorded parameters of a submitted execution
+      description: Record the parameters of a submitted execution to facilitate re-run
+        of an on-demand execution or to provide execution parameters for a scheduled
+        execution.
+      operationId: updateJobPayloadRecord
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: itemType
+        in: path
+        description: Type of item.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision
+        example: Org.SASDecisionBuilder.Decision
+      - name: itemId
+        in: path
+        description: Identifier of the item. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: ad3d63a5-a03d-488d-851d-c8c997903c68
+      - name: jobType
+        in: path
+        description: Type of job to run.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision.RunTheDecision
+          - Org.SASDecisionBuilder.Decision.ScheduledJob
+          example: Org.SASDecisionBuilder.Decision.RunTheDecision
+      - name: Authorization
+        in: header
+        description: This header has the following format - SubjectAndAppToken1.0
+          subjectToken="delegated token", appToken="S2S token".
+        required: true
+        schema:
+          type: string
+        example: SubjectAndAppToken1.0 subjectToken="JWT token", appToken="JWT token"
+      requestBody:
+        $ref: '#/components/requestBodies/createScheduledJobPayload'
+      responses:
+        "200":
+          description: The payload record was updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/createScheduledJobPayload'
+              example:
+                destination: wbAzure
+                itemId: ad3d63a5-a03d-488d-851d-c8c997903c68
+                itemName: loan_decision
+                itemType: Org.SASDecisionBuilder.Decision
+                runType: Org.SASDecisionBuilder.Decision.RunTheDecision
+                itemWorkspaceId: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+                inputLakehouseName: DecisionTables
+                inputLakehouseId: 71538a96-9362-43d7-be2d-7067ce2a31ad
+                inputWorkspaceId: 32c103f1-0d31-9481-bhfe-c-b3c3dc978bfd
+                inputLakehouseServer: lrg4dmjfg2mf4-st6g27q2e64a2dsyvja.datawarehouse.fabric.microsoft.com
+                inputTableName: ProjectLoan
+                inputLakehouseRegion: East US 2
+                outputLakehouseId: 64cfbe15-39dd-417b-bd63-4e3a363d004b
+                outputLakehouseName: ExecutionResults
+                outputTableName: ProjectLoan2024_09_02_13_56_23
+                outputWorkspaceId: ac230b07a-f726-4bd7-8eff-696e1287cc5f
+                outputLakehouseRegion: East US 2
+                sourceJobInstanceId: abbe4138-c6b5-4065-9503-98e44ae500fe
+                tenantId: f38099fe-4a85-482b-aec8-54ac8180bb7c
+        "404":
+          description: The payload record does not exist for you.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+  /folders/paths/{workspaceId}:
+    post:
+      tags:
+      - folders
+      summary: Receives a workspace ID and returns folders that correspond to that
+        workspace
+      description: Finds the folders that correspond to a Fabric workspace and returns
+        those folders.
+      operationId: FindFolderByWorkspaceID
+      parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        description: The workspace ID where the notebook will be executed.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: WorkspaceId is valid and possibles folders returned.
+        "400":
+          description: Invalid request.
+        "500":
+          description: Internal server error.
+  /executeNotebook/workspaces/{workspaceId}:
+    post:
+      tags:
+      - NoteBookOperations
+      summary: Execute a notebook in the specified workspace and return the ML Model
+        File summary
+      description: Executes a notebook and returns a summary of the ML Model File
+        created.
+      operationId: createNotebookExecution
+      parameters:
+      - name: workspaceId
+        in: path
+        required: true
+        description: The workspace ID where the notebook will be executed.
+        schema:
+          type: string
+      requestBody:
+        description: Parameters required to execute the notebook.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/executeNotebook'
+            example:
+              $ref: '#/components/examples/executeNotebook'
+      responses:
+        "201":
+          description: Notebook executed and ML Model File created.
+        "400":
+          description: Invalid request.
+        "403":
+          description: Access denied.
+        "500":
+          description: Internal server error.
+  /history/workspaces/{workspaceId}/items/{itemType}/{itemId}/jobTypes/{jobType}/instances/{jobInstanceId}:
+    get:
+      tags:
+      - JobHistory
+      summary: Retrieve the execution result of a decision
+      description: Retrieve a specific execution result of a decision.
+      operationId: getExecutionHistory
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: itemType
+        in: path
+        description: Type of item.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision
+        example: Org.SASDecisionBuilder.Decision
+      - name: itemId
+        in: path
+        description: Identifier of the item. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: ad3d63a5-a03d-488d-851d-c8c997903c68
+      - name: jobType
+        in: path
+        description: Type of job to run.
+        required: true
+        schema:
+          type: string
+          enum:
+          - Org.SASDecisionBuilder.Decision.RunTheDecision
+          - Org.SASDecisionBuilder.Decision.ScheduledJob
+          example: Org.SASDecisionBuilder.Decision.RunTheDecision
+      - name: jobInstanceId
+        in: path
+        description: Identifier of the job. The identifier is generated by Microsoft
+          Fabric.
+        required: true
+        schema:
+          type: string
+        example: abbe4138-c6b5-4065-9503-98e44ae500fe
+      - name: Authorization
+        in: header
+        description: This header has the following format - SubjectAndAppToken1.0
+          subjectToken="delegated token", appToken="S2S token".
+        required: true
+        schema:
+          type: string
+        example: SubjectAndAppToken1.0 subjectToken="JWT token", appToken="JWT token"
+      responses:
+        "200":
+          description: The specific execution result is retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/jobHistoryResponse'
+              example:
+                $ref: '#/components/examples/jobHistoryResponse'
+        "404":
+          description: The specific execution result does not exist for you.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+  /onelake/{workspaceId}/{lakehouseId}/tables:
+    get:
+      tags:
+      - OneLake
+      summary: List tables
+      description: Get a list of tables in a Lakehouse.
+      operationId: getLakehouseTables
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: lakehouseId
+        in: path
+        description: The ID of the Lakehouse.
+        required: true
+        schema:
+          type: string
+        example: dda79178-0efc-4b59-9d5e-93a8958d05a9
+      - name: tableType
+        in: query
+        description: The type of data. If the value is Warehouse, the Lakehouse ID
+          provided will be treated as the ID of a data warehouse.
+        required: false
+        schema:
+          type: string
+          enum:
+          - Lakehouse
+          - Warehouse
+      responses:
+        "200":
+          description: The request was successful. The output will be either an array
+            of Lakehouse tables or Warehouse tables depending on the value of the
+            tableType parameter. For a Warehouse table, only the name can be provided.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/lakeHouseTableProperties'
+              example:
+              - format: "delta"
+                location: "abfss://32c601f1-0d31-9481-bhfe-b3c3dc978bfd@onelake.dfs.fabric.microsoft.com/dda79178-0efc-4b59-9d5e-93a8958d05a9/Tables/hmeq_train_no_RN"
+                name: "hmeq_train_no_RN"
+                type: "Managed"
+              - format: "delta"
+                location: "abfss://32c601f1-0d31-9481-bhfe-b3c3dc978bfd@onelake.dfs.fabric.microsoft.com/dda79178-0efc-4b59-9d5e-93a8958d05a9/Tables/hmeq_train_million_sequenced"
+                name: "hmeq_train_million_sequenced"
+                type: "Managed"
+        "400":
+          description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+  /onelake/{workspaceId}/{lakehouseId}/tables/{tableName}/load:
+    post:
+      tags:
+      - OneLake
+      summary: Load a lakehouse table
+      description: Load a csv file as a lakehouse table.
+      operationId: createLoadLakehouseTableRequest
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: lakehouseId
+        in: path
+        description: Identifier of the Lakehouse
+        required: true
+        schema:
+          type: string
+        example: ad47aeb8-a6c2-415d-88e9-fecd2e5b381a
+      - name: tableName
+        in: path
+        description: Name of the table, not including extension, when loaded.
+        required: true
+        schema:
+          type: string
+        example: myTable
+      requestBody:
+        $ref: '#/components/requestBodies/loadTableRequest'
+      responses:
+        "202":
+          description: Start the load table operation.
+        "400":
+          description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+  /onelake/{workspaceId}/{lakehouseId}/file:
+    post:
+      tags:
+      - OneLake
+      summary: Write a file to a lakehouse
+      description: Write a file to a lakehouse.
+      operationId: createLakehouseFile
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: lakehouseId
+        in: path
+        description: Identifier of the Lakehouse
+        required: true
+        schema:
+          type: string
+        example: ad47aeb8-a6c2-415d-88e9-fecd2e5b381a
+      requestBody:
+        $ref: '#/components/requestBodies/writeLakehouseFileRequest'
+      responses:
+        "202":
+          description: Start the file write operation.
+        "400":
+          description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+  /onelake/{workspaceId}/{lakehouseId}/file/{filename}:
+    get:
+      tags:
+      - OneLake
+      summary: Get lakehouse file
+      description: Get the lakehouse file.
+      operationId: getLakehouseFile
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: lakehouseId
+        in: path
+        description: The ID of the Lakehouse.
+        required: true
+        schema:
+          type: string
+        example: dda79178-0efc-4b59-9d5e-93a8958d05a9
+      - name: filename
+        in: path
+        description: The name of the lakehouse file to get.
+        required: true
+        schema:
+          type: string
+        example: myFile.csv
+      responses:
+        "200":
+          description: Content of the lakehouse file.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "My file content"
+  /onelake/{workspaceId}/{lakehouseId}/file/{filename}/exists:
+    head:
+      tags:
+      - OneLake
+      summary: Check if the lakehouse file exists
+      description: Check if the lakehouse file exists.
+      operationId: headersForFileExistenceCheck
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: lakehouseId
+        in: path
+        description: The ID of the Lakehouse.
+        required: true
+        schema:
+          type: string
+        example: dda79178-0efc-4b59-9d5e-93a8958d05a9
+      - name: filename
+        in: path
+        description: The name of the lakehouse file to check.
+        required: true
+        schema:
+          type: string
+        example: myFile.csv
+      responses:
+        "200":
+          description: File exists.
+        "404":
+          description: File not found.
+  /onelake/{workspaceId}/lakehouses:
+    get:
+      tags:
+      - OneLake
+      summary: Get a summary of lakehouses
+      description: Get summary information for all lakehouses in a workspace
+      operationId: getLakehouseSummaries
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      responses:
+        "200":
+          description: The array lakehouse information.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/lakehouseSummaryProperties'
+              example:
+              - id: ad47aeb8-a6c2-415d-88e9-fecd2e5b381a
+                displayName: MyLakehouse
+                description: My Lakehouse
+              - id: b834seb8-a6c2-415d-88e9-fecd2e5b381a
+                displayName: MySecondLakehouse
+                description: My Second Lakehouse
+    post:
+      tags:
+      - OneLake
+      summary: Create a lakehouse
+      description: Create a lakehouse in a workspace
+      operationId: createLakehouse
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      requestBody:
+        $ref: '#/components/requestBodies/createLakehouseRequest'
+      responses:
+        "201":
+          description: The lakehouse was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/createLakehouseResponse'
+              example:
+                id: ad47aeb8-a6c2-415d-88e9-fecd2e5b381a
+                type: Lakehouse
+                displayName: CreditRiskInputTables
+                description: The input tables for on-demand execution are here.
+                workspaceId: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+  /onelake/{workspaceId}/lakehouses/{lakehouseId}:
+    delete:
+      tags:
+      - OneLake
+      summary: Delete a lakehouse
+      description: Delete a lakehouse in a workspace
+      operationId: deleteLakehouse
+      parameters:
+      - name: workspaceId
+        in: path
+        description: Identifier of the Microsoft Fabric workspace
+        required: true
+        schema:
+          type: string
+        example: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+      - name: lakehouseId
+        in: path
+        description: Identifier of the Lakehouse
+        required: true
+        schema:
+          type: string
+        example: ad47aeb8-a6c2-415d-88e9-fecd2e5b381a
+      responses:
+        "204":
+          description: The request was successful.
+  /homeTenants:
+    post:
+      tags:
+      - TenantParameters
+      summary: Set parameters
+      description: Set decision execution parameters for this Azure tenant.
+      operationId: createTenantParameters
+      parameters:
+      - name: Authorization
+        in: header
+        description: The SAS Administrator's bearer token.
+        required: true
+        schema:
+          type: string
+        example: Bearer token
+      requestBody:
+        $ref: '#/components/requestBodies/tenantDecisionExecutionParametersRequest'
+      responses:
+        "201":
+          description: The parameters were added.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/tenantDecisionExecutionParametersRequest'
+              example:
+                id: "123"
+                tenantRegion: East US 2
+                subscriptionId: "124"
+                planId: "120"
+                dimensionId: "129"
+        "400":
+          description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+  /homeTenants/{tenantId}:
+    get:
+      tags:
+      - TenantParameters
+      summary: Read decision execution parameters
+      description: Read an Azure tenant's decision execution parameters.
+      operationId: getTenantParameters
+      parameters:
+      - name: tenantId
+        in: path
+        description: Identifier of the Azure tenant
+        required: true
+        schema:
+          type: string
+        example: "123"
+      - name: Authorization
+        in: header
+        description: The SAS Administrator's bearer token.
+        required: true
+        schema:
+          type: string
+        example: Bearer token
+      - in: header
+        name: Accept
+        description: The media type of the resource.
+        schema:
+          type: string
+        example: application/json
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/tenantDecisionExecutionParametersRequest'
+              example:
+                id: "123"
+                tenantRegion: East US 2
+                subscriptionId: "124"
+                planId: "120"
+                dimensionId: "129"
+        "404":
+          description: Parameters have not been set for this tenant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+    delete:
+      tags:
+      - TenantParameters
+      summary: Delete decision execution parameters
+      description: Delete an Azure tenant's decision execution parameters.
+      operationId: deleteTenantParameters
+      parameters:
+      - name: tenantId
+        in: path
+        description: Identifier of the Azure tenant
+        required: true
+        schema:
+          type: string
+        example: "123"
+      responses:
+        "204":
+          description: The request was successful.
+        "500":
+          description: Operation failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+  /activities:
+    get:
+      tags:
+      - Activities
+      summary: Retrieve recorded Fabric activities
+      description: Retrieve recorded Fabric activities.
+      operationId: getFabricActivities
+      parameters:
+      - name: filter
+        in: query
+        description: The criteria for filtering the Fabric activities. See [Filtering
+          in REST APIs](https://developer.sas.com/rest-apis/modelPublish/docs/getting-started/usage-notes#filtering).
+        required: true
+        schema:
+          type: string
+        example: eq(activityID,'b2d6336d-6602-4d7d-a175-8cb152d80d45')
+      - name: Authorization
+        in: header
+        description: The SAS Administrator's bearer token.
+        required: true
+        schema:
+          type: string
+        example: Bearer token
+      - in: header
+        name: Accept
+        description: The media type of the resource.
+        schema:
+          type: string
+        example: application/json
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/fabricActivityCollection"
+              example:
+                $ref: '#/components/examples/fabricActivityCollection'
+    delete:
+      tags:
+      - Activities
+      summary: Delete recorded Fabric activities
+      description: Delete recorded Fabric activities. Activities are only kept for
+        60 days.
+      operationId: deleteFabricActivities
+      parameters:
+      - name: filter
+        in: query
+        description: The criteria for filtering the Fabric activities. See [Filtering
+          in REST APIs](https://developer.sas.com/rest-apis/modelPublish/docs/getting-started/usage-notes#filtering).
+        required: true
+        schema:
+          type: string
+        example: eq(activityID,'b2d6336d-6602-4d7d-a175-8cb152d80d45')
+      responses:
+        "204":
+          description: The request was successful.
+  /trials/{tenantId}:
+    get:
+      tags:
+      - TrialsSupport
+      summary: Retrieve trial state for given tenant from SMART server
+      description: Passes the tenantId to the SMART server to retrieve the trial state
+        including time remaining in trial.
+      operationId: getTrialState
+      parameters:
+      - name: tenantId
+        in: path
+        description: Identifier of the Azure tenant
+        required: true
+        schema:
+          type: string
+        example: "00000000-1111-1111-1111-22222222222"
+      responses:
+        "201":
+          description: The parameters were added.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/trialsSmartResponse'
+              example:
+                id: 123
+                trialUserId: "123"
+                trialDays: 30
+                graceDays: 5
+                offerId: "decision-builder-freemium"
+                createdTime: "2025-04-10 13:26:05.607513704 +0000"
+                updatedTime: "2025-04-10 14:26:05.607513704 +0000"
+                expiryTime: "2025-05-10 13:26:05.607513704 +0000"
+                timeRemaining: "719h59m59s"
+                timeInactive: "0h0m0s"
+                isGrace: false
+                expired: false
+                count: 100
+        "400":
+          description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+        "500":
+          description: An internal error occurred while handling the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+  /trials/{tenantId}/offer:
+    get:
+      tags:
+      - TrialsSupport
+      summary: Retrieve offer Id for given tenant from credentials
+      description: Retrieves the offerId from Credentials.
+      operationId: getTrialOffer
+      parameters:
+      - name: tenantId
+        in: path
+        description: Identifier of the Azure tenant
+        required: true
+        schema:
+          type: string
+        example: "00000000-1111-1111-1111-22222222222"
+      responses:
+        "201":
+          description: The parameters were added.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "sas-decision-builder-offer"
+        "404":
+          description: The tenant id was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+        "500":
+          description: An internal error occurred while handling the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+  /trials/credentials:
+    post:
+      tags:
+      - TrialsSupport
+      summary: Create credentials for communicating with the SMART server
+      description: Create credentials for communicating with the SMART server
+      operationId: createTrialCredentials
+      requestBody:
+        $ref: '#/components/requestBodies/trialsSmartCredentialsParametersRequestPayload'
+      responses:
+        "200":
+          description: The request was successful.
+        "400":
+          description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+        "500":
+          description: An internal error occurred while handling the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+    patch:
+      tags:
+      - TrialsSupport
+      summary: Update Smart Server parameters
+      description: Update credentials for communicating with the SMART server
+      operationId: patchTrialCredentials
+      requestBody:
+        $ref: '#/components/requestBodies/trialsSmartCredentialsParametersRequestPayload'
+      responses:
+        "200":
+          description: The request was successful.
+        "400":
+          description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+        "500":
+          description: An internal error occurred while handling the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: '#/components/examples/commonErrorResponse'
+components:
+  requestBodies:
+    loadTableRequest:
+      description: The lakehouse table load payload.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/loadTableRequest'
+          example:
+            $ref: '#/components/examples/loadTableRequest'
+    writeLakehouseFileRequest:
+      description: The lakehouse file creation payload.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/writeLakehouseFileRequest'
+          example:
+            $ref: '#/components/examples/writeLakehouseFileRequest'
+    createLakehouseRequest:
+      description: The lakehouse creation payload.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/createLakehouseRequest'
+          example:
+            $ref: '#/components/examples/createLakehouseRequest'
+    userScimRequest:
+      description: The entraId user SCIM payload.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/userScimRequest'
+          example:
+            $ref: '#/components/examples/userScimRequest'
+    itemPostRequest:
+      description: The item creation payload.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/itemCreationRequest'
+          example:
+            $ref: '#/components/examples/itemCreationRequest'
+    itemPatchRequest:
+      description: The item update payload.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/itemUpdateRequest'
+          examples:
+            decision:
+              $ref: '#/components/examples/itemUpdateRequestDecision'
+            ruleSet:
+              $ref: '#/components/examples/itemUpdateRequestRuleSet'
+            codeFile:
+              $ref: '#/components/examples/itemUpdateRequestCodeFile'
+    jobCreationRequest:
+      description: The item creation payload.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/jobCreationRequest'
+          example:
+            $ref: '#/components/examples/jobCreationRequest'
+    tenantDecisionExecutionParametersRequest:
+      description: The tenant decision execution parameter payload.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/tenantDecisionExecutionParametersRequest'
+          example:
+            $ref: '#/components/examples/tenantDecisionExecutionParametersRequest'
+    trialsSmartCredentialsParametersRequestPayload:
+      description: The parameters used to retrieve the trial state from the SMART
+        server.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/trialsSmartCredentialsParametersRequest'
+          example:
+            $ref: '#/components/examples/trialsSmartCredentialsParametersRequestExample'
+    createScheduledJobPayload:
+      description: The record job execution parameters payload.
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/createScheduledJobPayload'
+          example:
+            $ref: '#/components/examples/createScheduledJobPayload'
+  schemas:
+    workspaceWithRole:
+      title: Workspace with Role
+      description: Microsoft Fabric workspace information including the user's role
+        in that workspace.
+      allOf:
+      - $ref: '#/components/schemas/fabricWorkspace'
+      - type: object
+        required:
+        - role
+        properties:
+          role:
+            type: string
+            description: The user's role in this workspace
+            enum:
+            - Admin
+            - Contributor
+            - Member
+            - Viewer
+            example: Admin
+    fabricWorkspace:
+      title: Fabric Workspace
+      description: Microsoft Fabric workspace information.
+      type: object
+      required:
+      - id
+      - displayName
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the workspace
+          example: "32c601f1-0d31-9481-bhfe-b3c3dc978bfd"
+        displayName:
+          type: string
+          description: Display name of the workspace
+          example: "My Workspace"
+        description:
+          type: string
+          description: Description of the workspace
+          example: "Workspace for data analysis and reporting"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    itemCreationRequest:
+      title: Item creation request
+      description: The essential information for creating a workload.
+      properties:
+        displayName:
+          type: string
+          description: The name of the item.
+        description:
+          type: string
+          description: A description of the item.
+    itemUpdateRequest:
+      title: Item update request
+      description: |
+        A partial update to an existing item.
+
+        If `updatePayload` is omitted, the underlying asset is always updated without considering ETags. When the
+        `updatePayload` is specified, the appropriate ETag is provided as a precondition for the update to ensure edits
+        to properties other than the name/description do not inadvertently overwrite other work.
+      properties:
+        displayName:
+          type: string
+          description: The name of the item.
+        description:
+          type: string
+          description: A description of the item.
+        updatePayload:
+          type: object
+          description: The update payload specific to the Decision Builder workload.
+          required: ["content"]
+          properties:
+            content:
+              type: string
+              description: |
+                A JSON-encoded string containing the type-specific properties to update on the asset. The schema of the
+                encoded object depends on the item type.
+
+                ### Decisions
+
+                Updates to decisions require an `etag` and `decision`. The ETag is the most recent tag seen by the
+                client to ensure it does not accidentally overwrite a change that has been made since the decision was
+                originally retrieved. The `decision` property contains a partial [Decision][decision]. Any top-level
+                field will overwrite the existing value, but omitted top-level fields will retain the existing value.
+
+                ```json
+                {
+                  "etag": "",
+                  "decision": {}
+                }
+                ```
+
+                [decision]: https://developer.sas.com/rest-apis/decisions/schemas#decision
+
+                ### Rule Sets
+
+                Updates to rule sets require an `etag`, the `ruleSet`, and a list of `rules`. The ETag is the most
+                recent tag seen by the client to ensure it does not accidentally overwrite a change that has been made
+                since the rule set was originally retrieved. The `ruleSet` property contains a partial
+                [Rule Set][ruleSet]. Any top-level field will overwrite the existing value, but omitted top-level fields
+                will retain the existing value. The `rules` properties contains the complete list of
+                [Rule objects][rule] for the rule set. The order of the rules within the `rules` property sets their
+                execution order within the rule set.
+
+                ```json
+                {
+                  "etag": "",
+                  "ruleSet": {},
+                  "rules": []
+                }
+                ```
+
+                [rule]: https://developer.sas.com/rest-apis/businessRules/schemas#rule
+                [ruleSet]: https://developer.sas.com/rest-apis/businessRules/schemas#rule-set
+
+                ### Code Files
+
+                Updates to a code file require the `fileEtag`, `file`, and `code` properties. The `fileEtag` contains
+                the ETag of the file resource that stores the code file's code. This is *not* the code file's ETag, but
+                rather the ETag of the file resource referenced by the code file's `fileUri` property. The `file`
+                property contains a subset of the fields from a [File Resource][fileResource]; specifically, the `id`,
+                `name`, `description`, and `properties` fields. These fields are used to [update the file][fileUpdate]
+                that stores the code file's content. The `code` property of the update request contains the user
+                defined code for the code file along with the annotation describing the variables in the code file's
+                signature.
+
+                ```json
+                {
+                  "fileEtag": "",
+                  "file": {},
+                  "code": ""
+                }
+                ```
+
+                [fileResource]: https://developer.sas.com/rest-apis/files/schemas#file-resource
+                [fileUpdate]: https://developer.sas.com/rest-apis/files/patchFileResourceInfo
+    jobCreationRequest:
+      title: Job creation request
+      description: The essential information for creating a job
+      properties:
+        invokeType:
+          type: number
+        creationPayload:
+          type: object
+          properties:
+            destination:
+              type: string
+              description: The name of an Azure publish destination that handles decision
+                execution for this Azure tenant.
+            itemId:
+              type: string
+              description: The ID of the decision.
+            itemType:
+              type: string
+              description: The type of the item. Only a decision can be executed.
+            itemName:
+              type: string
+              description: The name of the item.
+            tenantId:
+              type: string
+              description: The ID of the Fabric user's Azure tenant.
+            inputLakehouseName:
+              type: string
+              description: The name of the input Lakehouse
+            inputLakehouseId:
+              type: string
+              description: The ID of the input Lakehouse.
+            inputWorkspaceId:
+              type: string
+              description: The ID of Fabric workspace hosting the input Lakehouse.
+            inputLakehouseServer:
+              type: string
+              description: The SQL analytic endpoint of the input Lakehouse.
+            inputTableName:
+              type: string
+              description: The name of the input table.
+            outputLakehouseId:
+              type: string
+              description: The ID of the output Lakehouse.
+            outputLakehouseName:
+              type: string
+              description: The name of the output Lakehouse.
+            outputTableName:
+              type: string
+              description: The name of the output table.
+            outputWorkspaceId:
+              type: string
+              description: The ID of Fabric workspace hosting the output Lakehouse.
+    jobInstanceState:
+      title: Job instance state
+      description: The essential information of a job in progress.
+      properties:
+        startTimeUtc:
+          type: string
+          format: date-time
+        endTimeUtc:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - Cancelled
+          - Completed
+          - Failed
+          - InProgress
+          - NotStarted
+        errorDetails:
+          type: object
+          properties:
+            message:
+              type: string
+            errorCode:
+              type: string
+            isPermanent:
+              type: boolean
+            source:
+              type: string
+              enum:
+              - System
+              - User
+              - External
+    errorAdditionalInformation:
+      title: Additional error information
+      description: Information of an error.
+      properties:
+        message:
+          type: string
+        errorCode:
+          type: string
+    errorResponse:
+      title: Error response
+      description: The information about an error returned to Microsoft Fabric.
+      properties:
+        message:
+          type: string
+        errorCode:
+          type: string
+        isPermanent:
+          type: boolean
+        source:
+          type: string
+          enum:
+          - System
+          - User
+          - External
+        moreDetails:
+          type: array
+          description: Additional information about the error.
+          items:
+            $ref: '#/components/schemas/errorAdditionalInformation'
+    userScimRequest:
+      title: Token request
+      description: An on-behalf-of authentication request
+      properties:
+        requested_token_use:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        scope:
+          type: string
+        assertion:
+          type: string
+        grant_type:
+          type: string
+    tokenResponse:
+      title: Token response
+      description: Information returned for the token request.
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: number
+        scope:
+          type: string
+        refresh_expires_in:
+          type: number
+        refresh_revocable:
+          type: boolean
+        revocable:
+          type: boolean
+        jti:
+          type: string
+    lakehouseSummaryProperties:
+      title: Lake house summary properties
+      description: Summary information about a Lakehouse.
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+    lakeHouseTableProperties:
+      title: Lake house table properties
+      description: Information about a Lakehouse table.
+      properties:
+        format:
+          type: string
+        location:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+    tenantDecisionExecutionParametersRequest:
+      title: Tenant decision execution parameters request
+      description: The essential information required to execute a decision and bill
+        it.
+      properties:
+        id:
+          type: string
+        tenantRegion:
+          type: string
+        subscriptionId:
+          type: string
+        planId:
+          type: string
+        dimensionId:
+          type: string
+    trialsSmartCredentialsParametersRequest:
+      title: SMART credentials parameters request
+      description: Credentials used to communicate with SMART Server.
+      properties:
+        smart_client_id:
+          type: string
+        smart_client_secret:
+          type: string
+        smart_scope:
+          type: string
+        offer_id:
+          type: string
+        db_smart_tenant_id:
+          type: string
+    trialsSmartResponse:
+      title: SMART response
+      description: The information returned from the SMART server.
+      properties:
+        id:
+          type: number
+        trialUserId:
+          type: string
+        trialDays:
+          type: number
+        graceDays:
+          type: number
+        offerId:
+          type: string
+        createdTime:
+          type: string
+        updatedTime:
+          type: string
+        expiryTime:
+          type: string
+        timeRemaining:
+          type: string
+        timeInactive:
+          type: string
+        isGrace:
+          type: boolean
+        expired:
+          type: boolean
+        count:
+          type: number
+    loadTableRequest:
+      title: Load lakehouse table request
+      description: The information required to load a table to a lakehouse.
+      properties:
+        relativePath:
+          type: string
+        pathType:
+          type: string
+        mode:
+          type: string
+        recursive:
+          type: boolean
+        formatOptions:
+          type: object
+          properties:
+            format:
+              type: string
+            header:
+              type: boolean
+            delimiter:
+              type: string
+    writeLakehouseFileRequest:
+      title: Write lakehouse file request
+      description: The information required to write a file to a lakehouse.
+      properties:
+        filename:
+          type: string
+        content:
+          type: string
+    executeNotebook:
+      title: Execute notebook request
+      description: The information required to import an ML Model.
+      properties:
+        modelName:
+          type: string
+        modelWorkspaceId:
+          type: string
+    createLakehouseRequest:
+      title: Create lakehouse request
+      description: The information required to create a lakehouse.
+      properties:
+        artifactType:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        workloadPayload:
+          type: string
+    createLakehouseResponse:
+      title: Create lakehouse response
+      description: The information returned for a lakehouse.
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        workspaceId:
+          type: string
+    createScheduledJobPayload:
+      title: Record the parameters of a decision execution
+      description: The parameters of a decision execution submitted by a user.
+      properties:
+        destination:
+          type: string
+        itemId:
+          type: string
+        itemName:
+          type: string
+        itemType:
+          type: string
+        runType:
+          type: string
+        itemWorkspaceId:
+          type: string
+        inputLakehouseName:
+          type: string
+        inputLakehouseId:
+          type: string
+        inputWorkspaceId:
+          type: string
+        inputLakehouseServer:
+          type: string
+        inputTableName:
+          type: string
+        inputLakehouseRegion:
+          type: string
+        outputLakehouseId:
+          type: string
+        outputLakehouseName:
+          type: string
+        outputTableName:
+          type: string
+        outputWorkspaceId:
+          type: string
+        outputLakehouseRegion:
+          type: string
+        sourceJobInstanceId:
+          type: string
+        tenantId:
+          type: string
+    jobHistoryResponse:
+      title: Completed decision execution
+      description: Information recorded for a completed decision execution
+      properties:
+        state:
+          type: string
+        stateFileUri:
+          type: string
+        jobType:
+          type: string
+        jobUri:
+          type: string
+        message:
+          type: string
+        mainSvcCode:
+          type: string
+        startTimeUtc:
+          type: string
+          format: date-time
+        endTimeUtc:
+          type: string
+          format: date-time
+        locked:
+          type: string
+        tenantId:
+          type: string
+        itemId:
+          type: string
+        itemName:
+          type: string
+        itemType:
+          type: string
+        destination:
+          type: string
+        itemWorkspaceId:
+          type: string
+        inputLakehouseName:
+          type: string
+        inputLakehouseId:
+          type: string
+        inputWorkspaceId:
+          type: string
+        inputLakehouseServer:
+          type: string
+        inputTableName:
+          type: string
+        inputLakehouseRegion:
+          type: string
+        outputLakehouseId:
+          type: string
+        outputLakehouseName:
+          type: string
+        outputTableName:
+          type: string
+        outputWorkspaceId:
+          type: string
+        outputLakehouseRegion:
+          type: string
+        imageCreationId:
+          type: string
+        imageCreatedBy:
+          type: string
+        imageCreationTimeStamp:
+          type: string
+          format: date-time
+        imageSourceUri:
+          type: string
+        imageUrl:
+          type: string
+        fabricActivityId:
+          type: string
+        fabricRequestId:
+          type: string
+        decisionCodeUri:
+          type: string
+        jobSubmittedBy:
+          type: string
+        kubernetesNameSpace:
+          type: string
+        itemModifiedTimeStamp:
+          type: string
+          format: date-time
+        highestComponentModifiedTimeStamp:
+          type: string
+          format: date-time
+        scoreDefinitionId:
+          type: string
+        jobDefinitionId:
+          type: string
+    fabricRequest:
+      title: Fabric request
+      description: Information recorded for a particular request
+      properties:
+        activityId:
+          type: string
+        requestId:
+          type: string
+        opAction:
+          type: string
+        opApi:
+          type: string
+        opUri:
+          type: string
+        creationTimeStamp:
+          type: string
+          format: date-time
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+        opStatus:
+          type: string
+        opErrorMessage:
+          type: string
+        initiatedBy:
+          type: string
+        itemWorkspaceId:
+          type: string
+        itemType:
+          type: string
+        itemId:
+          type: string
+        itemName:
+          type: string
+        jobType:
+          type: string
+        jobInstanceId:
+          type: string
+        scoreDefinitionId:
+          type: string
+        jobDefinitionId:
+          type: string
+        jobApiStateFileUri:
+          type: string
+        jobApiModelName:
+          type: string
+        jobApiJobExecutionUri:
+          type: string
+        jobApiJobSummaryFileIfExist:
+          type: string
+        jobApiJobOutputTableIfExist:
+          type: string
+        kubernetesNameSpace:
+          type: string
+    fabricActivityCollection:
+      title: Fabric activity collection
+      description: Collection of Fabric activities. Each activity has one or more
+        requests.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/fabricRequest"
+            description: The array of Fabric requests.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+  examples:
+    notFound:
+      description: Example of a response when the API context cannot be found.
+      value:
+        httpStatusCode: 404
+        version: 2
+    userScimRequest:
+      description: Example of an on-behalf-of authentication request
+      value:
+        requested_token_use: on_behalf_of
+        client_id: clientId
+        client_secret: clientSecret
+        scope: openid
+        assertion: JWT token
+        grant_type: urn:ietf:params:oauth:grant-type:jwt-bearer
+    tokenResponse:
+      description: Example of an on-behalf-of authentication response
+      value:
+        access_token: JWT token
+        token_type: bearer
+        refresh_token: 159c1ecc-q
+        expires_in: 3599
+        scope: openid
+        refresh_expires_in: 10599
+        refresh_revocable: true
+        revocable: true
+        jti: 6963a8c9d99b49b79f9a603f4330e68c
+    itemCreationRequest:
+      description: Example of an item creation request body.
+      value:
+        displayName: loan_decision
+        description: Created in Fabric
+    itemUpdateRequestDecision:
+      description: |
+        Example of an update to a decision.
+      value:
+        displayName: decision_a
+        updatePayload:
+          content: >
+            {"etag":"\"m972ei50\"","decision":{"creationTimeStamp":"2025-04-07T12:45:18.798Z","modifiedTimeStamp":"2025-04-07T12:45:50.292Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"3133f892-8729-49fd-8a36-f82b7b8f8d90","name":"decision_a","description":"","majorRevision":1,"minorRevision":0,"signature":[{"creationTimeStamp":"2025-04-07T13:04:03.176Z","modifiedTimeStamp":"2025-04-07T13:04:03.176Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"350bd011-ee56-4bef-9b12-7ffe90e369ad","name":"day_name","dataType":"string","direction":"input","description":"","generateDataGridColumns":false},{"creationTimeStamp":"2025-04-07T13:04:03.183Z","modifiedTimeStamp":"2025-04-07T13:04:03.183Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"372317e9-0533-40ed-90c7-0d054b3d9fb6","name":"question","dataType":"string","direction":"output","description":"","generateDataGridColumns":false},{"creationTimeStamp":"2025-04-07T13:04:03.184Z","modifiedTimeStamp":"2025-04-07T13:04:03.184Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"de2403d4-dfc1-4d77-9d73-754bff2f39bb","name":"answer","dataType":"string","direction":"output","description":"","generateDataGridColumns":false},{"id":"1bfaefeb-b688-4701-9730-9cbb4877f621","name":"provided_answer","dataType":"string","description":"","lengthUI":"","direction":"input"}],"flow":{"creationTimeStamp":"2025-04-07T12:45:18.818Z","modifiedTimeStamp":"2025-04-07T12:45:18.818Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"bd9f4398-14aa-4e2b-8fe8-1bb14096031a","steps":[{"type":"application/vnd.sas.decision.step.ruleset","ruleSetType":"assignment","id":"dc667c14-d413-44be-8804-b23f897d0fe9","originalId":"dc667c14-d413-44be-8804-b23f897d0fe9","ruleset":{"name":"choose_question","id":"4ba245bf-5e02-4b4b-ab05-43dd1366dde8","versionId":"e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6","versionName":"1.0"},"mappings":[{"direction":"input","dataType":"string","stepTermName":"day_name","id":"56d54931-b265-4a9f-a45b-22cf695edd19","originalId":"56d54931-b265-4a9f-a45b-22cf695edd19","targetDecisionTermName":"day_name"},{"direction":"output","dataType":"string","stepTermName":"question","id":"714c1205-9972-4c2c-bfe8-1f668749316a","originalId":"714c1205-9972-4c2c-bfe8-1f668749316a","targetDecisionTermName":"question"},{"direction":"output","dataType":"string","stepTermName":"answer","id":"ccacbcec-bb94-46c3-a600-313e4e083bb7","originalId":"ccacbcec-bb94-46c3-a600-313e4e083bb7","targetDecisionTermName":"answer"}]},{"id":"9d89ae24-161d-48e8-8595-3b4cacf9cf8d","originalId":"9d89ae24-161d-48e8-8595-3b4cacf9cf8d","type":"application/vnd.sas.decision.step.condition","version":1,"onTrue":{"id":"a7d3f307-c305-49db-a450-6476009799c1","steps":[{"id":"8ad0a1b8-a1b5-4e11-aa7f-53241245b870","originalId":"8ad0a1b8-a1b5-4e11-aa7f-53241245b870","type":"application/vnd.sas.decision.step.custom.object","customObject":{"uri":"/decisions/codeFiles/1724ab9a-ead1-4507-b477-8bd573b41c59/revisions/4d8fc3a2-4463-41c1-ac02-ff088ddf8961","name":"record_correct","type":"decisionPythonFile","isRestDNT":false},"mappings":[{"direction":"input","dataType":"string","stepTermName":"question","id":"3f70562e-b1bd-4529-883c-df6e15784147","originalId":"3f70562e-b1bd-4529-883c-df6e15784147","targetDecisionTermName":"question"}]}],"version":1,"parentId":"9d89ae24-161d-48e8-8595-3b4cacf9cf8d"},"onFalse":{"id":"83f5b621-004e-48aa-a8b0-c4e5a19cb0d9","steps":[],"version":1},"name":"check
+            answer","conditionExpression":"answer = provided_answer"}]},"links":[{"method":"GET","rel":"self","href":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90","uri":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90","type":"application/vnd.sas.decision"},{"method":"GET","rel":"revisions","href":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90/revisions","uri":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90/revisions","type":"application/vnd.sas.collection","itemType":"application/vnd.sas.decision"},{"method":"GET","rel":"currentRevision","href":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90","uri":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90","type":"application/vnd.sas.decision"},{"method":"GET","rel":"code","href":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90/code","uri":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90/code","type":"text/vnd.sas.source.ds2"},{"method":"POST","rel":"mappedCode","href":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90/mappedCode","uri":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90/mappedCode","type":"application/vnd.sas.score.code.generation.request","responseType":"application/vnd.sas.score.mapped.code"},{"method":"GET","rel":"externalArtifacts","href":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90/externalArtifacts","uri":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90/externalArtifacts","type":"application/vnd.sas.collection","itemType":"application/vnd.sas.decision.external.artifact"},{"method":"GET","rel":"legacyVariables","href":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90/legacyVariables","uri":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90/legacyVariables","type":"application/vnd.sas.collection","itemType":"application/vnd.sas.decision.variable"},{"method":"PUT","rel":"update","href":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90","uri":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90","type":"application/vnd.sas.decision","responseType":"application/vnd.sas.decision"},{"method":"GET","rel":"modelManifest","href":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90/modelManifest","uri":"/decisions/flows/3133f892-8729-49fd-8a36-f82b7b8f8d90/modelManifest","type":"application/vnd.sas.models.publishing.model.manifest"}],"decisionId":"3133f892-8729-49fd-8a36-f82b7b8f8d90","nodeCount":0,"folderType":"","workflowDefinitionId":"WF00000000-0000-0000-0000-000000000000","properties":{"workflowDefinitionId":"WF00000000-0000-0000-0000-000000000000"},"checkout":false,"validationStatus":"none","version":17,"etag":"\"m972ei50\"","assetType":"decision"}}
+    itemUpdateRequestRuleSet:
+      description: Example of an update to a rule set.
+      value:
+        displayName: choose_question
+        updatePayload:
+          content: >
+            {"etag":"\"m9731xfc\"","ruleSet":{"creationTimeStamp":"2025-04-07T12:46:49.236Z","modifiedTimeStamp":"2025-04-07T13:04:03.192Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"4ba245bf-5e02-4b4b-ab05-43dd1366dde8","name":"choose_question","ruleSetType":"assignment","description":"","majorRevision":1,"minorRevision":0,"status":"valid","checkout":false,"locked":false,"links":[{"method":"GET","rel":"self","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8","type":"application/vnd.sas.business.rule.set"},{"method":"GET","rel":"alternate","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8","type":"application/vnd.sas.summary"},{"method":"GET","rel":"withRules","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8","type":"application/vnd.sas.business.rule.set.integral"},{"method":"PUT","rel":"update","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8","type":"application/vnd.sas.business.rule.set","responseType":"application/vnd.sas.business.rule.set"},{"method":"GET","rel":"rules","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/rules","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/rules","type":"application/vnd.sas.collection","itemType":"application/vnd.sas.business.rule"},{"method":"GET","rel":"rulesOrder","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/order","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/order","type":"application/vnd.sas.selection"},{"method":"GET","rel":"revisions","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions","type":"application/vnd.sas.collection","itemType":"application/vnd.sas.business.rule.set"},{"method":"POST","rel":"createMinorRevision","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions?revisionType=minor","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions?revisionType=minor","type":"application/vnd.sas.business.rule.set","responseType":"application/vnd.sas.business.rule.set"},{"method":"POST","rel":"createMajorRevision","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions?revisionType=major","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions?revisionType=major","type":"application/vnd.sas.business.rule.set","responseType":"application/vnd.sas.business.rule.set"},{"method":"GET","rel":"up","href":"/businessRules/ruleSets","uri":"/businessRules/ruleSets","type":"application/vnd.sas.collection","itemType":"application/vnd.sas.business.rule.set"},{"method":"GET","rel":"code","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/code","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/code","type":"text/vnd.sas.source.ds2"},{"method":"POST","rel":"mappedCode","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/mappedCode","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/mappedCode","type":"application/vnd.sas.score.code.generation.request","responseType":"application/vnd.sas.score.mapped.code"},{"method":"POST","rel":"analysisCode","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/analysisCode","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/analysisCode","type":"application/vnd.sas.score.analysis.code.generation.request","responseType":"application/vnd.sas.score.analysis.code"},{"method":"GET","rel":"metadataDocuments","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/metadataDocuments","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/metadataDocuments","type":"application/zip"},{"method":"GET","rel":"legacyVariables","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/legacyVariables","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/legacyVariables","type":"application/vnd.sas.collection","itemType":"application/vnd.sas.business.rule.set.variable+json"}],"signature":[{"creationTimeStamp":"2025-04-07T13:04:03.176Z","modifiedTimeStamp":"2025-04-07T13:04:03.176Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"0b0d6073-627a-4088-b18f-562acf1312a7","name":"day_name","dataType":"string","direction":"input","description":"","generateDataGridColumns":false},{"creationTimeStamp":"2025-04-07T13:04:03.183Z","modifiedTimeStamp":"2025-04-07T13:04:03.183Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"62aab6a7-af6a-4107-b0e3-9fd4d60641a3","name":"question","dataType":"string","direction":"output","description":"","generateDataGridColumns":false},{"creationTimeStamp":"2025-04-07T13:04:03.184Z","modifiedTimeStamp":"2025-04-07T13:04:03.184Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"34658529-879c-472e-9b65-f23ed881270a","name":"answer","dataType":"string","direction":"output","description":"","generateDataGridColumns":false}],"folderType":"folder","version":6,"etag":"\"m9731xfc\"","assetType":"ruleSet","rules":{"links":[{"method":"GET","rel":"collection","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules","type":"application/vnd.sas.collection","itemType":"application/vnd.sas.business.rule"},{"method":"GET","rel":"self","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules?filter=eq(ruleSetVersion.ruleSetVersionId,'e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6')&sortBy=ruleExecutionSeqNo:ascending&start=0&limit=10000","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules?filter=eq(ruleSetVersion.ruleSetVersionId,'e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6')&sortBy=ruleExecutionSeqNo:ascending&start=0&limit=10000","type":"application/vnd.sas.collection","itemType":"application/vnd.sas.business.rule"}],"name":"rules","accept":"application/vnd.sas.business.rule","start":0,"count":2,"items":[{"creationTimeStamp":"2025-04-07T13:04:03.633Z","modifiedTimeStamp":"2025-04-07T13:04:03.758Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","version":3,"id":"60911faa-ea56-4fee-aa31-bd34c93daa50","name":"Pick
+            Question","ruleFiredTrackingEnabled":true,"conditional":"if","conditions":[{"expression":"=
+            'Monday'","status":"valid","id":"c0630c80-8bf6-4c97-be72-d2256c4489c2","type":"decisionTable","term":{"creationTimeStamp":"2025-04-07T13:04:03.176Z","modifiedTimeStamp":"2025-04-07T13:04:03.176Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"0b0d6073-627a-4088-b18f-562acf1312a7","name":"day_name","dataType":"string","direction":"input","description":"","generateDataGridColumns":false},"lookup":{},"uiId":"f93ccc2c-f99f-49cc-b686-4fb3c3c99d81"}],"actions":[{"expression":"'What
+            is the meaning of life?'","status":"valid","id":"344ee5bd-d9c8-48d8-9e8c-ef9ac140f83c","type":"assignment","term":{"creationTimeStamp":"2025-04-07T13:04:03.183Z","modifiedTimeStamp":"2025-04-07T13:04:03.183Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"62aab6a7-af6a-4107-b0e3-9fd4d60641a3","name":"question","dataType":"string","direction":"output","description":"","generateDataGridColumns":false},"lookup":{},"uiId":"aca12cc8-aae5-4f24-acb5-7e188af06589"},{"expression":"'42'","status":"valid","id":"d5016f43-5777-4093-aa41-04f7abcd2631","type":"assignment","term":{"creationTimeStamp":"2025-04-07T13:04:03.184Z","modifiedTimeStamp":"2025-04-07T13:04:03.184Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"34658529-879c-472e-9b65-f23ed881270a","name":"answer","dataType":"string","direction":"output","description":"","generateDataGridColumns":false},"lookup":{},"uiId":"e06fe5b3-fa0e-4ddc-b487-c2182a13f36d"}],"mappings":[],"links":[{"method":"GET","rel":"self","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules/60911faa-ea56-4fee-aa31-bd34c93daa50","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules/60911faa-ea56-4fee-aa31-bd34c93daa50","type":"application/vnd.sas.business.rule"},{"method":"GET","rel":"parent","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6","type":"application/vnd.sas.business.rule.set"},{"method":"GET","rel":"up","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules","type":"application/vnd.sas.collection","itemType":"application/vnd.sas.business.rule"}],"status":"valid","uiId":"87699f1c-a523-4089-8dfa-60fcd3cb9775","description":""},{"creationTimeStamp":"2025-04-07T13:04:04.000Z","modifiedTimeStamp":"2025-04-07T13:04:04.052Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","version":3,"id":"bc1aadcb-35f6-4847-a0b0-498af6c8da91","name":"Default_rule_1_else_1","ruleFiredTrackingEnabled":true,"conditional":"elseif","conditions":[],"actions":[{"expression":"'Is
+            the cake a lie?'","status":"valid","id":"5603e2ef-e6c8-49a9-9c78-775317e39b3f","type":"assignment","term":{"creationTimeStamp":"2025-04-07T13:04:03.183Z","modifiedTimeStamp":"2025-04-07T13:04:03.183Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"62aab6a7-af6a-4107-b0e3-9fd4d60641a3","name":"question","dataType":"string","direction":"output","description":"","generateDataGridColumns":false},"lookup":{},"uiId":"6f1b16df-cb38-400e-b6ad-e7bc68b50e14"},{"expression":"'yes'","status":"valid","id":"c179ff1a-c9fe-4008-8c94-9f106ae09ec6","type":"assignment","term":{"creationTimeStamp":"2025-04-07T13:04:03.184Z","modifiedTimeStamp":"2025-04-07T13:04:03.184Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"34658529-879c-472e-9b65-f23ed881270a","name":"answer","dataType":"string","direction":"output","description":"","generateDataGridColumns":false},"lookup":{},"uiId":"27e69c18-2cb9-4bbd-83d4-822e2086c2e9"}],"mappings":[],"links":[{"method":"GET","rel":"self","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules/bc1aadcb-35f6-4847-a0b0-498af6c8da91","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules/bc1aadcb-35f6-4847-a0b0-498af6c8da91","type":"application/vnd.sas.business.rule"},{"method":"GET","rel":"parent","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6","type":"application/vnd.sas.business.rule.set"},{"method":"GET","rel":"up","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules","type":"application/vnd.sas.collection","itemType":"application/vnd.sas.business.rule"}],"status":"valid","uiId":"975d2bc4-cd82-4e10-b539-5514df678ca6"}],"limit":10000,"version":2},"parentFolderPath":"/Users/guides/My
+            Folder","parentFolderUri":"/folders/folders/@myFolder"},"rules":[{"creationTimeStamp":"2025-04-07T13:04:03.633Z","modifiedTimeStamp":"2025-04-07T13:04:03.758Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","version":3,"id":"60911faa-ea56-4fee-aa31-bd34c93daa50","name":"Pick
+            Question","ruleFiredTrackingEnabled":true,"conditional":"if","conditions":[{"expression":"=
+            'Monday'","status":"valid","id":"c0630c80-8bf6-4c97-be72-d2256c4489c2","type":"decisionTable","term":{"creationTimeStamp":"2025-04-07T13:04:03.176Z","modifiedTimeStamp":"2025-04-07T13:04:03.176Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"0b0d6073-627a-4088-b18f-562acf1312a7","name":"day_name","dataType":"string","direction":"input","description":"","generateDataGridColumns":false},"lookup":{},"uiId":"f93ccc2c-f99f-49cc-b686-4fb3c3c99d81"}],"actions":[{"expression":"'What
+            is the meaning of life?'","status":"valid","id":"344ee5bd-d9c8-48d8-9e8c-ef9ac140f83c","type":"assignment","term":{"creationTimeStamp":"2025-04-07T13:04:03.183Z","modifiedTimeStamp":"2025-04-07T13:04:03.183Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"62aab6a7-af6a-4107-b0e3-9fd4d60641a3","name":"question","dataType":"string","direction":"output","description":"","generateDataGridColumns":false},"lookup":{},"uiId":"aca12cc8-aae5-4f24-acb5-7e188af06589"},{"expression":"'42'","status":"valid","id":"d5016f43-5777-4093-aa41-04f7abcd2631","type":"assignment","term":{"creationTimeStamp":"2025-04-07T13:04:03.184Z","modifiedTimeStamp":"2025-04-07T13:04:03.184Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"34658529-879c-472e-9b65-f23ed881270a","name":"answer","dataType":"string","direction":"output","description":"","generateDataGridColumns":false},"lookup":{},"uiId":"e06fe5b3-fa0e-4ddc-b487-c2182a13f36d"}],"mappings":[],"links":[{"method":"GET","rel":"self","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules/60911faa-ea56-4fee-aa31-bd34c93daa50","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules/60911faa-ea56-4fee-aa31-bd34c93daa50","type":"application/vnd.sas.business.rule"},{"method":"GET","rel":"parent","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6","type":"application/vnd.sas.business.rule.set"},{"method":"GET","rel":"up","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules","type":"application/vnd.sas.collection","itemType":"application/vnd.sas.business.rule"}],"status":"valid","uiId":"87699f1c-a523-4089-8dfa-60fcd3cb9775","description":""},{"creationTimeStamp":"2025-04-07T13:04:04.000Z","modifiedTimeStamp":"2025-04-07T13:04:04.052Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","version":3,"id":"bc1aadcb-35f6-4847-a0b0-498af6c8da91","name":"Default_rule_1_else_1","ruleFiredTrackingEnabled":true,"conditional":"elseif","conditions":[],"actions":[{"expression":"'Is
+            the cake a lie?'","status":"valid","id":"5603e2ef-e6c8-49a9-9c78-775317e39b3f","type":"assignment","term":{"creationTimeStamp":"2025-04-07T13:04:03.183Z","modifiedTimeStamp":"2025-04-07T13:04:03.183Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"62aab6a7-af6a-4107-b0e3-9fd4d60641a3","name":"question","dataType":"string","direction":"output","description":"","generateDataGridColumns":false},"lookup":{},"uiId":"6f1b16df-cb38-400e-b6ad-e7bc68b50e14"},{"expression":"'yes'","status":"valid","id":"c179ff1a-c9fe-4008-8c94-9f106ae09ec6","type":"assignment","term":{"creationTimeStamp":"2025-04-07T13:04:03.184Z","modifiedTimeStamp":"2025-04-07T13:04:03.184Z","createdBy":"brmdev@sas.com","modifiedBy":"brmdev@sas.com","id":"34658529-879c-472e-9b65-f23ed881270a","name":"answer","dataType":"string","direction":"output","description":"","generateDataGridColumns":false},"lookup":{},"uiId":"27e69c18-2cb9-4bbd-83d4-822e2086c2e9"}],"mappings":[],"links":[{"method":"GET","rel":"self","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules/bc1aadcb-35f6-4847-a0b0-498af6c8da91","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules/bc1aadcb-35f6-4847-a0b0-498af6c8da91","type":"application/vnd.sas.business.rule"},{"method":"GET","rel":"parent","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6","type":"application/vnd.sas.business.rule.set"},{"method":"GET","rel":"up","href":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules","uri":"/businessRules/ruleSets/4ba245bf-5e02-4b4b-ab05-43dd1366dde8/revisions/e7c3cb8b-a3e1-45e7-a8c5-f30f3364f2f6/rules","type":"application/vnd.sas.collection","itemType":"application/vnd.sas.business.rule"}],"status":"valid","uiId":"975d2bc4-cd82-4e10-b539-5514df678ca6"}]}
+    itemUpdateRequestCodeFile:
+      description: Example of an update to a code file.
+      value:
+        displayName: record_correct
+        description: Save a record of a correct response to a question.
+        updatePayload:
+          content: >
+            {"fileEtag":"\"m975ivgi\"","file":{"id":"f44c1336-fb32-446b-91c9-ba2af5bb6c73","name":"record_correct","description":"Save
+            a record of a correct response to a question.","properties":{"dependentResources":""},"etag":"\"m975ivgi\""},"code":"#/*{\"signatureExtension\":[{\"name\":\"question\",\"description\":\"\",\"dataType\":\"string\",\"direction\":\"input\",\"generateDataGridColumns\":false}]}*/\n'''
+            List all output parameters as comma-separated values in the \"Output:\"
+            docString. Do not specify \"None\" if there is no output parameter.'''\n'''
+            List all Python packages that are not built-in packages in the \"DependentPackages:\"
+            docString. Separate the package names with commas on a single line. '''\n'''
+            DependentPackages: '''\n\ndef execute (question):\n   'Output:'\n   #
+            Save to database\n   return None\n"}
+    jobCreationRequest:
+      description: Example of a job creation request body.
+      value:
+        invokeType: 2
+        creationPayload:
+          destination: wbAzure
+          itemId: ad3d63a5-a03d-488d-851d-c8c997903c68
+          itemType: Org.SASDecisionBuilder.Decision
+          itemName: loan_decision
+          tenantId: f38099fe-4a85-482b-aec8-54ac8180bb7c
+          inputLakehouseName: DecisionTables
+          inputLakehouseId: 71538a96-9362-43d7-be2d-7067ce2a31ad
+          inputWorkspaceId: 32c103f1-0d31-9481-bhfe-c-b3c3dc978bfd
+          inputLakehouseServer: lrg4dmjfg2mf4-st6g27q2e64a2dsyvja.datawarehouse.fabric.microsoft.com
+          inputTableName: ProjectLoan
+          outputLakehouseId: 64cfbe15-39dd-417b-bd63-4e3a363d004b
+          outputLakehouseName: ExecutionResults
+          outputTableName: ProjectLoan2024_09_02_13_56_23
+          outputWorkspaceId: ac230b07a-f726-4bd7-8eff-696e1287cc5f
+    jobStatusResponse:
+      description: Example of a job status response going back to Microsoft Fabric.
+      value:
+        startTimeUtc: 2024-09-13T13:01:34.218000Z
+        endTimeUtc: 2024-09-13T13:15:44.369000Z
+        status: Failed
+        errorDetails:
+          message: container is waiting to start
+          errorCode: "200291"
+          source: System
+          isPermanent: true
+    commonErrorResponse:
+      description: Common error response.
+      value:
+        message: ID is too short.
+        httpStatusCode: 400
+        version: 2
+    errorResponse:
+      description: Example of an error response going back to Microsoft Fabric.
+      value:
+        message: Job status retrieve error
+        errorCode: "200301"
+        source: System
+        isPermanent: true
+    tenantDecisionExecutionParametersRequest:
+      description: hey
+      value:
+        id: "123"
+        tenantRegion: East US 2
+        subscriptionId: "124"
+        planId: "120"
+        dimensionId: "129"
+    trialsSmartCredentialsParametersRequestExample:
+      description: hey
+      value:
+        id: "123"
+        tenantRegion: East US 2
+        subscriptionId: "124"
+        planId: "120"
+        dimensionId: "129"
+    loadTableRequest:
+      description: Sample lakehouse table load payload.
+      value:
+        relativePath: "Files/myFile.csv"
+        pathType: File
+        mode: Overwrite
+        recursive: false
+        formatOptions:
+          format: Csv
+          header: true
+          delimiter: ","
+    writeLakehouseFileRequest:
+      description: Sample lakehouse file creation payload.
+      value:
+        filename: myFile.csv
+        content: "Header1,Header2\nValue1,Value2\nValue3,Value4"
+    createLakehouseRequest:
+      description: Sample lakehouse creation payload
+      value:
+        artifactType: Lakehouse
+        displayName: CreditRiskInputTables
+        description: The input tables for on-demand execution are here.
+        workloadPayload: '{"enableSchemas":false}'
+    createScheduledJobPayload:
+      description: Sample parameters used in a decision execution.
+      value:
+        destination: wbAzure
+        itemId: ad3d63a5-a03d-488d-851d-c8c997903c68
+        itemName: loan_decision
+        itemType: Org.SASDecisionBuilder.Decision
+        runType: Org.SASDecisionBuilder.Decision.RunTheDecision
+        itemWorkspaceId: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+        inputLakehouseName: DecisionTables
+        inputLakehouseId: 71538a96-9362-43d7-be2d-7067ce2a31ad
+        inputWorkspaceId: 32c103f1-0d31-9481-bhfe-c-b3c3dc978bfd
+        inputLakehouseServer: lrg4dmjfg2mf4-st6g27q2e64a2dsyvja.datawarehouse.fabric.microsoft.com
+        inputTableName: ProjectLoan
+        inputLakehouseRegion: East US 2
+        outputLakehouseId: 64cfbe15-39dd-417b-bd63-4e3a363d004b
+        outputLakehouseName: ExecutionResults
+        outputTableName: ProjectLoan2024_09_02_13_56_23
+        outputWorkspaceId: ac230b07a-f726-4bd7-8eff-696e1287cc5f
+        outputLakehouseRegion: East US 2
+        sourceJobInstanceId: abbe4138-c6b5-4065-9503-98e44ae500fe
+        tenantId: f38099fe-4a85-482b-aec8-54ac8180bb7c
+    jobHistoryResponse:
+      description: The information recorded for a decision execution
+      value:
+        state: completed
+        stateFileUri: /files/files/6b962edc-ac6a-488f-85c4-8b6c71cfdf53
+        jobType: Org.SASDecisionBuilder.Decision.RunTheDecision
+        jobUri: /jobExecution/jobs/cf67bad1-32e1-4289-a87e-a1b6a7a17d57
+        message: ""
+        mainSvcCode: "0"
+        startTimeUtc: 2024-10-23T22:11:11.437000Z
+        endTimeUtc: 2024-10-23T22:16:44.278000Z
+        locked: true
+        tenantId: f38099fe-4a85-482b-aec8-54ac8180bb7c
+        itemId: ad3d63a5-a03d-488d-851d-c8c997903c68
+        itemName: loan_decision
+        itemType: Org.SASDecisionBuilder.Decision
+        destination: wbAzure
+        itemWorkspaceId: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+        inputLakehouseName: DecisionTables
+        inputLakehouseId: 71538a96-9362-43d7-be2d-7067ce2a31ad
+        inputWorkspaceId: 32c103f1-0d31-9481-bhfe-c-b3c3dc978bfd
+        inputLakehouseServer: lrg4dmjfg2mf4-st6g27q2e64a2dsyvja.datawarehouse.fabric.microsoft.com
+        inputTableName: ProjectLoan
+        inputLakehouseRegion: East US 2
+        outputLakehouseId: 64cfbe15-39dd-417b-bd63-4e3a363d004b
+        outputLakehouseName: ExecutionResults
+        outputTableName: ProjectLoan2024_09_02_13_56_23
+        outputWorkspaceId: ac230b07a-f726-4bd7-8eff-696e1287cc5f
+        outputLakehouseRegion: East US 2
+        imageCreationId: 9451ea39-395e-4d19-bf2a-362daafd2060
+        imageCreatedBy: loanofficer@sheffield.com
+        imageCreationTimeStamp: 2024-10-23T22:11:13.517000Z
+        imageSourceUri: /decisions/flows/ad3d63a5-a03d-488d-851d-c8c997903c68/revisions/1b4089a5-3926-465b-9b8f-3156bf7bb767
+        fabricActivityId: b2d6336d-6602-4d7d-a175-8cb152d80d45
+        fabricRequestId: 6491e6cd-e965-4c00-930d-e42087a9277b
+        decisionCodeUri: /decisions/flows/ad3d63a5-a03d-488d-851d-c8c997903c68/revisions/1b4089a5-3926-465b-9b8f-3156bf7bb767/code?rootPackageName=dbadhoc_1b4089a53926465b9b8f3156bf7bb767_1_0_e59dbe4c5e2547d084d8166fd1316a6d&traversedPathFlag=false&isGeneratingRuleFiredColumn=false&codeTarget=docker
+        jobSubmittedBy: loanofficer@bsheffield.com
+        kubernetesNameSpace: nscc735f0f8546492299bdb730362926ea
+        itemModifiedTimeStamp: 2024-10-23T22:05:11.312000Z
+        highestComponentModifiedTimeStamp: 2024-09-22T21:24:11.312000Z
+        scoreDefinitionId: afdfc4ec-4413-4ea0-abc3-6e755afed3a4
+    fabricActivityCollection:
+      description: Collection of requests in a Fabric activity collection.
+      value:
+        name: activities
+        start: 0
+        count: 1
+        limit: 1
+        items:
+        - activityId: b2d6336d-6602-4d7d-a175-8cb152d80d45
+          requestId: 6491e6cd-e965-4c00-930d-e42087a9277b
+          opAction: Create
+          opApi: Job
+          opStatus: succeeded
+          creationTimeStamp: 2024-10-23T22:11:11.437000Z
+          modifiedTimeStamp: 2024-10-23T22:16:44.278000Z
+          initiatedBy: loanofficer@bsheffied.com
+          itemWorkspaceId: 32c601f1-0d31-9481-bhfe-b3c3dc978bfd
+          itemType: Org.SASDecisionBuilder.Decision
+          itemId: ad3d63a5-a03d-488d-851d-c8c997903c68
+          itemName: loan_decision
+          jobType: Org.SASDecisionBuilder.Decision.RunTheDecision
+          jobInstanceId: abbe4138-c6b5-4065-9503-98e44ae500fe
+          scoreDefinitionId: afdfc4ec-4413-4ea0-abc3-6e755afed3a4
+          jobDefinitionId: 7cdb7481-5370-40a1-be3e-1aff1246c4f1
+          jobApiStateFileUri: /files/files/6b962edc-ac6a-488f-85c4-8b6c71cfdf53
+          jobApiModelName: dbadhoc_1b4089a53926465b9b8f3156bf7bb767_1_0_e59dbe4c5e2547d084d8166fd1316a6d
+          jobApiJobExecutionUri: /jobExecution/jobs/cf67bad1-32e1-4289-a87e-a1b6a7a17d57
+          jobApiJobOutputTableIfExist: ProjectLoan2024_09_02_13_56_23
+          kubernetesNameSpace: nscc735f0f8546492299bdb730362926e
+    executeNotebook:
+      description: Example of a notebook execution request.
+      value:
+        modelName: JSRCCFraud04161448
+        modelWorkspaceId: fd99ce5f-0b9e-499e-9b30-98b66b469590

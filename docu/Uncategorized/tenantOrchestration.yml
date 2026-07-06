@@ -1,0 +1,2513 @@
+---
+openapi: 3.0.3
+info:
+  title: Tenant Orchestration
+  description: |
+    The Tenant Orchestration API Manages data relating to tenants and multi-tenant services.
+    Service state related to tenant transitions is aggregated by this API at the tenant level.
+  version: "1"
+  contact:
+    name: SAS Developers
+    email: devex@sas.com
+    url: https://developer.sas.com
+servers:
+- url: https://example.com/tenantOrchestration/v1
+  description: Example server for development and testing.
+tags:
+- name: Root
+  description: API root operations.
+- name: Tenants
+  description: Operations related to tenants.
+paths:
+  /:
+    get:
+      operationId: root
+      summary: API root resource
+      description: Returns basic API information.
+      tags:
+      - Root
+      responses:
+        "200":
+          description: API root
+          headers:
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Welcome to the Tenant Orchestration API."
+  /tenants:
+    get:
+      operationId: getTenants
+      summary: List tenants
+      description: Returns a list of current tenants, with optional filtering and
+        pagination.
+      tags:
+      - Tenants
+      parameters:
+      - name: filter
+        in: query
+        description: Optional filter expression for advanced filtering. This is in
+          addition to the explicit scalar attribute filters.
+        schema:
+          type: string
+      - name: shortName
+        in: query
+        description: Filter tenants by short name.
+        schema:
+          type: string
+          pattern: "^[a-z][0-9a-z-]{1,38}[0-9a-z]$"
+      - name: desiredState
+        in: query
+        description: Filter tenants by desired state.
+        schema:
+          type: string
+      - name: currentState
+        in: query
+        description: Filter tenants by current state.
+        schema:
+          type: string
+      - name: start
+        in: query
+        description: Zero-based index of the first item to return (pagination).
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: limit
+        in: query
+        description: Maximum number of items to return (pagination).
+        schema:
+          type: integer
+          minimum: 1
+          default: 10
+      - name: sortBy
+        in: query
+        description: >-
+          Sort the collection by the specified field and direction. The format
+          is `field:direction` where direction is `ascending` or `descending`.
+          Sortable fields: `shortName`, `desiredState`, `dataPlaneIngress`,
+          `currentState`.
+        schema:
+          type: string
+          default: "shortName:ascending"
+        example: "shortName:ascending"
+      - name: If-None-Match
+        in: header
+        description: Return the resource only if the ETag does not match.
+        required: false
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        description: Return the resource only if it has been modified since the specified
+          date/time.
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: List of tenants
+          headers:
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenantCollection"
+              examples:
+                firstPageOfSeven:
+                  summary: First page of seven available pages of results
+                  value:
+                    items:
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc01"
+                      shortName: "tenant1"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc02"
+                      shortName: "tenant2"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc03"
+                      shortName: "tenant3"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc04"
+                      shortName: "tenant4"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc05"
+                      shortName: "tenant5"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc06"
+                      shortName: "tenant6"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc07"
+                      shortName: "tenant7"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc08"
+                      shortName: "tenant8"
+                      desiredState: "active"
+                      currentState: "active"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc09"
+                      shortName: "tenant9"
+                      desiredState: "active"
+                      currentState: "active"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc10"
+                      shortName: "tenant10"
+                      desiredState: "active"
+                      currentState: "active"
+                    links:
+                    - rel: next
+                      href: "/tenantOrchestration/v1/tenants?start=10&limit=10"
+                    - rel: last
+                      href: "/tenantOrchestration/v1/tenants?start=60&limit=10"
+                thirdPageOfSeven:
+                  summary: Third page of seven available pages of results
+                  value:
+                    items:
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc21"
+                      shortName: "tenant21"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc22"
+                      shortName: "tenant22"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc23"
+                      shortName: "tenant23"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc24"
+                      shortName: "tenant24"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc25"
+                      shortName: "tenant25"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc26"
+                      shortName: "tenant26"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc27"
+                      shortName: "tenant27"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc28"
+                      shortName: "tenant28"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc29"
+                      shortName: "tenant29"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc30"
+                      shortName: "tenant30"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    links:
+                    - rel: first
+                      href: "/tenantOrchestration/v1/tenants?start=0&limit=10"
+                    - rel: prev
+                      href: "/tenantOrchestration/v1/tenants?start=10&limit=10"
+                    - rel: next
+                      href: "/tenantOrchestration/v1/tenants?start=30&limit=10"
+                    - rel: last
+                      href: "/tenantOrchestration/v1/tenants?start=60&limit=10"
+                lastPageOfSeven:
+                  summary: Last page of seven available pages of results
+                  value:
+                    items:
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc61"
+                      shortName: "tenant61"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc62"
+                      shortName: "tenant62"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc63"
+                      shortName: "tenant63"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc64"
+                      shortName: "tenant64"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc65"
+                      shortName: "tenant65"
+                      desiredState: "active"
+                      currentState: "active"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarded"
+                        sas-file-store:
+                          state: "onboarded"
+                    links:
+                    - rel: first
+                      href: "/tenantOrchestration/v1/tenants?start=0&limit=10"
+                    - rel: prev
+                      href: "/tenantOrchestration/v1/tenants?start=50&limit=10"
+                    - rel: last
+                      href: "/tenantOrchestration/v1/tenants?start=60&limit=10"
+                failedOnboardingTenant:
+                  summary: Tenant with failed onboarding showing mixed service states
+                  value:
+                    items:
+                    - id: "b344ae2b-fd43-4627-8f6a-2c98707ebc99"
+                      shortName: "failed-tenant"
+                      desiredState: "onboarded"
+                      currentState: "onboardingFailed"
+                      stateDetails:
+                        sas-logon-app:
+                          state: "onboarded"
+                        sas-configuration:
+                          state: "onboarding"
+                        sas-file-store:
+                          state: "onboardingFailed"
+                          failureDetails: "Failed to bootstrap authorization rules\
+                            \ due to insufficient permissions"
+                        sas-backup-agent:
+                          state: "onboardingFailed"
+                          failureDetails: "Connection timeout to logon endpoint"
+                        sas-cacheserver:
+                          state: "onboarding"
+                    links:
+                    - rel: first
+                      href: "/tenantOrchestration/v1/tenants?currentState=onboardingFailed&start=0&limit=10"
+                    - rel: last
+                      href: "/tenantOrchestration/v1/tenants?currentState=onboardingFailed&start=0&limit=10"
+        "400":
+          description: Bad request. Invalid query parameters or request format.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 400
+                errorCode: 190400
+                message: "Invalid request body."
+                details:
+                  path: "/tenantOrchestration/v1/tenants"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+    head:
+      operationId: headersForTenants
+      summary: Get tenant collection headers
+      description: Returns headers for the tenant collection.
+      tags:
+      - Tenants
+      parameters:
+      - name: filter
+        in: query
+        description: Optional filter expression for advanced filtering. This is in
+          addition to the explicit scalar attribute filters.
+        schema:
+          type: string
+      - name: shortName
+        in: query
+        description: Filter tenants by short name.
+        schema:
+          type: string
+          pattern: "^[a-z][0-9a-z-]{1,38}[0-9a-z]$"
+      - name: desiredState
+        in: query
+        description: Filter tenants by desired state.
+        schema:
+          type: string
+      - name: currentState
+        in: query
+        description: Filter tenants by current state.
+        schema:
+          type: string
+      - name: start
+        in: query
+        description: Zero-based index of the first item to return (pagination).
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: limit
+        in: query
+        description: Maximum number of items to return (pagination).
+        schema:
+          type: integer
+          minimum: 1
+          default: 10
+      - name: sortBy
+        in: query
+        description: >-
+          Sort the collection by the specified field and direction. The format
+          is `field:direction` where direction is `ascending` or `descending`.
+          Sortable fields: `shortName`, `desiredState`, `dataPlaneIngress`,
+          `currentState`.
+        schema:
+          type: string
+          default: "shortName:ascending"
+        example: "shortName:ascending"
+      - name: If-None-Match
+        in: header
+        description: Return the resource only if the ETag does not match.
+        required: false
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        description: Return the resource only if it has been modified since the specified
+          date/time.
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: Successful HEAD request for tenants
+          headers:
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+  /tenants/{tenantId}:
+    parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      description: Unique identifier for the tenant (UUID).
+    get:
+      operationId: getTenant
+      summary: Get tenant
+      description: Retrieves the specified tenant, including desired and current state.
+      tags:
+      - Tenants
+      responses:
+        "200":
+          description: Tenant details
+          headers:
+            ETag:
+              description: The current entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenant"
+              example:
+                id: "b344ae2b-fd43-4627-8f6a-2c98707ebc01"
+                shortName: "tenant1"
+                desiredState: "active"
+                currentState: "active"
+                stateDetails:
+                  sas-logon-app:
+                    state: "onboarded"
+                  sas-configuration:
+                    state: "onboarded"
+                  sas-file-store:
+                    state: "onboarded"
+        "404":
+          description: Tenant not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 404
+                errorCode: 190301
+                message: "Tenant not found."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+    head:
+      operationId: headersForTenant
+      summary: Get tenant headers
+      description: Returns headers for the specified tenant resource.
+      tags:
+      - Tenants
+      responses:
+        "200":
+          description: Successful HEAD request for tenant
+          headers:
+            ETag:
+              description: The current entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+    put:
+      operationId: updateOrCreateTenant
+      summary: Create or update tenant
+      description: |
+        Creates a new tenant or updates an existing tenant.
+        For creating a new tenant, the shortName field, and the administratorEmails must be provided
+        and the desiredState field must have a value of onboarded.
+        If tenantDataId is provided for an onboarding request, an Import Tenant
+        step is executed after Initialize Tenant and before any Rolling Restart of Service X steps.
+        For updating an existing tenant, the administratorEmails cannot be provided.
+        Only mutable fields can be updated, immutable fields include: id, shortname, creationTimestamp, and createdBy.
+        When updating, least one precondition header ("If-Match" or "If-Unmodified-Since") must be specified.
+        Failure to specify a precondition when updating an existing resource will yield a 428 response.
+        If the precondition does not match, a 412 response will be returned.
+      tags:
+      - Tenants
+      parameters:
+      - name: If-Match
+        in: header
+        description: ETag value. Required if tenant already exists and If-Unmodified-Since
+          is not provided.
+        required: false
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: Timestamp value. Required if tenant already exists and If-Match
+          is not provided.
+        required: false
+        schema:
+          type: string
+          format: date-time
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/tenantCreateOrUpdate"
+            examples:
+              createTenant:
+                summary: Create a new tenant
+                description: Example of creating a new tenant with required fields
+                value:
+                  shortName: "acme-corp"
+                  desiredState: "onboarded"
+                  administratorEmails: ["user1@example.com", "user2@example.com"]
+              createTenantWithImport:
+                summary: Create and onboard a tenant from a tenant export package
+                description: Example of creating a new tenant and triggering the import
+                  step
+                value:
+                  shortName: "acme-corp"
+                  desiredState: "onboarded"
+                  tenantDataId: "a8b6f6f9-0a1e-4f1a-9b6a-4ea08f8e2d1c"
+                  administratorEmails: ["user1@example.com", "user2@example.com"]
+              updateTenant:
+                summary: Update an existing tenant
+                description: Example of updating an existing tenant
+                value:
+                  desiredState: "active"
+                  properties:
+                    environment: "production"
+                    billingAccount: "BA-789012"
+      responses:
+        "201":
+          description: Tenant created successfully
+          headers:
+            ETag:
+              description: The current entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was created.
+              schema:
+                type: string
+                format: date-time
+            Location:
+              description: The URI of the created resource.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenant"
+              example:
+                id: "b344ae2b-fd43-4627-8f6a-2c98707ebc01"
+                shortName: "acme-corp"
+                desiredState: "onboarded"
+                currentState: "onboarding"
+                stateDetails:
+                  sas-logon-app:
+                    state: "onboarding"
+                  sas-configuration:
+                    state: "onboarding"
+                  sas-file-store:
+                    state: "onboarding"
+        "200":
+          description: Tenant updated successfully
+          headers:
+            ETag:
+              description: The current entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenant"
+              example:
+                id: "b344ae2b-fd43-4627-8f6a-2c98707ebc01"
+                shortName: "tenant1"
+                desiredState: "active"
+                currentState: "active"
+                stateDetails:
+                  sas-logon-app:
+                    state: "onboarded"
+                  sas-configuration:
+                    state: "onboarded"
+                  sas-file-store:
+                    state: "onboarded"
+        "400":
+          description: Bad request. The request body or parameters are invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 400
+                errorCode: 190400
+                message: "Invalid request body."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+        "428":
+          description: Precondition Required. At least one precondition header (If-Match
+            or If-Unmodified-Since) must be specified when updating an existing tenant.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 428
+                errorCode: 190428
+                message: "Precondition header required for updating existing tenant."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+        "412":
+          description: Precondition Failed. The precondition header(s) did not match
+            the server's state.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 412
+                errorCode: 190412
+                message: "Precondition failed."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+        "409":
+          description: Conflict. The tenant cannot be created due to a conflict (e.g.,
+            shortName already exists).
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 409
+                errorCode: 190409
+                message: "Tenant with shortName 'acme-corp' already exists."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+    delete:
+      operationId: deleteTenant
+      summary: Delete tenant
+      description: Removes the specified tenant.
+      tags:
+      - Tenants
+      responses:
+        "204":
+          description: Tenant deleted or did not exist. No content is returned.
+        "400":
+          description: Bad request. The request body or parameters are invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 400
+                errorCode: 190400
+                message: "Invalid request body."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+        "409":
+          description: Conflict. The tenant cannot be deleted due to a conflict.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 409
+                errorCode: 190409
+                message: "Conflict deleting tenant."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+  /tenants/{tenantId}/stateTransitions:
+    parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      description: Unique identifier for the tenant (UUID).
+    get:
+      operationId: getTenantStateTransitions
+      summary: Get tenant state transition history
+      description: Returns chronological history of state transitions for the specified
+        tenant. Results are sorted by transition timestamp in descending order by
+        default (most recent first).
+      tags:
+      - Tenants
+      parameters:
+      - name: filter
+        in: query
+        description: Optional filter expression for advanced filtering.
+        schema:
+          type: string
+      - name: details
+        in: query
+        description: Filter transitions by details content.
+        schema:
+          type: string
+      - name: sourceState
+        in: query
+        description: Filter transitions by source state.
+        schema:
+          type: string
+          nullable: true
+          enum: [onboarded, onboardingFailed, active, activatingFailed, suspended,
+            suspendingFailed, offboarded, offboardingFailed]
+      - name: stateTransitionId
+        in: query
+        description: Filter transitions by transition id.
+        schema:
+          type: string
+          format: uuid
+      - name: targetState
+        in: query
+        description: Filter transitions by the requested steady target state.
+        schema:
+          type: string
+          enum: [onboarded, active, suspended, offboarded]
+      - name: resultingState
+        in: query
+        description: Filter transitions by the final resulting state after completion.
+        schema:
+          type: string
+          enum: [onboarded, onboardingFailed, active, activatingFailed, suspended,
+            suspendingFailed, offboarded, offboardingFailed]
+      - name: triggeredAt
+        in: query
+        description: Filter transitions by the timestamp when the transition attempt
+          was triggered.
+        schema:
+          type: string
+          format: date-time
+      - name: completedAt
+        in: query
+        description: Filter transitions by the timestamp of when the transition completed.
+        schema:
+          type: string
+          format: date-time
+      - name: triggeredBy
+        in: query
+        description: Filter transitions by the actor that triggered them.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Maximum number of items to return (pagination).
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: start
+        in: query
+        description: Zero-based index of the first item to return (pagination).
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: sortBy
+        in: query
+        description: >-
+          Sort the collection by the specified field and direction. The format
+          is `field:direction` where direction is `ascending` or `descending`.
+          Sortable fields: `sourceState`, `targetState`, `resultingState`,
+          `triggeredAt`, `completedAt`, `triggeredBy`, `tenantJobName`.
+        schema:
+          type: string
+          default: "triggeredAt:descending"
+        example: "triggeredAt:descending"
+      - name: If-None-Match
+        in: header
+        description: Only include resources where the ETag for the resource does not
+          match one of the provided ETags.
+        required: false
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        description: Only include resources that have been modified since the specified
+          date/time.
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: List of state transitions for the tenant
+          headers:
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/stateTransitionCollection"
+              examples:
+                onboardingTransitions:
+                  summary: State transitions during onboarding
+                  value:
+                    items:
+                    - id: "550e8400-e29b-41d4-a716-446655440001"
+                      sourceState:
+                      targetState: "onboarded"
+                      resultingState: "onboarded"
+                      triggeredAt: "2026-02-02T14:25:10.456Z"
+                      completedAt: "2026-02-02T14:30:15.123Z"
+                      triggeredBy: "system"
+                      details: "All onboarding steps completed successfully"
+                    - id: "550e8400-e29b-41d4-a716-446655440002"
+                      sourceState: "onboarded"
+                      targetState: "active"
+                      resultingState: "active"
+                      triggeredAt: "2026-02-02T14:25:10.456Z"
+                      completedAt: "2026-02-02T16:30:15.123Z"
+                      triggeredBy: "user@example.com"
+                      details: "Tenant onboarding complete. Tenant is now active."
+                    links:
+                    - rel: first
+                      href: "/tenantOrchestration/v1/tenants/b344ae2b-fd43-4627-8f6a-2c98707ebc01/stateTransitions?start=0&limit=20"
+                    - rel: last
+                      href: "/tenantOrchestration/v1/tenants/b344ae2b-fd43-4627-8f6a-2c98707ebc01/stateTransitions?start=0&limit=20"
+                fullLifecycleTransitions:
+                  summary: Complete tenant lifecycle with failures and recovery
+                  value:
+                    items:
+                    - id: "550e8400-e29b-41d4-a716-446655440012"
+                      sourceState: "active"
+                      targetState: "suspended"
+                      resultingState: "suspended"
+                      triggeredAt: "2026-02-02T15:05:00.000Z"
+                      completedAt: "2026-02-02T16:30:15.123Z"
+                      triggeredBy: "admin@example.com"
+                      details: "All suspension steps completed"
+                    - id: "550e8400-e29b-41d4-a716-446655440011"
+                      sourceState: "active"
+                      targetState: "suspended"
+                      resultingState: "suspended"
+                      triggeredAt: "2026-02-02T15:00:00.000Z"
+                      completedAt: "2026-02-02T16:30:15.123Z"
+                      triggeredBy: "admin@example.com"
+                      details: "Tenant suspension initiated"
+                    - id: "550e8400-e29b-41d4-a716-446655440010"
+                      sourceState: "onboarded"
+                      targetState: "active"
+                      resultingState: "active"
+                      triggeredAt: "2026-02-02T14:55:30.789Z"
+                      completedAt: "2026-02-02T16:30:15.123Z"
+                      triggeredBy: "admin@example.com"
+                      details: "All activation steps completed"
+                    - id: "550e8400-e29b-41d4-a716-446655440008"
+                      sourceState: "offboarded"
+                      targetState: "onboarded"
+                      resultingState: "onboarded"
+                      triggeredAt: "2026-02-02T14:45:15.123Z"
+                      completedAt: "2026-02-02T16:30:15.123Z"
+                      triggeredBy: "system"
+                      details: "All onboarding steps completed successfully"
+                    - id: "550e8400-e29b-41d4-a716-446655440007"
+                      sourceState: "onboardingFailed"
+                      targetState: "onboarded"
+                      resultingState: "onboarded"
+                      triggeredAt: "2026-02-02T14:40:00.000Z"
+                      completedAt: "2026-02-02T16:30:15.123Z"
+                      triggeredBy: "admin@example.com"
+                      details: "All onboarding steps completed successfully"
+                    - id: "550e8400-e29b-41d4-a716-446655440006"
+                      sourceState: "offboarded"
+                      targetState: "onboarded"
+                      resultingState: "onboardingFailed"
+                      triggeredAt: "2026-02-02T14:35:00.000Z"
+                      completedAt: "2026-02-02T16:30:15.123Z"
+                      triggeredBy: "system"
+                      details: "Identity zone creation step failed"
+                    - id: "550e8400-e29b-41d4-a716-446655440005"
+                      sourceState:
+                      targetState: "onboarded"
+                      resultingState: "onboarded"
+                      triggeredAt: "2026-02-02T14:30:00.000Z"
+                      completedAt: "2026-02-02T16:30:15.123Z"
+                      triggeredBy: "user@example.com"
+                      details: "All onboarding steps completed successfully"
+                    links:
+                    - rel: first
+                      href: "/tenantOrchestration/v1/tenants/b344ae2b-fd43-4627-8f6a-2c98707ebc02/stateTransitions?start=0&limit=20"
+                    - rel: last
+                      href: "/tenantOrchestration/v1/tenants/b344ae2b-fd43-4627-8f6a-2c98707ebc02/stateTransitions?start=0&limit=20"
+        "404":
+          description: Tenant not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 404
+                errorCode: 190301
+                message: 'Tenant with ID "null1" not found.'
+                details:
+                  path: "/tenantOrchestration/v1/tenants/null1"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+    head:
+      operationId: headersForTenantStateTransitions
+      summary: Get tenant state transition headers
+      description: Returns headers for the tenant state transition collection.
+      tags:
+      - Tenants
+      parameters:
+      - name: filter
+        in: query
+        description: Optional filter expression for advanced filtering.
+        schema:
+          type: string
+      - name: details
+        in: query
+        description: Filter transitions by details content.
+        schema:
+          type: string
+      - name: sourceState
+        in: query
+        description: Filter transitions by source state.
+        schema:
+          type: string
+          nullable: true
+          enum: [onboarded, onboardingFailed, active, activatingFailed, suspended,
+            suspendingFailed, offboarded, offboardingFailed]
+      - name: stateTransitionId
+        in: query
+        description: Filter transitions by transition id.
+        schema:
+          type: string
+          format: uuid
+      - name: targetState
+        in: query
+        description: Filter transitions by the requested steady target state.
+        schema:
+          type: string
+          enum: [onboarded, active, suspended, offboarded]
+      - name: resultingState
+        in: query
+        description: Filter transitions by the final resulting state after completion.
+        schema:
+          type: string
+          enum: [onboarded, onboardingFailed, active, activatingFailed, suspended,
+            suspendingFailed, offboarded, offboardingFailed]
+      - name: triggeredAt
+        in: query
+        description: Filter transitions by the timestamp when the transition attempt
+          was triggered.
+        schema:
+          type: string
+          format: date-time
+      - name: completedAt
+        in: query
+        description: Filter transitions by the timestamp of when the transition completed.
+        schema:
+          type: string
+          format: date-time
+      - name: triggeredBy
+        in: query
+        description: Filter transitions by the actor that triggered them.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Maximum number of items to return (pagination).
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: start
+        in: query
+        description: Zero-based index of the first item to return (pagination).
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: sortBy
+        in: query
+        description: >-
+          Sort the collection by the specified field and direction. The format
+          is `field:direction` where direction is `ascending` or `descending`.
+          Sortable fields: `sourceState`, `targetState`, `resultingState`,
+          `triggeredAt`, `completedAt`, `triggeredBy`, `tenantJobName`.
+        schema:
+          type: string
+          default: "triggeredAt:descending"
+        example: "triggeredAt:descending"
+      - name: If-None-Match
+        in: header
+        description: Only include resources where the ETag for the resource does not
+          match one of the provided ETags.
+        required: false
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        description: Only include resources that have been modified since the specified
+          date/time.
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: Successful HEAD request for tenant state transitions
+          headers:
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+  /tenants/{tenantId}/stateTransitions/{transitionId}:
+    parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      description: Unique identifier for the tenant (UUID).
+    - name: transitionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      description: Unique identifier for the state transition (UUID).
+    get:
+      operationId: getTenantStateTransition
+      summary: Get a specific state transition
+      description: Returns details of a specific state transition for the specified
+        tenant.
+      tags:
+      - Tenants
+      parameters:
+      - name: If-None-Match
+        in: header
+        description: Return the resource only if the ETag does not match.
+        required: false
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        description: Return the resource only if it has been modified since the specified
+          date/time.
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: State transition details
+          headers:
+            ETag:
+              description: The current entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/stateTransition"
+              examples:
+                onboardingInitiated:
+                  summary: Onboarding completed
+                  value:
+                    id: "550e8400-e29b-41d4-a716-446655440002"
+                    sourceState:
+                    targetState: "onboarded"
+                    resultingState: "onboarded"
+                    triggeredAt: "2026-02-02T14:25:10.456Z"
+                    completedAt: "2026-02-02T16:25:10.456Z"
+                    triggeredBy: "user@example.com"
+                    details: "All tenant onboarding steps completed successfully"
+                onboardingCompleted:
+                  summary: Activation completed
+                  value:
+                    id: "550e8400-e29b-41d4-a716-446655440001"
+                    sourceState: "onboarded"
+                    targetState: "active"
+                    resultingState: "active"
+                    triggeredAt: "2026-02-02T14:30:15.123Z"
+                    completedAt: "2026-02-02T16:25:10.456Z"
+                    triggeredBy: "system"
+                    details: "Tenant activated successfully"
+        "304":
+          description: Not modified - resource has not changed since the specified
+            If-None-Match or If-Modified-Since header.
+          headers:
+            ETag:
+              description: The current entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+        "404":
+          description: Tenant or state transition not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 404
+                errorCode: 190307
+                message: "State transition not found."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}/stateTransitions/{transitionId}"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+    head:
+      operationId: headersForTenantStateTransition
+      summary: Get headers for a specific state transition
+      description: Returns headers for a specific state transition without the response
+        body.
+      tags:
+      - Tenants
+      parameters:
+      - name: If-None-Match
+        in: header
+        description: Only include resources where the ETag for the resource does not
+          match one of the provided ETags.
+        required: false
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        description: Only include resources that have been modified since the specified
+          date/time.
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: Successful HEAD request for state transition
+          headers:
+            ETag:
+              description: The current entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+  /tenants/{tenantId}/stateTransitions/{transitionId}/steps:
+    parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      description: Unique identifier for the tenant (UUID).
+    - name: transitionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      description: Unique identifier for the state transition (UUID).
+    get:
+      operationId: getTenantStateTransitionSteps
+      summary: Get steps for a state transition
+      description: Returns a paginated list of tenant steps for the specified state
+        transition, with optional filtering by state, service, or execution URI. Steps
+        are pre-created by TenantOrch at transition start and include base onboarding,
+        per-service work, and known extended-tenant-job templates.
+      tags:
+      - Tenants
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: The id of the tenant.
+        schema:
+          type: string
+          format: uuid
+      - name: transitionId
+        in: path
+        required: true
+        description: The id of the state transition.
+        schema:
+          type: string
+          format: uuid
+      - name: filter
+        in: query
+        required: false
+        description: Optional filter expression for advanced filtering.
+        schema:
+          type: string
+      - name: description
+        in: query
+        required: false
+        description: Filter steps by description.
+        schema:
+          type: string
+      - name: failureDetails
+        in: query
+        required: false
+        description: Filter steps by failure details.
+        schema:
+          type: string
+      - name: jobName
+        in: query
+        required: false
+        description: Filter steps by tenant job name.
+        schema:
+          type: string
+      - name: name
+        in: query
+        required: false
+        description: Filter steps by name.
+        schema:
+          type: string
+      - name: serviceId
+        in: query
+        required: false
+        description: Filter steps by service (only shows service-specific steps).
+        schema:
+          type: string
+          format: uuid
+      - name: state
+        in: query
+        required: false
+        description: Filter steps by their current state.
+        schema:
+          type: string
+          enum: [pending, running, success, failed]
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of items to return per page (pagination).
+        schema:
+          type: integer
+          minimum: 1
+          default: 20
+      - name: start
+        in: query
+        required: false
+        description: Zero-based index of the first item to return (pagination).
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: sortBy
+        in: query
+        description: >-
+          Sort the collection by the specified field and direction. The format
+          is `field:direction` where direction is `ascending` or `descending`.
+          Sortable fields: `name`, `description`, `state`,
+          `creationTimestamp`, `modifiedTimestamp`, `jobName`.
+        schema:
+          type: string
+          default: "creationTimestamp:descending"
+        example: "creationTimestamp:descending"
+      - name: If-None-Match
+        in: header
+        description: Only include resources where the ETag for the resource does not
+          match one of the provided ETags.
+        required: false
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        description: Only include resources that have been modified since the specified
+          date/time.
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: List of steps for the state transition
+          headers:
+            ETag:
+              description: The entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/stateTransitionStepCollection"
+              examples:
+                onboardingSteps:
+                  summary: Steps from an onboarding transition
+                  value:
+                    items:
+                    - id: "f2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e"
+                      name: "Create Identity Zone"
+                      state: "success"
+                      creationTimestamp: "2026-02-02T12:00:30Z"
+                      modifiedTimestamp: "2026-02-02T12:05:30Z"
+                      stateTransitionId: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+                    - id: "f1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+                      name: "Generate Secrets"
+                      state: "success"
+                      creationTimestamp: "2026-02-02T11:00:45Z"
+                      modifiedTimestamp: "2026-02-02T11:05:45Z"
+                      stateTransitionId: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+                    - id: "f0a1b2c3-d4e5-4f6a-7b8c-9d0e1f2a3b4c"
+                      name: "Initialize Tenant"
+                      state: "success"
+                      creationTimestamp: "2026-02-02T10:00:15Z"
+                      modifiedTimestamp: "2026-02-02T10:01:15Z"
+                      stateTransitionId: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+                failedStepsExample:
+                  summary: Failed steps from an onboarding transition
+                  value:
+                    items:
+                    - id: "f3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f"
+                      name: "Generate Secrets"
+                      state: "failed"
+                      failureDetails: "Encryption key unavailable in secrets vault"
+                      creationTimestamp: "2026-02-02T10:00:45Z"
+                      modifiedTimestamp: "2026-02-02T10:02:45Z"
+                      stateTransitionId: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+        "404":
+          description: State transition not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 404
+                errorCode: 190308
+                message: 'State transition with ID "null1" not found.'
+                details:
+                  path: "/tenantOrchestration/v1/tenants/f2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e/stateTransitions/null1/steps"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+    head:
+      operationId: headersForTenantStateTransitionSteps
+      summary: Get step headers for a state transition
+      description: Returns headers for the step collection of the specified state
+        transition.
+      tags:
+      - Tenants
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: The id of the tenant.
+        schema:
+          type: string
+          format: uuid
+      - name: transitionId
+        in: path
+        required: true
+        description: The id of the state transition.
+        schema:
+          type: string
+          format: uuid
+      - name: filter
+        in: query
+        required: false
+        description: Optional filter expression for advanced filtering.
+        schema:
+          type: string
+      - name: description
+        in: query
+        required: false
+        description: Filter steps by description.
+        schema:
+          type: string
+      - name: failureDetails
+        in: query
+        required: false
+        description: Filter steps by failure details.
+        schema:
+          type: string
+      - name: jobName
+        in: query
+        required: false
+        description: Filter steps by tenant job name.
+        schema:
+          type: string
+      - name: name
+        in: query
+        required: false
+        description: Filter steps by name.
+        schema:
+          type: string
+      - name: serviceId
+        in: query
+        required: false
+        description: Filter steps by service (only shows service-specific steps).
+        schema:
+          type: string
+          format: uuid
+      - name: state
+        in: query
+        required: false
+        description: Filter steps by their current state.
+        schema:
+          type: string
+          enum: [pending, running, success, failed]
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of items to return per page (pagination).
+        schema:
+          type: integer
+          minimum: 1
+          default: 20
+      - name: start
+        in: query
+        required: false
+        description: Zero-based index of the first item to return (pagination).
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: sortBy
+        in: query
+        description: >-
+          Sort the collection by the specified field and direction. The format
+          is `field:direction` where direction is `ascending` or `descending`.
+          Sortable fields: `name`, `description`, `state`,
+          `creationTimestamp`, `modifiedTimestamp`, `jobName`.
+        schema:
+          type: string
+          default: "creationTimestamp:descending"
+        example: "creationTimestamp:descending"
+      - name: If-None-Match
+        in: header
+        description: Only include resources where the ETag for the resource does not
+          match one of the provided ETags.
+        required: false
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        description: Only include resources that have been modified since the specified
+          date/time.
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: Successful HEAD request for state transition steps
+          headers:
+            ETag:
+              description: The entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+  /tenants/{tenantId}/stateTransitions/{transitionId}/steps/{stepId}:
+    parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      description: Unique identifier for the tenant (UUID).
+    - name: transitionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      description: Unique identifier for the state transition (UUID).
+    - name: stepId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      description: Unique identifier for the step (UUID).
+    get:
+      operationId: getTenantStateTransitionStep
+      summary: Get a specific step
+      description: Returns details of a specific step within a state transition for
+        the specified tenant.
+      tags:
+      - Tenants
+      parameters:
+      - name: If-None-Match
+        in: header
+        description: Return the resource only if the ETag does not match.
+        required: false
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        description: Return the resource only if it has been modified since the specified
+          date/time.
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: Step details
+          headers:
+            ETag:
+              description: The entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenantStep"
+              examples:
+                successfulStep:
+                  summary: Successfully completed step
+                  value:
+                    id: "f0a1b2c3-d4e5-4f6a-7b8c-9d0e1f2a3b4c"
+                    name: "Initialize Tenant"
+                    description: "Initialize tenant resources and configuration"
+                    state: "success"
+                    failureDetails:
+                    creationTimestamp: "2026-02-02T10:00:15Z"
+                    modifiedTimestamp: "2026-02-02T10:00:30Z"
+                    serviceId:
+                    jobName: "tenant-job-acme-corp-12345678"
+                    stateTransitionId: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+                failedStep:
+                  summary: Failed step with error details
+                  value:
+                    id: "f3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f"
+                    name: "Generate Secrets"
+                    description: "Generate encryption keys and secrets for tenant"
+                    state: "failed"
+                    failureDetails: "Encryption key unavailable in secrets vault"
+                    creationTimestamp: "2026-02-02T10:00:45Z"
+                    modifiedTimestamp: "2026-02-02T10:02:45Z"
+                    serviceId:
+                    jobName: "tenant-job-acme-corp-12345678"
+                    stateTransitionId: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+        "304":
+          description: Not modified - resource has not changed since the specified
+            If-None-Match or If-Modified-Since header.
+          headers:
+            ETag:
+              description: The current entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+        "404":
+          description: Tenant, state transition, or step not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 404
+                errorCode: 190309
+                message: "Step not found."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}/stateTransitions/{transitionId}/steps/{stepId}"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+    head:
+      operationId: headersForTenantStateTransitionStep
+      summary: Get headers for a specific step
+      description: Returns headers for a specific step without the response body.
+      tags:
+      - Tenants
+      parameters:
+      - name: If-None-Match
+        in: header
+        description: Only include resources where the ETag for the resource does not
+          match one of the provided ETags.
+        required: false
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        description: Only include resources that have been modified since the specified
+          date/time.
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: Successful HEAD request for step
+          headers:
+            ETag:
+              description: The entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+        "404":
+          description: Tenant, state transition, or step not found.
+  /tenants/{tenantId}/stateTransitions/{transitionId}/steps/{stepId}/state:
+    parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      description: Unique identifier for the tenant (UUID).
+    - name: transitionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      description: Unique identifier for the state transition (UUID).
+    - name: stepId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      description: Unique identifier for the step (UUID).
+    get:
+      operationId: getTenantStateTransitionStepState
+      summary: Get the state of a specific step
+      description: |
+        Returns the current state of a specific step within a state transition.
+        This lightweight endpoint is used by step executors for idempotency checks before
+        updating step state. If the step is already in a terminal state (success or failed),
+        the update can be safely skipped, which is particularly useful in retry scenarios.
+      tags:
+      - Tenants
+      parameters:
+      - name: If-None-Match
+        in: header
+        description: Return the resource only if the ETag does not match.
+        required: false
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        description: Return the resource only if it has been modified since the specified
+          date/time.
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: Step state
+          headers:
+            ETag:
+              description: The current entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenantStepState"
+              examples:
+                pendingStep:
+                  summary: Step not yet started
+                  value:
+                    state: "pending"
+                    failureDetails:
+                runningStep:
+                  summary: Step currently executing
+                  value:
+                    state: "running"
+                    failureDetails:
+                successStep:
+                  summary: Step completed successfully
+                  value:
+                    state: "success"
+                    failureDetails:
+                failedStep:
+                  summary: Step that failed
+                  value:
+                    state: "failed"
+                    failureDetails: "Encryption key unavailable in secrets vault"
+        "304":
+          description: Not modified - resource has not changed since the specified
+            If-None-Match or If-Modified-Since header.
+          headers:
+            ETag:
+              description: The current entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+        "404":
+          description: Tenant, state transition, or step not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 404
+                errorCode: 190309
+                message: "Step not found."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}/stateTransitions/{transitionId}/steps/{stepId}/state"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+    put:
+      operationId: updateTenantStateTransitionStepState
+      summary: Update the state of a specific step
+      description: |
+        Updates the state of a specific step within a state transition. Used by step executors
+        to report step progress to the Tenant Orchestration service, which then persists
+        the update to the database.
+
+        TransitionStep records are pre-created as pending by TenantOrch at transition
+        start, including steps for known extended tenant jobs. This endpoint updates an
+        existing step record; it does not create a new step.
+
+        Valid state transitions are:
+        - pending → running
+        - running → success
+        - running → failed
+
+        When transitioning to failed, the failureDetails field is required.
+
+        Callers should call GET on this sub-resource before PUT in retry scenarios
+        to avoid overwriting a terminal state (success or failed) that was already recorded.
+
+        At least one precondition header (If-Match or If-Unmodified-Since) must be specified.
+        Failure to specify a precondition will yield a 428 response.
+        If the precondition does not match, a 412 response will be returned.
+      tags:
+      - Tenants
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: The id of the tenant.
+        schema:
+          type: string
+          format: uuid
+      - name: transitionId
+        in: path
+        required: true
+        description: The id of the state transition.
+        schema:
+          type: string
+          format: uuid
+      - name: stepId
+        in: path
+        required: true
+        description: The id of the step transition.
+        schema:
+          type: string
+          format: uuid
+      - name: If-Match
+        in: header
+        description: ETag value for conditional update. Required if If-Unmodified-Since
+          is not provided.
+        required: false
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: Timestamp value for conditional update. Required if If-Match
+          is not provided.
+        required: false
+        schema:
+          type: string
+          format: date-time
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/stateTransitionStepUpdate"
+            examples:
+              markRunning:
+                summary: Mark step as running
+                value:
+                  state: "running"
+              markSuccess:
+                summary: Mark step as completed successfully
+                value:
+                  state: "success"
+              markFailed:
+                summary: Mark step as failed with details
+                value:
+                  state: "failed"
+                  failureDetails: "Pod failed to start: ImagePullBackOff on container\
+                    \ sas-logon-app"
+      responses:
+        "200":
+          description: Step state updated successfully. Returns the updated step state.
+          headers:
+            ETag:
+              description: The current entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/tenantStepState"
+              example:
+                state: "running"
+        "400":
+          description: Bad request. The state transition is invalid (e.g., success
+            → running) or failureDetails is missing for a failed transition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 400
+                errorCode: 190401
+                message: "Invalid state transition: success → running. failureDetails\
+                  \ is required when state is 'failed'."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}/stateTransitions/{transitionId}/steps/{stepId}/state"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+        "404":
+          description: Tenant, state transition, or step not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 404
+                errorCode: 190309
+                message: "Step not found."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}/stateTransitions/{transitionId}/steps/{stepId}/state"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+        "409":
+          description: Conflict. The step is already in a terminal state (success
+            or failed) and cannot be updated.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 409
+                errorCode: 190410
+                message: "Step is already in terminal state 'success' and cannot be\
+                  \ updated."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}/stateTransitions/{transitionId}/steps/{stepId}/state"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+        "428":
+          description: Precondition Required. At least one precondition header (If-Match
+            or If-Unmodified-Since) must be specified.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 428
+                errorCode: 190428
+                message: "Precondition header required for updating step state."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}/stateTransitions/{transitionId}/steps/{stepId}/state"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+        "412":
+          description: Precondition Failed. The precondition header(s) did not match
+            the server's state.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              example:
+                version: "2"
+                httpStatusCode: 412
+                errorCode: 190412
+                message: "Precondition failed."
+                details:
+                  path: "/tenantOrchestration/v1/tenants/{tenantId}/stateTransitions/{transitionId}/steps/{stepId}/state"
+                  correlator: "eb04d084-6908-41eb-8d8b-9ae4cdbcbc55"
+    head:
+      operationId: headersForTenantStateTransitionStepState
+      summary: Get headers for the state of a specific step
+      description: Returns headers for the state of a specific step without the response
+        body.
+      tags:
+      - Tenants
+      parameters:
+      - name: If-None-Match
+        in: header
+        required: false
+        description: Return the resource only if the ETag does not match.
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        required: false
+        description: Return the resource only if it has been modified since the specified
+          date/time.
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: Successful HEAD request for step state
+          headers:
+            ETag:
+              description: The current entity tag for the resource.
+              schema:
+                type: string
+            Last-Modified:
+              description: The date and time the resource was last modified.
+              schema:
+                type: string
+                format: date-time
+            Cache-Control:
+              description: Caching policies for the response.
+              schema:
+                type: string
+components:
+  schemas:
+    error:
+      description: Standard error response envelope used by all error responses.
+      type: object
+      required:
+      - version
+      - httpStatusCode
+      - errorCode
+      - message
+      properties:
+        version:
+          type: string
+          description: Version of the error envelope format.
+        httpStatusCode:
+          type: integer
+          description: HTTP status code.
+        errorCode:
+          type: integer
+          description: Application-specific error code.
+        message:
+          type: string
+          description: Human-readable error description.
+        details:
+          type: object
+          description: Additional contextual details, such as `path` and `correlator`.
+    serviceState:
+      description: Represents the state of a service for a tenant.
+      type: object
+      required:
+      - state
+      properties:
+        state:
+          type: string
+          description: Current state of the service for this tenant.
+          enum: [onboarding, onboarded, onboardingFailed, offboarding, offboarded,
+            offboardingFailed]
+        failureDetails:
+          type: string
+          description: Details about failure states, if applicable.
+    tenant:
+      description: Represents a tenant in the system.
+      x-state-transitions:
+        onboarding: [onboarded, onboardingFailed]
+        onboarded: [activating, offboarding]
+        onboardingFailed: [onboarding, offboarding]
+        activating: [active, activatingFailed]
+        active: [suspending]
+        activatingFailed: [activating, offboarding]
+        suspending: [suspended, suspendingFailed]
+        suspended: [activating, offboarding]
+        suspendingFailed: [suspending, offboarding]
+        offboarding: [offboarded, offboardingFailed]
+        offboarded: [onboarding]
+        offboardingFailed: [offboarding]
+      type: object
+      required:
+      - id
+      - shortName
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          description: System generated UUID
+        shortName:
+          type: string
+          pattern: "^[a-z][0-9a-z-]{1,38}[0-9a-z]$"
+          description: Short, human readable name
+        desiredState:
+          type: string
+          description: |
+            Desired state of the tenant (optional).
+            Allowed transitions are restricted by the current state. See x-state-transitions for details.
+          enum: [onboarded, active, suspended, offboarded]
+        dataPlaneIngress:
+          type: string
+          description: |
+            Host name for ingress in the tenant's data plane. Must be a valid DNS subdomain (RFC 1123),
+            e.g., the host of the ingress resource.
+          pattern: "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$"
+          minLength: 3
+          maxLength: 253
+          example: tenant1-ingress.example.com
+        currentState:
+          type: string
+          description: |
+            Current state of the tenant (optional).
+            Allowed transitions are restricted by the previous state. See x-state-transitions for details.
+          enum: [onboarding, onboarded, onboardingFailed, activating, active, activatingFailed,
+            suspending, suspended, suspendingFailed, offboarding, offboarded, offboardingFailed]
+        stateDetails:
+          type: object
+          description: Map of service names to their current state details for this
+            tenant.
+          additionalProperties:
+            $ref: "#/components/schemas/serviceState"
+    tenantCreateOrUpdate:
+      description: Schema for creating or updating a tenant.
+      type: object
+      properties:
+        shortName:
+          type: string
+          pattern: "^[a-z][0-9a-z-]{1,38}[0-9a-z]$"
+          description: Short, human readable name (required for creation, read-only
+            for updates)
+        desiredState:
+          type: string
+          description: Desired state of the tenant (optional)
+          enum: [onboarded, active, suspended, offboarded]
+        dataPlaneIngress:
+          type: string
+          description: |
+            Host name for ingress in the tenant's data plane.
+            Must be a valid DNS subdomain (RFC 1123),
+            e.g., the host of the ingress resource.
+          pattern: "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$"
+          minLength: 3
+          maxLength: 253
+        administratorEmails:
+          type: array
+          description: List of administrator email addresses for the tenant.
+          items:
+            type: string
+            format: email
+        tenantDataId:
+          type: string
+          description: |
+            Optional tenant export package identifier. When provided for onboarding requests,
+            Tenant Orchestration executes an Import Tenant step after Initialize Tenant
+            and before Rolling Restart of Service X steps.
+    tenantCollection:
+      description: Schema for a paginated collection of tenants.
+      type: object
+      properties:
+        items:
+          type: array
+          description: The list of tenants returned in this page.
+          items:
+            $ref: "#/components/schemas/tenant"
+        count:
+          type: integer
+          description: Total number of tenants in the collection (if known).
+        links:
+          type: array
+          description: Hypermedia pagination links.
+          items:
+            $ref: "#/components/schemas/collectionLink"
+    collectionLink:
+      description: Schema for a hypermedia pagination link.
+      type: object
+      required:
+      - rel
+      - href
+      properties:
+        rel:
+          type: string
+          description: The relation of the link (first, prev, next, last).
+          enum: [first, prev, next, last]
+        href:
+          type: string
+          format: uri-reference
+          description: The URI for the link.
+    stateTransition:
+      description: Represents a single tenant state transition event.
+      type: object
+      required:
+      - id
+      - targetState
+      - triggeredAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for this state transition event.
+          pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        sourceState:
+          type: string
+          description: The previous state of the tenant. Null for initial creation.
+          nullable: true
+          enum: [null, onboarded, onboardingFailed, active, activatingFailed, suspended,
+            suspendingFailed, offboarded, offboardingFailed]
+        targetState:
+          type: string
+          description: The requested steady target state for this transition attempt.
+          enum: [onboarded, active, suspended, offboarded]
+        resultingState:
+          type: string
+          description: The final resulting state after completion. Matches the target
+            state on success, or the failed variant on failure.
+          nullable: true
+          enum: [onboarded, onboardingFailed, active, activatingFailed, suspended,
+            suspendingFailed, offboarded, offboardingFailed]
+        triggeredAt:
+          type: string
+          format: date-time
+          description: The timestamp when this transition attempt was triggered.
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: The timestamp when this transition attempt completed.
+        triggeredBy:
+          type: string
+          description: The user or system component that triggered this transition
+            attempt.
+        details:
+          type: string
+          description: Additional details about the transition attempt, such as initiation
+            context, success confirmation, or failure reasons.
+        tenantJobName:
+          type: string
+          description: Name of the k8s tenant job associated with this transition
+            attempt, if one exists.
+          nullable: true
+    stateTransitionCollection:
+      description: Schema for a paginated collection of state transitions.
+      type: object
+      properties:
+        items:
+          type: array
+          description: The list of state transitions returned in this page.
+          items:
+            $ref: "#/components/schemas/stateTransition"
+        count:
+          type: integer
+          description: Total number of state transitions for this tenant.
+        links:
+          type: array
+          description: Hypermedia pagination links.
+          items:
+            $ref: "#/components/schemas/collectionLink"
+    tenantStep:
+      description: Represents a single step executed as part of a tenant state transition.
+      type: object
+      required:
+      - id
+      - name
+      - state
+      - creationTimestamp
+      - modifiedTimestamp
+      - stateTransitionId
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for this step.
+          pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        name:
+          type: string
+          description: Human-readable name of the step (e.g., 'Initialize Tenant',
+            'Import Tenant', 'Rolling Restart of Service X', 'Tenant Content Loading
+            for Service X').
+        description:
+          type: string
+          description: Optional detailed description of what this step does.
+          nullable: true
+        state:
+          type: string
+          description: Current state of the step execution.
+          enum: [pending, running, success, failed]
+        failureDetails:
+          type: string
+          description: Error or failure information if state is 'failed'. Null otherwise.
+          nullable: true
+        creationTimestamp:
+          type: string
+          format: date-time
+          description: Timestamp when this step was created.
+        modifiedTimestamp:
+          type: string
+          format: date-time
+          description: Timestamp when this step was last modified.
+        serviceId:
+          type: string
+          format: uuid
+          description: UUID of the service this step applies to. Null for tenant-level
+            steps.
+          nullable: true
+          pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        jobName:
+          type: string
+          description: Name of the k8s job associated with this step, if one exists.
+          nullable: true
+        stateTransitionId:
+          type: string
+          format: uuid
+          description: UUID of the state transition that initiated this step. Links
+            to the transition that triggered the work.
+          pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    stateTransitionStepCollection:
+      description: Schema for a paginated collection of tenant steps.
+      type: object
+      properties:
+        items:
+          type: array
+          description: The list of steps returned in this page.
+          items:
+            $ref: "#/components/schemas/tenantStep"
+        count:
+          type: integer
+          description: Total number of steps for this tenant (across all pages).
+        links:
+          type: array
+          description: Hypermedia pagination links.
+          items:
+            $ref: "#/components/schemas/collectionLink"
+    tenantStepState:
+      description: Lightweight representation of the current state of a pre-created
+        transition step. Used for idempotency checks and state reporting.
+      type: object
+      required:
+      - state
+      properties:
+        state:
+          type: string
+          description: Current execution state of the step.
+          enum: [pending, running, success, failed]
+        failureDetails:
+          type: string
+          description: Error or failure information if state is 'failed'. Null otherwise.
+          nullable: true
+    stateTransitionStepUpdate:
+      description: Request body for updating the state of an existing pre-created
+        transition step. Used by step executors to report step progress to the Tenant
+        Orchestration service.
+      type: object
+      required:
+      - state
+      properties:
+        state:
+          type: string
+          description: |
+            The new state for the step. Valid transitions are:
+            - pending → running
+            - running → success
+            - running → failed
+          enum: [running, success, failed]
+        failureDetails:
+          type: string
+          description: Required when state is 'failed'. Human-readable description
+            of what went wrong.
+          nullable: true

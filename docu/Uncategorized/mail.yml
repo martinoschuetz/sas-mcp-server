@@ -1,0 +1,628 @@
+---
+openapi: 3.0.3
+info:
+  version: "2"
+  title: Mail
+  description: 'This API provides callers the ability to send email to an SMTP server
+    using the SMTP protocol. The API manages the configuration of the mail server
+    properties. Host, port, and from address are required. User, password, debug,
+    and any additional properties supported by the remote email server are optional.
+    This API uses the configured server properties to construct a destination for
+    submitted email.
+
+
+    <br><br> Features of this API include: <ul> <li>Read and Update operations on
+    mail server configuration.</li> <li>Create operation to send individual or bulk
+    emails.</li> </ul> <br> </p> <H4><strong>Terminology:</strong></H4> <H4>server</H4>
+    <p> A server which implements the API as declared within https://tools.ietf.org/html/rfc5321.</p>
+    <H4>multipart</H4> <p> A boolean flag used to indicate how to manage HTML, text,
+    attachments, and inline resources. False indicates the mail will contain only
+    one item, either HTML or text, with preference to text if both are present. True
+    indicates the mail can contain multiple items including HTML, text, inline resources
+    and attachments. It is an error to attempt to send mail containing attachments
+    or inline resources when multipart is set to false.</p> <H4>inline</H4> <p>a resource
+    which can be added to email and accessed directly within the HTML text content
+    using the following notation:</br> <code> img src="cid:[name_of_resource]"</code></p>
+    <br></p> <H4><strong>Error Codes:</strong></H4> <p> <table><thead> <tr><th><b>HTTP
+    Status Code</b></th><th>Error Code</th><th>Description</th></tr></thead> <tr>
+    <td>400</td> <td>11100</td> <td>External Mail Server failure.</td> </tr> <tr>
+    <td>400</td> <td>11101</td> <td>Missing mail address.</td> </tr> <tr> <td>400</td>
+    <td>11102</td> <td>Missing mail body.</td> </tr> </table>
+
+    '
+  termsOfService: https://www.sas.com/en_us/legal/copyright.html
+  contact:
+    name: SAS Developers
+    email: devex@sas.com
+    url: https://developer.sas.com
+servers:
+- url: http://example.com/mail
+  description: kubernetes mock server
+tags:
+- name: Root
+  description: The operations for the root resource.
+- name: User
+  description: The operations for non-adminstrator user consumption.
+- name: Admin
+  description: The operations for administrator or service use.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get a list of top-level links
+      operationId: root
+      description: Returns a list of links to the top-level collections surfaced through
+        this API.
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/getMailResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/getMailResponse"
+    head:
+      summary: Checks service availability
+      description: Checks the availability of the service.
+      operationId: headersForRoot
+      tags:
+      - Root
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+  /messages:
+    post:
+      tags:
+      - User
+      summary: Send mail
+      operationId: sendmMail
+      description: "Send email to the currently configured mail server.  When sending\
+        \ a single email, use the application/vnd.sas.mail+json media type.  When\
+        \ sending to multiple emails as batch operation, use the application/vnd.sas.mail.batch+json\
+        \ media type. Note that this endpoint neither creates a resource nor returns\
+        \ a Location header, as email is only sent to a remote server.\n"
+      requestBody:
+        content:
+          application/vnd.sas.mail+json:
+            schema:
+              $ref: "#/components/schemas/mailMessage"
+            examples:
+              sendMailSampleBody:
+                $ref: "#/components/examples/sendMailBody"
+          application/vnd.sas.mail.batch+json:
+            schema:
+              $ref: "#/components/schemas/mailCollection"
+            examples:
+              sendBatchMailSampleBody:
+                $ref: "#/components/examples/sendMailCollectionBody"
+          application/json:
+            schema:
+              oneOf:
+              - $ref: "#/components/schemas/mailMessage"
+              - $ref: "#/components/schemas/mailCollection"
+            examples:
+              sendMailCollectionSampleBody:
+                $ref: "#/components/examples/sendMailCollectionBody"
+        description: send mail.
+        required: true
+      responses:
+        "200":
+          description: mail sent successfully.
+        "400":
+          description: Bad Request.  The request is not properly formed.  This can
+            happen if the mail body is missing or the address fields are missing.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/sendMail400Response"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/sendMail400Response"
+  /server:
+    head:
+      summary: Checks endpoint availability
+      description: Determines whether an endpoint is currently available.
+      operationId: headersForServer
+      tags:
+      - User
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+            ETag:
+              description: The entity tag for the mail server.
+              schema:
+                type: string
+    get:
+      tags:
+      - User
+      summary: Retrieve mail server information
+      operationId: getServer
+      description: "Retrieve the mail server information.\n"
+      responses:
+        "200":
+          description: success.  Mail server information returned.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+            ETag:
+              description: The entity tag for the mail server.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.mail.server+json:
+              schema:
+                $ref: "#/components/schemas/mailServer"
+              examples:
+                json:
+                  $ref: "#/components/examples/getServerResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/mailServer"
+              examples:
+                json:
+                  $ref: "#/components/examples/getServerResponse"
+    put:
+      tags:
+      - User
+      summary: Update mail server
+      operationId: updateServer
+      description: "Update the mail server information. "
+      parameters:
+      - name: If-Match
+        description: The ETag that was returned from a GET or PUT for this mail server.
+        in: header
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.mail.server+json:
+            schema:
+              $ref: "#/components/schemas/mailServer"
+            examples:
+              json:
+                $ref: "#/components/examples/updateServerBody"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/mailServer"
+            examples:
+              json:
+                $ref: "#/components/examples/updateServerBody"
+        description: updated mail server.
+        required: true
+      responses:
+        "200":
+          description: mail server information updated successfully.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+            ETag:
+              description: The entity tag for the mail server.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/mailServer"
+              examples:
+                json:
+                  $ref: "#/components/examples/putMailServer200Response"
+            application/vnd.sas.mail.server+json:
+              schema:
+                $ref: "#/components/schemas/mailServer"
+              examples:
+                json:
+                  $ref: "#/components/examples/putMailServer200Response"
+        "400":
+          description: Bad Request.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/general400Response"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/general400Response"
+        "412":
+          description: The provided ETag does not match the current version of this
+            mail server.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/putMailServer412Response"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/putMailServer412Response"
+components:
+  schemas:
+    address:
+      description: The mail address.
+      properties:
+        address:
+          type: string
+          description: The actual mail address.
+        personal:
+          type: string
+          description: The personal name.
+    attachment:
+      description: The mail attachment.
+      properties:
+        name:
+          type: string
+          description: The attachment name.
+        type:
+          type: string
+          description: The attachment MIME type.
+        data:
+          type: object
+          description: The actual data.
+    mailMessage:
+      description: The mail message.
+      required:
+      - to
+      - from
+      properties:
+        to:
+          type: array
+          description: Destination mail addresses.
+          items:
+            $ref: "#/components/schemas/address"
+        cc:
+          type: array
+          description: Carbon copy mail addresses.
+          items:
+            $ref: "#/components/schemas/address"
+        bcc:
+          type: array
+          description: Blind carbon copy mail addresses.
+          items:
+            $ref: "#/components/schemas/address"
+        type:
+          type: string
+          description: Type of message. Must be one of HTML, TEXT or SMS
+        charset:
+          type: string
+          description: The message charset to use.
+        textMessage:
+          type: string
+          description: The messsage in plain text format.
+        htmlMessage:
+          type: string
+          description: The message in HTML format.
+        from:
+          type: object
+          description: The mail address the message originated from.
+          items:
+            $ref: "#/components/schemas/address"
+        replyTo:
+          type: string
+          description: The return mail address. type.
+        attachments:
+          type: array
+          description: Collecton of attachments.
+          items:
+            $ref: "#/components/schemas/attachment"
+        inline:
+          type: object
+          description: Collecton of inline data.
+          items:
+            $ref: "#/components/schemas/attachment"
+        multiPart:
+          type: boolean
+          description: Identifies if message is multipart.
+    mailCollection:
+      title: Collection of Mail messages
+      description: This is a collection of mail messages.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The mail messages
+            items:
+              $ref: "#/components/schemas/mailMessage"
+    mailServer:
+      description: Mail server configuration
+      properties:
+        version:
+          type: integer
+          description: Mail server schema version
+          default: 1
+        host:
+          type: string
+          description: Mail server host
+          default: localhost
+        port:
+          type: integer
+          description: Mail server port
+          default: 2500
+        user:
+          type: string
+          description: Optional username sent to mail server for security.
+          default: ""
+        password:
+          type: string
+          description: Optional password sent to mail server for security.
+          default: ""
+        defaultEncoding:
+          type: string
+          description: Optional encoding identifying default encoding to use for mail
+            encoding..
+          default: UTF-8
+        sizeLimit:
+          type: integer
+          description: Maximum size of mail handled by mail server. Limit set on total
+            size of each individual mail message (units in megabytes). Defaults to
+            20 which means Limit = 20M"
+          default: 20
+        properties:
+          $ref: "#/components/schemas/properties"
+    properties:
+      type: array
+      description: Array of resource properties
+      items:
+        $ref: "#/components/schemas/resourceProperty"
+    resourceProperty:
+      description: Resource property
+      properties:
+        name:
+          type: string
+          description: Name of property
+        value:
+          type: string
+          description: Property value
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+  examples:
+    getMailResponse:
+      summary: Response to GET mail.
+      description: Here is an example of using the GET request to retrieve the application/vnd.sas.api+json
+        representation of the APIs top-level links.
+      value: {"version": 1, "links": [{"method": "GET", "rel": "self", "href": "/mail",
+            "uri": "/mail", "type": "application/vnd.sas.api"}, {"method": "POST",
+            "rel": "mail", "href": "/mail/messages", "uri": "/mail/messages", "type": "application/vnd.sas.mail"},
+          {"method": "POST", "rel": "batch", "href": "/mail/messages", "uri": "/mail/messages",
+            "type": "application/vnd.sas.collection"}, {"method": "GET", "rel": "server",
+            "href": "/mail/server", "uri": "/mail/server", "type": "application/vnd.sas.mail.server"},
+          {"method": "PUT", "rel": "update", "href": "/mail/server", "uri": "/mail/server",
+            "type": "application/vnd.sas.mail.server"}]}
+    getServerResponse:
+      summary: Response to GET server
+      description: Here is an example of using a GET request to obtain the mail server
+        configuration.
+      value: {"defaultEncoding": "UTF-8", "links": [{"method": "GET", "rel": "self",
+            "href": "/mail/server", "uri": "/mail/server", "type": "application/vnd.sas.mail.server"},
+          {"method": "PUT", "rel": "update", "href": "/mail/server", "uri": "/mail/server",
+            "type": "application/vnd.sas.mail.server"}], "port": 25, "properties": [
+          {"name": "mail.debug", "value": "false"}], "sizeLimit": 20, "version": 1}
+    sendMailBody:
+      summary: Body to send mail.
+      description: Sample body to send mail.
+      value: {"to": [{"address": "john.doe@acme.com", "personal": "John Doe mail"}],
+        "from": {"address": "user4@acme.com"}, "subject": "System upgrade", "htmlMessage": "<html><b>Important:</b>There\
+          \ will be a system upgrade today at 5pm.</html>"}
+    sendMailCollectionBody:
+      summary: Body to send collection of mail.
+      description: Sample body to send mail.
+      value:
+        items: [{to: [{"address": "john.doe@acme.com", "personal": "John Doe mail"}],
+            from: {"address": "user4@acme.com"}, htmlMessage: "<html><b>Important:</b>There\
+              \ will be a system upgrade today at 5pm.</html>"}, {to: [{"address": "albart.frank@acme.com",
+                "personal": "Albart Frank mail"}], from: {"address": "user4@acme.com"},
+            textMessage: "Important:The servers will be a shutdown for maintenance."}]
+    updateServerBody:
+      summary: Body to update mail server.
+      description: Sample body to update mail server configuration.
+      value: {"defaultEncoding": "UTF-8", "port": 25, "properties": [{"name": "mail.debug",
+            "value": "false"}], "sizeLimit": 15, "version": 1}
+    putMailServer412Response:
+      summary: Precondition Failed for PUT mail server
+      description: Here is an example Precondition Failed response for PUT mail server.
+      value: {"version": 2, "httpStatusCode": 412, "message": "Precondition Failed",
+        "details": ['The value of the "if-match" header does not match the value of
+            the current notification.', "path: /mail/server/3fecdbe2-7646-427f-9d3c-a3a9e62940b2",
+          "correlator: 6170c883-ec4b-4696-a54e-c7e3f3655fee"]}
+    putMailServer200Response:
+      summary: Response to PUT to update a mail server.
+      description: Here is an example response when using PUT to update the mailserver.
+      value: {"version": 1, "host": "yourhost.com", "port": 25, "defaultEncoding": "UTF-8",
+        "sizeLimit": 15, "links": [{"method": "PUT", "rel": "self", "href": "/mail/server",
+            "uri": "/mail/server", "type": "application/vnd.sas.mail.server"}, {"method": "GET",
+            "rel": "server", "href": "/mail/server", "uri": "/mail/server", "type": "application/vnd.sas.mail.server"}],
+        "properties": [{"name": "mail.debug", "value": "false"}]}
+    general400Response:
+      summary: Bad Request
+      description: Here is an example Bad Request response.
+      value: {"details": ["Some error message.", "path: /mail/server", "correlator:\
+            \ e73d622c-77e9-4a2c-b8be-d127926d7fe3"], "httpStatusCode": 400, "message": "Bad\
+          \ Request", "version": 2}
+    sendMail400Response:
+      summary: Bad Request
+      description: Here is an example Bad Request response on POST to send a mail
+        message.
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 11102, "message": 'No
+          message content to send, ignoring request: mail.Mail{Version:0, Subject:"test
+          message", TextMessage:"", HTMLMessage:"", Type:"TEXT", CharSet:"", To:[]mail.Address{mail.Address{Address:"user1@company.com",
+          Personal:"My Users Name"}}, CC:[]mail.Address(nil), BCC:[]mail.Address(nil),
+          From:mail.Address{Address:"user4@acme.com", Personal:"TheFourth"}, ReplyTo:mail.Address{Address:"",
+          Personal:""}, Attachments:[]mail.Attachment{}, Inline:[]mail.Attachment{},
+          Multipart:true}', "details": ["path: /mail/messages", "correlator: 029ae608-5edf-4f04-b47a-78d56d3fc1ed"],
+        "remediation": "Mail requires either a textMessage or htmlMessage in the request\
+          \ body."}

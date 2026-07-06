@@ -1,0 +1,2368 @@
+---
+openapi: 3.0.3
+info:
+  description: The Event Stream Processing Studio API provides programmatic access
+    to core project management and packaging capabilities within SAS Event Stream
+    Processing Studio. It allows users to perform operations such as creating and
+    deleting projects, creating and promoting project versions, and managing files
+    and folders within project packages.
+  version: '4'
+  title: Event Stream Processing Studio
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+servers:
+- url: https://example.com/SASEventStreamProcessingStudio/v4
+  description: This is an example of a base URL.
+tags:
+- name: Project
+  description: Contains the operations for creating, editing, and deleting projects.
+- name: Project Versioning
+  description: Contains the operations for managing project package versions.
+- name: Project File Management
+  description: Contains the operations for managing project package files and folders.
+- name: Root
+  description: Contains the operations for the root resource.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get a list of top-level links
+      description: Returns a list of links to the top-level collections surfaced through
+        this API.
+      operationId: root
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Content-Type:
+              description: The media type for the response (application/vnd.sas.api+json).
+              schema:
+                type: string
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/rootResponse200"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                example:
+                  $ref: "#/components/examples/rootResponse200"
+  /projects:
+    get:
+      summary: Get projects
+      description: Returns a list of all projects, including basic information about
+        the projects.
+      operationId: getListProjects
+      parameters:
+      - description: The number of the first record to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          minimum: 0
+          format: int64
+          type: integer
+      - description: The maximum number of records to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          minimum: 1
+          maximum: 10000
+          format: int32
+          type: integer
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/vnd.sas.collection+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionEspProjectBaseRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionEspProjectBaseRepresentation'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionEspProjectBaseRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionEspProjectBaseRepresentation'
+          description: The request succeeded.
+      tags:
+      - Project
+    post:
+      summary: Create a project
+      description: Creates a project. By default a project package is created. The
+        request fails if a project with the provided name already exists. The created
+        project is returned.
+      operationId: createProject
+      parameters:
+      - description: The identifier of a project to copy the content from.
+        in: query
+        name: copyFrom
+        required: false
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/vnd.sas.esp.espproject+json:
+            examples:
+              example:
+                $ref: '#/components/examples/espProjectCreateRepresentation'
+            schema:
+              $ref: '#/components/schemas/espProjectCreateRepresentation'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/espProjectCreateRepresentation'
+            schema:
+              $ref: '#/components/schemas/espProjectCreateRepresentation'
+        required: true
+      responses:
+        '201':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/vnd.sas.esp.espproject+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/espProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/espProjectRepresentation'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/espProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/espProjectRepresentation'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '409':
+          $ref: '#/components/responses/errorResponse409'
+      tags:
+      - Project
+  /projects/{projectName}:
+    get:
+      summary: Get a project
+      description: Retrieves a specific project identified by its name.
+      operationId: getProject
+      parameters:
+      - description: The name of the project.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+          content:
+            application/vnd.sas.esp.espproject+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/espProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/espProjectRepresentation'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/espProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/espProjectRepresentation'
+          description: The request succeeded.
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+      tags:
+      - Project
+    head:
+      summary: Check if a project exists
+      description: Returns header information about a specific project identified
+        by its name.
+      operationId: headersForGetProject
+      parameters:
+      - description: The name of the project.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+          description: The request succeeded.
+      tags:
+      - Project
+    patch:
+      summary: Update a specific project
+      description: Updates a specific project, identified by its name. An updated
+        project representation is returned.
+      operationId: patchProject
+      parameters:
+      - description: The name of the project.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: If-Unmodified-Since
+        in: header
+        name: If-Unmodified-Since
+        required: false
+        schema:
+          format: HTTP-date
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.esp.espproject+json:
+            examples:
+              example:
+                $ref: '#/components/examples/patchEspProjectRepresentation'
+            schema:
+              $ref: '#/components/schemas/patchEspProjectRepresentation'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/patchEspProjectRepresentation'
+            schema:
+              $ref: '#/components/schemas/patchEspProjectRepresentation'
+        required: true
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+          content:
+            application/vnd.sas.esp.espproject+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/espProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/espProjectRepresentation'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/espProjectRepresentation'
+              schema:
+                $ref: '#/components/schemas/espProjectRepresentation'
+          description: The request succeeded.
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '409':
+          $ref: '#/components/responses/errorResponse409'
+        '412':
+          $ref: '#/components/responses/errorResponse412IfUnmodifiedSince'
+        '428':
+          $ref: '#/components/responses/errorResponse428PreconditionRequired'
+      tags:
+      - Project
+    delete:
+      summary: Delete a project
+      description: Deletes a project, given the project's name. By default the project
+        is deleted from SAS Event Stream Manager as well.
+      operationId: deleteProject
+      parameters:
+      - description: The name of the project.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: Whether to delete the project from SAS Event Stream Manager as
+          well as from SAS Event Stream Processing Studio.
+        in: query
+        name: esm
+        required: false
+        schema:
+          type: boolean
+          default: true
+      responses:
+        '204':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+        '409':
+          $ref: '#/components/responses/errorResponse409ProjectIsRunningInCluster'
+      tags:
+      - Project
+  /projects/{projectName}/versions:
+    post:
+      summary: Create a new project version
+      description: Creates a new version of a project. For example, creates a new
+        version with version 1.
+      operationId: createVersionProject
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.esp.project.packaging.versions+json:
+            examples:
+              versioning:
+                $ref: '#/components/examples/createVersionProjectRepresentation'
+            schema:
+              $ref: '#/components/schemas/createVersionProjectRepresentation'
+          application/json:
+            examples:
+              versioning:
+                $ref: '#/components/examples/createVersionProjectRepresentation'
+              promotion:
+                $ref: '#/components/examples/createVersionProjectRepresentation'
+            schema:
+              $ref: '#/components/schemas/createVersionProjectRepresentation'
+      responses:
+        '201':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectVersionHistoryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectVersionHistoryRepresentation'
+            application/vnd.sas.esp.project-version-history+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectVersionHistoryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectVersionHistoryRepresentation'
+          description: The new version was created, or the version was promoted.
+        '400':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/errorResponse400'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: The specific project exists, but the specified version or promotion
+            level does not.
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/errorResponse404'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: The specified project does not exist.
+        '409':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                alreadyExists:
+                  $ref: '#/components/examples/createPromotedProjectErrorAlreadyExists'
+                locked:
+                  $ref: '#/components/examples/projectIsLocked'
+                unsavedChanges:
+                  $ref: '#/components/examples/projectHasUnsavedChanges'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: |
+            The project is locked by another user and cannot be versioned at this time, or the project has changes that must be saved first.
+        '500':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                projectVersioningInternalImplementationError:
+                  $ref: '#/components/examples/projectVersioningInternalImplementationError'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: An internal error has occurred during project versioning. See
+            the application logs for more details.
+        '503':
+          $ref: '#/components/responses/errorResponse503PackagingOrVersioningNotAvailable'
+      tags:
+      - Project Versioning
+    get:
+      summary: Get the version history of a project
+      description: Returns the version history of a project.
+      operationId: getVersionHistory
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: If `true`, then returns the version notes for each version. If
+          `false` or not specified, returns just the version numbers with empty notes.
+        in: query
+        name: includeNotes
+        required: false
+        schema:
+          type: boolean
+      - description: If specified, then returns the history for this version of the
+          project only. If this parameter is not provided, returns the history for
+          all versions for the project.
+        in: query
+        name: forVersion
+        required: false
+        schema:
+          format: int32
+          type: integer
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectVersionHistoryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectVersionHistoryRepresentation'
+            application/vnd.sas.esp.project-version-history+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectVersionHistoryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectVersionHistoryRepresentation'
+          description: The response contains the version history of the project.
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/errorResponse404'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: The project does not exist.
+        '500':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                projectVersioningInternalImplementationError:
+                  $ref: '#/components/examples/projectVersioningInternalImplementationError'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: An internal error has occurred during project versioning. See
+            the application logs for more details.
+        '503':
+          $ref: '#/components/responses/errorResponse503PackagingOrVersioningNotAvailable'
+      tags:
+      - Project Versioning
+    head:
+      summary: Check if the version history exists
+      description: Returns header information about the version history of a project.
+      operationId: headersForGetVersionHistory
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: If `true`, then returns the version notes for each version. If
+          `false` or not specified, returns just the version numbers with empty notes.
+        in: query
+        name: includeNotes
+        required: false
+        schema:
+          type: boolean
+      - description: If specified, then returns the history for this version of the
+          project only. If this parameter is not provided, returns the history for
+          all versions for the project.
+        in: query
+        name: forVersion
+        required: false
+        schema:
+          format: int32
+          type: integer
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The response contains the version history of the project.
+      tags:
+      - Project Versioning
+  /projects/{projectName}/promotions:
+    post:
+      summary: Promote a project
+      description: Promotes a project version to the next promotion level when further
+        promotion levels are available. An initial version must be created before
+        the project can be promoted.
+      operationId: createPromotedProject
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.esp.project.packaging.promotions+json:
+            examples:
+              promotion:
+                $ref: '#/components/examples/promoteProjectByOneLevelRepresentation'
+            schema:
+              $ref: '#/components/schemas/promoteProjectByOneLevelRepresentation'
+          application/json:
+            examples:
+              versioning:
+                $ref: '#/components/examples/promoteProjectByOneLevelRepresentation'
+              promotion:
+                $ref: '#/components/examples/promoteProjectByOneLevelRepresentation'
+            schema:
+              $ref: '#/components/schemas/promoteProjectByOneLevelRepresentation'
+      responses:
+        '201':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectVersionHistoryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectVersionHistoryRepresentation'
+            application/vnd.sas.esp.project-version-history+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectVersionHistoryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectVersionHistoryRepresentation'
+          description: The new version was created, or the version was promoted.
+        '400':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/errorResponse400'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: The specific project exists, but there is no initial version,
+            or the project has been promoted to the highest level that this application
+            supports.
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                maxLevelReached:
+                  $ref: '#/components/examples/createPromotedProjectErrorMax'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: |
+            The project has already been promoted to the maximum permitted level.
+        '404':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/errorResponse404'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: The specified project does not exist.
+        '409':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                alreadyExists:
+                  $ref: '#/components/examples/createPromotedProjectErrorAlreadyExists'
+                locked:
+                  $ref: '#/components/examples/projectIsLocked'
+                unsavedChanges:
+                  $ref: '#/components/examples/projectHasUnsavedChanges'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: |
+            The specified project with the specified version and promotion level already exists, or the project is locked by another user and cannot be promoted at this time, or the project has changes that must be saved first.
+        '410':
+          content:
+            application/vnd.sas.error+json:
+              example:
+                previousVersionDoesNotExist:
+                  $ref: '#/components/examples/createPromotedProjectErrorPreviousVersionDoesNotExist'
+                schema:
+                  $ref: '#/components/schemas/errorResponse'
+          description: |
+            The specified project cannot be promoted to the specified version and level because it has not been promoted to the previous version or level.
+        '500':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                projectVersioningInternalImplementationError:
+                  $ref: '#/components/examples/projectVersioningInternalImplementationError'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: An internal error has occurred during project versioning. See
+            the application logs for more details.
+        '503':
+          $ref: '#/components/responses/errorResponse503PackagingOrVersioningNotAvailable'
+      tags:
+      - Project Versioning
+    get:
+      summary: Get the promotion history of a project
+      description: Returns the promotion history of a project.
+      operationId: getPromotionHistory
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: If `true`, then returns the version notes for each version. If
+          `false` or not specified, returns just the version numbers with empty notes.
+        in: query
+        name: includeNotes
+        required: false
+        schema:
+          type: boolean
+      - description: If specified, then returns the history for this version of the
+          project only. If this parameter is not provided, returns the history for
+          all versions for the project.
+        in: query
+        name: forVersion
+        required: false
+        schema:
+          format: int32
+          type: integer
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectVersionHistoryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectVersionHistoryRepresentation'
+            application/vnd.sas.esp.project-version-history+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectVersionHistoryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectVersionHistoryRepresentation'
+          description: The response contains the version history of the project.
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/errorResponse404'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: The project does not exist.
+        '500':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                projectVersioningInternalImplementationError:
+                  $ref: '#/components/examples/projectVersioningInternalImplementationError'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: An internal error has occurred during project versioning. See
+            the application logs for more details.
+        '503':
+          $ref: '#/components/responses/errorResponse503PackagingOrVersioningNotAvailable'
+      tags:
+      - Project Versioning
+    head:
+      summary: Check if the promotion history exists
+      description: Returns header information about the promotion history of a project.
+      operationId: headersForGetPromotionHistory
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: If `true`, then returns the version notes for each version. If
+          `false` or not specified, returns just the version numbers with empty notes.
+        in: query
+        name: includeNotes
+        required: false
+        schema:
+          type: boolean
+      - description: If specified, then returns the history for this version of the
+          project only. If this parameter is not provided, returns the history for
+          all versions for the project.
+        in: query
+        name: forVersion
+        required: false
+        schema:
+          format: int32
+          type: integer
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The response contains the version history of the project.
+      tags:
+      - Project Versioning
+  /project/{projectName}/files:
+    post:
+      summary: Create a file
+      description: Creates a file within the specified subfolder in a project package.
+      operationId: createPostUploadFile
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: "The path to the file. Example: `/test_files/my.csv`."
+        in: query
+        name: path
+        required: true
+        schema:
+          type: string
+      - description: The index of the partial file chunk that is being transferred.
+        in: query
+        name: chunk
+        required: false
+        schema:
+          default: -1
+          format: int32
+          type: integer
+      - description: The total number of chunks.
+        in: query
+        name: chunks
+        required: false
+        schema:
+          default: -1
+          format: int32
+          type: integer
+      requestBody:
+        content:
+          '*/*':
+            examples:
+              example:
+                $ref: '#/components/examples/file'
+          application/vnd.sas.esp.summary:
+            examples:
+              example:
+                $ref: '#/components/examples/file'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/file'
+        required: true
+      responses:
+        '201':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceSummary'
+              schema:
+                $ref: '#/components/schemas/resourceSummary'
+            application/vnd.sas.summary+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceSummary'
+              schema:
+                $ref: '#/components/schemas/resourceSummary'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '409':
+          $ref: '#/components/responses/errorResponse409'
+      tags:
+      - Project File Management
+    head:
+      summary: Check if a file exists
+      description: Returns header information about a file from a specified project
+        package, identified by the project name and path.
+      operationId: headersForGetFile
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: "The path to the file. Example: `/test_files/my.csv`."
+        in: query
+        name: path
+        required: true
+        schema:
+          type: string
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+      tags:
+      - Project File Management
+    get:
+      description: Retrieves a file from a specified project package, identified by
+        the project name and path.
+      operationId: getFile
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: "The path to the file. Example: `/test_files/my.csv`."
+        in: query
+        name: path
+        required: true
+        schema:
+          type: string
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceSummary'
+              schema:
+                $ref: '#/components/schemas/resourceSummary'
+            application/vnd.sas.summary+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceSummary'
+              schema:
+                $ref: '#/components/schemas/resourceSummary'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+      summary: Get a file
+      tags:
+      - Project File Management
+    delete:
+      summary: Delete a file
+      description: Deletes a file with the specified relative path.
+      operationId: deleteFile
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: "The path to the file. Example: `/test_files/my.csv`."
+        in: query
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+      tags:
+      - Project File Management
+  /project/{projectName}/folders:
+    post:
+      description: Creates a subfolder within a specified folder that is in a project
+        package.
+      operationId: createCreateFolder
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: "The path to the folder. Example: `/test_files/sub_folder/`."
+        in: query
+        name: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.esp.summary:
+            example: 'Not required'
+          application/json:
+            example: 'Not required'
+        required: false
+      responses:
+        '201':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/vnd.sas.summary+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceSummary'
+              schema:
+                $ref: '#/components/schemas/resourceSummary'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceSummary'
+              schema:
+                $ref: '#/components/schemas/resourceSummary'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+        '409':
+          $ref: '#/components/responses/errorResponse409'
+      summary: Create a folder
+      tags:
+      - Project File Management
+    delete:
+      summary: Delete a folder
+      description: Deletes a subfolder from a specified folder that is in a project
+        package.
+      operationId: deleteFolder
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: "The path to the folder. Example: `/test_files/sub_folder/`."
+        in: query
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+      tags:
+      - Project File Management
+    get:
+      summary: Get a folder
+      description: Retrieves a folder from a specified project package, identified
+        by the project name and path.
+      operationId: getFolder
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: "The path to the folder. Example: `/test_files/sub_folder/`."
+        in: query
+        name: path
+        required: true
+        schema:
+          type: string
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/vnd.sas.summary+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceSummary'
+              schema:
+                $ref: '#/components/schemas/resourceSummary'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceSummary'
+              schema:
+                $ref: '#/components/schemas/resourceSummary'
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+      tags:
+      - Project File Management
+    head:
+      summary: Check if a folder exists
+      description: Returns header information about a folder from a specified project
+        package, identified by the project name and path.
+      operationId: headersForGetFolder
+      parameters:
+      - description: The project name.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: "The path to the folder. Example: `/test_files/sub_folder/`."
+        in: query
+        name: path
+        required: true
+        schema:
+          type: string
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ContentType:
+              $ref: '#/components/headers/ContentType'
+          description: The request succeeded.
+      tags:
+      - Project File Management
+components:
+  headers:
+    ContentType:
+      description: The response `Content-Type` header from the service.
+      schema:
+        type: string
+    LastModified:
+      description: The last modified time.
+      schema:
+        type: string
+    Location:
+      description: The URL of the created or updated resource.
+      schema:
+        type: string
+  responses:
+    errorResponse400:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse400'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: >-
+        The request was invalid. Additional information is available in the
+        application logs if the environment variable
+        `LOGGING_LEVEL_ORG_SPRINGFRAMEWORK` is set to `DEBUG`.
+    errorResponse401:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse401'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: The request is not authenticated.
+    errorResponse403:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse403'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: The user did not have the necessary permissions.
+    errorResponse404:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse404'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: No resource exists at the requested path.
+    errorResponse409:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse409'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: >-
+        The request could not be completed due to a conflict with the current
+        state of the resource.
+    errorResponse409ProjectIsRunningInCluster:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse409ProjectIsRunningInCluster'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: >-
+        The request could not be completed because the project is running in the
+        Kubernetes cluster.
+    errorResponse412IfMatch:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse412IfMatch'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: The If-Match request header did not match the resource's entity
+        tag.
+    errorResponse412IfUnmodifiedSince:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse412IfUnmodifiedSince'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: >-
+        The If-Unmodified-Since request header did not match the resource's last
+        modified timestamp.
+    errorResponse428PreconditionRequired:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse428PreconditionRequired'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: A precondition header is required.
+    errorResponse503PackagingOrVersioningNotAvailable:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            projectPackagingNotEnabled:
+              $ref: '#/components/examples/projectPackagingNotEnabled'
+            projectVersioningNotEnabled:
+              $ref: '#/components/examples/projectVersioningNotEnabled'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: >-
+        Functionality for project packages is not enabled, or functionality for
+        project versions is not enabled.
+    errorResponse503PackagingVersioningOrRemoteGitNotAvailable:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            projectPackagingNotEnabled:
+              $ref: '#/components/examples/projectPackagingNotEnabled'
+            projectVersioningNotEnabled:
+              $ref: '#/components/examples/projectVersioningNotEnabled'
+            remoteGitNotEnabled:
+              $ref: '#/components/examples/remoteGitNotEnabled'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: >-
+        Functionality for project packages is not enabled, functionality for
+        project versions is not enabled, or functionality for remote Git
+        connections is not enabled.
+  schemas:
+    api:
+      description: >-
+        The list of links to top-level resources and operations available from the
+        root of the API.
+      properties:
+        links:
+          description: The API's top-level links.
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+        version:
+          description: The version number of the API representation.
+          type: integer
+      required:
+      - version
+      - links
+      title: API
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+    configurationConnectorRepresentation:
+      description: A representation of the object for a connector.
+      properties:
+        connectorClass:
+          description: 'The connector type. Example: `fs`'
+          type: string
+        connectorName:
+          description: The name of the connector.
+          type: string
+        contqueryName:
+          description: The name of the continuous query that the connector belongs
+            to.
+          type: string
+        enableConnector:
+          description: This parameter specifies whether the connector is active.
+          type: boolean
+        type:
+          description: >-
+            This parameter specifies whether the connector publishes or
+            subscribes. You can specify either `pub` or `sub` as the value of this
+            parameter.
+          type: string
+        windowName:
+          description: The name of the window that the connector belongs to.
+          type: string
+      type: object
+    createVersionProjectRepresentation:
+      description: A representation for creating a new project version.
+      properties:
+        notes:
+          description: The notes for the commit.
+          type: string
+        tags:
+          description: The tags for the commit.
+          items:
+            type: string
+          type: array
+      type: object
+    promoteProjectByOneLevelRepresentation:
+      description: Identifies a project to be promoted by one level.
+      properties:
+        version:
+          description: The project version you want to promote to the next level.
+          format: int32
+          minimum: 1
+          type: integer
+        notes:
+          description: The notes for the commit.
+          type: string
+        tags:
+          description: The tags for the commit.
+          items:
+            type: string
+          type: array
+      type: object
+    errorResponse:
+      description: >-
+        An error response from the API, with details, error codes, and embedded
+        errors.
+      properties:
+        details:
+          items:
+            type: string
+          type: array
+          xml:
+            wrapped: true
+        errorCode:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+        httpStatusCode:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+        id:
+          type: string
+        links:
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+        message:
+          type: string
+        remediation:
+          type: string
+        statusCode:
+          deprecated: true
+          format: int32
+          type: integer
+          writeOnly: true
+        targetUri:
+          deprecated: true
+          type: string
+        version:
+          format: int32
+          type: integer
+      type: object
+    espProjectCreateRepresentation:
+      description: A representation to create a project.
+      properties:
+        description:
+          maxLength: 255
+          type: string
+        friendlyName:
+          type: string
+        packaged:
+          type: boolean
+          default: true
+        privateProject:
+          type: boolean
+          description: >-
+            By default, newly created projects are private when SAS Event Stream Processing
+            is deployed with other SAS products.
+            Set to False to make this project public.
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        versionNotes:
+          maxLength: 255
+          type: string
+        xml:
+          format: xml
+          minLength: 1
+          type: string
+      type: object
+    patchEspProjectRepresentation:
+      description: A representation to update a project.
+      properties:
+        description:
+          maxLength: 255
+          type: string
+        privateProject:
+          type: boolean
+          description: Set to False to make this project public.
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        versionNotes:
+          maxLength: 255
+          type: string
+        xml:
+          format: xml
+          minLength: 1
+          type: string
+      type: object
+    espProjectCoreRepresentation:
+      description: A representation of a project, without the XML code.
+      properties:
+        createdBy:
+          type: string
+        createdOn:
+          format: int64
+          type: integer
+        description:
+          maxLength: 255
+          type: string
+        friendlyName:
+          type: string
+        lastModifiedTime:
+          format: int64
+          type: integer
+        lockedByAppInstanceId:
+          format: uuid
+          type: string
+        lockedByUsername:
+          type: string
+        modifiedBy:
+          type: string
+        packaged:
+          type: boolean
+        privateProject:
+          type: boolean
+        remoteGitConnectionName:
+          type: string
+        pythonVirtualEnvironment:
+          type: string
+          maxLength: 255
+        luaVirtualEnvironment:
+          type: string
+          maxLength: 255
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        type:
+          type: string
+        uploadTime:
+          format: int64
+          type: integer
+        uploadedBy:
+          type: string
+        uuid:
+          format: uuid
+          type: string
+        versionNotes:
+          maxLength: 255
+          type: string
+        versioned:
+          type: boolean
+      type: object
+    espProjectRepresentation:
+      description: A representation of a project.
+      allOf:
+      - $ref: "#/components/schemas/espProjectCoreRepresentation"
+      - type: object
+        properties:
+          xml:
+            format: xml
+            minLength: 1
+            type: string
+    link:
+      description: Link.
+      properties:
+        href:
+          type: string
+        itemType:
+          type: string
+        method:
+          type: string
+        rel:
+          type: string
+        responseItemType:
+          type: string
+        responseType:
+          type: string
+        title:
+          type: string
+        type:
+          type: string
+        uri:
+          type: string
+      type: object
+    packagingCommitRepresentation:
+      description: >-
+        A representation for the commit details when a new version or level is
+        created, or when a project version is configured.
+      properties:
+        configurationData:
+          $ref: '#/components/schemas/projectConfigurationDataRepresentation'
+        level:
+          description: >-
+            The promotion level of the commit. This value is ignored when
+            configuring a project version.
+          format: int32
+          minimum: 1
+          type: integer
+        notes:
+          description: The notes for the commit.
+          type: string
+        tags:
+          description: The tags for the commit.
+          items:
+            type: string
+          type: array
+        type:
+          description: The type of commit message (`MAJOR_VERSION`, `PROMOTE`, or
+            `REVERT`).
+          type: string
+        version:
+          description: The version of the commit.
+          format: int32
+          minimum: 1
+          type: integer
+      type: object
+    projectConfigurationDataRepresentation:
+      description: A representation of the configuration data that is stored for each
+        commit.
+      properties:
+        connectors:
+          deprecated: true
+          description: A list of the connectors that are included in the configuration.
+          items:
+            $ref: '#/components/schemas/configurationConnectorRepresentation'
+          type: array
+        contents:
+          description: The contents of the project configuration file.
+          type: string
+        properties:
+          deprecated: true
+          description: A list of the user-defined properties in the configuration.
+          items:
+            $ref: '#/components/schemas/userDefinedPropertiesRepresentation'
+          type: array
+      type: object
+    resourceCollectionEspProjectBaseRepresentation:
+      description: A list of project representations, excluding the projects' XML
+        code.
+      properties:
+        accept:
+          type: string
+          xml:
+            attribute: true
+        count:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        items:
+          items:
+            $ref: '#/components/schemas/espProjectCoreRepresentation'
+          type: array
+          xml:
+            wrapped: true
+        limit:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+        links:
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+          xml:
+            wrapped: true
+        name:
+          type: string
+          xml:
+            attribute: true
+        start:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        version:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+      type: object
+      xml:
+        name: collection
+    userDefinedPropertiesRepresentation:
+      description: A representation of the object for a user-defined property.
+      properties:
+        propertyName:
+          description: The name of the property.
+          type: string
+        propertyValue:
+          description: The value of the property.
+          type: string
+      type: object
+    resourceSummary:
+      description: Information about a file or a folder in a project package.
+      properties:
+        description:
+          type: string
+        iconUri:
+          type: string
+        id:
+          type: string
+        links:
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+          xml:
+            wrapped: true
+        name:
+          type: string
+        type:
+          type: string
+        typeDefName:
+          type: string
+        version:
+          format: int32
+          type: integer
+      type: object
+    projectVersionHistoryRepresentation:
+      type: object
+      description: The version history of a project.
+      properties:
+        projectName:
+          type: string
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/projectVersionHistoryDetails'
+    projectVersionHistoryDetails:
+      type: object
+      description: The version history of a project.
+      properties:
+        operation:
+          type: string
+          enum:
+          - CREATE_VERSION
+          - PROMOTE_LEVEL
+        version:
+          type: integer
+        level:
+          type: integer
+        createdOn:
+          format: int64
+          type: integer
+        createdByName:
+          type: string
+        createdByEmail:
+          type: string
+        commitDetails:
+          $ref: '#/components/schemas/packagingCommitRepresentation'
+  examples:
+    createProjectRepresentation:
+      description: An example of a representation for creating a project called `timerDemo`.
+      value:
+        description: Project description.
+        friendlyName: timerDemo
+        production: false
+        tags:
+        - connector
+        versionNotes: This is the initial version
+        xml: >
+          <project name="timerDemo" threads="1" pubsub="auto"
+          heartbeat-interval="1">
+              <description><![CDATA[Project description.]]></description>
+            <metadata>
+              <meta id="studioUploadedBy">user1@sas.com</meta>
+              <meta id="studioUploaded">1626941783080</meta>
+              <meta id="studioModifiedBy">user1@sas.com</meta>
+              <meta id="studioModified">1626949539653</meta>
+              <meta id="layout">{"cq1":{"Copy":{"x":-370,"y":-255},"Filter_Even":{"x":-55,"y":-255},"Filter_Odd":{"x":245,"y":-255},"Source":{"x":-55,"y":-440}}}</meta>
+            </metadata>
+            <contqueries>
+              <contquery name="cq1">
+                <windows>
+                  <window-source pubsub="true" name="Source">
+                    <schema>
+                      <fields>
+                        <field name="id" type="int64" key="true"/>
+                        <field name="time" type="stamp"/>
+                        <field name="label" type="string"/>
+                      </fields>
+                    </schema>
+                    <connectors>
+                      <connector class="timer" name="source_generator">
+                        <properties>
+                          <property name="type"><![CDATA[pub]]></property>
+                          <property name="timeformat"><![CDATA[%Y-%m-%d %H:%M:%S]]></property>
+                          <property name="basetime"><![CDATA[2021-05-05 00:00:00]]></property>
+                          <property name="interval"><![CDATA[2]]></property>
+                          <property name="unit"><![CDATA[second]]></property>
+                        </properties>
+                      </connector>
+                    </connectors>
+                  </window-source>
+                  <window-copy pubsub="true" name="Copy">
+                    <retention type="bycount_sliding"><![CDATA[5]]></retention>
+                  </window-copy>
+                  <window-filter pubsub="true" name="Filter_Even">
+                    <use><![CDATA[id]]></use>
+                    <code><![CDATA[function filter(data)
+                    return data.id % 2 == 0
+                    end]]></code>
+                  </window-filter>
+                  <window-filter pubsub="true" name="Filter_Odd">
+                    <use><![CDATA[id]]></use>
+                    <code><![CDATA[function filter(data)
+                    return data.id % 2 == 1
+                    end]]></code>
+                  </window-filter>
+                </windows>
+                <edges>
+                  <edge source="Source" target="Copy"/>
+                  <edge source="Source" target="Filter_Even"/>
+                  <edge source="Source" target="Filter_Odd"/>
+                </edges>
+              </contquery>
+            </contqueries>
+          </project>
+    createPromotedProjectErrorAlreadyExists:
+      description: >-
+        An error response when the project has
+        already been promoted to the next level.
+      value:
+        details: []
+        errorCode: 5079
+        httpStatusCode: 409
+        message: >-
+          The project "example_project" version 3 has already been promoted to
+          level 2.
+        version: 2
+    createPromotedProjectErrorMax:
+      description: >-
+        An error response when the project has
+        already been promoted to the maximum permitted level.
+      value:
+        details: []
+        errorCode: 5147
+        httpStatusCode: 403
+        message: >-
+          The project "example_project" version 3 has already been promoted to the
+          maximum permitted level.
+    createPromotedProjectErrorPreviousVersionDoesNotExist:
+      description: >-
+        An error response when the project cannot be promoted.
+      value:
+        details: []
+        errorCode: 5083
+        httpStatusCode: 410
+        message: >-
+          The project "example_project" version 3 cannot be promoted because it
+          has not been promoted to the minimum level required for promoting to the
+          next level.
+    createVersionProjectRepresentation:
+      description: An example of creating a new project version with notes and tags.
+      value:
+        notes: Initial version
+        tags:
+        - tag1
+        - tag2
+    promoteProjectByOneLevelRepresentation:
+      description: An example of promoting a project with version 1 to the next level.
+      value:
+        notes: Promoting the project.
+        tags:
+        - tag1
+        - tag2
+        version: 1
+    errorResponse400:
+      description: An example of a `400 Bad Request` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamProcessingStudio'
+        errorCode: 400
+        httpStatusCode: 400
+        message: The request was invalid.
+        version: 2
+    errorResponse401:
+      description: An example of a `401 Unauthorized` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamProcessingStudio'
+        errorCode: 401
+        httpStatusCode: 401
+        message: The user was not authenticated.
+        version: 2
+    errorResponse403:
+      description: An example of a `403 Forbidden` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamProcessingStudio'
+        errorCode: 403
+        httpStatusCode: 403
+        message: The user did not have the necessary permissions.
+        version: 2
+    errorResponse404:
+      description: An example of a `404 Not Found` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamProcessingStudio'
+        errorCode: 404
+        httpStatusCode: 404
+        message: No resource exists at the requested path.
+        version: 2
+    errorResponse409:
+      description: An example of a `409 Conflict` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamProcessingStudio'
+        errorCode: 409
+        httpStatusCode: 409
+        message: >-
+          The request could not be completed due to a conflict with the current
+          state of the resource.
+        version: 2
+    errorResponse409ProjectIsRunningInCluster:
+      description: >-
+        An example of a `409 Conflict` error response when the project is running
+        in
+        a Kubernetes cluster.
+      value:
+        details:
+        - 'path: /SASEventStreamProcessingStudio'
+        errorCode: 9228
+        httpStatusCode: 409
+        message: >-
+          You cannot delete a project that is currently running in the Kubernetes
+          cluster.
+        version: 2
+    errorResponse412IfMatch:
+      description: An example of a `412 Precondition Failed` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamManager'
+        errorCode: 412
+        httpStatusCode: 412
+        message: >-
+          The values for the request header field "If-Match" ("1659226904") and
+          the resource's entity tag ("547353323") are not the same.
+        remediation: >-
+          Get the latest representation of the resource, and apply the desired
+          changes. Retry the operation with the modified representation and the
+          entity tag from the response header field "ETag".
+    errorResponse412IfUnmodifiedSince:
+      description: An example of a `412 Precondition Failed` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamManager'
+        errorCode: 412
+        httpStatusCode: 412
+        message: >-
+          The request header field "If-Unmodified-Since" has an earlier value
+          (Wed, 18 Jan 2023 11:28:13 GMT) than the resource's last-modified
+          timestamp (Fri, 14 Apr 2023 11:19:18 GMT).
+        remediation: >-
+          Get the latest representation of the resource, and apply the desired
+          changes. Retry the operation with the modified representation and the
+          timestamp from the response header field "Last-Modified".
+    errorResponse428PreconditionRequired:
+      description: An example of a `428 Precondition Required` error response.
+      value:
+        details:
+        - 'path: /SASEventStreamManager'
+        errorCode: 428
+        httpStatusCode: 428
+        message: The request headers did not include a If-Unmodified-Since header.
+        remediation: Retry the operation with an If-Unmodified-Since header.
+    espProjectCreateRepresentation:
+      description: This example shows how to create an ESP project.
+      value:
+        description: This is the project's description.
+        friendlyName: simpleProject
+        tags:
+        - Project
+        versionNotes: This is the initial version.
+        xml: >-
+          <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+
+          <project heartbeat-interval="1" name="simpleProject" pubsub="auto"
+          threads="1">
+            <contqueries>
+              <contquery name="cq1">
+                <windows>
+                  <window-source name="source" pubsub="true">
+                    <schema>
+                      <fields>
+                        <field key="true" name="id" type="int64"/>
+                        <field name="time" type="stamp"/>
+                        <field name="label" type="string"/>
+                      </fields>
+                    </schema>
+                    <connectors>
+                      <connector class="timer" name="source_timer">
+                        <properties>
+                          <property name="type"><![CDATA[pub]]></property>
+                          <property name="timeformat"><![CDATA[%Y-%m-%d %H:%M:%S]]></property>
+                          <property name="basetime"><![CDATA[2022-01-01 00:00:00]]></property>
+                          <property name="interval"><![CDATA[2]]></property>
+                          <property name="unit"><![CDATA[second]]></property>
+                        </properties>
+                      </connector>
+                    </connectors>
+                  </window-source>
+                  <window-copy name="copy" pubsub="true">
+                    <retention type="bycount_sliding">5</retention>
+                  </window-copy>
+                  <window-filter name="even">
+                    <use><![CDATA[id]]></use>
+                    <code><![CDATA[function filter(data)
+                    return data.id % 2 == 0
+                    end]]></code>
+                  </window-filter>
+                  <window-filter name="odd">
+                    <use><![CDATA[id]]></use>
+                    <code><![CDATA[function filter(data)
+                    return data.id % 2 == 1
+                    end]]></code>
+                  </window-filter>
+                </windows>
+                <edges>
+                  <edge source="source" target="copy"/>
+                  <edge source="source" target="even"/>
+                  <edge source="source" target="odd"/>
+                </edges>
+              </contquery>
+            </contqueries>
+          </project>
+    espProjectRepresentation:
+      description: >-
+        An example of a project called `simpleProject`.
+      value:
+        createdOn: 0
+        description: The project description.
+        uuid: 06312c65-0d8d-4200-9eb8-c5f4b21edd4c
+        friendlyName: simpleProject
+        lastModifiedTime: 1674733247986
+        modifiedBy: user1
+        packaged: true
+        privateProject: true
+        remoteGitConnectionName: remoteConnectionName
+        pythonVirtualEnvironment: pythonEnvironmentName
+        luaVirtualEnvironment: luaEnvironmentName
+        tags:
+        - Project
+        type: ESP Project
+        uploadTime: 1674733247986
+        uploadedBy: user1
+        version: 1
+        versionNotes: This is the initial version.
+        versioned: false
+        xml: >-
+          <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+
+          <project heartbeat-interval="1" name="simpleProject" pubsub="auto"
+          threads="1">
+            <contqueries>
+              <contquery name="cq1">
+                <windows>
+                  <window-source name="source" pubsub="true">
+                    <schema>
+                      <fields>
+                        <field key="true" name="id" type="int64"/>
+                        <field name="time" type="stamp"/>
+                        <field name="label" type="string"/>
+                      </fields>
+                    </schema>
+                    <connectors>
+                      <connector class="timer" name="source_timer">
+                        <properties>
+                          <property name="type"><![CDATA[pub]]></property>
+                          <property name="timeformat"><![CDATA[%Y-%m-%d %H:%M:%S]]></property>
+                          <property name="basetime"><![CDATA[2022-01-01 00:00:00]]></property>
+                          <property name="interval"><![CDATA[2]]></property>
+                          <property name="unit"><![CDATA[second]]></property>
+                        </properties>
+                      </connector>
+                    </connectors>
+                  </window-source>
+                  <window-copy name="copy" pubsub="true">
+                    <retention type="bycount_sliding">5</retention>
+                  </window-copy>
+                  <window-filter name="even">
+                    <use><![CDATA[id]]></use>
+                    <code><![CDATA[function filter(data)
+                    return data.id % 2 == 0
+                    end]]></code>
+                  </window-filter>
+                  <window-filter name="odd">
+                    <use><![CDATA[id]]></use>
+                    <code><![CDATA[function filter(data)
+                    return data.id % 2 == 1
+                    end]]></code>
+                  </window-filter>
+                </windows>
+                <edges>
+                  <edge source="source" target="copy"/>
+                  <edge source="source" target="even"/>
+                  <edge source="source" target="odd"/>
+                </edges>
+              </contquery>
+            </contqueries>
+          </project>
+    patchEspProjectRepresentation:
+      description: >-
+        An example of updating a projects description, privacy and xml `simpleProject`.
+      value:
+        privateProject: false
+        description: The new project description.
+        xml: >-
+          <project heartbeat-interval="1" name="simpleProject" pubsub="auto"
+          threads="1">
+            <contqueries>
+              <contquery name="cq1">
+                <windows>
+                  <window-source name="source" pubsub="true">
+                    <schema>
+                      <fields>
+                        <field key="true" name="id" type="int64"/>
+                        <field name="time" type="stamp"/>
+                        <field name="label" type="string"/>
+                      </fields>
+                    </schema>
+                    <connectors>
+                      <connector class="timer" name="source_timer">
+                        <properties>
+                          <property name="type"><![CDATA[pub]]></property>
+                          <property name="timeformat"><![CDATA[%Y-%m-%d %H:%M:%S]]></property>
+                          <property name="basetime"><![CDATA[2022-01-01 00:00:00]]></property>
+                          <property name="interval"><![CDATA[2]]></property>
+                          <property name="unit"><![CDATA[second]]></property>
+                        </properties>
+                      </connector>
+                    </connectors>
+                  </window-source>
+                  <window-copy name="copy" pubsub="true">
+                    <retention type="bycount_sliding">5</retention>
+                  </window-copy>
+                  <window-filter name="even">
+                    <use><![CDATA[id]]></use>
+                    <code><![CDATA[function filter(data)
+                    return data.id % 2 == 0
+                    end]]></code>
+                  </window-filter>
+                  <window-filter name="odd">
+                    <use><![CDATA[id]]></use>
+                    <code><![CDATA[function filter(data)
+                    return data.id % 2 == 1
+                    end]]></code>
+                  </window-filter>
+                </windows>
+                <edges>
+                  <edge source="source" target="copy"/>
+                  <edge source="source" target="even"/>
+                  <edge source="source" target="odd"/>
+                </edges>
+              </contquery>
+            </contqueries>
+          </project>
+    projectHasUnsavedChanges:
+      description: >-
+        An error response when the project "example_project" has unsaved changes
+        and cannot be promoted or reverted at this time.
+      value:
+        details: []
+        errorCode: 5086
+        httpStatusCode: 409
+        message: >-
+          The project "example_project" cannot be versioned as it has unsaved
+          changes. Save the changes first and then try again.
+        version: 2
+    projectIsLocked:
+      description: >-
+        An error response when the project "example_project" is locked by another
+        user and cannot be altered at this time.
+      value:
+        details: []
+        errorCode: 5080
+        httpStatusCode: 409
+        message: >-
+          The project "example_project" is locked by another user and cannot be
+          altered at this time.
+        version: 2
+    projectPackagingNotEnabled:
+      description: An error response when functionality for project packages is not
+        enabled.
+      value:
+        details: []
+        errorCode: 5081
+        httpStatusCode: 503
+        message: Functionality for project packages is not enabled.
+        version: 2
+    projectVersioningInternalImplementationError:
+      description: An implementation error occurred during project versioning.
+      value:
+        details: []
+        errorCode: 5085
+        httpStatusCode: 500
+        message: >-
+          Versioning of project "a_project_name" has failed due to an internal
+          implementation error. See the application logs for more details.
+        version: 2
+    projectVersioningNotEnabled:
+      description: An error response when functionality for project versions is not
+        enabled.
+      value:
+        details: []
+        errorCode: 5082
+        httpStatusCode: 503
+        message: Functionality for project versions is not enabled.
+        version: 2
+    remoteGitNotEnabled:
+      description: >-
+        An error response when the functionality for remote Git connections is not
+        enabled.
+      value:
+        details: []
+        errorCode: 5095
+        httpStatusCode: 503
+        message: Functionality for remote Git is not enabled.
+        version: 2
+    resourceCollectionEspProjectBaseRepresentation:
+      description: This example shows a list of four projects, excluding their XML
+        code.
+      value:
+        accept: application/json
+        count: 4
+        items:
+        - createdBy: user1
+          createdOn: 0
+          description: This is the project's description.
+          uuid: 020944ae-d714-47c8-b7b6-6cad763bb223
+          friendlyName: tradesproj
+          label: tradesproj
+          lastModifiedTime: 1674733254368
+          modifiedBy: user1
+          privateProject: true
+          tags:
+          - Project
+          type: ESP Project
+          uploadTime: 1674733254368
+          uploadedBy: user1
+          version: 1
+          versionNotes: This is the initial version.
+        - createdBy: user1
+          createdOn: 0
+          description: This is the project's description.
+          uuid: 08cb631a-a037-4595-862e-c183a007dac2
+          friendlyName: patternProject
+          label: patternProject
+          lastModifiedTime: 1674731994270
+          modifiedBy: user1
+          privateProject: true
+          tags:
+          - Project
+          type: ESP Project
+          uploadTime: 1674731993985
+          uploadedBy: user1
+          version: 1
+          versionNotes: This is the initial version.
+        - createdBy: user1
+          createdOn: 0
+          description: This is the project's description.
+          uuid: 8d18545d-c3dc-429d-91f1-4d96e5247f32
+          friendlyName: sailingProject
+          label: sailingProject
+          lastModifiedTime: 1674731978108
+          modifiedBy: user1
+          privateProject: true
+          tags:
+          - Project
+          type: ESP Project
+          uploadTime: 1674731977710
+          uploadedBy: user1
+          version: 1
+          versionNotes: This is the initial version.
+        - createdBy: user1
+          createdOn: 0
+          description: This is the project's description.
+          uuid: f4e30745-fce4-4700-8d6a-277567a4effb
+          friendlyName: arrayProjectForCluster
+          label: arrayProjectForCluster
+          lastModifiedTime: 1674731963595
+          modifiedBy: user1
+          privateProject: true
+          tags:
+          - Project
+          type: ESP Project
+          uploadTime: 1674731963386
+          uploadedBy: user1
+          version: 1
+          versionNotes: This is the initial version.
+        limit: 50
+        name: items
+        start: 0
+        version: 2
+    rootResponse200:
+      description: Root response
+      value:
+        links:
+        - href: /SASEventStreamManager/v4/deployments
+          method: GET
+          rel: deployments
+          type: application/vnd.sas.collection+json
+          uri: /SASEventStreamManager/v4/deployments
+        version: 4
+    resourceSummary:
+      description: This example shows information about a file or a folder in a project
+        package.
+      value:
+        id: UHJvamVjdDEvMC4xL2hvbWUvYW5hbHl0aWNzL2E=
+        name: /home/analytics/astore
+        type: file
+        version: 2
+    file:
+      description: This example shows the body of a post request to upload a file
+        to a project package.
+      value: 'file content'
+    fileRenamingInternalImplementationError:
+      description: An implementation error occurred during renaming of a project package
+        file.
+      value:
+        errorCode: 2247
+        message: The application failed to rename the file "srcName" to "targetName".
+        details: []
+        version: 2
+        httpStatusCode: 500
+    fileRenamingFileNotFoundError:
+      description: The specified file does not exist.
+      value:
+        errorCode: 2218
+        message: The application is unable to perform the operation because the specified
+          file "fileName" does not exist.
+        details: []
+        version: 2
+        httpStatusCode: 404
+    fileRenamingFileExistsError:
+      description: The new file name specified already exists.
+      value:
+        errorCode: 2248
+        message: The application is unable to perform the operation because the specified
+          file "fileName" already exist.
+        details: []
+        version: 2
+        httpStatusCode: 409
+    fileRenamingFileForbiddenError:
+      description: The model.xml file cannot be renamed.
+      value:
+        errorCode: 2246
+        message: You cannot rename the "model.xml" file.
+        details: []
+        version: 2
+        httpStatusCode: 403
+    projectVersionHistoryRepresentation:
+      description: This example shows a response that contains information about several
+        versions and levels of a project.
+      value:
+        projectName: a_project_name
+        versions:
+        - operation: CREATE_VERSION
+          version: 1
+          level: 1
+          createdOn: 1682074612
+          createdByName: a_user
+          createdByEmail: a_user@company.com
+          commitDetails:
+            type: MAJOR_VERSION
+            notes: Creating a new version
+            tags:
+            - tag1
+            - tag2
+            version: 1
+            level: 1
+        - operation: PROMOTE_LEVEL
+          version: 1
+          level: 2
+          createdOn: 1682074613
+          createdByName: a_user
+          createdByEmail: a_user@company.com
+          commitDetails:
+            type: PROMOTE
+            notes: Promoting a project version to Test
+            tags:
+            - tag1
+            - tag2
+            version: 1
+            level: 2
+        - operation: PROMOTE_LEVEL
+          version: 1
+          level: 3
+          createdOn: 1682074614
+          createdByName: a_user
+          createdByEmail: a_user@company.com
+          commitDetails:
+            type: PROMOTE
+            notes: Promoting a project version to Production
+            tags:
+            - tag1
+            - tag2
+            version: 1
+            level: 3
+        - operation: CREATE_VERSION
+          version: 2
+          level: 1
+          createdOn: 1682074616
+          createdByName: a_user
+          createdByEmail: a_user@company.com
+          commitDetails:
+            type: MAJOR_VERSION
+            notes: Creating a new version
+            tags:
+            - tag1
+            - tag2
+            version: 2
+            level: 1

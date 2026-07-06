@@ -1,0 +1,2772 @@
+---
+openapi: 3.0.3
+info:
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+  title: Themes
+  description: This API manages a repository of theme resources.
+  version: "7"
+tags:
+- name: Themes
+  description: The operations for the themes resource.
+- name: Theme Publish Job
+  description: The operations for a theme publish job.
+- name: Theme Package
+  description: The operations for importing and exporting themes.
+- name: Transfer
+  description: The operations for the transfer resource.
+- name: Root
+  description: The operations for the root resource.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the links for the API
+      description: Returns a list of links to the top-level collections surfaced through
+        this API.
+      operationId: root
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/rootLinks"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/rootLinks"
+  /themes:
+    get:
+      summary: Get a collection of themes
+      description: Returns a collection of themes based on the specified pagination,
+        filtering, and sorting options. If the 'Accept-Item' header is missing the
+        themes will be returned in complete resource format; otherwise, if it has
+        a value of 'application/vnd.sas.theme.report+json' or 'application/vnd.sas.theme.application+json'
+        the themes will be returned in the minimal theme format.
+      operationId: getThemes
+      tags:
+      - Themes
+      parameters:
+      - name: Accept-Item
+        description: Select the desired item representation. If not present then items
+          of application/vnd.sas.theme.report.complete+json or application/vnd.sas.theme.application.complete+json
+          type(s) are returned; otherwise if it has a value of 'application/vnd.sas.theme.report+json'
+          or 'application/vnd.sas.theme.application+json' then items of application/vnd.sas.theme.application+json
+          and application/vnd.sas.theme.report+json type are returned.
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.theme.application.complete+json
+          - application/vnd.sas.theme.report.complete+json
+          - application/vnd.sas.theme.application+json
+          - application/vnd.sas.theme.report+json
+      - name: Accept-Language
+        description: This is an optional header.  If present the locale it represents
+          will be used in the processing, especially in sorting and filtering.
+        in: header
+        required: false
+        schema:
+          type: string
+      - name: type
+        in: query
+        required: false
+        description: Filter collection to only include themes of the specified type
+        schema:
+          type: string
+      - name: published
+        in: query
+        required: false
+        description: Filter collection to only include published themes
+        schema:
+          type: boolean
+      - name: frameworkVersion
+        in: query
+        required: false
+        description: Filter rootUrls on UI framework version (ex. 3.0.0, 3.1.0, etc.).
+          rootUrls will only contain the specified version. Note this is deprecated
+          from Version 2. This parameter has no effect.
+        schema:
+          type: string
+      - name: start
+        description: The index of the first theme to return.
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: limit
+        description: The maximum number of themes to return.
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 500
+      - name: filter
+        in: query
+        description: The criteria for filtering the themes. See [Filtering in REST
+          APIs](https://developer.sas.com/rest-apis/themes-v5/docs/getting-started/usage-notes#filtering).
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        required: false
+        description: The criteria for sorting the themes. See [Sorting in REST APIs](https://developer.sas.com/rest-apis/themes-v5/docs/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/themeCollection"
+              examples:
+                getThemes:
+                  $ref: "#/components/examples/getThemes"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/themeCollection"
+              examples:
+                getThemes:
+                  $ref: "#/components/examples/getThemes"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                getThemes:
+                  $ref: "#/components/examples/getThemes400"
+        "406":
+          description: The request was not acceptable. An invalid media type was specified
+            for the Accept-Item header value.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                getThemes:
+                  $ref: "#/components/examples/getThemes406"
+  /themes#exportPackage:
+    get:
+      summary: Get themes in package format for export
+      description: This gets all themes specified via the "ids" query parameter and
+        returns them in a package format. Mainly intended for use by the Theme Designer
+        application.
+      operationId: getExportPackage
+      tags:
+      - Theme Package
+      parameters:
+      - name: ids
+        in: query
+        required: true
+        description: Comma-separated list of theme ids to include in export package.
+          A minimum 1 and a maximum of 10 must be specified.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. Returns the themes as a theme package.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.theme.package:
+              schema:
+                $ref: "#/components/schemas/themePackage"
+              examples:
+                sampleFile:
+                  summary: A sample file
+                  externalValue: './examples/themePackage.zip'
+        "400":
+          description: The request was invalid. This occurs when the 'ids' parameter
+            does not meet the requirements.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/export400"
+  /themes#createApplicationTheme:
+    post:
+      summary: Create a new application theme
+      description: Creates a new application theme based on the representation in
+        the request body. This can only be invoked by authorized users. Note application/json
+        is not supported as a Content-Type value due to ambiguity - content could
+        be either a report theme, an application theme, or a transfer object. application/json
+        is also not supported as an Accept value due to ambiguity between a single
+        theme response or a collection of themes.
+      operationId: createApplicationTheme
+      tags:
+      - Themes
+      parameters:
+      - name: useProvidedId
+        in: query
+        required: false
+        description: If true, specifies to preserve the theme's id as specified in
+          the id field; otherwise a new identifier is allocated. This is intended
+          for migration use cases. If true and id is not supplied, this value is ignored.
+          If false and id is supplied in the body, the id is ignored.
+        schema:
+          type: boolean
+      requestBody:
+        content:
+          application/vnd.sas.theme.application.complete+json:
+            schema:
+              $ref: "#/components/schemas/createApplicationTheme"
+            examples:
+              createApplicationTheme:
+                $ref: "#/components/examples/createAppThemeRequest"
+        description: The representation of an application theme.
+        required: true
+      responses:
+        "201":
+          description: An application theme was created.
+          headers:
+            Location:
+              description: The URL of the application theme.
+              schema:
+                type: string
+                format: uri
+            Etag:
+              description: The entity tag for the application theme.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the application theme was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.theme.application.complete+json:
+              schema:
+                $ref: "#/components/schemas/theme"
+              examples:
+                json:
+                  $ref: "#/components/examples/applicationThemeResp"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/postThemes400"
+        "403":
+          description: The user did not have the necessary permissions. User must
+            be a member of the Application Administrators custom group.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes403"
+        "409":
+          description: The request could not be completed due to a conflict with the
+            current state of the resource. A theme with the name, or id in conjunction
+            with useProvidedId=true, provided already exists.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes409"
+  /themes#createReportTheme:
+    post:
+      summary: Create a new report theme
+      description: Creates a new report theme based on the representation in the request
+        body. This can only be invoked by authorized users. Note application/json
+        is not supported as a Content-Type value due to ambiguity - content could
+        be either a report theme, an application theme, or a transfer object. application/json
+        is also not supported as an Accept value due to ambiguity between a single
+        theme response or a collection of themes.
+      operationId: createReportTheme
+      tags:
+      - Themes
+      parameters:
+      - name: useProvidedId
+        in: query
+        required: false
+        description: If true, specifies to preserve the theme's id as specified in
+          the id field; otherwise a new identifier is allocated. This is intended
+          for migration use cases. If true and id is not supplied, this value is ignored.
+          If false and id is supplied in the body, the id is ignored.
+        schema:
+          type: boolean
+      requestBody:
+        content:
+          application/vnd.sas.theme.report.complete+json:
+            schema:
+              $ref: "#/components/schemas/createReportTheme"
+            examples:
+              createReportTheme:
+                $ref: "#/components/examples/createReportThemeRequest"
+        description: The representation of a report theme.
+        required: true
+      responses:
+        "201":
+          description: A report theme was created.
+          headers:
+            Location:
+              description: The URL of the report theme.
+              schema:
+                type: string
+                format: uri
+            Etag:
+              description: The entity tag for the report theme.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the report theme was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.theme.report.complete+json:
+              schema:
+                $ref: "#/components/schemas/reportTheme"
+              examples:
+                json:
+                  $ref: "#/components/examples/reportThemeResp"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/postThemes400"
+        "403":
+          description: The user did not have the necessary permissions. User must
+            be a member of the Application Administrators custom group.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes403"
+        "409":
+          description: The request could not be completed due to a conflict with the
+            current state of the resource. A theme with the name, or id in conjunction
+            with useProvidedId=true, provided already exists.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes409"
+  /themes#importPackage:
+    post:
+      summary: Import to create new themes using a theme package
+      description: Creates new themes from the theme package. This can only be invoked
+        by authorized users. The content must be 95Mb or less.
+      operationId: importPackage
+      tags:
+      - Theme Package
+      parameters:
+      - name: replaceDups
+        in: query
+        required: false
+        description: If there are existing themes that have the same names as themes
+          in the package, replace the existing themes with the content in the package
+          if this value is true. Otherwise create a new theme for any duplicates.
+        schema:
+          type: boolean
+      - name: ext
+        in: query
+        required: true
+        description: The file extension for the content to be imported. Acceptable
+          values are "td" and "tdf".
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.theme.package:
+            schema:
+              $ref: "#/components/schemas/themePackage"
+            examples:
+              sampleFile:
+                summary: A sample file
+                externalValue: './examples/themePackage.zip'
+        description: The theme(s) to be imported.
+        required: true
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/themeCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/import200"
+        "400":
+          description: The request was invalid. This occurs when the theme package
+            does not contain valid content or if the content is greater than 95Mb.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/import400"
+        "403":
+          description: The user did not have the necessary permissions. User must
+            be a member of the Application Administrators custom group.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes403"
+        "409":
+          description: The request could not be completed due to a conflict with the
+            current state of the resource. One or more of the themes in the package
+            has the same name as an existing theme. The IDs of the conflicting themes
+            are provided via the X-Error-Theme-Name-Conflict response header.
+          headers:
+            X-Error-Theme-Name-Conflict:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    message:
+                      type: array
+              description: ID(s) of the conflicting themes in the format {\"message\":\"[abcd1234,
+                wxyz1234]\"}
+  /themes#createFromTransfer:
+    post:
+      summary: Import to create a new theme using transfer object
+      description: Creates a new theme from the transfer object. Other than the old
+        theme ID, all other theme properties are preserved.
+      operationId: createFromTransfer
+      tags:
+      - Transfer
+      requestBody:
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              createFromTransfer:
+                $ref: "#/components/examples/transferObjRequest"
+        description: The theme to be imported.
+        required: true
+      responses:
+        "201":
+          description: The theme was imported.
+          headers:
+            Location:
+              description: The URL of the application theme.
+              schema:
+                type: string
+                format: uri
+            Etag:
+              description: The entity tag for the theme.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the theme was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/resourceSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/createFromTransferObj201"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/resourceSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/createFromTransferObj201"
+        "400":
+          description: The request was invalid. This occurs when the transfer object
+            does not contain valid content or the theme uri does not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes400"
+        "409":
+          description: The request could not be completed due to a conflict with the
+            current state of the resource. A theme with the name provided already
+            exists.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/transfer409"
+  "/themes/{themeId}#applicationTheme":
+    get:
+      summary: Get an application theme
+      description: Returns the representation of the specified application theme.
+      operationId: getApplicationTheme
+      tags:
+      - Themes
+      parameters:
+      - $ref: "#/components/parameters/themeId"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Etag:
+              description: The entity tag for the theme.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the theme was last modified.
+              schema:
+                type: string
+            Cache-Control:
+              description: This value is "no-cache".
+              schema:
+                type: string
+          content:
+            application/vnd.sas.theme.application+json:
+              schema:
+                $ref: "#/components/schemas/themeSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/getAppThemeShort"
+            application/vnd.sas.theme.application.complete+json:
+              schema:
+                $ref: "#/components/schemas/theme"
+              examples:
+                json:
+                  $ref: "#/components/examples/getAppThemeFull"
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/resourceSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/resourceSummary"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/resourceSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/resourceSummary"
+        "404":
+          description: No theme exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/theme404"
+        "406":
+          description: An invalid media type was specified for the Accept header value.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/theme406"
+    head:
+      summary: Get the headers for an application theme
+      description: Returns the headers for an application theme. Also used to determine
+        whether a particular application theme exists.
+      tags:
+      - Themes
+      operationId: headersForApplicationTheme
+      parameters:
+      - $ref: "#/components/parameters/themeId"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Etag:
+              description: The entity tag for the theme.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the theme was last modified.
+              schema:
+                type: string
+            Cache-Control:
+              description: This value is "no-cache".
+              schema:
+                type: string
+        "404":
+          description: No theme exists at the requested path.
+        "406":
+          description: An invalid media type was specified for the Accept header value.
+    put:
+      summary: Update an application theme
+      description: Updates the specified application theme based on the representation
+        in the request body. Only authorized users can invoke this method.
+      tags:
+      - Themes
+      operationId: updateApplicationTheme
+      parameters:
+      - $ref: "#/components/parameters/themeId"
+      requestBody:
+        content:
+          application/vnd.sas.theme.application.complete+json:
+            schema:
+              $ref: "#/components/schemas/updateApplicationTheme"
+            examples:
+              updateApplicationTheme:
+                $ref: "#/components/examples/updateAppThemeRequest"
+        description: The representation of an application theme.
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Etag:
+              description: The entity tag for the theme.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the theme was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.theme.application.complete+json:
+              schema:
+                $ref: "#/components/schemas/theme"
+              examples:
+                json:
+                  $ref: "#/components/examples/applicationThemeResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/theme"
+              examples:
+                json:
+                  $ref: "#/components/examples/applicationThemeResp"
+        "400":
+          description: "The request falls into one of the following categories: No\
+            \ data was provided; the ID in the request does not match the ID in URL;\
+            \ the request data contains an empty theme name; changing a system theme\
+            \ is prohibited."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/updateTheme400"
+        "403":
+          description: The user did not have the necessary permissions. User must
+            be a member of the Application Administrators custom group.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes403"
+        "404":
+          description: No theme exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/theme404"
+        "406":
+          description: An invalid media type was specified for the Accept header value.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/updateTheme406"
+        "409":
+          description: The request could not be completed due to a conflict with the
+            current state of the resource. A theme with the name provided already
+            exists.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes409"
+  "/themes/{themeId}#reportTheme":
+    get:
+      summary: Get a report theme
+      description: Returns the representation of the specified report theme.
+      operationId: getReportTheme
+      tags:
+      - Themes
+      parameters:
+      - $ref: "#/components/parameters/themeId"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Etag:
+              description: The entity tag for the theme.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the theme was last modified.
+              schema:
+                type: string
+            Cache-Control:
+              description: This value is "no-cache".
+              schema:
+                type: string
+          content:
+            application/vnd.sas.theme.report+json:
+              schema:
+                $ref: "#/components/schemas/reportThemeSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/getRepThemeShort"
+            application/vnd.sas.theme.report.complete+json:
+              schema:
+                $ref: "#/components/schemas/reportTheme"
+              examples:
+                json:
+                  $ref: "#/components/examples/getRepThemeFull"
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/resourceSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/resourceSummary"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/resourceSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/resourceSummary"
+        "404":
+          description: No theme exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/theme404"
+        "406":
+          description: An invalid media type was specified for the Accept header value.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/theme406"
+    head:
+      summary: Get the headers for a report theme
+      description: Returns the headers for a report theme. Also used to determine
+        whether a particular report theme exists.
+      tags:
+      - Themes
+      operationId: headersForReportTheme
+      parameters:
+      - $ref: "#/components/parameters/themeId"
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Etag:
+              description: The entity tag for the theme.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the theme was last modified.
+              schema:
+                type: string
+            Cache-Control:
+              description: This value is "no-cache".
+              schema:
+                type: string
+        "404":
+          description: No theme exists at the requested path.
+        "406":
+          description: An invalid media type was specified for the Accept header value.
+    put:
+      summary: Update a report theme
+      description: Updates the specified report theme based on the representation
+        in the request body. Only authorized users can invoke this method.
+      tags:
+      - Themes
+      operationId: updateReportTheme
+      parameters:
+      - $ref: "#/components/parameters/themeId"
+      requestBody:
+        content:
+          application/vnd.sas.theme.report.complete+json:
+            schema:
+              $ref: "#/components/schemas/updateReportTheme"
+            examples:
+              updateReportTheme:
+                $ref: "#/components/examples/updateRepThemeRequest"
+        description: The representation of an report theme.
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Etag:
+              description: The entity tag for the theme.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the theme was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.theme.report.complete+json:
+              schema:
+                $ref: "#/components/schemas/reportTheme"
+              examples:
+                json:
+                  $ref: "#/components/examples/reportThemeResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/reportTheme"
+              examples:
+                json:
+                  $ref: "#/components/examples/reportThemeResp"
+        "400":
+          description: "The request falls into one of the following categories: No\
+            \ data was provided; the ID in the request does not match the ID in URL;\
+            \ the request data contains an empty theme name; changing a system theme\
+            \ is prohibited."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/updateTheme400"
+        "403":
+          description: The user did not have the necessary permissions. User must
+            be a member of the Application Administrators custom group.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes403"
+        "404":
+          description: No theme exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/theme404"
+        "406":
+          description: An invalid media type was specified for the Accept header value.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/updateTheme406"
+        "409":
+          description: The request could not be completed due to a conflict with the
+            current state of the resource. A theme with the name provided already
+            exists.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes409"
+  "/themes/{themeId}":
+    delete:
+      summary: Delete a theme
+      description: Deletes the specified theme. Only authorized users can invoke this
+        request.
+      operationId: deleteTheme
+      tags:
+      - Themes
+      parameters:
+      - $ref: "#/components/parameters/themeId"
+      responses:
+        "204":
+          description: The theme was deleted.
+        "403":
+          description: The user did not have the necessary permissions. User must
+            be a member of the Application Administrators custom group.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes403"
+        "404":
+          description: No theme exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/theme404"
+  "/themes/{themeId}#getTransferObject":
+    get:
+      summary: Return the theme in transfer object format
+      description: Returns the transfer object of the specified theme. Note application/json
+        is not supported as a response type due to ambiguity - content could be either
+        a report theme, an application theme or a transfer object.
+      operationId: getTransferObject
+      tags:
+      - Transfer
+      parameters:
+      - $ref: "#/components/parameters/themeId"
+      responses:
+        "200":
+          description: The request succeeded. Returns the theme as transfer object.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                json:
+                  $ref: "#/components/examples/getTransferObject"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                json:
+                  $ref: "#/components/examples/getTransferObject"
+        "404":
+          description: No theme exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/theme404"
+  "/themes/{themeId}#updateFromTransfer":
+    put:
+      summary: Import to update an existing theme using transfer object
+      description: This updates a theme using the transfer object. If no existing
+        theme is found, a new theme is created. Either way, all other theme properties
+        are preserved.
+      operationId: updateFromTransfer
+      tags:
+      - Transfer
+      parameters:
+      - $ref: "#/components/parameters/themeId"
+      requestBody:
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              updateFromTransfer:
+                $ref: "#/components/examples/transferObjRequest"
+        description: theme to be imported.
+        required: true
+      responses:
+        "200":
+          description: The request succeeded. Returns the imported or updated theme
+            in resource summary format.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/resourceSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/resourceSummary"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/resourceSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/resourceSummary"
+        "400":
+          description: The request was invalid. This occurs when the user provides
+            an ID in the request that does not match the ID in the path of the url;
+            the transfer object does not contain valid content; or the theme uri does
+            not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/updateTheme400"
+  /themes/@defaultApplicationTheme:
+    get:
+      summary: Get the default application theme
+      description: Returns the representation of the default application theme. This
+        theme is used when there is no application theme preference set for the authenticated
+        user.
+      operationId: getDefaultApplicationTheme
+      tags:
+      - Themes
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Etag:
+              description: The entity tag for the theme.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the theme was last modified.
+              schema:
+                type: string
+            Cache-Control:
+              description: This value is "no-cache".
+              schema:
+                type: string
+          content:
+            application/vnd.sas.theme.application+json:
+              schema:
+                $ref: "#/components/schemas/themeSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/getAppThemeShort"
+            application/vnd.sas.theme.application.complete+json:
+              schema:
+                $ref: "#/components/schemas/theme"
+              examples:
+                json:
+                  $ref: "#/components/examples/getAppThemeFull"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/themeSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/getAppThemeShort"
+        "406":
+          description: An invalid media type was specified for the Accept header value.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getDefAppTheme406"
+  "/themes/@defaultApplicationTheme/{themeId}":
+    post:
+      summary: Set the default application theme
+      description: This theme is used when there is no application theme preference
+        set for the authenticated user. The request body should be empty, and the
+        response is empty. Only authorized users can invoke this request.
+      operationId: updateDefaultApplicationTheme
+      tags:
+      - Themes
+      parameters:
+      - $ref: "#/components/parameters/themeId"
+      responses:
+        "204":
+          description: The default application theme was updated.
+        "400":
+          description: The theme id was invalid - the theme does not exist or it is
+            not published.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/postDefAppTheme400"
+        "403":
+          description: The user did not have the necessary permissions. User must
+            be a member of the Application Administrators custom group.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes403"
+  /themes/@defaultReportTheme:
+    get:
+      summary: Get the default report theme
+      description: Returns the representation of the default report theme. This theme
+        is used when there is no report theme preference set for the authenticated
+        user.
+      operationId: getDefaultReportTheme
+      tags:
+      - Themes
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Etag:
+              description: The entity tag for the theme.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the theme was last modified.
+              schema:
+                type: string
+            Cache-Control:
+              description: This value is "no-cache".
+              schema:
+                type: string
+          content:
+            application/vnd.sas.theme.report+json:
+              schema:
+                $ref: "#/components/schemas/reportThemeSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/getRepThemeShort"
+            application/vnd.sas.theme.report.complete+json:
+              schema:
+                $ref: "#/components/schemas/reportTheme"
+              examples:
+                json:
+                  $ref: "#/components/examples/getRepThemeFull"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/resourceSummary"
+              examples:
+                json:
+                  $ref: "#/components/examples/resourceSummary"
+        "406":
+          description: An invalid media type was specified for the Accept header value.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getDefRepTheme406"
+  "/themes/@defaultReportTheme/{themeId}":
+    post:
+      summary: Set the default report theme
+      description: This theme is used when there is no report theme preference set
+        for the authenticated user. The request body should be empty, and the response
+        is empty. Only authorized users can invoke this request.
+      operationId: updateDefaultReportTheme
+      tags:
+      - Themes
+      parameters:
+      - $ref: "#/components/parameters/themeId"
+      responses:
+        "204":
+          description: The default report theme was updated.
+        "400":
+          description: The theme ID was invalid - the theme does not exist or it is
+            not published.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/postDefRepTheme400"
+        "403":
+          description: The user did not have the necessary permissions. User must
+            be a member of the Application Administrators custom group.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes403"
+  /publishJobs:
+    post:
+      operationId: createPublishJob
+      summary: Submit a publish job request
+      description: Submits a request to publish a theme to make it available to all
+        applications within the deployment. If the theme has not changed since it
+        was last published, it will not be republished. If the user POSTs, immediately
+        changes the theme, and POSTs again, the initial job will be canceled. The
+        request body is empty. Since 4 - added for asynchronous publishing.
+      tags:
+      - Theme Publish Job
+      parameters:
+      - name: themeId
+        in: query
+        required: true
+        description: The ID for the theme to be published
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Theme was not modified since it was last published.
+          headers:
+            Location:
+              description: The URI of the published theme if it has already been published
+                and not modified.
+              schema:
+                type: string
+                format: uri
+        "202":
+          description: Theme publish request was accepted.
+          headers:
+            Location:
+              description: The URI of the job if theme is not already published.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.theme.publish.job+json:
+              schema:
+                $ref: "#/components/schemas/publishJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/postPublishJob202"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/publishJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/postPublishJob202"
+        "400":
+          description: A theme identifier must be specified to submit a publish theme
+            job.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/postPublishJob400"
+        "404":
+          description: The theme was not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/postPublishJob400"
+    get:
+      summary: Get a list of publish jobs
+      description: Returns a collection of publish jobs based on the specified pagination,
+        filtering, and sorting options.
+      operationId: getPublishJobs
+      tags:
+      - Theme Publish Job
+      parameters:
+      - name: start
+        description: The 0-based index of the first job to return.
+        in: query
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        description: The maximum number of jobs to be returned in this page of results.
+          The actual number of returned jobs might be less if the collection has been
+          exhausted.
+        in: query
+        schema:
+          type: integer
+          default: 10
+      - name: filter
+        in: query
+        description: The criteria for filtering the returned jobs. A sample query
+          is - Filter by job ID - /themes/publishJobs?filter=eq(publishJob.id, 'ec0292d8-884d-47c4-860c-52a774e55786')
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: Defines how the returned jobs are sorted. The default sort order
+          is descending on the creation time stamp field. Some sample sorts - Sort
+          ascending by ID - /themes/publishJobs?sortBy=id:ascending Sort descending
+          by ID - /themes/publishJobs?sortBy=id:descending
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/publishJobCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/getPublishJobs"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/publishJobCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/getPublishJobs"
+  "/publishJobs/{jobId}":
+    get:
+      summary: Get a publish job
+      description: Return a particular publish job representation.
+      operationId: getPublishJob
+      tags:
+      - Theme Publish Job
+      parameters:
+      - name: jobId
+        in: path
+        description: The ID of the job.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Etag:
+              description: The entity tag for the job.
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                of when the job was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.theme.publish.job+json:
+              schema:
+                $ref: "#/components/schemas/publishJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/getPublishJob200"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/publishJob"
+              examples:
+                json:
+                  $ref: "#/components/examples/getPublishJob200"
+        "404":
+          description: No job exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/publishJob404"
+    head:
+      summary: Get the headers for a publish job
+      description: Returns the headers for a publish job representation. Also used
+        to determine whether a particular publish job exists.
+      tags:
+      - Theme Publish Job
+      operationId: headersForPublishJob
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        description: The ID of the job.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Etag:
+              description: The entity tag for the job.
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                of when the job was last modified.
+              schema:
+                type: string
+        "404":
+          description: No job exists at the requested path.
+    delete:
+      operationId: deletePublishJob
+      summary: Delete a publish job
+      description: Deletes the given publish job. Only authorized users can invoke
+        this request.
+      tags:
+      - Theme Publish Job
+      parameters:
+      - name: jobId
+        in: path
+        description: The ID of the job.
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: The job was deleted.
+        "403":
+          description: The user did not have the necessary permissions. User must
+            be a member of the Application Administrators custom group.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes403"
+        "404":
+          description: No job exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/publishJob404"
+  "/publishJobs/{jobId}/state":
+    get:
+      summary: Get the state of the job
+      description: "Gets the state of the job: pending, running, canceled, completed,\
+        \ or failed."
+      operationId: getPublishJobState
+      tags:
+      - Theme Publish Job
+      parameters:
+      - name: jobId
+        in: path
+        description: The ID of the job.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "running"
+        "404":
+          description: No job exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/publishJob404"
+    head:
+      operationId: headersForPublishJobState
+      summary: Get the headers for the state of the publish job
+      description: Get the headers for the state of the current publish job.
+      tags:
+      - Theme Publish Job
+      parameters:
+      - name: jobId
+        in: path
+        description: The ID of the job.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        "404":
+          description: No job exists at the requested path.
+          headers:
+            Content-Type:
+              schema:
+                $ref: '#/components/schemas/error'
+    put:
+      operationId: updatePublishJobState
+      summary: Set the state of the publish job
+      description: Sets the state of the current publish job. The new state must be
+        set as the value query parameter, and the only acceptable value is "canceled".
+        Only authorized users can invoke this request.
+      tags:
+      - Theme Publish Job
+      parameters:
+      - name: jobId
+        in: path
+        description: The ID of the job.
+        required: true
+        schema:
+          type: string
+      - name: value
+        in: query
+        description: The value of the state.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+        "400":
+          description: The request was invalid. An invalid request occurs in the following
+            scenarios -An invalid state value was provided; The state was not specified
+            in the value query parameter.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/publishJobState400"
+        "403":
+          description: The user did not have the necessary permissions. User must
+            be a member of the Application Administrators custom group.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes403"
+        "404":
+          description: No job exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/publishJob404"
+        "405":
+          description: The job has already completed and can no longer be updated.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/publishJobState405"
+  "/publishedThemes/{themeId}":
+    delete:
+      operationId: unpublishTheme
+      summary: Unpublish a theme
+      description: Remove a theme from the set of published themes. This prevents
+        it from appearing in Settings UI or from being set as a default theme for
+        the deployment. Only authorized users can invoke this request.
+      tags:
+      - Themes
+      parameters:
+      - $ref: "#/components/parameters/themeId"
+      responses:
+        "204":
+          description: Theme was successfully unpublished.
+        "403":
+          description: The user did not have the necessary permissions. User must
+            be a member of the Application Administrators custom group. Or unpublish
+            was attempted on a system or default theme.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/themes403"
+        "404":
+          description: No theme exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/theme404"
+servers:
+- url: http://example.com/themes
+  description: Sample server URL.
+components:
+  parameters:
+    themeId:
+      name: themeId
+      in: path
+      required: true
+      description: The unique identifier for the theme.
+      schema:
+        type: string
+  schemas:
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    error:
+      $ref: "#/components/schemas/error2"
+    transferObject:
+      title: Transfer Object
+      description: Content providers implementing the Transfer Object Provider contract
+        use this media type to store information about the content to be transfered.
+      x-sas-media-type:
+        name: application/vnd.sas.transfer.object
+        version: 1
+      properties:
+        id:
+          type: string
+          format: object-id
+          description: unique identifier of the object
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+        summary:
+          $ref: "#/components/schemas/summary"
+        content:
+          type: object
+          description: optional. Choose this or fileServiceContent. This is the content
+            object that must be serialized in a format that is valid for internet
+            transmission. This includes valid encoding formats like Base64 or data
+            structures like JSON. This is provided by the content provider and the
+            transfer service expects no visibility into or understanding of this value.
+        fileServiceContent:
+          type: string
+          description: optional. Choose this or content. This holds the URI of a file
+            service object that contains the transferrable object.
+        connectors:
+          type: array
+          description: a list of associations or references to other external objects
+            to be recreated on import
+          items:
+            $ref: "#/components/schemas/transferObjectConnector"
+        substitutions:
+          type: object
+          description: map with keys of parameter and value. Used to replace the value
+            of parameter with the value of value
+        links:
+          type: array
+          description: Paging links that apply to this object
+          items:
+            $ref: "#/components/schemas/link"
+    resourceSummary:
+      $ref: "#/components/schemas/summary"
+    themeSummary:
+      title: Theme Summary
+      description: The summary representation of a theme.
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the theme.
+          maxLength: 128
+        name:
+          type: string
+          description: The theme's display name.
+          maxLength: 100
+        rootUrl:
+          type: string
+          description: The system-generated theme root URL (null for system themes
+            or if theme is not published).
+        links:
+          description: The links that apply to the theme.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    reportThemeSummary:
+      title: Report Theme Summary
+      description: The summary representation of a report theme.
+      allOf:
+      - $ref: "#/components/schemas/themeSummary"
+      - type: object
+        properties:
+          version:
+            type: integer
+            format: int32
+            description: The version number of the theme representation. This representation
+              is version 3.
+          reportStyleSheetName:
+            type: string
+            description: The file name for this report theme's default stylesheet.
+          reportStyleSheetPath:
+            type: string
+            description: The path to this report theme's default stylesheet.
+          htmlStyleSheetName:
+            type: string
+            description: The file name for this report theme's HTML stylesheet.
+          htmlStyleSheetPath:
+            type: string
+            description: The path to this report theme's HTML stylesheet.
+          highContrastThemeId:
+            type: string
+            description: The id of the corresponding high contrast report theme.
+            x-sas-attributes:
+              since: "5"
+    createApplicationTheme:
+      title: Create Application Theme
+      description: The representation used to create a new application theme.
+      required:
+      - name
+      - type
+      - contentType
+      - baseThemeId
+      - styleData
+      - createdFrameworkVersion
+      properties:
+        id:
+          type: string
+          description: For the case where the create operation specifies request parameter
+            useProvidedId, this indicates the desired theme id.
+          maxLength: 128
+        name:
+          type: string
+          description: The theme's display name.
+          maxLength: 100
+        type:
+          type: string
+          description: The type of theme.
+          enum:
+          - system
+          - custom
+          - sample
+          - retired
+          - legacy
+        contentType:
+          type: string
+          description: The type of theme content.
+          enum:
+          - application
+        baseThemeId:
+          type: string
+          description: The id of the base theme used to create this theme.
+          maxLength: 36
+          default: "sas_corporate"
+        styleData:
+          type: object
+          description: The style variables and values that define this theme. Format
+            is {"variableName":"value",...}.
+          maxItems: 400
+        createdFrameworkVersion:
+          type: string
+          description: The UI framework version this theme was created with.
+          maxLength: 10
+    updateApplicationTheme:
+      title: Update Application Theme
+      description: The representation used to update an application theme.
+      required:
+      - id
+      - updatedFrameworkVersion
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the theme.
+          maxLength: 128
+        name:
+          type: string
+          description: The theme's display name.
+          maxLength: 100
+        type:
+          type: string
+          description: The type of theme.
+          enum:
+          - system
+          - custom
+          - sample
+          - retired
+          - legacy
+        contentType:
+          type: string
+          description: The type of theme content.
+          enum:
+          - application
+        baseThemeId:
+          type: string
+          description: The id of the base theme used to create this theme.
+          maxLength: 36
+          default: "sas_corporate"
+        styleData:
+          type: object
+          description: The style variables and values that define this theme. Format
+            is {"variableName":"value",...}.
+          maxItems: 400
+        updatedFrameworkVersion:
+          type: string
+          description: The UI framework version this theme was last updated with.
+          maxLength: 10
+    theme:
+      title: Theme
+      description: The representation for a theme.
+      allOf:
+      - $ref: "#/components/schemas/themeSummary"
+      - type: object
+        properties:
+          version:
+            type: integer
+            format: int32
+            description: The version number of the theme representation. This representation
+              is version 3.
+          type:
+            type: string
+            description: The type of theme.
+            enum:
+            - system
+            - custom
+            - sample
+            - retired
+            - legacy
+          contentType:
+            type: string
+            description: The type of theme content.
+            enum:
+            - application
+            - report
+          baseThemeId:
+            type: string
+            description: The id of the base theme used to create this theme.
+            maxLength: 36
+            default: "sas_corporate"
+          styleData:
+            type: object
+            description: The style variables and values that define this theme. Format
+              is {"variableName":"value",...}.
+            maxItems: 400
+          createdFrameworkVersion:
+            type: string
+            description: The UI framework version this theme was created with.
+            maxLength: 10
+          updatedFrameworkVersion:
+            type: string
+            description: The UI framework version this theme was last updated with.
+            maxLength: 10
+          published:
+            type: boolean
+            description: True if published, false if not published.
+          defaultTheme:
+            type: boolean
+            description: True if this is the default theme, false if not the default.
+          hidden:
+            type: boolean
+            description: True if this theme is hidden, false if not hidden.
+            x-sas-attributes:
+              since: "5"
+          lastModifiedTimeStamp:
+            type: string
+            description: The time when any part of this theme was last modified.
+            format: date-time
+          sourceModifiedTimeStamp:
+            type: string
+            description: The time when this theme's source data (styleData or updatedFrameworkVersion)
+              was last modified.
+            format: date-time
+            x-sas-attributes:
+              since: "4"
+          publishedTimeStamp:
+            type: string
+            description: The time when this theme was last published. Null if theme
+              is not published.
+            format: date-time
+            x-sas-attributes:
+              since: "4"
+    createReportTheme:
+      title: Create Report Theme
+      description: The representation used to create a new report theme.
+      required:
+      - name
+      - type
+      - contentType
+      - baseThemeId
+      - styleData
+      - createdFrameworkVersion
+      properties:
+        id:
+          type: string
+          description: For the case where the create operation specifies request parameter
+            useProvidedId, this indicates the desired theme id.
+          maxLength: 128
+        name:
+          type: string
+          description: The theme's display name.
+          maxLength: 100
+        type:
+          type: string
+          description: The type of theme.
+          enum:
+          - system
+          - custom
+          - sample
+          - retired
+          - legacy
+        contentType:
+          type: string
+          description: The type of theme content.
+          enum:
+          - report
+        baseThemeId:
+          type: string
+          description: The id of the base theme used to create this theme.
+          maxLength: 36
+        styleData:
+          type: object
+          description: The style variables and values that define this theme. Format
+            is {"variableName":"value",...}.
+          maxItems: 400
+        createdFrameworkVersion:
+          type: string
+          description: The UI framework version this theme was created with.
+          maxLength: 10
+    updateReportTheme:
+      title: Update Report Theme
+      description: The representation used to update a report theme.
+      required:
+      - id
+      - updatedFrameworkVersion
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the theme.
+          maxLength: 128
+        name:
+          type: string
+          description: The theme's display name.
+          maxLength: 100
+        type:
+          type: string
+          description: The type of theme.
+          enum:
+          - system
+          - custom
+          - sample
+          - retired
+          - legacy
+        contentType:
+          type: string
+          description: The type of theme content.
+          enum:
+          - report
+        baseThemeId:
+          type: string
+          description: The id of the base theme used to create this theme.
+          maxLength: 36
+          default: "sas_corporate"
+        styleData:
+          type: object
+          description: The style variables and values that define this theme. Format
+            is {"variableName":"value",...}.
+          maxItems: 400
+        updatedFrameworkVersion:
+          type: string
+          description: The UI framework version this theme was last updated with.
+          maxLength: 10
+    reportTheme:
+      title: Report Theme
+      description: The representation for a report theme.
+      allOf:
+      - $ref: "#/components/schemas/reportThemeSummary"
+      - type: object
+        properties:
+          version:
+            type: integer
+            format: int32
+            description: The version number of the theme representation. This representation
+              is version 3.
+          type:
+            type: string
+            description: The type of theme.
+            enum:
+            - system
+            - custom
+            - sample
+            - retired
+            - legacy
+          contentType:
+            type: string
+            description: The type of theme content.
+            enum:
+            - report
+          baseThemeId:
+            type: string
+            description: The id of the base theme used to create this theme.
+            maxLength: 36
+          styleData:
+            type: object
+            description: The style variables and values that define this theme. Format
+              is {"variableName":"value",...}.
+            maxItems: 400
+          createdFrameworkVersion:
+            type: string
+            description: The UI framework version this theme was created with.
+            maxLength: 10
+          updatedFrameworkVersion:
+            type: string
+            description: The UI framework version this theme was last updated with.
+            maxLength: 10
+          published:
+            type: boolean
+            description: True if published, false if not published.
+          lastModifiedTimeStamp:
+            type: string
+            format: date-time
+            description: The time when any part of this theme was last modified.
+          sourceModifiedTimeStamp:
+            type: string
+            format: date-time
+            description: The time when this theme's source data (styleData or updatedFrameworkVersion)
+              was last modified.
+            x-sas-attributes:
+              since: "4"
+          publishedTimeStamp:
+            type: string
+            format: date-time
+            description: The time when this theme was last published. Null if theme
+              is not published.
+            x-sas-attributes:
+              since: "4"
+    themeCollection:
+      title: Theme Collection
+      type: object
+      description: A pageable collection of theme objects.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            description: An array that contains theme resources.
+            items:
+              $ref: "#/components/schemas/theme"
+    publishJob:
+      title: Publish Job
+      description: The instance of a publish job. Since 4 - added for asynchronous
+        publishing.
+      properties:
+        version:
+          type: integer
+          format: int32
+          description: The version of the resource.
+        id:
+          type: string
+          description: The unique ID that is generated by the API.
+        state:
+          type: string
+          description: The current state of the job.
+          enum:
+          - pending
+          - running
+          - canceled
+          - completed
+          - failed
+        error:
+          type: object
+          description: Any error from the job run (vnd.sas.error).
+        creationTimeStamp:
+          description: The creation date, which is the date the job was submitted.
+            This uses the yyyy-MM-ddTHH:mm:ss.SSSZ format.
+          type: string
+          format: date-time
+        createdBy:
+          description: The user ID of the user who created or submitted the job.
+          type: string
+        links:
+          type: array
+          description: An array of zero or more link objects.
+          items:
+            $ref: "#/components/schemas/link"
+    publishJobCollection:
+      title: Publish Job Collection
+      type: object
+      description: A pageable collection of publish job objects. Since 4 - added for
+        asynchronous publishing.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            description: An array that contains job resources.
+            items:
+              $ref: "#/components/schemas/publishJob"
+    themePackage:
+      title: Theme Package Object
+      description: One or more themes' content in ZIP format. Content includes theme
+        data and image files. Since 4 - added to support import/export via Theme Designer
+        application.
+      type: object
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    summary:
+      title: Resource Summary
+      type: object
+      description: The summarized representation of a resource. Often used in collection
+        responses when more specific details aren't needed.
+      x-sas-media-type:
+        name: application/vnd.sas.summary
+        version: 1
+      required:
+      - id
+      - links
+      - version
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the resource.
+        name:
+          type: string
+          description: The name of the resource.
+        type:
+          type: string
+          description: The type of the resource.
+        description:
+          type: string
+          description: The description of the resource.
+        createdBy:
+          type: string
+          description: The user who created the resource.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was created.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the resource.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was last modified.
+        links:
+          type: array
+          description: The links that apply to the resource.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the resource. This representation is
+            version 1.
+    transferObjectConnector:
+      title: Transfer Object Connector
+      description: Content providers implementing the Transfer Object Provider contract
+        use this media type to provide connection information for the content to be
+        transfered.
+      x-sas-media-type:
+        name: application/vnd.sas.transfer.object.connector
+        version: 1
+      properties:
+        id:
+          type: string
+          format: object-id
+          description: unique identifier of the object
+        name:
+          type: string
+          description: name of the related object
+        version:
+          type: integer
+          description: transfer object connector version
+        uri:
+          type: string
+          description: the URI of the related object
+        contentType:
+          type: string
+          description: media type of the related object
+        type:
+          type: string
+          description: type of connection. This can be any value the creator of the
+            connection wants but should be used to determine what to do to reconstitute
+            the relationship.
+        hints:
+          type: array
+          description: hints that can be used to help find the object to connect to
+            in the target system
+          items:
+            type: string
+  examples:
+    getThemes400:
+      summary: 400 response for GET themes
+      description: This is an example of a 400 error response for an invalid GET themes
+        request.
+      value: {"version": 2, "httpStatusCode": 400, "message": "Bad Request", "details": [
+          "InvalidInputError: Field abcd is invalid for the target type. Error Code:\
+            \ 1020", "path: /themes/themes/"]}
+    getPublishJob200:
+      summary: Response to GET to retrieve publish job
+      description: This is an example of a successful GET response to retrieve a publish
+        job.
+      value: {"creationTimeStamp": "2023-06-22T19:21:01.970121Z", "id": "2ac79495-5684-4d1c-8c45-db68fee07030",
+        "themeId": "abcd1234", "state": "completed", "links": [{"method": "GET", "rel": "self",
+            "href": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030", "uri": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030",
+            "type": "application/vnd.sas.theme.publish.job"}, {"method": "GET", "rel": "state",
+            "href": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state",
+            "uri": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state",
+            "type": "text/plain"}, {"method": "PUT", "rel": "cancel", "href": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state?value=canceled",
+            "uri": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state?value=canceled"},
+          {"method": "DELETE", "rel": "delete", "href": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030",
+            "uri": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030"}], "version": 1}
+    getThemes406:
+      summary: 406 response for GET themes
+      description: This is an example of a 406 error response for an invalid GET themes
+        request.
+      value: {"version": 2, "httpStatusCode": 406, "errorCode": 77209, "message": "Not\
+          \ Acceptable", "details": ["Invalid Accept-Item specified", "path: /themes/themes/"]}
+    transferObjRequest:
+      description: This is an example of a request body for a POST/PUT request for
+        a theme transfer object.
+      value: {"version": 2, "summary": {"id": "abcd1234", "type": "reportTheme", "name": "ExampleTheme",
+          "links": [{"method": "GET", "rel": "self", "href": "/themes/themes/abcd1234",
+              "uri": "/themes/themes/abcd1234", "type": "application/vnd.sas.summary+json"}],
+          "version": 2}, "content": {"eyJsaW5rcy...": null}, "state": "enabled", "connectors": []}
+    publishJobState400:
+      summary: 400 response for publish job state
+      description: This is an example of a 400 error response for updating a publish
+        job's state.
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 77203, "message": "Bad\
+          \ Request", "details": ["The state value must be \"canceled\"", "path: /themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state"]}
+    postPublishJob400:
+      summary: 400 response to POST to create a publish job
+      description: This is an example of a 400 error response to POST to create a
+        publish job.
+      value: {"version": 2, "httpStatusCode": 400, "message": "Bad Request", "details": [
+          "A theme identifier must be specified to submit a publish theme job", "path:\
+            \ /themes/publishJobs"]}
+    getAppThemeFull:
+      description: Example of a successful GET response for an application theme.
+      value: {"id": "abcd1234", "name": "Example Theme", "links": [{"method": "GET",
+            "rel": "self", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+            "type": "application/vnd.sas.theme.application.complete"}, {"method": "GET",
+            "rel": "alternate", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+            "type": "application/vnd.sas.theme.application"}, {"method": "PUT", "rel": "update",
+            "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234"},
+          {"method": "DELETE", "rel": "delete", "href": "/themes/themes/abcd1234",
+            "uri": "/themes/themes/abcd1234"}, {"method": "POST", "rel": "publish",
+            "href": "/themes/publishedThemes/abcd1234", "uri": "/themes/publishedThemes/abcd1234"}],
+        "version": 3, "lastModifiedTimeStamp": "2023-06-27T15:00:49.526503Z", "type": "custom",
+        "contentType": "application", "baseThemeId": "sas_corporate", "styleData": {
+          "@alertColor": "#d80000", "@successColor": "#0a7c12", "@warningColor": "#916000"},
+        "sourceModifiedTimeStamp": "2023-06-27T15:00:49.453229Z", "published": false,
+        "defaultTheme": false, "hidden": false, "createdFrameworkVersion": "12.6",
+        "updatedFrameworkVersion": "12.13.2"}
+    getRepThemeFull:
+      description: Example of a successful GET response for a report theme.
+      value: {"id": "abcd1234", "name": "Example Theme", "links": [{"method": "GET",
+            "rel": "self", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+            "type": "application/vnd.sas.theme.report.complete"}, {"method": "GET",
+            "rel": "alternate", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+            "type": "application/vnd.sas.theme.report"}, {"method": "PUT", "rel": "update",
+            "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234"},
+          {"method": "DELETE", "rel": "delete", "href": "/themes/themes/abcd1234",
+            "uri": "/themes/themes/abcd1234"}, {"method": "POST", "rel": "publish",
+            "href": "/themes/publishedThemes/abcd1234", "uri": "/themes/publishedThemes/abcd1234"}],
+        "version": 4, "lastModifiedTimeStamp": "2023-06-30T18:09:57.204851Z", "type": "custom",
+        "contentType": "report", "baseThemeId": "opal", "styleData": {"@GraphPaletteColor1": "#E99596",
+          "@GraphPaletteColor2": "#FF8224"}, "sourceModifiedTimeStamp": "2023-06-30T18:09:57.106308Z",
+        "published": false, "defaultTheme": false, "hidden": false, "createdFrameworkVersion": "11.2",
+        "updatedFrameworkVersion": "12.13.2", "reportStyleSheetName": "graph.css",
+        "htmlStyleSheetName": "sas_report.css", "highContrastThemeId": "highcontrast2020"}
+    import400:
+      description: This is an example of a 400 error response for importing a theme.
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 77205, "message": "Bad\
+          \ Request", "details": ["Incomplete or damaged .td file was specified.",
+          "path: /themes/themes"]}
+    import200:
+      description: Example of a successful response for importing a theme package.
+      value: {"version": 2, "accept": "application/vnd.sas.theme.application application/vnd.sas.theme.application;version=1\
+          \ application/vnd.sas.theme.application;version=2 application/vnd.sas.theme.application.complete\
+          \  application/vnd.sas.theme.application.complete;version=1 application/vnd.sas.theme.application.complete;version=2\
+          \ application/vnd.sas.theme.application.complete;version=3 application/vnd.sas.theme.report\
+          \ application/vnd.sas.theme.report;version=1 application/vnd.sas.theme.report;version=2\
+          \ application/vnd.sas.theme.report;version=3 application/vnd.sas.theme.report.complete\
+          \ application/vnd.sas.theme.report.complete;version=1 application/vnd.sas.theme.report.complete;version=2\
+          \ application/vnd.sas.theme.report.complete;version=3 application/vnd.sas.theme.report.complete;version=4",
+        "count": 1, "start": 0, "limit": 500, "name": "importedThemes", "items": [
+          {"id": "abcd1234", "name": "Example Theme", "links": [{"method": "GET",
+                "rel": "self", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+                "type": "application/vnd.sas.theme.application.complete"}, {"method": "GET",
+                "rel": "alternate", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+                "type": "application/vnd.sas.theme.application"}, {"method": "PUT",
+                "rel": "update", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234"},
+              {"method": "DELETE", "rel": "delete", "href": "/themes/themes/abcd1234",
+                "uri": "/themes/themes/abcd1234"}, {"method": "POST", "rel": "publish",
+                "href": "/themes/publishedThemes/abcd1234", "uri": "/themes/publishedThemes/abcd1234"}],
+            "version": 3, "lastModifiedTimeStamp": "2023-06-27T15:00:49.526503Z",
+            "type": "custom", "contentType": "application", "baseThemeId": "sas_corporate",
+            "styleData": {"@primaryColorThemeDesigner": "#0378cd", "@secondaryColorThemeDesigner": "#86134f"},
+            "sourceModifiedTimeStamp": "2023-06-27T15:00:49.453228861Z", "published": false,
+            "defaultTheme": false, "hidden": false, "createdFrameworkVersion": "12.6",
+            "updatedFrameworkVersion": "12.13.2"}], "links": [{"method": "GET", "rel": "collection",
+            "href": "/themes/themes", "uri": "/themes/themes", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.theme.application.complete"}, {"method": "GET",
+            "rel": "self", "href": "/themes/themes?start=0&limit=500", "uri": "/themes/themes?start=0&limit=500",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.theme.application.complete"}]}
+    transfer409:
+      description: This is an example of a 409 error response to POST a transfer object.
+      value: {"version": 2, "httpStatusCode": 409, "errorCode": 77217, "message": "Conflict",
+        "details": ["A theme with the id of abcd1234 already exists.", "path: /themes/themes"]}
+    getAppThemeShort:
+      description: Example of a successful GET response for an application theme (abbreviated).
+      value: {"id": "abcd1234", "name": "Example Theme", "links": [{"method": "GET",
+            "rel": "self", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+            "type": "application/vnd.sas.theme.application"}, {"method": "GET", "rel": "alternate",
+            "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234", "type": "application/vnd.sas.theme.application.complete"},
+          {"method": "PUT", "rel": "update", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234"},
+          {"method": "DELETE", "rel": "delete", "href": "/themes/themes/abcd1234",
+            "uri": "/themes/themes/abcd1234"}, {"method": "POST", "rel": "publish",
+            "href": "/themes/publishedThemes/abcd1234", "uri": "/themes/publishedThemes/abcd1234"}],
+        "version": 2}
+    reportThemeResp:
+      summary: Response to POST or PUT report theme
+      description: This is an example of a successful POST or PUT response to create
+        or update a report theme.
+      value: {"id": "abcd1234", "name": "ExampleTheme", "links": [{"method": "GET",
+            "rel": "self", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+            "type": "application/vnd.sas.theme.report.complete"}, {"method": "GET",
+            "rel": "alternate", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+            "type": "application/vnd.sas.theme.report"}, {"method": "PUT", "rel": "update",
+            "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234"},
+          {"method": "DELETE", "rel": "delete", "href": "/themes/themes/abcd1234",
+            "uri": "/themes/themes/abcd1234"}, {"method": "POST", "rel": "publish",
+            "href": "/themes/publishedThemes/abcd1234", "uri": "/themes/publishedThemes/abcd1234"}],
+        "version": 4, "lastModifiedTimeStamp": "2023-06-27T14:13:20.771095Z", "type": "custom",
+        "contentType": "report", "baseThemeId": "opal", "styleData": {"@GraphConfidence2PaletteColor": "#e7b9b9",
+          "@GraphConfidencePaletteColor": "#b9cfe7"}, "sourceModifiedTimeStamp": "2023-06-27T14:13:20.655539157Z",
+        "published": false, "defaultTheme": false, "hidden": false, "createdFrameworkVersion": "11.2",
+        "updatedFrameworkVersion": "12.13.2", "reportStyleSheetName": "graph.css",
+        "htmlStyleSheetName": "sas_report.css", "highContrastThemeId": "highcontrast2020"}
+    themes403:
+      description: This is an example of a 403 error response.
+      value: {"version": 2, "httpStatusCode": 403, "message": "Forbidden", "details": [
+          "Unauthorized"]}
+    getRepThemeShort:
+      description: Example of a successful GET response for a report theme (abbreviated).
+      value: {"id": "abcd1234", "name": "Example Theme", "links": [{"method": "GET",
+            "rel": "self", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+            "type": "application/vnd.sas.theme.report"}, {"method": "GET", "rel": "alternate",
+            "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234", "type": "application/vnd.sas.theme.report.complete"},
+          {"method": "PUT", "rel": "update", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234"},
+          {"method": "DELETE", "rel": "delete", "href": "/themes/themes/abcd1234",
+            "uri": "/themes/themes/abcd1234"}, {"method": "POST", "rel": "publish",
+            "href": "/themes/publishedThemes/abcd1234", "uri": "/themes/publishedThemes/abcd1234"}],
+        "version": 3, "reportStyleSheetName": "graph.css", "htmlStyleSheetName": "sas_report.css",
+        "highContrastThemeId": "highcontrast2020"}
+    resourceSummary:
+      description: Example of a successful resource summary response.
+      value: {"creationTimeStamp": "0001-01-01T00:00:00Z", "modifiedTimeStamp": "0001-01-01T00:00:00Z",
+        "version": 2, "id": "abcd1234", "name": "Example Theme", "type": "applicationTheme",
+        "links": [{"method": "GET", "rel": "self", "href": "/themes/themes/abcd1234",
+            "uri": "/themes/themes/abcd1234", "type": "application/vnd.sas.summary"}]}
+    theme404:
+      summary: 404 response to an invalid theme id
+      description: This is an example of a 404 error response when specifying an invalid
+        theme id.
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 77207, "message": "Not\
+          \ Found", "details": ["Theme abcd1234 not found", "path: /themes/themes/abcd1234"]}
+    themes400:
+      description: This is an example of a 400 error response to POST a transfer object.
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 77200, "message": "Bad\
+          \ Request", "details": ["Theme name is missing.", "path: /themes/themes"]}
+    postPublishJob202:
+      summary: Response to POST to create a publish job
+      description: This is an example of a successful POST response to create a publish
+        job.
+      value: {"creationTimeStamp": "2023-06-22T19:21:01.970120526Z", "id": "2ac79495-5684-4d1c-8c45-db68fee07030",
+        "themeId": "abcd1234", "state": "running", "links": [{"method": "GET", "rel": "self",
+            "href": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030", "uri": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030",
+            "type": "application/vnd.sas.theme.publish.job"}, {"method": "GET", "rel": "state",
+            "href": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state",
+            "uri": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state",
+            "type": "text/plain"}, {"method": "PUT", "rel": "cancel", "href": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state?value=canceled",
+            "uri": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state?value=canceled"},
+          {"method": "DELETE", "rel": "delete", "href": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030",
+            "uri": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030"}], "version": 1}
+    theme406:
+      description: This is an example of a 406 response for GET theme with an invalid
+        media type.
+      value: {"version": 2, "httpStatusCode": 406, "message": "Not Acceptable", "details": [
+          "application/vnd.sas.summary+json", "application/vnd.sas.theme.application.complete+json",
+          "application/vnd.sas.theme.application.complete+json;version=1", "application/vnd.sas.theme.application.complete+json;version=2",
+          "application/vnd.sas.theme.application+json", "application/vnd.sas.theme.application+json;version=1",
+          "application/vnd.sas.theme.application+json;version=2", "application/vnd.sas.theme.application+json;version=3",
+          "application/vnd.sas.theme.report.complete+json", "application/vnd.sas.theme.report.complete+json;version=1",
+          "application/vnd.sas.theme.report.complete+json;version=2", "application/vnd.sas.theme.report.complete+json;version=3",
+          "application/vnd.sas.theme.report.complete+json;version=4", "application/vnd.sas.theme.report+json",
+          "application/vnd.sas.theme.report+json;version=1", "application/vnd.sas.theme.report+json;version=2",
+          "application/vnd.sas.theme.report+json;version=3", "application/vnd.sas.transfer.object+json",
+          "application/json", "path: /themes/themes/abcd1234"]}
+    getTransferObject:
+      description: This is an example of a request body for a POST request for a theme
+        transfer object.
+      value: {"version": 1, "summary": {"creationTimeStamp": "0001-01-01T00:00:00Z",
+          "modifiedTimeStamp": "0001-01-01T00:00:00Z", "version": 2, "id": "abcd1234",
+          "name": "Example Theme", "type": "reportTheme", "links": [{"method": "GET",
+              "rel": "self", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+              "type": "application/vnd.sas.summary"}]}, "content": {"eyJpZCI6I...": null}}
+    rootLinks:
+      summary: Themes service endpoints
+      description: List of endpoints for Themes service
+      value: {"links": [{"method": "GET", "rel": "themes", "href": "/themes/themes",
+            "uri": "/themes/themes", "type": "application/vnd.sas.collection"}, {
+            "method": "POST", "rel": "createApplicationTheme", "href": "/themes/themes",
+            "uri": "/themes/themes", "type": "application/vnd.sas.theme.application.complete"},
+          {"method": "POST", "rel": "createReportTheme", "href": "/themes/themes",
+            "uri": "/themes/themes", "type": "application/vnd.sas.theme.report.complete"},
+          {"method": "GET", "rel": "defaultApplicationTheme", "href": "/themes/themes/@defaultApplicationTheme",
+            "uri": "/themes/themes/@defaultApplicationTheme", "type": "application/vnd.sas.theme.application"},
+          {"method": "GET", "rel": "defaultReportTheme", "href": "/themes/themes/@defaultReportTheme",
+            "uri": "/themes/themes/@defaultReportTheme", "type": "application/vnd.sas.theme.report"}],
+        "version": 1}
+    postDefRepTheme400:
+      description: This is an example of a 400 response for POST @defaultReportTheme
+        with an invalid theme id.
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 77206, "message": "Bad\
+          \ Request", "details": ["Invalid theme id", "path: /themes/themes/@defaultReportTheme/abcd1234"]}
+    createReportThemeRequest:
+      description: This is an example of a request body for a POST request for a report
+        theme.
+      value: {"name": "abcd1234", "type": "custom", "contentType": "report", "baseThemeId": "opal",
+        "styleData": {"@GraphPaletteColor1": "#E99596", "@GraphPaletteColor2": "#FF8224"},
+        "createdFrameworkVersion": "12.14", "updatedFrameworkVersion": "12.14"}
+    createFromTransferObj201:
+      summary: Response to POST theme transfer object
+      description: This is an example of a successful POST response for a theme transfer
+        object.
+      value: {"id": "abcd1234", "type": "reportTheme", "name": "ExampleTheme", "links": [
+          {"method": "GET", "rel": "self", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+            "type": "application/vnd.sas.summary+json"}], "version": 2}
+    updateAppThemeRequest:
+      description: This is an example of a request body for a PUT request for an application
+        theme.
+      value: {"id": "abcd1234", "name": "Example Theme", "type": "custom", "contentType": "application",
+        "baseThemeId": "sas_corporate", "styleData": {"@primaryColorThemeDesigner": "#003087",
+          "@secondaryColorThemeDesigner": "#C10057"}, "createdFrameworkVersion": "12.14",
+        "updatedFrameworkVersion": "12.14"}
+    applicationThemeResp:
+      summary: Response to POST or PUT application theme
+      description: This is an example of a successful POST or PUT response to create
+        or update an application theme.
+      value: {"id": "abcd1234", "name": "ExampleTheme", "links": [{"method": "GET",
+            "rel": "self", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+            "type": "application/vnd.sas.theme.application.complete"}, {"method": "GET",
+            "rel": "alternate", "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234",
+            "type": "application/vnd.sas.theme.application"}, {"method": "PUT", "rel": "update",
+            "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234"},
+          {"method": "DELETE", "rel": "delete", "href": "/themes/themes/abcd1234",
+            "uri": "/themes/themes/abcd1234"}, {"method": "POST", "rel": "publish",
+            "href": "/themes/publishedThemes/abcd1234", "uri": "/themes/publishedThemes/abcd1234"}],
+        "version": 3, "lastModifiedTimeStamp": "2023-06-22T19:20:47.55416Z", "type": "custom",
+        "contentType": "application", "baseThemeId": "sas_corporate", "styleData": {
+          "@primaryColorThemeDesigner": "#003087", "@secondaryColorThemeDesigner": "#C10057"},
+        "sourceModifiedTimeStamp": "2023-06-22T19:20:47.446063163Z", "published": false,
+        "defaultTheme": false, "hidden": false, "createdFrameworkVersion": "12.14",
+        "updatedFrameworkVersion": "12.14"}
+    getDefRepTheme406:
+      description: This is an example of a 406 response for GET @defaultReportTheme
+        with an invalid media type.
+      value: {"version": 2, "httpStatusCode": 406, "message": "Not Acceptable", "details": [
+          "application/vnd.sas.theme.report+json", "application/vnd.sas.theme.report+json;version=1",
+          "application/vnd.sas.theme.report+json;version=2", "application/vnd.sas.theme.report+json;version=3",
+          "application/vnd.sas.theme.report.complete+json", "application/vnd.sas.theme.report.complete+json;version=1",
+          "application/vnd.sas.theme.report.complete+json;version=2", "application/vnd.sas.theme.report.complete+json;version=3",
+          "application/vnd.sas.theme.report.complete+json;version=4", "application/json",
+          "path: /themes/themes/@defaultReportTheme"]}
+    themes409:
+      summary: 409 response to POST or PUT to create or update a theme
+      description: This is an example of a 409 error response to POST or PUT to create
+        or update a theme.
+      value: {"version": 2, "httpStatusCode": 409, "errorCode": 77210, "message": "Conflict",
+        "details": ["A theme with this name already exists"]}
+    postThemes400:
+      summary: 400 response to POST to create a theme
+      description: This is an example of a 400 error response to POST to create a
+        theme.
+      value: {"version": 2, "httpStatusCode": 400, "message": "Bad Request", "details": [
+          "createdFrameworkVersion is a required property", "path: /themes/themes"]}
+    postDefAppTheme400:
+      description: This is an example of a 400 response for POST @defaultApplicationTheme
+        with an invalid theme id.
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 77206, "message": "Bad\
+          \ Request", "details": ["Invalid theme id", "path: /themes/themes/@defaultApplicationTheme/abcd1234"]}
+    publishJob404:
+      summary: 404 response for invalid publish job
+      description: This is an example of a 404 error response for an invalid publish
+        job.
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 77208, "message": "Not\
+          \ Found", "details": ["Unable to locate job 2acf495-5684-4d1c-8c45-db68fee07030",
+          "path: /themes/publishJobs/2acf495-5684-4d1c-8c45-db68fee07030"]}
+    export400:
+      summary: 400 response to POST to export a theme
+      description: This is an example of a 400 error response to POST to export a
+        theme.
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 77252, "message": "Bad\
+          \ Request", "details": ["unable to export themes", "path: /themes/themes/"]}
+    getThemes:
+      description: Example of a successful GET response for a collection of themes.
+      value: {"version": 2, "accept": "application/vnd.sas.theme.application application/vnd.sas.theme.application;version=1\
+          \ application/vnd.sas.theme.application;version=2 application/vnd.sas.theme.application.complete\
+          \  application/vnd.sas.theme.application.complete;version=1 application/vnd.sas.theme.application.complete;version=2\
+          \ application/vnd.sas.theme.application.complete;version=3 application/vnd.sas.theme.report\
+          \ application/vnd.sas.theme.report;version=1 application/vnd.sas.theme.report;version=2\
+          \ application/vnd.sas.theme.report;version=3 application/vnd.sas.theme.report.complete\
+          \ application/vnd.sas.theme.report.complete;version=1 application/vnd.sas.theme.report.complete;version=2\
+          \ application/vnd.sas.theme.report.complete;version=3 application/vnd.sas.theme.report.complete;version=4",
+        "count": 1, "start": 0, "limit": 1, "name": "themes", "items": [{"id": "abcd1234",
+            "name": "Theme1", "rootUrl": "/themeContent/themes/abcd1234/ctcb1687529639/content/",
+            "links": [{"method": "GET", "rel": "self", "href": "/themes/themes/abcd1234",
+                "uri": "/themes/themes/abcd1234", "type": "application/vnd.sas.theme.application.complete"},
+              {"method": "GET", "rel": "alternate", "href": "/themes/themes/abcd1234",
+                "uri": "/themes/themes/abcd1234", "type": "application/vnd.sas.theme.application"},
+              {"method": "PUT", "rel": "update", "href": "/themes/themes/abcd1234",
+                "uri": "/themes/themes/abcd1234"}, {"method": "DELETE", "rel": "delete",
+                "href": "/themes/themes/abcd1234", "uri": "/themes/themes/abcd1234"},
+              {"method": "POST", "rel": "publish", "href": "/themes/publishedThemes/abcd1234",
+                "uri": "/themes/publishedThemes/abcd1234"}, {"method": "DELETE", "rel": "unpublish",
+                "href": "/themes/publishedThemes/abcd1234", "uri": "/themes/publishedThemes/abcd1234"}],
+            "version": 3, "lastModifiedTimeStamp": "2023-06-23T14:13:59.317681Z",
+            "type": "custom", "contentType": "application", "baseThemeId": "sas_ignite",
+            "styleData": {"@GraphConfidencePaletteColor": "#b9cfe7", "@alertColor": "#d80000"},
+            "sourceModifiedTimeStamp": "2023-06-23T14:13:49.743341Z", "published": true,
+            "publishedTimeStamp": "2023-06-23T14:13:59.305868Z", "defaultTheme": false,
+            "hidden": false, "createdFrameworkVersion": "12.14", "updatedFrameworkVersion": "12.13.2"}],
+        "links": [{"method": "GET", "rel": "collection", "href": "/themes/themes",
+            "uri": "/themes/themes", "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.theme.application.complete"},
+          {"method": "GET", "rel": "self", "href": "/themes/themes?start=0&limit=1",
+            "uri": "/themes/themes?start=0&limit=1", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.theme.application.complete"}]}
+    getPublishJobs:
+      summary: Response to GET to retrieve publish jobs
+      description: This is an example of a successful GET response to retrieve publish
+        jobs.
+      value: {"version": 2, "accept": "application/json application/vnd.sas.theme.publish.job+json",
+        "count": 1, "start": 0, "limit": 500, "name": "publishJobs", "items": [{"creationTimeStamp": "2023-06-22T19:21:01.970121Z",
+            "id": "2ac79495-5684-4d1c-8c45-db68fee07030", "themeId": "Tbc366abf6e40467584da118a495de621",
+            "state": "running", "links": [{"method": "GET", "rel": "self", "href": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030",
+                "uri": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030",
+                "type": "application/vnd.sas.theme.publish.job"}, {"method": "GET",
+                "rel": "state", "href": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state",
+                "uri": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state",
+                "type": "text/plain"}, {"method": "PUT", "rel": "cancel", "href": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state?value=canceled",
+                "uri": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state?value=canceled"},
+              {"method": "DELETE", "rel": "delete", "href": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030",
+                "uri": "/themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030"}],
+            "version": 1}], "links": [{"method": "GET", "rel": "collection", "href": "/themes/publishJobs",
+            "uri": "/themes/publishJobs", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.theme.publish.job"}, {"method": "GET",
+            "rel": "self", "href": "/themes/publishJobs?start=0&limit=500", "uri": "/themes/publishJobs?start=0&limit=500",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.theme.publish.job"}]}
+    createAppThemeRequest:
+      description: This is an example of a request body for a POST request to create
+        an application theme.
+      value: {"name": "abcd1234", "type": "custom", "contentType": "application",
+        "baseThemeId": "sas_corporate", "styleData": {"@primaryColorThemeDesigner": "#003087",
+          "@secondaryColorThemeDesigner": "#C10057"}, "createdFrameworkVersion": "12.14"}
+    updateRepThemeRequest:
+      description: This is an example of a request body for a PUT request for a report
+        theme.
+      value: {"id": "abcd1234", "name": "Example Theme", "type": "custom", "contentType": "report",
+        "baseThemeId": "opal", "styleData": {"@GraphPaletteColor4": "#ff8224", "@GraphPaletteColor5": "#2ad1d1"},
+        "updatedFrameworkVersion": "12.14"}
+    updateTheme400:
+      description: This is an example of a 400 error response to PUT to update a theme.
+      value: {"version": 2, "httpStatusCode": 400, "message": "Bad Request", "details": [
+          "mismatched theme ID", "URL specified: abcd1234", "Body specified: aaaa",
+          "path: /themes/themes/abcd1234"]}
+    updateTheme406:
+      description: This is an example of a 406 response for PUT theme with an invalid
+        media type.
+      value: {"version": 2, "httpStatusCode": 406, "errorCode": 77211, "message": "Not\
+          \ Acceptable", "details": ["An invalid media type was specified for the\
+            \ Accept header value. The provided type does not match the theme content\
+            \ type", "path: /themes/themes/abcd1234"]}
+    publishJobState405:
+      summary: 405 response for publish job state
+      description: This is an example of a 405 error response for updating a publish
+        job's state.
+      value: {"version": 2, "httpStatusCode": 405, "errorCode": 77214, "message": "Job\
+          \ id=2ac79495-5684-4d1c-8c45-db68fee07030 already finished. Cannot alter\
+          \ its state again", "details": ["path: /themes/publishJobs/2ac79495-5684-4d1c-8c45-db68fee07030/state"]}
+    getDefAppTheme406:
+      description: This is an example of a 406 response for GET @defaultApplicationTheme
+        with an invalid media type.
+      value: {"version": 2, "httpStatusCode": 406, "message": "Not Acceptable", "details": [
+          "application/vnd.sas.theme.application+json", "application/vnd.sas.theme.application+json;version=1",
+          "application/vnd.sas.theme.application+json;version=2", "application/vnd.sas.theme.application+json;version=3",
+          "application/vnd.sas.theme.application.complete+json", "application/vnd.sas.theme.application.complete+json;version=1",
+          "application/vnd.sas.theme.application.complete+json;version=2", "application/json",
+          "path: /themes/themes/@defaultApplicationTheme"]}

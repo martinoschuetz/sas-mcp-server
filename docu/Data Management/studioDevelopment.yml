@@ -1,0 +1,280 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: SAS Data and AI Studio Development
+  description: SAS Data and AI Studio API
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+tags:
+- name: Root
+  description: Contains the operations for the root resource.
+- name: CodeGeneration
+  description: Generates code for SAS Data and AI Studio artifact (Studio Flow and
+    SAS Program) stored either in SAS Content or on file system.
+servers:
+- url: http://example.com/studioDevelopment
+  description: mock server
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Gets the API object
+      description: The API object contains a set of links for the supported endpoints.
+      operationId: root
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                API:
+                  $ref: "#/components/examples/rootResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                API:
+                  $ref: "#/components/examples/rootResponse"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum:
+                - application/json
+    head:
+      tags:
+      - Root
+      summary: Checks API availability
+      description: Returns the headers for the API - this operation determines whether
+        the service provided by the API is available.
+      operationId: headersForRoot
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum:
+                - application/json
+  /code:
+    post:
+      tags:
+      - CodeGeneration
+      summary: Generates code for an item at the given location
+      description: "Given the location of a SAS program or the Studio flow file, return\
+        \ the code that SAS Data and AI Studio would run."
+      operationId: getGeneratedCode
+      parameters:
+      - name: sessionId
+        in: query
+        description: If referencing a file on the compute file system, use this session
+          id to access the file.  If not provided, a session will be created in the
+          default SAS Studio compute context to access the file (assuming contextId
+          is not provided).
+        schema:
+          type: string
+      - name: contextId
+        in: query
+        description: If referencing a file on the compute file system and you are
+          not providing an existing session, you may optionally provide a compute
+          context id to use for creating a new session. This overrides the default
+          SAS Studio compute context.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/codeGenerationRequest"
+            examples:
+              flow:
+                $ref: "#/components/examples/generateCodeContentFlowRequest"
+              program:
+                $ref: "#/components/examples/generateCodeContentProgramRequest"
+          application/vnd.sas.publish.code.generation.request:
+            schema:
+              $ref: "#/components/schemas/codeGenerationRequest"
+            examples:
+              flow:
+                $ref: "#/components/examples/generateCodeContentFlowRequest"
+              program:
+                $ref: "#/components/examples/generateCodeContentProgramRequest"
+        description: The code generation request.
+        required: true
+      responses:
+        "200":
+          $ref: "#/components/responses/codeGenerationResult"
+        "400":
+          description: Bad request. The request body had invalid input.
+components:
+  responses:
+    codeGenerationResult:
+      content:
+        application/vnd.sas.publish.code.generation.result:
+          schema:
+            $ref: "#/components/schemas/codeGenerationResult"
+          examples:
+            API:
+              $ref: "#/components/examples/generateCodeResponse"
+      description: The generated code.
+  schemas:
+    externalReference:
+      title: externalReference
+      description: A pointer to an object in SAS Content, on the SAS Compute Server,
+        or in a service.
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - content
+          - compute
+          description: Indicates the type of content (SAS Content or SAS Compute Server)
+        path:
+          type: string
+          description: Indicates the path in SAS Content or the path on the SAS Compute
+            Server. Must start with '/'.
+        mediaType:
+          type: string
+          enum:
+          - application/vnd.sas.dataflow
+          - application/vnd.sas.program
+          description: Indicates the media type of the object being referenced.
+    sourceObject:
+      title: sourceObject
+      description: Flow or code that will be used to generate the result. If this
+        is a flow, it will be the raw contents of a flow created in SAS Data and AI
+        Studio, and will look like JSON data. If this is code, it will be the actual
+        SAS code.
+      type: object
+      properties:
+        value:
+          type: string
+          description: If a flow, the raw contents of a flow represented as a string.
+            If code, the actual code
+        mediaType:
+          type: string
+          enum:
+          - application/vnd.sas.dataflow
+          - application/vnd.sas.program
+          description: Indicates the media type of the object being referenced.
+    codeGenerationRequest:
+      title: codeGenerationRequest
+      description: Describes how to generate the code, including flags to customize
+        the generation. Flow or code must be provided either via a reference, or directly
+        via an object. If no reference nor object is provided, it returns an error.
+        It also returns an error when both are provided.
+      type: object
+      properties:
+        reference:
+          $ref: "#/components/schemas/externalReference"
+        object:
+          $ref: "#/components/schemas/sourceObject"
+        initCode:
+          type: boolean
+          description: Indicates whether to include the initialization code for the
+            SAS Data and AI Studio session.
+        wrapperCode:
+          type: boolean
+          description: Indicates whether to include the wrapper code for the SAS Data
+            and AI Studio request.
+        userAutoExec:
+          type: boolean
+          description: If the initialization code is being included, this specifies
+            whether to include the auto-exec code. The default for this if not specified
+            is true (ie. include the auto-exec code).
+    codeGenerationResult:
+      title: codeGenerationResult
+      description: The results of the code generation, including the code that was
+        generated.
+      type: object
+      properties:
+        code:
+          type: string
+          description: Generated code.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+  examples:
+    generateCodeContentFlowRequest:
+      summary: Example generation request for a flow stored in content.
+      description: Example generation request for a flow stored in content.
+      value: {"reference": {"type": "content", "path": "/Public/test.flw", "mediaType": "application/vnd.sas.dataflow"},
+        "initCode": true, "wrapperCode": false}
+    generateCodeContentProgramRequest:
+      summary: Example generation request for a SAS program stored in content.
+      description: Example generation request for a flow stored in content.
+      value: {"reference": {"type": "content", "path": "/Public/test.sas", "mediaType": "application/vnd.sas.program"},
+        "initCode": false, "wrapperCode": true}
+    generateCodeResponse:
+      summary: Example generation response
+      description: Example generation response for a program.
+      value: {"code": "data work.foo; set sashelp.class; run;"}
+    rootResponse:
+      summary: Example root response
+      description: Example response for a GET on /.
+      value: {"version": 1, "links": [{"method": "POST", "rel": "generateCode", "href": "/studioDevelopment/code",
+            "uri": "/studioDevelopment/code", "type": "application/vnd.sas.code.generation.request",
+            "responseType": "application/vnd.sas.code.generation.request"}]}

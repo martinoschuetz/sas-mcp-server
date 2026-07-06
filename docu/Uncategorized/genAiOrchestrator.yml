@@ -1,0 +1,328 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: Gen AI Orchestrator
+  description: The Gen AI Orchestrator.
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+servers:
+- url: https://example.com/genAiOrchestrator
+  description: This is an example base URL.
+tags:
+- name: Root
+  description: The API root.
+- name: A2A
+  description: Agent-to-Agent (A2A) protocol endpoint.
+paths:
+  /v1:
+    get:
+      tags:
+      - Root
+      summary: Get a list of top-level links
+      operationId: getRoot
+      description: Returns a list of links to the top-level collections surfaced through
+        this API.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/getRootResponse"
+        "404":
+          description: Service is not available
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+    head:
+      summary: Check the state of the service
+      tags:
+      - Root
+      operationId: headersForRoot
+      responses:
+        "200":
+          description: The request succeeded. The service is available.
+      description: Determine if the service is available.
+  /v1/a2a:
+    post:
+      tags:
+      - A2A
+      summary: Send an A2A JSON-RPC 2.0 message
+      operationId: sendA2AMessage
+      description: |
+        Agent-to-Agent (A2A) protocol endpoint. Accepts JSON-RPC 2.0 requests over HTTP POST.
+
+        Supported methods: SendMessage (non-streaming), SendStreamingMessage (SSE streaming),
+        GetTask, ListTasks, CancelTask
+
+        Extension methods: ListContexts
+
+        For SendStreamingMessage the response is a text/event-stream (Server-Sent Events) stream
+        where each data frame is a valid JSON-RPC 2.0 response.
+        See the A2A protocol specification for the full request/response schema.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - jsonrpc
+              - method
+              - id
+              properties:
+                jsonrpc:
+                  type: string
+                  enum: ["2.0"]
+                method:
+                  type: string
+                  example: SendMessage
+                  description: >
+                    A2A JSON-RPC method name. One of: SendMessage, SendStreamingMessage,
+                    GetTask, ListTasks, CancelTask.
+                params:
+                  type: object
+                  description: Method-specific parameters per the A2A specification.
+                id:
+                  description: JSON-RPC request identifier (string or number).
+      responses:
+        "200":
+          description: >
+            JSON-RPC 2.0 response. For SendStreamingMessage the Content-Type is
+            text/event-stream and the body is a sequence of SSE data frames,
+            each containing a JSON-RPC 2.0 response object.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    example: "2.0"
+                  id:
+                    description: Echoes the request id.
+                  result:
+                    type: object
+                    description: Method-specific result per the A2A specification.
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                      message:
+                        type: string
+            text/event-stream:
+              schema:
+                type: string
+                description: >
+                  Server-Sent Events stream. Each data frame is a JSON-RPC 2.0 response.
+        "403":
+          description: Forbidden. Authenticated users require the CREATE permission
+            on this resource.
+  /.well-known/agent-card.json:
+    get:
+      tags:
+      - A2A
+      summary: Get the A2A agent card
+      operationId: getAgentCard
+      description: >
+        Returns the A2A agent card for the SAS Gen AI Orchestrator, describing its
+        capabilities, supported interfaces, and available skills per the A2A specification.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                description: A2A AgentCard object per the A2A specification.
+                properties:
+                  name:
+                    type: string
+                    example: SAS Gen AI Orchestrator
+                  description:
+                    type: string
+                  version:
+                    type: string
+                    example: "1"
+                  provider:
+                    type: object
+                    properties:
+                      org:
+                        type: string
+                        example: SAS Institute
+                      url:
+                        type: string
+                        example: https://www.sas.com
+                  supportedInterfaces:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        url:
+                          type: string
+                          description: Absolute URL of the A2A JSON-RPC endpoint.
+                        protocolBinding:
+                          type: string
+                          example: jsonrpc
+                  capabilities:
+                    type: object
+                    properties:
+                      streaming:
+                        type: boolean
+                        example: true
+                  skills:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        examples:
+                          type: array
+                          items:
+                            type: string
+        "404":
+          description: Service is not available
+components:
+  examples:
+    getRootResponse:
+      summary: Get Root Response
+      description: This is an example response from the GET request to retrieve the
+        API's top-level links.
+      value: {"version": 1, "links": [{"method": "POST", "rel": "sendA2AMessage",
+            "href": "/genAiOrchestrator/v1/a2a", "uri": "/genAiOrchestrator/v1/a2a",
+            "type": "application/json"}, {"method": "GET", "rel": "getAgentCard",
+            "href": "/genAiOrchestrator/v1/a2a/.well-known/agent-card.json", "uri": "/genAiOrchestrator/v1/a2a/.well-known/agent-card.json",
+            "type": "application/json"}]}
+    errorResponse:
+      summary: Error Response
+      description: This example shows the error response returned when the Gen AI
+        Orchestrator API returns an error
+      value: {"message": "An error has occurred", "remediation": "Do this to fix the\
+          \ error", "errorCode": 12345, "errors": [], "version": 2}
+  schemas:
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.

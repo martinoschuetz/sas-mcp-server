@@ -1,0 +1,2024 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: SAS/CONNECT
+  description: >
+    The SAS/CONNECT API enables clients to define and manage SAS/CONNECT
+    servers.
+
+    A SAS/CONNECT server is defined through a SAS/CONNECT server context. Contexts
+    can be
+
+    created, read, updated and deleted via the REST API.
+
+
+    SAS/CONNECT servers are defined in a context as being launched by the SAS/CONNECT
+    spawner
+
+    or the Launcher. If a server is launched by the spawner, the host and port
+
+    of the spawner is stored in the context. If the server is started by the Launcher,
+
+    the Launcher context is stored in the SAS/CONNECT context along with
+
+    other options to provide information on how to launch the server.
+
+
+    The SAS/CONNECT API's servers resource provides a way to manage a SAS/CONNECT
+    server
+
+    that is launched through the Launcher. This resource will allow you to create,
+
+    monitor, optionally terminate, and delete SAS/CONNECT servers. A server's status
+    can be
+
+    polled to determine its state and is assumed to be active once the server's state
+    is RUNNING,
+
+    the server's host is defined and the server's port is non-zero. A server can be
+    terminated
+
+    through the REST API if it does not shutdown. Lastly, a server must be deleted
+    when its
+
+    information is no longer needed.
+
+    <br> <br><b>Terminology:</b> <br><br>
+    Connect: A Connect context is a group of information that represents a logical
+    Connect server to the REST API consumer. It contains all the information necessary
+    for SAS/CONNECT to know how to process a Connect server request. It is analogous
+    to information contained in logical connect server under a SAS application server
+    context
+    in SAS 9.
+  termsOfService: "https://www.sas.com/en_us/legal/copyright.html"
+  contact:
+    name: SAS Developers
+    email: "devex@sas.com"
+    url: "https://developer.sas.com"
+servers:
+- url: http://example.com/connect
+  description: kubernetes mock server
+tags:
+- name: Root
+  description: Information related to the root resource of the SAS/CONNECT API.
+- name: Contexts
+  description: Information related to starting SAS/CONNECT servers.
+- name: Servers
+  description: Management of SAS/CONNECT servers.
+paths:
+  /:
+    get:
+      summary: Get resource links
+      description: Get the links to all base resources managed by the SAS/CONNECT
+        service.
+      operationId: root
+      tags:
+      - Root
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/rootOutput"
+              examples:
+                api:
+                  $ref: "#/components/examples/rootOutput"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/rootOutput"
+              examples:
+                api:
+                  $ref: "#/components/examples/rootOutput"
+        "404":
+          description: Not found - SAS/CONNECT service does not exist
+    head:
+      summary: See if the SAS/CONNECT service exists
+      description: Check to see if the SAS/CONNECT service is available.
+      operationId: headersForRoot
+      tags:
+      - Root
+      responses:
+        "200":
+          description: OK - service is running
+        "404":
+          description: Not found - SAS/CONNECT service does not exist
+  /contexts:
+    get:
+      summary: Get a collection of the SAS/CONNECT contexts
+      description: Returns a collection of SAS/CONNECT contexts
+      operationId: getContexts
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/ContextAcceptHeaderParm"
+      - $ref: "#/components/parameters/CollectionStartParm"
+      - $ref: "#/components/parameters/CollectionLimitParm"
+      - $ref: "#/components/parameters/CollectionFilterParm"
+      - $ref: "#/components/parameters/CollectionSortByParm"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/contextCollection"
+              examples:
+                contexts:
+                  $ref: "#/components/examples/contextCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/contextCollection"
+              examples:
+                contexts:
+                  $ref: "#/components/examples/contextCollection"
+    post:
+      summary: Create a SAS/CONNECT context
+      description: Create a new SAS/CONNECT context
+      operationId: createContext
+      tags:
+      - Contexts
+      requestBody:
+        content:
+          application/vnd.sas.connect.context+json;version=1:
+            schema:
+              $ref: "#/components/schemas/context"
+            examples:
+              contextRequest:
+                $ref: "#/components/examples/context"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/context"
+            examples:
+              contextRequest:
+                $ref: "#/components/examples/context"
+        description: SAS/CONNECT context information
+        required: true
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location:
+              description: URL of created context.
+              schema:
+                type: string
+            ETag:
+              description: Entity tag of created context.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/contextWithLinks"
+              examples:
+                context:
+                  $ref: "#/components/examples/contextWithLinks"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/contextWithLinks"
+              examples:
+                context:
+                  $ref: "#/components/examples/contextWithLinks"
+        "400":
+          description: >
+            | Error Code | "Bad Request" Error
+            Description                         |
+
+            | ---------- | -------------------------------------------------------
+            |
+
+            |   32702    | The SAS/CONNECT context name or ID is not specified.    |
+
+            |   32750    | The SAS/CONNECT SIGNON type is not specified.           |
+
+            |   32751    | The SAS/CONNECT SIGNON type is not valid. It must be SPAWNER
+            or LAUNCHER.               |
+
+            |   32720    | The launcher context ID is not specified.               |
+
+            |   32721    | The launcher context ID is not valid.                   |
+
+            |   32760    | The spawner host is not specified.                      |
+
+            |   32761    | The spawner port is not valid.  It must be a number larger
+            than 1024 and less than 32768.                         |
+
+            |   32710    | The encryption algorithm is not specified.              |
+
+            |   32711    | The specified encryption algorithm is not valid. It must
+            be SSL, AES, RC2, RC4, DES, TRIPLEDES, or SASPROPRIETARY.        |
+          content:
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+        "409":
+          description: >
+            | Error Code | "Conflict" Error
+            Description                            |
+
+            | ---------- | -------------------------------------------------------
+            |
+
+            |   32700    | The SAS/CONNECT context name ''{0}'' already exists with
+            ID ''{1}''. |
+          content:
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+  /contexts/@item:
+    get:
+      summary: Get a specific SAS/CONNECT context's information from its name
+      description: Returns the SAS/CONNECT context information based on context name
+      operationId: getContextByName
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/ContextNameQueryParm"
+      responses:
+        "200":
+          description: OK - context information returned
+          content:
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/contextWithLinks"
+              examples:
+                context:
+                  $ref: "#/components/examples/contextWithLinks"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/contextWithLinks"
+              examples:
+                context:
+                  $ref: "#/components/examples/contextWithLinks"
+        "400":
+          description: >
+            | Error Code | "Bad Request" Error
+            Description                      |
+
+            | ---------- | ---------------------------------------------------- |
+
+            |   32702    | The SAS/CONNECT context name or ID is not specified. |
+          content:
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+        "404":
+          description: |
+            | Error Code | "Not Found" Error Description           |
+            | ---------- | --------------------------------------- |
+            |   32701    | The SAS/CONNECT context was not found.  |
+          content:
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+  "/contexts/{contextId}":
+    get:
+      summary: Get a SAS/CONNECT context's information
+      description: Returns the SAS/CONNECT context information based on context ID
+      operationId: getContext
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/ContextIdPathParm"
+      responses:
+        "200":
+          description: OK - context information returned
+          headers:
+            ETag:
+              description: Entity tag of context.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/contextWithLinks"
+              examples:
+                context:
+                  $ref: "#/components/examples/contextWithLinks"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/contextWithLinks"
+              examples:
+                context:
+                  $ref: "#/components/examples/contextWithLinks"
+        "404":
+          description: |
+            | Error Code | "Not Found" Error Description           |
+            | ---------- | --------------------------------------- |
+            |   32701    | The SAS/CONNECT context was not found.  |
+          content:
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+    head:
+      summary: See if a specific context exists
+      description: Check to see if a specific SAS/CONNECT context exists
+      operationId: headersForContext
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/ContextIdPathParm"
+      responses:
+        "200":
+          description: OK - context exists
+          headers:
+            ETag:
+              description: Entity tag of context.
+              schema:
+                type: string
+        "404":
+          description: |
+            | Error Code | "Not Found" Error Description           |
+            | ---------- | --------------------------------------- |
+            |   32701    | The SAS/CONNECT context was not found.  |
+          content:
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+    put:
+      summary: Update a SAS/CONNECT context
+      description: Update an existing SAS/CONNECT context.
+      operationId: updateContext
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/IfMatch.Header.Required"
+      - $ref: "#/components/parameters/ContextIdPathParm"
+      requestBody:
+        content:
+          application/vnd.sas.connect.context+json;version=1:
+            schema:
+              $ref: "#/components/schemas/context"
+            examples:
+              context:
+                $ref: "#/components/examples/context"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/context"
+            examples:
+              context:
+                $ref: "#/components/examples/context"
+        description: SAS/CONNECT context definition
+        required: true
+      responses:
+        "200":
+          description: OK - Context was updated
+          headers:
+            ETag:
+              description: Entity tag of context.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/contextWithLinks"
+              examples:
+                context:
+                  $ref: "#/components/examples/contextWithLinks"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/contextWithLinks"
+              examples:
+                context:
+                  $ref: "#/components/examples/contextWithLinks"
+        "400":
+          description: >
+            | Error Code | "Bad Request" Error
+            Description                         |
+
+            | ---------- | -------------------------------------------------------
+            |
+
+            |   32702    | The SAS/CONNECT context name is not specified.          |
+
+            |   32750    | The SAS/CONNECT SIGNON type is not specified.           |
+
+            |   32751    | The SAS/CONNECT SIGNON type is not valid. It must be SPAWNER
+            or LAUNCHER.               |
+
+            |   32720    | The launcher context ID is not specified.               |
+
+            |   32721    | The launcher context ID is not valid.                   |
+
+            |   32760    | The spawner host is not specified.                      |
+
+            |   32761    | The spawner port is not valid. It must be a number larger
+            than 1024 and less than 32768.                         |
+
+            |   32710    | The encryption algorithm is not specified.              |
+
+            |   32711    | The specified encryption algorithm is not valid. It must
+            be SSL, AES, RC2, RC4, DES, TRIPLEDES, or SASPROPRIETARY.        |
+          content:
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+        "404":
+          description: |
+            | Error Code | "Not Found" Error Description           |
+            | ---------- | --------------------------------------- |
+            |   32701    | The SAS/CONNECT context was not found.  |
+          content:
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+        "412":
+          description: |
+            | Error Code | "Not Found" Error Description           |
+            | ---------- | --------------------------------------- |
+            |   32771    | The specified ETag value did not match. |
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+        "428":
+          description: >
+            | Error Code | Error
+            Description                                          |
+
+            | ---------- | ----------------------------------------------------------
+            |
+
+            | 30093      | Required If-Match header was not specified.                |
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/vnd.sas.connect.context+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                context:
+                  $ref: "#/components/examples/sasErrorResponse"
+    delete:
+      summary: Delete SAS/CONNECT context
+      description: Delete the SAS/CONNECT context based on context id
+      operationId: deleteContext
+      tags:
+      - Contexts
+      parameters:
+      - $ref: "#/components/parameters/ContextIdPathParm"
+      responses:
+        "204":
+          description: No content - The SAS/CONNECT context was deleted successfully
+        "404":
+          description: |
+            | Error Code | "Not Found" Error Description           |
+            | ---------- | --------------------------------------- |
+            |   32701    | The SAS/CONNECT context was not found.  |
+  /servers:
+    get:
+      summary: Get a list of servers for the current user
+      description: Get a list of servers for the current user optionally started by
+        the specified context
+      operationId: getServers
+      tags:
+      - Servers
+      parameters:
+      - $ref: "#/components/parameters/ContextQueryParm"
+      - $ref: "#/components/parameters/CollectionStartParm"
+      - $ref: "#/components/parameters/CollectionLimitParm"
+      - $ref: "#/components/parameters/CollectionFilterParm"
+      - $ref: "#/components/parameters/CollectionSortByParm"
+      responses:
+        "200":
+          description: The server information was returned
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/serverInfoCollection"
+              examples:
+                servers:
+                  $ref: "#/components/examples/serverInfoCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/serverInfoCollection"
+              examples:
+                servers:
+                  $ref: "#/components/examples/serverInfoCollection"
+        "400":
+          description: |
+            | Error Code | "Bad Request" Error Description               |
+            | ---------- | --------------------------------------------- |
+            |   32703    | The SAS/CONNECT context ID is not valid.      |
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                servers:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                servers:
+                  $ref: "#/components/examples/sasErrorResponse"
+    post:
+      summary: Create a new SAS/CONNECT server
+      description: This call will create a SAS/CONNECT server.
+      operationId: createServer
+      tags:
+      - Servers
+      parameters:
+      - $ref: "#/components/parameters/DebugQueryParm"
+      requestBody:
+        content:
+          application/vnd.sas.connect.server.request+json;version=1:
+            schema:
+              $ref: "#/components/schemas/serverRequest"
+            examples:
+              server:
+                $ref: "#/components/examples/serverRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/serverRequest"
+            examples:
+              server:
+                $ref: "#/components/examples/serverRequest"
+        description: Server request information to run a SAS/CONNECT server started
+          by the launcher
+        required: true
+      responses:
+        "201":
+          description: Accepted - SAS/CONNECT server created
+          headers:
+            Location:
+              description: URL of created server.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.connect.server+json;version=1:
+              schema:
+                $ref: "#/components/schemas/serverInfoWithLinks"
+              examples:
+                server:
+                  $ref: "#/components/examples/serverInfoWithLinks"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/serverInfoWithLinks"
+              examples:
+                server:
+                  $ref: "#/components/examples/serverInfoWithLinks"
+        "400":
+          description: |
+            | Error Code | "Bad Request" Error Description               |
+            | ---------- | --------------------------------------------- |
+            |   32702    | The SAS/CONNECT context ID is not specified.  |
+            |   32703    | The SAS/CONNECT context ID is not valid.      |
+          content:
+            application/vnd.sas.connect.server+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                server:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                server:
+                  $ref: "#/components/examples/sasErrorResponse"
+        "500":
+          description: |
+            | Error Code | "Server Error" Error Description              |
+            | ---------- | --------------------------------------------- |
+            |   32730    | Cannot launch new server process.             |
+            |   32734    | Launch service returned null process ID.      |
+          content:
+            application/vnd.sas.connect.server+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                server:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                server:
+                  $ref: "#/components/examples/sasErrorResponse"
+  "/servers/{serverId}":
+    get:
+      summary: Get server information
+      description: Get information about a server specified by the server ID. Setting
+        the Accept header to either application/vnd.sas.connect.server+json or application/json
+        will produce a full server object whereas setting the Accept header to application/vnd.sas.summary+json
+        will return a summary server object containing ID, name, and description.
+      operationId: getServer
+      tags:
+      - Servers
+      parameters:
+      - $ref: "#/components/parameters/ServerIDParm"
+      responses:
+        "200":
+          description: The server information was returned
+          content:
+            application/vnd.sas.connect.server+json;version=1:
+              schema:
+                $ref: "#/components/schemas/serverInfoWithLinks"
+              examples:
+                server:
+                  $ref: "#/components/examples/serverInfoWithLinks"
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/serverInfoWithLinks"
+              examples:
+                server:
+                  $ref: "#/components/examples/serverInfoWithLinks"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/serverInfoWithLinks"
+              examples:
+                server:
+                  $ref: "#/components/examples/serverInfoWithLinks"
+        "404":
+          description: >
+            | Error Code | "Not Found" Error Description  |
+
+            | ---------- | ------------------------------ |
+
+            |   32740    | The specified name for the connect ''{0}'' is invalid.  |
+          content:
+            application/vnd.sas.connect.server+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                server:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                server:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                server:
+                  $ref: "#/components/examples/sasErrorResponse"
+    head:
+      summary: Check to see if a server exists
+      description: Check to see if a specific SAS/CONNECT server exists.
+      operationId: headersForServer
+      tags:
+      - Servers
+      parameters:
+      - $ref: "#/components/parameters/ServerIDParm"
+      responses:
+        "200":
+          description: OK - The server exists
+        "404":
+          description: >
+            | Error Code | "Not Found" Error Description  |
+
+            | ---------- | ------------------------------ |
+
+            |   32740    | The specified name for the connect ''{0}'' is invalid.  |
+          content:
+            application/vnd.sas.connect.server+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                server:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                server:
+                  $ref: "#/components/examples/sasErrorResponse"
+    delete:
+      summary: Delete SAS/CONNECT server information
+      description: Delete the specified server's information from SAS/CONNECT service
+      operationId: deleteServer
+      tags:
+      - Servers
+      parameters:
+      - $ref: "#/components/parameters/ServerIDParm"
+      responses:
+        "204":
+          description: No content - The server was deleted successfully
+        "500":
+          description: |
+            | Error Code | "Server Error" Error Description              |
+            | ---------- | --------------------------------------------- |
+            |   32731    | Cannot delete process for specified server    |
+          content:
+            application/vnd.sas.connect.server+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                server:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                server:
+                  $ref: "#/components/examples/sasErrorResponse"
+  "/servers/{serverId}#ConnectionState":
+    get:
+      summary: Get server connection state information
+      description: Get information about the state, host and port of a server specified
+        by the server ID.
+      operationId: getServerConnectionState
+      tags:
+      - Servers
+      parameters:
+      - $ref: "#/components/parameters/ServerIDParm"
+      responses:
+        "200":
+          description: The server information was returned
+          content:
+            application/vnd.sas.connect.server.state+json;version=1:
+              schema:
+                $ref: "#/components/schemas/serverState"
+              examples:
+                serverConnectionState:
+                  $ref: "#/components/examples/serverState"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/serverState"
+              examples:
+                serverConnectionState:
+                  $ref: "#/components/examples/serverState"
+        "404":
+          description: >
+            | Error Code | "Not Found" Error Description  |
+
+            | ---------- | ------------------------------ |
+
+            |   32740    | The specified name for the connect ''{0}'' is invalid.   |
+          content:
+            application/vnd.sas.connect.server.state+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                serverConnectionState:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                serverConnectionState:
+                  $ref: "#/components/examples/sasErrorResponse"
+        "500":
+          description: |
+            | Error Code | "Server Error" Error Description                |
+            | ---------- | ----------------------------------------------- |
+            |   32732    | Cannot get process status from launcher service |
+          content:
+            application/vnd.sas.connect.server.state+json;version=1:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                serverConnectionState:
+                  $ref: "#/components/examples/sasErrorResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                serverConnectionState:
+                  $ref: "#/components/examples/sasErrorResponse"
+  "/servers/{serverId}/state":
+    get:
+      summary: Get the server's current state
+      description: Get the server's current state
+      operationId: getServerState
+      tags:
+      - Servers
+      parameters:
+      - $ref: "#/components/parameters/ServerIDParm"
+      responses:
+        "200":
+          description: The state of the job was returned successfully
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/serverPlainState"
+              examples:
+                serverState:
+                  $ref: "#/components/examples/serverPlainState"
+        "404":
+          description: >
+            | Error Code | "Not Found" Error Description  |
+
+            | ---------- | ------------------------------ |
+
+            |   32740    | The specified name for the connect ''{0}'' is invalid.   |
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                serverState:
+                  $ref: "#/components/examples/sasErrorResponse"
+        "500":
+          description: |
+            | Error Code | "Server Error" Error Description                |
+            | ---------- | ----------------------------------------------- |
+            |   32732    | Cannot get process status from launcher service |
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                serverState:
+                  $ref: "#/components/examples/sasErrorResponse"
+    put:
+      summary: Cancel a server
+      description: Change the state of a server to be terminated
+      operationId: updateServer
+      tags:
+      - Servers
+      parameters:
+      - $ref: "#/components/parameters/ServerIDParm"
+      - $ref: "#/components/parameters/ServerStateParm"
+      responses:
+        "202":
+          description: The SAS/CONNECT server will be terminated.
+        "400":
+          description: >
+            | Error Code | "Bad Request" Error
+            Description                                                      |
+
+            | ---------- | ------------------------------------------------------------------------------------
+            |
+
+            |   32741    | The server state was not valid on the request. Only the
+            'canceled' value is allowed. |
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                serverState:
+                  $ref: "#/components/examples/sasErrorResponse"
+        "404":
+          description: >
+            | Error Code | "Not Found" Error Description  |
+
+            | ---------- | ------------------------------ |
+
+            |   32740    | The specified name for the connect ''{0}'' is invalid.   |
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                serverState:
+                  $ref: "#/components/examples/sasErrorResponse"
+        "412":
+          description: |
+            | Error Code | "Not Found" Error Description           |
+            | ---------- | --------------------------------------- |
+            |   32771    | The specified ETag value did not match. |
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                serverState:
+                  $ref: "#/components/examples/sasErrorResponse"
+        "428":
+          description: >
+            | Error Code | Error
+            Description                                          |
+
+            | ---------- | ----------------------------------------------------------
+            |
+
+            | 30093      | Required If-Match header was not specified.                |
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                serverState:
+                  $ref: "#/components/examples/sasErrorResponse"
+        "500":
+          description: |
+            | Error Code | "Server Error" Error Description          |
+            | ---------- | ----------------------------------------- |
+            |   32733    | Cannot kill process for specified server  |
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/sasErrorResponse"
+              examples:
+                serverState:
+                  $ref: "#/components/examples/sasErrorResponse"
+components:
+  parameters:
+    IfMatch.Header.Required:
+      name: If-Match
+      in: header
+      description: Entity tag (ETag) value of object to be updated.
+      required: true
+      schema:
+        type: string
+    ContextNameQueryParm:
+      name: name
+      in: query
+      description: Name of SAS/CONNECT context to use
+      required: true
+      schema:
+        type: string
+    ContextQueryParm:
+      name: contextId
+      in: query
+      description: ID of SAS/CONNECT context to use
+      required: false
+      schema:
+        type: string
+    ContextIdPathParm:
+      name: contextId
+      in: path
+      description: ID of SAS/CONNECT context to use
+      required: true
+      schema:
+        type: string
+    ContextAcceptHeaderParm:
+      name: Accept-Item
+      in: header
+      required: false
+      description: >
+        The desired context representation.
+
+
+        The Accept-Item header options are:
+
+        <ul>
+          <li>application/vnd.sas.connect.context.summary</li>
+          <li>application/vnd.sas.connect.context</li>
+        </ul>
+
+
+        If the application/vnd.sas.connect.context media type is specified, all context
+        information is returned.
+
+
+        If the application/vnd.sas.connect.context.summary media type is specified
+        or no Accept-Item header is specified,
+
+        only the context name, description, and ID are returned along with a self
+        link.
+      schema:
+        type: string
+        enum:
+        - application/vnd.sas.connect.context.summary
+        - application/vnd.sas.connect.context
+    DebugQueryParm:
+      name: enableDebug
+      in: query
+      description: Flag to indicate whether to enable debug logging
+      required: false
+      schema:
+        type: boolean
+    ServerIDParm:
+      name: serverId
+      in: path
+      description: ID of SAS/CONNECT server
+      required: true
+      schema:
+        type: string
+    ServerStateParm:
+      name: value
+      in: query
+      description: New server state - only 'canceled' is valid and will terminate
+        the server
+      required: true
+      schema:
+        type: string
+    CollectionStartParm:
+      name: start
+      in: query
+      description: 0-based offset of first object to return.  Defaults to 0.
+      schema:
+        type: integer
+    CollectionLimitParm:
+      name: limit
+      in: query
+      description: Maximum number of objects to return.  Defaults to 30.
+      schema:
+        type: integer
+    CollectionFilterParm:
+      name: filter
+      in: query
+      description: Filter criteria for returned information.
+      schema:
+        type: string
+        format: filter-criteria
+    CollectionSortByParm:
+      name: sortBy
+      in: query
+      description: Sort returned objects by specified sort order.
+      schema:
+        type: string
+        format: sort-criteria
+  schemas:
+    resourceCollection:
+      description: A collection of resources
+      type: object
+      properties:
+        start:
+          type: integer
+          description: The 0-based index of the result.
+        count:
+          type: integer
+          description: The actual number of results returned in the collection.
+        limit:
+          type: integer
+          description: The number of items to return in each page
+        name:
+          type: string
+          description: The abstract name of the collection; what the "items" member
+            represents.
+        accept:
+          type: string
+          description: A space-separated list of link types of the items in this collection.
+        links:
+          type: array
+          description: Paging links that apply to this collection
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: collection schema version
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    objectLinks:
+      description: An array of resource links
+      type: object
+      properties:
+        links:
+          type: array
+          description: Links related to this object and actions on this object
+          items:
+            $ref: "#/components/schemas/link"
+    trackedObject:
+      description: A set of properties that allow a resource to be tracked
+      type: object
+      properties:
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp of creation.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: Timestamp of last modification
+        createdBy:
+          type: string
+          format: string
+          description: The user who creates the object
+        modifiedBy:
+          type: string
+          format: string
+          description: The user who last modified the object
+    rootOutput:
+      description: An application/vnd.sas.api object returning links to all resources
+        and their actions in the SAS/CONNECT service.
+      allOf:
+      - $ref: "#/components/schemas/objectLinks"
+      - type: object
+        properties:
+          version:
+            type: integer
+            description: Object schema version
+            default: 1
+    contextLauncherOptions:
+      description: An object in a SAS/CONNECT Context that contains launch information
+        using the SAS Launcher service.
+      type: object
+      required:
+      - contextId
+      properties:
+        contextId:
+          type: string
+          description: Launcher context ID
+        gridProviderOptions:
+          type: string
+          description: Additional grid provider options to use if server launched
+            on grid
+        sasOptions:
+          type: string
+          description: Additional SAS options to use when launching the server
+        requiredResources:
+          type: string
+          description: Resources required if server launched on grid
+    contextSpawnerOptions:
+      description: An object in a SAS/CONNECT Context that contains connection information
+        to a SAS/CONNECT spawner.
+      type: object
+      required:
+      - host
+      - port
+      properties:
+        host:
+          type: string
+          description: Host the spawner is running on
+        port:
+          type: integer
+          description: Port the spawner is listening on
+    context:
+      description: An application/vnd.sas.connect.context object containing SAS/CONNECT
+        Context information
+      type: object
+      required:
+      - version
+      - name
+      - signonType
+      properties:
+        version:
+          type: integer
+          description: Object schema version
+          default: 1
+        id:
+          type: string
+          description: SAS/CONNECT context ID
+        name:
+          type: string
+          description: localizable context name
+        description:
+          type: string
+          description: Context description
+        signonType:
+          description: Type of SIGNON. How the SAS/CONNECT server will be created
+          type: string
+          enum:
+          - spawner
+          - launcher
+        spawnerOptions:
+          $ref: "#/components/schemas/contextSpawnerOptions"
+        launcherOptions:
+          $ref: "#/components/schemas/contextLauncherOptions"
+        requireEncryption:
+          description: Flag to indicate whether to require encryption
+          type: boolean
+        encryptionAlgorithm:
+          description: Type of encryption to be used for communication
+          type: string
+          enum:
+          - ssl
+          - aes
+          - rc2
+          - rc4
+          - des
+          - tripledes
+          - sasproprietary
+        allowXCmd:
+          description: Flag to indicate if the connect server should allow XCMDs
+          type: boolean
+    contextWithLinks:
+      description: An application/vnd.sas.connect.context object along with its HATEOS
+        links
+      allOf:
+      - $ref: "#/components/schemas/context"
+      - $ref: "#/components/schemas/trackedObject"
+      - $ref: "#/components/schemas/objectLinks"
+    contextCollection:
+      description: An application/vnd.sas.collection object containing context objects
+        that includes object links and resource tracking information.
+      allOf:
+      - $ref: "#/components/schemas/resourceCollection"
+      - type: object
+        description: The actual results of a query
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/contextWithLinks"
+    contextMultipartFormData:
+      title: Connect Context Import Create Request
+      description: Provides information to create a connect context through the transfer
+        service.
+      type: object
+      properties:
+        TransferDescriptor.json:
+          type: object
+          properties:
+            version:
+              description: Transfer Descriptor version
+              type: integer
+            name:
+              description: Name of transfer descriptor
+              type: string
+            type:
+              description: Type of object as registered in types service
+              type: string
+            properties:
+              description: Array of properties mapped to their value
+              type: object
+              properties:
+                name:
+                  description: Test Connect Create Context
+                  type: string
+                description:
+                  description: Description of connect context
+                  type: string
+                launcherContextName:
+                  description: Name of launcher service context to use
+                  type: string
+                launcherContextID:
+                  description: ID of launcher service context to use
+                  type: string
+                queueName:
+                  description: Name of the SAS Workload Orchestrator queue to use
+                  type: string
+                providerOptions:
+                  description: Options to pass to the grid provider
+                  type: string
+                requiredResources:
+                  description: Resources required to be on host to use host
+                  type: string
+                sasOptions:
+                  description: SAS options to use
+                  type: string
+            links:
+              description: Specifies links that apply to the context.
+              type: array
+              items:
+                $ref: "#/components/schemas/link"
+    serverRequest:
+      description: An application/vnd.sas.connect.server.request object containing
+        a request to launch a server process.
+      type: object
+      required:
+      - version
+      - contextId
+      properties:
+        version:
+          type: integer
+          description: Object schema version
+          default: 1
+        contextId:
+          description: SAS/CONNECT context ID
+          type: string
+        launcherOptions:
+          description: A collection of properties to pass to the SAS Launch service
+            when starting a SAS/CONNECT server process.
+          type: object
+          properties:
+            sasProperties:
+              description: Properties to add to the SAS command line when starting
+                a SAS/CONNECT server process.
+              type: object
+              properties:
+                sasOptions:
+                  description: SAS options to add to the SAS command line
+                  type: string
+            gridProperties:
+              description: Properties to pass a grid-launched process when starting
+                a grid-launched SAS/CONNECT server process.
+              type: object
+              properties:
+                jobName:
+                  description: Name to use on associated grid job.
+                  type: string
+                gridProviderOptions:
+                  description: Options to pass to the grid provider to use when submitting
+                    the grid job.
+                  type: string
+                requiredResources:
+                  description: Additional static grid resources required to run the
+                    job.
+                  type: string
+            armCorrelator:
+              description: A ARM4 correlator to pass to the started process.
+              type: string
+            forceGrid:
+              description: A flag indicating whether the job should only run on the
+                grid.
+              type: boolean
+    serverInfoWithLinks:
+      description: An application/vnd.sas.connect.server object containing server
+        objects that includes object links and resource tracking information.
+      allOf:
+      - type: object
+        description: An application/vnd.sas.connect.server object containing a launched
+          SAS/CONNECT Server's information
+        properties:
+          version:
+            type: integer
+            description: Object schema version
+            default: 1
+          id:
+            description: ID of grid job from the grid provider
+            type: string
+          name:
+            description: Name of server
+            type: string
+          contextId:
+            description: ID of SAS/CONNECT context that was used when server created
+            type: string
+          processId:
+            description: ID of launcher process associated with this server
+            type: string
+          state:
+            description: State of the server
+            type: string
+            enum:
+            - unknown
+            - pending
+            - running
+            - completed
+            - failed
+          host:
+            description: Host the server is running on
+            type: string
+          port:
+            description: Port the server is listening on
+            type: integer
+      - $ref: "#/components/schemas/trackedObject"
+      - $ref: "#/components/schemas/objectLinks"
+    serverInfoCollection:
+      description: vnd.sas.collection object containing Server objects and collection
+        response information
+      allOf:
+      - $ref: "#/components/schemas/resourceCollection"
+      - type: object
+        description: The actual results of a query
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/serverInfoWithLinks"
+    serverState:
+      description: An application/vnd.sas.connect.server.state object returning a
+        server's state, host, and port.
+      type: object
+      properties:
+        version:
+          type: integer
+          description: Object schema version
+          default: 1
+        state:
+          description: State of the server
+          type: string
+          default: unknown
+          enum:
+          - unknown
+          - pending
+          - running
+          - completed
+          - failed
+        host:
+          description: Host the server is running on
+          type: string
+        port:
+          description: Port the server is listening on
+          type: integer
+    serverPlainState:
+      description: Text string representing the state of the server
+      type: string
+      default: unknown
+      enum:
+      - unknown
+      - pending
+      - running
+      - completed
+      - failed
+    sasErrorResponse:
+      description: An application/vnd.sas.error object containing the error response
+        from the SAS REST API.
+      type: object
+      properties:
+        errorCode:
+          description: The error code.
+          type: integer
+        message:
+          description: The error message.
+          type: string
+        details:
+          description: A list of error details.
+          type: array
+          items:
+            type: string
+        links:
+          description: A list of relavant links.
+          type: array
+          items:
+            type: string
+        version:
+          description: The version of the error response.
+          type: integer
+        httpStatusCode:
+          description: The HTTP status code for this error.
+          type: integer
+    transferObject:
+      title: Transfer Object
+      description: Content providers implementing the Transfer Object Provider contract
+        use this media type to store information about the content to be transfered.
+      type: object
+      properties:
+        id:
+          description: unique identifier of the object
+          type: string
+          format: object-id
+        version:
+          description: This media type's schema version number. This representation
+            is version 1.
+          type: integer
+        summary:
+          $ref: "#/components/schemas/summary"
+        content:
+          description: optional. Choose this or fileServiceContent. This is the content
+            object that must be serialized in a format that is valid for internet
+            transmission. This includes valid encoding formats like Base64 or data
+            structures like JSON. This is provided by the content provider and the
+            transfer service expects no visibility into or understanding of this value.
+          type: string
+        fileServiceContent:
+          description: optional. Choose this or content. This holds the URI of a file
+            service object that contains the transferrable object.
+          type: string
+        connectors:
+          description: a list of associations or references to other external objects
+            to be recreated on import
+          type: array
+          items:
+            $ref: "#/components/schemas/transferObjectConnector"
+        substitutions:
+          description: map with keys of parameter and value. Used to replace the value
+            of parameter with the value of value
+          type: object
+        links:
+          description: Paging links that apply to this object
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    summary:
+      title: Resource Summary
+      type: object
+      description: The summarized representation of a resource. Often used in collection
+        responses when more specific details aren't needed.
+      x-sas-media-type:
+        name: application/vnd.sas.summary
+        version: 1
+      required:
+      - id
+      - links
+      - version
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the resource.
+        name:
+          type: string
+          description: The name of the resource.
+        type:
+          type: string
+          description: The type of the resource.
+        description:
+          type: string
+          description: The description of the resource.
+        createdBy:
+          type: string
+          description: The user who created the resource.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was created.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the resource.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was last modified.
+        links:
+          type: array
+          description: The links that apply to the resource.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the resource. This representation is
+            version 1.
+    transferObjectConnector:
+      title: Transfer Object Connector
+      description: Content providers implementing the Transfer Object Provider contract
+        use this media type to provide connection information for the content to be
+        transfered.
+      x-sas-media-type:
+        name: application/vnd.sas.transfer.object.connector
+        version: 1
+      properties:
+        id:
+          type: string
+          format: object-id
+          description: unique identifier of the object
+        name:
+          type: string
+          description: name of the related object
+        version:
+          type: integer
+          description: transfer object connector version
+        uri:
+          type: string
+          description: the URI of the related object
+        contentType:
+          type: string
+          description: media type of the related object
+        type:
+          type: string
+          description: type of connection. This can be any value the creator of the
+            connection wants but should be used to determine what to do to reconstitute
+            the relationship.
+        hints:
+          type: array
+          description: hints that can be used to help find the object to connect to
+            in the target system
+          items:
+            type: string
+  examples:
+    rootOutput:
+      summary: Connect API Example Info
+      description: Example of all the top-level links provided by the Connect API.
+      value:
+        version: 1
+        links:
+        - method: GET
+          rel: apiMeta
+          href: /connect/
+          uri: /connect/
+          type: application/vnd.sas.api
+        - method: GET
+          rel: contexts
+          href: /connect/contexts
+          uri: /connect/contexts
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.connect.context
+        - method: GET
+          rel: servers
+          href: /connect/servers
+          uri: /connect/servers
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.connect.server
+    contextCollection:
+      summary: Example Context collection
+      description: Example of a SAS collection object full of Connect contexts.
+      value:
+        name: contexts
+        accept: application/vnd.sas.connect.context
+        start: 0
+        count: 3
+        limit: 30
+        version: 2
+        items:
+        - name: Connect Launcher Direct Context
+          version: 1
+          description: Connect service context that uses launcher in direct launch
+          id: 8c191540-a6eb-444d-8e35-d74d8e09e9ed
+          signonType: launcher
+          spawnerOptions:
+            host: v64-d7b699-01.na.sas.com
+            port: 0
+          launcherOptions:
+            contextId: 03ee0b05-129f-4e65-b0ff-43b8e29837ca
+          requireEncryption: false
+          creationTimeStamp: 2017-03-28T13:01:02.181000Z
+          modifiedTimeStamp: 2017-03-28T13:01:02.181000Z
+          createdBy: tester
+          modifiedBy: tester
+          links:
+          - method: GET
+            rel: self
+            href: /connect/contexts/8c191540-a6eb-444d-8e35-d74d8e09e9ed
+            uri: /connect/contexts/8c191540-a6eb-444d-8e35-d74d8e09e9ed
+            type: application/vnd.sas.connect.context
+          - method: PUT
+            rel: update
+            href: /connect/contexts/8c191540-a6eb-444d-8e35-d74d8e09e9ed
+            uri: /connect/contexts/8c191540-a6eb-444d-8e35-d74d8e09e9ed
+            type: application/vnd.sas.connect.context
+          - method: DELETE
+            rel: delete
+            href: /connect/contexts/8c191540-a6eb-444d-8e35-d74d8e09e9ed
+            uri: /connect/contexts/8c191540-a6eb-444d-8e35-d74d8e09e9ed
+        - name: Connect Launcher Grid Context
+          version: 1
+          description: Connect service context that uses launcher in grid launch
+          id: 25d4938f-9274-47b2-a3e1-6d0289ec101f
+          signonType: launcher
+          spawnerOptions:
+            host: v64-d7b699-01.na.sas.com
+            port: 0
+          launcherOptions:
+            contextId: 46f5c6d6-276b-49b3-9d19-2d3455d4e239
+            sasOptions: -sysparm connect_doug
+            gridProviderOptions: queue=connect_owners
+            requiredResources: SASAppConnectDoug
+          requireEncryption: false
+          creationTimeStamp: 2017-03-28T13:01:02.669000Z
+          modifiedTimeStamp: 2017-03-28T13:01:02.669000Z
+          createdBy: tester
+          modifiedBy: tester
+          links:
+          - method: GET
+            rel: self
+            href: /connect/contexts/25d4938f-9274-47b2-a3e1-6d0289ec101f
+            uri: /connect/contexts/25d4938f-9274-47b2-a3e1-6d0289ec101f
+            type: application/vnd.sas.connect.context
+          - method: PUT
+            rel: update
+            href: /connect/contexts/25d4938f-9274-47b2-a3e1-6d0289ec101f
+            uri: /connect/contexts/25d4938f-9274-47b2-a3e1-6d0289ec101f
+            type: application/vnd.sas.connect.context
+          - method: DELETE
+            rel: delete
+            href: /connect/contexts/25d4938f-9274-47b2-a3e1-6d0289ec101f
+            uri: /connect/contexts/25d4938f-9274-47b2-a3e1-6d0289ec101f
+        - name: Connect Spawner Context
+          version: 1
+          description: Connect service context that uses spawner
+          id: 64dcfd76-099f-4fba-a1fd-7eeaef8606f8
+          signonType: spawner
+          spawnerOptions:
+            host: v64-d7b699-01.na.sas.com
+            port: 17551
+          requireEncryption: false
+          creationTimeStamp: 2017-03-28T13:01:03.114000Z
+          modifiedTimeStamp: 2017-03-28T13:01:03.114000Z
+          createdBy: tester
+          modifiedBy: tester
+          links:
+          - method: GET
+            rel: self
+            href: /connect/contexts/64dcfd76-099f-4fba-a1fd-7eeaef8606f8
+            uri: /connect/contexts/64dcfd76-099f-4fba-a1fd-7eeaef8606f8
+            type: application/vnd.sas.connect.context
+          - method: PUT
+            rel: update
+            href: /connect/contexts/64dcfd76-099f-4fba-a1fd-7eeaef8606f8
+            uri: /connect/contexts/64dcfd76-099f-4fba-a1fd-7eeaef8606f8
+            type: application/vnd.sas.connect.context
+          - method: DELETE
+            rel: delete
+            href: /connect/contexts/64dcfd76-099f-4fba-a1fd-7eeaef8606f8
+            uri: /connect/contexts/64dcfd76-099f-4fba-a1fd-7eeaef8606f8
+        links:
+        - method: GET
+          rel: collection
+          href: /connect/contexts
+          uri: /connect/contexts
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.connect.context
+        - method: GET
+          rel: self
+          href: /connect/contexts?start=0&limit=30
+          uri: /connect/contexts?start=0&limit=30
+          type: application/vnd.sas.collection
+        - method: POST
+          rel: create
+          href: /connect/contexts
+          uri: /connect/contexts
+          type: application/vnd.sas.connect.context
+          responseType: application/vnd.sas.connect.context
+    context:
+      summary: Example Context Request
+      description: Example of a request body to create a context.
+      value:
+        name: Connect Launcher Grid Context
+        version: 1
+        description: Connect service context that uses launcher in grid launch
+        id: 25d4938f-9274-47b2-a3e1-6d0289ec101f
+        signonType: launcher
+        spawnerOptions:
+          host: v64-d7b699-01.na.sas.com
+          port: 0
+        launcherOptions:
+          contextId: 46f5c6d6-276b-49b3-9d19-2d3455d4e239
+          sasOptions: -sysparm connect_doug
+          gridProviderOptions: queue=connect_owners
+          requiredResources: SASAppConnectDoug
+    contextWithLinks:
+      summary: Example Context With Links
+      description: An example application/vnd.sas.connect.context object along with
+        its HATEOS links.
+      value:
+        name: Connect Launcher Grid Context
+        version: 1
+        description: Connect service context that uses launcher in grid launch
+        id: 25d4938f-9274-47b2-a3e1-6d0289ec101f
+        signonType: launcher
+        spawnerOptions:
+          host: v64-d7b699-01.na.sas.com
+          port: 0
+        launcherOptions:
+          contextId: 46f5c6d6-276b-49b3-9d19-2d3455d4e239
+          sasOptions: -sysparm connect_doug
+          gridProviderOptions: queue=connect_owners
+          requiredResources: SASAppConnectDoug
+        requireEncryption: false
+        creationTimeStamp: 2017-03-28T13:01:02.669000Z
+        modifiedTimeStamp: 2017-03-28T13:01:02.669000Z
+        createdBy: tester
+        modifiedBy: tester
+        links:
+        - method: GET
+          rel: self
+          href: /connect/contexts/25d4938f-9274-47b2-a3e1-6d0289ec101f
+          uri: /connect/contexts/25d4938f-9274-47b2-a3e1-6d0289ec101f
+          type: application/vnd.sas.connect.context
+        - method: PUT
+          rel: update
+          href: /connect/contexts/25d4938f-9274-47b2-a3e1-6d0289ec101f
+          uri: /connect/contexts/25d4938f-9274-47b2-a3e1-6d0289ec101f
+          type: application/vnd.sas.connect.context
+        - method: DELETE
+          rel: delete
+          href: /connect/contexts/25d4938f-9274-47b2-a3e1-6d0289ec101f
+          uri: /connect/contexts/25d4938f-9274-47b2-a3e1-6d0289ec101f
+    sasErrorResponse:
+      summary: Example Error Response
+      description: An example application/vnd.sas.error object containing the error
+        response from the SAS REST API.
+      value:
+        errorCode: 32730
+        message: Cannot launch new server process. The reason was 'No qualified launcher
+          servers are available to complete request.'
+        details:
+        - "exception: com.sas.connect.exceptions.LauncherCannotCreateProcessException"
+        - "Caused by: org.springframework.web.client.HttpServerErrorException: 500\
+          \ Internal Server Error"
+        - "correlator: fd9c75bf-10f8-482b-bf1d-ea2de3ac5e6e"
+        - "path: /connect/servers"
+        - "exception: com.sas.commons.rest.exceptions.ResourceException"
+        - "correlator: fd9c75bf-10f8-482b-bf1d-ea2de3ac5e6e;02a4dcc1-e85e-485e-b572-4a0895fba151"
+        - "path: /launcher/processes"
+        version: 1
+        httpStatusCode: 500
+    serverInfoCollection:
+      summary: Example Server Info Collection
+      description: Example vnd.sas.collection object containing Server objects and
+        collection response information.
+      value:
+        name: servers
+        accept: application/vnd.sas.connect.server
+        start: 0
+        count: 1
+        limit: 30
+        version: 2
+        items:
+        - id: 95e1aff1-0f61-47e5-8d31-3abeb9c8235e
+          name: SAS/CONNECT Server using Connect Launcher Direct Context
+          contextId: 8c191540-a6eb-444d-8e35-d74d8e09e9ed
+          processId: 26ea32e1-2202-4b2a-bece-e5127b1b3ea2
+          gridJobId: ""
+          state: running
+          host: v64-d7b699-01.na.sas.com
+          port: 1234
+          creationTimeStamp: 2017-03-30T18:47:53.346000Z
+          modifiedTimeStamp: 2017-03-30T18:47:56.752000Z
+          createdBy: dohaig
+          modifiedBy: dohaig
+          version: 0
+          links:
+          - method: GET
+            rel: self
+            href: /connect/servers/95e1aff1-0f61-47e5-8d31-3abeb9c8235e
+            uri: /connect/servers/95e1aff1-0f61-47e5-8d31-3abeb9c8235e
+            type: application/vnd.sas.connect.server
+          - method: GET
+            rel: connectionState
+            href: /connect/servers/95e1aff1-0f61-47e5-8d31-3abeb9c8235e
+            uri: /connect/servers/95e1aff1-0f61-47e5-8d31-3abeb9c8235e
+            type: application/vnd.sas.connect.server.state
+          - method: GET
+            rel: state
+            href: /connect/servers/95e1aff1-0f61-47e5-8d31-3abeb9c8235e/state
+            uri: /connect/servers/95e1aff1-0f61-47e5-8d31-3abeb9c8235e/state
+            type: text/plain
+          - method: PUT
+            rel: cancel
+            href: /connect/servers/95e1aff1-0f61-47e5-8d31-3abeb9c8235e/state?value=canceled
+            uri: /connect/servers/95e1aff1-0f61-47e5-8d31-3abeb9c8235e/state?value=canceled
+          - method: DELETE
+            rel: delete
+            href: /connect/servers/95e1aff1-0f61-47e5-8d31-3abeb9c8235e
+            uri: /connect/servers/95e1aff1-0f61-47e5-8d31-3abeb9c8235e
+        links:
+        - method: GET
+          rel: collection
+          href: /connect/servers
+          uri: /connect/servers
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.connect.server
+        - method: GET
+          rel: self
+          href: /connect/servers?start=0&limit=30
+          uri: /connect/servers?start=0&limit=30
+          type: application/vnd.sas.collection
+        - method: POST
+          rel: create
+          href: /connect/servers
+          uri: /connect/servers
+          type: application/vnd.sas.connect.server.request
+          responseType: application/vnd.sas.connect.server
+    serverRequest:
+      summary: Example Server Request
+      description: An example application/vnd.sas.connect.server.request object containing
+        a request to launch a server process.
+      value:
+        version: 1
+        contextId: 565f5389-90e2-471d-9367-a95f3fc1b7a2
+        launcherOptions:
+          sasProperties:
+            sasOptions: -memsize 4096
+          gridProperties:
+            jobName: My SAS/CONNECT server grid job
+            gridProviderOptions: queue=priority
+            requiredResources: Accounting
+          forceGrid: true
+    serverInfoWithLinks:
+      summary: Example Server Info With Links
+      description: An example application/vnd.sas.connect.server object containing
+        server objects that includes object links and resource tracking information.
+      value:
+        id: ed018e5e-b745-41dc-9c06-fc5cc66cc5fe
+        name: SAS/CONNECT Server using Connect Launcher Direct Context
+        contextId: 8c191540-a6eb-444d-8e35-d74d8e09e9ed
+        processId: 3fe5449b-2e2a-4438-90bc-21ac1b7d77d4
+        gridJobId: ""
+        state: pending
+        port: 0
+        creationTimeStamp: 2017-03-30T18:27:39.604000Z
+        modifiedTimeStamp: 2017-03-30T18:27:39.604000Z
+        createdBy: tester
+        modifiedBy: tester
+        version: 0
+        links:
+        - method: GET
+          rel: self
+          href: /connect/servers/ed018e5e-b745-41dc-9c06-fc5cc66cc5fe
+          uri: /connect/servers/ed018e5e-b745-41dc-9c06-fc5cc66cc5fe
+          type: application/vnd.sas.connect.server
+        - method: GET
+          rel: connectionState
+          href: /connect/servers/ed018e5e-b745-41dc-9c06-fc5cc66cc5fe
+          uri: /connect/servers/ed018e5e-b745-41dc-9c06-fc5cc66cc5fe
+          type: application/vnd.sas.connect.server.state
+        - method: GET
+          rel: state
+          href: /connect/servers/ed018e5e-b745-41dc-9c06-fc5cc66cc5fe/state
+          uri: /connect/servers/ed018e5e-b745-41dc-9c06-fc5cc66cc5fe/state
+          type: text/plain
+        - method: PUT
+          rel: cancel
+          href: /connect/servers/ed018e5e-b745-41dc-9c06-fc5cc66cc5fe/state?value=canceled
+          uri: /connect/servers/ed018e5e-b745-41dc-9c06-fc5cc66cc5fe/state?value=canceled
+        - method: DELETE
+          rel: delete
+          href: /connect/servers/ed018e5e-b745-41dc-9c06-fc5cc66cc5fe
+          uri: /connect/servers/ed018e5e-b745-41dc-9c06-fc5cc66cc5fe
+    serverState:
+      summary: Example Server State
+      description: An example application/vnd.sas.connect.server.state object returning
+        a server's state, host, and port.
+      value:
+        version: 1
+        state: running
+        host: myhost.mydomain.com
+        port: 12345
+    serverPlainState:
+      summary: Example Server Plain State
+      description: Example text string representing the state of the server.
+      value: running

@@ -1,0 +1,2775 @@
+---
+openapi: 3.0.3
+info:
+  description: >
+    The forecasting pipelines API provides forecasting-specific
+    functionality around Analytics Pipelines (see analyticsPipelines).
+    This includes the ability to fetch pipeline/component results, publish
+    pipeline results to another location, and set the champion pipeline.
+  version: "3"
+  title: Forecasting Pipelines
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: devex@sas.com
+  license:
+    name: SAS Institute Inc.
+    url: https://support.sas.com/techsup/license/index.html
+tags:
+- name: Pipeline Comparison
+  description: The operations for pipeline comparison.
+- name: Components
+  description: The operations for the component resource.
+- name: Pipelines
+  description: The operations for the pipeline resource.
+- name: Root
+  description: The operations for the root resource.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the API object
+      description: The API object contains a set of links for the supported endpoints.
+      operationId: root
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/rootResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/rootResponse"
+          headers:
+            Last-Modified:
+              description: Timestamp of the last modification.
+              schema:
+                type: string
+    head:
+      tags:
+      - Root
+      summary: Check presence of service
+      description: Allows clients to check if this service is up and responding to
+        requests.
+      operationId: headersForRoot
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                type: object
+              examples:
+                json:
+                  $ref: "#/components/examples/rootResponse"
+            application/json:
+              schema:
+                type: object
+              examples:
+                json:
+                  $ref: "#/components/examples/rootResponse"
+          headers:
+            Last-Modified:
+              description: Timestamp of the last modification.
+              schema:
+                type: string
+  /comparison:
+    post:
+      tags:
+      - Pipeline Comparison
+      summary: Compare pipelines
+      description: Compares the given pipelines to determine which one produced the
+        most accurate results.
+      operationId: createComparison
+      requestBody:
+        content:
+          application/vnd.sas.forecasting.pipeline.comparison.request+json:
+            schema:
+              $ref: "#/components/schemas/pipelineComparisonRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/comparePipelinesForChampRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/pipelineComparisonRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/comparePipelinesForChampRequest"
+        description: Request specifying the pipelines and stat to be used to compare
+          them
+        required: true
+      responses:
+        "200":
+          description: Comparison completed successfully and champion pipeline is
+            returned in response body
+          content:
+            application/vnd.sas.analytics.pipeline+json:
+              schema:
+                $ref: "#/components/schemas/pipeline"
+              examples:
+                default:
+                  $ref: "#/components/examples/cmpPipelinesForChamp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/pipeline"
+              examples:
+                default:
+                  $ref: "#/components/examples/cmpPipelinesForChamp"
+          headers:
+            Last-Modified:
+              description: Timestamp of the last modification.
+              schema:
+                type: string
+        "400":
+          description: Request body is invalid or incomplete. If none of the given
+            pipelines contain valid results, status 400 with code 75508 will occur.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/status400Response"
+  /comparison/results:
+    get:
+      tags:
+      - Pipeline Comparison
+      summary: Get pipeline comparison results
+      description: Fetches the pipeline comparison results and returns them as a collection
+        of analytics reports.
+      operationId: getComparisonResults
+      parameters:
+      - name: projectId
+        in: query
+        description: ID of the project containing the pipelines for which results
+          are desired
+        required: true
+        schema:
+          type: string
+      - name: filter
+        in: query
+        description: "Query used to filter the collection. Valid fields are the parameters\
+          \ in the pipeline summary statistics table. E.g. to fetch results for selected\
+          \ pipelines 1 and 2: `in(id, 'pipeline-id-1', 'pipeline-id-2')`"
+        required: false
+        schema:
+          type: string
+      - name: compare
+        in: query
+        description: Whether or not to generate normalized analytics reports for the
+          given selection (i.e. use same range for both X- and Y-axes)
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        "200":
+          description: Comparison results returned successfully
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/analyticsReportCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/cmpPipelines"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/analyticsReportCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/cmpPipelines"
+          headers:
+            Last-Modified:
+              description: Timestamp of the last modification.
+              schema:
+                type: string
+        "404":
+          description: No component result found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/status404Response"
+  /comparison/table:
+    get:
+      tags:
+      - Pipeline Comparison
+      summary: Get pipeline comparison table
+      description: Fetches the pipeline comparison results. These include summary
+        statistics for each pipeline within the given parent project and whether or
+        not each pipeline is currently the champion.
+      operationId: getComparisonTable
+      parameters:
+      - name: projectId
+        in: query
+        description: ID of the project containing the pipelines
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Comparison results returned successfully
+          content:
+            application/vnd.sas.analytics.report+json:
+              schema:
+                $ref: "#/components/schemas/report"
+              examples:
+                default:
+                  $ref: "#/components/examples/cmpTableResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/report"
+              examples:
+                default:
+                  $ref: "#/components/examples/cmpTableResp"
+          headers:
+            Last-Modified:
+              description: Timestamp of the last modification.
+              schema:
+                type: string
+        "404":
+          description: No component result found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/status404Response"
+  "/pipelines/{pipelineId}/components/{componentId}/results":
+    get:
+      tags:
+      - Components
+      summary: Get component results
+      description: Fetches the component results and returns them as a collection
+        of analytics reports.
+      operationId: getComponentResults
+      parameters:
+      - name: pipelineId
+        in: path
+        description: ID of the pipeline containing the component
+        required: true
+        schema:
+          type: string
+      - name: componentId
+        in: path
+        description: ID of the component for which results are desired
+        required: true
+        schema:
+          type: string
+      - name: matrix
+        in: query
+        description: Whether or not to organize the results into a grid
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        "200":
+          description: Component results returned successfully. Items in the collection
+            will be application/vnd.sas.analytics.report+json.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/analyticsReportCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/componentResults"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/analyticsReportCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/componentResults"
+          headers:
+            Last-Modified:
+              description: Timestamp of the last modification.
+              schema:
+                type: string
+        "404":
+          description: No component result found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/status404Response"
+    head:
+      tags:
+      - Components
+      summary: Component results check
+      description: Checks if component results exist
+      operationId: headersForResults
+      parameters:
+      - name: pipelineId
+        in: path
+        description: ID of the pipeline containing the component
+        required: true
+        schema:
+          type: string
+      - name: componentId
+        in: path
+        description: ID of the component for which results are desired
+        required: true
+        schema:
+          type: string
+      - name: matrix
+        in: query
+        description: Whether or not to organize the results into a grid
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: If-Match
+        in: header
+        description: The entity tag obtained from the most recent `ETag` response
+          header. Must match the current entity tag for the results.
+        schema:
+          type: string
+      - name: Last-Modified
+        in: header
+        description: The modification timestamp from the most recent response header.
+          Must match the current timestamp for the results.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Component results exist
+          headers:
+            Last-Modified:
+              description: Timestamp of the last modification.
+              schema:
+                type: string
+        "404":
+          description: No component results found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/status404Response"
+  "/pipelines/{pipelineId}/components/{componentId}/results/{resultId}":
+    get:
+      tags:
+      - Components
+      summary: Get a specific result for a component
+      description: Fetches the specified component results and returns them as an
+        analytics report.
+      operationId: getComponentResult
+      parameters:
+      - name: pipelineId
+        in: path
+        description: ID of the pipeline containing the component
+        required: true
+        schema:
+          type: string
+      - name: componentId
+        in: path
+        description: ID of the component for which the result is desired
+        required: true
+        schema:
+          type: string
+      - name: resultId
+        in: path
+        description: "ID of the desired result. Supported delegates: @codeReport"
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Component result returned successfully
+          content:
+            application/vnd.sas.analytics.report+json:
+              schema:
+                $ref: "#/components/schemas/report"
+              examples:
+                default:
+                  $ref: "#/components/examples/componentResultsByID"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/report"
+              examples:
+                default:
+                  $ref: "#/components/examples/componentResultsByID"
+          headers:
+            Last-Modified:
+              description: Timestamp of the last modification.
+              schema:
+                type: string
+        "404":
+          description: No component result found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/status404Response"
+    head:
+      tags:
+      - Components
+      summary: Specific component result check
+      description: Checks if a specific component result exists
+      operationId: headersForResult
+      parameters:
+      - name: pipelineId
+        in: path
+        description: ID of the pipeline containing the component
+        required: true
+        schema:
+          type: string
+      - name: componentId
+        in: path
+        description: ID of the component for which to check for the result
+        required: true
+        schema:
+          type: string
+      - name: resultId
+        in: path
+        description: "ID of the desired result. Supported delegates: @codeReport"
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: The entity tag obtained from the most recent `ETag` response
+          header. Must match the current entity tag for the results.
+        schema:
+          type: string
+      - name: Last-Modified
+        in: header
+        description: The modification timestamp from the most recent response header.
+          Must match the current timestamp for the results.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Component result exists
+          headers:
+            Last-Modified:
+              description: Timestamp of the last modification.
+              schema:
+                type: string
+        "404":
+          description: No component result found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/status404Response"
+  "/pipelines/{pipelineId}/results":
+    post:
+      tags:
+      - Pipelines
+      summary: Publish forecasts
+      description: Publishes forecasts for the selected pipeline.
+      operationId: createResults
+      parameters:
+      - name: pipelineId
+        in: path
+        description: ID of the pipeline for which to publish results
+        required: true
+        schema:
+          type: string
+      - name: overwrite
+        in: query
+        description: Whether or not to overwrite the target table if it already exists
+        required: false
+        schema:
+          type: boolean
+          default: false
+      requestBody:
+        content:
+          application/vnd.sas.forecasting.table.reference+json:
+            schema:
+              $ref: "#/components/schemas/tableReference"
+            examples:
+              json:
+                $ref: "#/components/examples/publishResultsRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/tableReference"
+            examples:
+              json:
+                $ref: "#/components/examples/publishResultsRequest"
+        description: Specification of target table where results are to be published
+        required: true
+      responses:
+        "200":
+          description: Results replaced at specified location
+          content:
+            application/vnd.sas.data.table+json:
+              schema:
+                $ref: "#/components/schemas/dataTable"
+              examples:
+                default:
+                  $ref: "#/components/examples/pipelineResults"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/dataTable"
+              examples:
+                default:
+                  $ref: "#/components/examples/pipelineResults"
+          headers:
+            Location:
+              description: The URL of the published results
+              schema:
+                type: string
+        "201":
+          description: Results created in specified location
+          content:
+            application/vnd.sas.data.table+json:
+              schema:
+                $ref: "#/components/schemas/dataTable"
+              examples:
+                default:
+                  $ref: "#/components/examples/pipelineResults"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/dataTable"
+              examples:
+                default:
+                  $ref: "#/components/examples/pipelineResults"
+          headers:
+            Location:
+              description: The URL of the published results
+              schema:
+                type: string
+        "400":
+          description: Request body contains an error or is incomplete
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/status400Response"
+        "409":
+          description: Already exists and overwrite is false
+  "/pipelines/{pipelineId}/status":
+    put:
+      tags:
+      - Pipelines
+      summary: Update status
+      description: Notifies that the status of the given pipeline will be updated.
+      operationId: updateStatus
+      parameters:
+      - name: pipelineId
+        in: path
+        description: ID of the pipeline for which to update status
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: The entity tag obtained from the most recent `ETag` response
+          header. Must match the current entity tag for the results.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.forecasting.pipeline.status.update+json:
+            schema:
+              $ref: "#/components/schemas/statusUpdateRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/statusUpdateRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/statusUpdateRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/statusUpdateRequest"
+        description: Specification of new status and associated properties.
+        required: true
+      responses:
+        "204":
+          description: The status update was processed
+        "400":
+          description: Request body contains an error or is incomplete
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/status400Response"
+        "412":
+          description: The `If-Match` request header did not match the resource's
+            entity tag.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionFailed"
+        "428":
+          description: The request headers did not include a 'If-Match' precondition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionRequired"
+  "/importedStrategies":
+    post:
+      tags:
+      - Components
+      summary: Import strategy
+      description: Augments an imported strategy for use in a forecasting pipeline.
+      operationId: createImportedStrategy
+      requestBody:
+        content:
+          application/vnd.sas.analytics.component.template+json:
+            schema:
+              $ref: "#/components/schemas/analyticsComponentTemplate"
+            examples:
+              json:
+                $ref: "#/components/examples/componentTemplate"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/analyticsComponentTemplate"
+            examples:
+              json:
+                $ref: "#/components/examples/componentTemplate"
+        description: The component template of the strategy
+        required: true
+      responses:
+        "200":
+          description: The updated strategy
+          content:
+            application/vnd.sas.analytics.component.template+json:
+              schema:
+                $ref: "#/components/schemas/analyticsComponentTemplate"
+              examples:
+                json:
+                  $ref: "#/components/examples/componentTemplate"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/analyticsComponentTemplate"
+              examples:
+                json:
+                  $ref: "#/components/examples/componentTemplate"
+        "400":
+          description: Request body contains an error or is incomplete
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/status400Response"
+  "/exportedStrategies":
+    post:
+      tags:
+      - Components
+      summary: Export strategy
+      description: Augments an exported strategy for migration to another environment.
+      operationId: createExportedStrategy
+      requestBody:
+        content:
+          application/vnd.sas.analytics.component.template+json:
+            schema:
+              $ref: "#/components/schemas/analyticsComponentTemplate"
+            examples:
+              json:
+                $ref: "#/components/examples/componentTemplate"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/analyticsComponentTemplate"
+            examples:
+              json:
+                $ref: "#/components/examples/componentTemplate"
+        description: The component template of the strategy
+        required: true
+      responses:
+        "200":
+          description: The updated strategy
+          content:
+            application/vnd.sas.analytics.component.template+json:
+              schema:
+                $ref: "#/components/schemas/analyticsComponentTemplate"
+              examples:
+                json:
+                  $ref: "#/components/examples/componentTemplate"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/analyticsComponentTemplate"
+              examples:
+                json:
+                  $ref: "#/components/examples/componentTemplate"
+        "400":
+          description: Request body contains an error or is incomplete
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/status400Response"
+  "/pipelines/{pipelineId}":
+    delete:
+      tags:
+      - Pipelines
+      summary: Delete a pipeline
+      description: Deletes the specified pipeline and its associated resources.
+      operationId: deletePipeline
+      parameters:
+      - name: pipelineId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not found
+  "/pipelines/{pipelineId}/components/{componentId}/postprocessJobs":
+    post:
+      tags:
+      - Components
+      summary: Create a post-processing job for a component
+      description: Triggers a post-processing job for the specified pipeline component.
+      operationId: createComponentPostprocessJob
+      parameters:
+      - name: pipelineId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: componentId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: casSessionId
+        in: query
+        required: false
+        description: CAS session identifier to use for the post-processing job.
+        schema:
+          type: string
+      - name: saveTables
+        in: query
+        required: false
+        description: Whether to save generated tables as part of post-processing.
+        schema:
+          type: boolean
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                description: The created post-processing job resource.
+        "400":
+          description: Request parameters are invalid or incomplete.
+  "/pipelines/{pipelineId}/components/{componentId}":
+    delete:
+      tags:
+      - Components
+      summary: Delete a pipeline component
+      description: Deletes the specified component and cleans up associated CAS resources.
+      operationId: deleteComponent
+      parameters:
+      - name: pipelineId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: componentId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not found
+servers:
+- url: http://example.com/forecastingPipelines
+  description: kubernetes mock server
+components:
+  schemas:
+    analyticsReportCollection:
+      title: Analytics Report Collection
+      description: A collection of analytics reports.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The array of `application/vnd.sas.analytics.report` representations.
+            items:
+              $ref: "#/components/schemas/report"
+    pipelineComparisonRequest:
+      title: Pipeline Comparison Request
+      description: Request to compare two or more pipelines to determine which produced
+        the most accurate results.
+      required:
+      - pipelineSelection
+      - stat
+      properties:
+        pipelineSelection:
+          description: The pipelines to compare. Only relative URIs of pipeline resources
+            are supported.
+          type: array
+          items:
+            type: string
+        stat:
+          type: string
+          description: The stat used to determine the optimal result set
+          enum:
+          - AADJRSQ
+          - ADJRSQ
+          - AIC
+          - AICC
+          - APC
+          - GMAPE
+          - GMAPES
+          - GMAPPE
+          - GMASPE
+          - GMRAE
+          - MAE
+          - MAPE
+          - MAPES
+          - MAPPE
+          - MASE
+          - MAXAPES
+          - MAXERR
+          - MAXPE
+          - MAXPPE
+          - MAXRE
+          - MAXSPE
+          - MDAPE
+          - MDAPES
+          - MDAPPE
+          - MDASPE
+          - MDRAE
+          - ME
+          - MINAPES
+          - MINERR
+          - MINPE
+          - MINPPE
+          - MINRE
+          - MINSPE
+          - MPE
+          - MPPE
+          - MRAE
+          - MRE
+          - MSE
+          - MSPE
+          - RMSE
+          - RSQUARE
+          - RWRSQ
+          - SBC
+          - SMAPE
+          - UMSE
+          - URMSE
+          - WAPE
+          - MOVINGAVERAGE_WASE
+        version:
+          type: integer
+          format: int32
+          description: The version number of this representation schema.  This representation
+            is version 1.
+    statusUpdateRequest:
+      title: Status Update Request
+      description: Request to notify that a pipeline status will be changed.
+      required:
+      - status
+      - dataSourceUri
+      - dataDefinition
+      properties:
+        status:
+          description: The new status
+          type: string
+          enum:
+          - RUNNING
+        dataSourceUri:
+          type: string
+          description: The URI of the data source
+        dataDefinition:
+          $ref: "#/components/schemas/dataDefinition"
+        modelingSettings:
+          type: object
+          description: The settings to be passed to each modeling node
+        toNode:
+          type: string
+          description: The UUID of the of the final node for this run
+        links:
+          type: array
+          description: Links available for this resource
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: The version number of this representation schema.  This representation
+            is version 1.
+    dataDefinition:
+      type: object
+      title: Data Definition
+      description: Representation of data definition
+      properties:
+        id:
+          type: string
+          description: DataDefinition ID
+        accumulatedTimeSeriesTableName:
+          type: string
+          description: Accumulated time series table name
+        attributesIndexTableName:
+          type: string
+          description: Attributes index table name
+        caslibName:
+          type: string
+          description: The cas lib for all output data
+        serverName:
+          type: string
+          description: The cas server for all output data
+        createdBy:
+          type: string
+          description: User that created this resource
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: Time stamp of resource creation
+        description:
+          type: string
+          description: A memo field for the dataDefinition to add information
+        forecastSettings:
+          $ref: "#/components/schemas/forecastSettings"
+        forecastsTableName:
+          type: string
+          description: Output forecast table name
+        forecastsUpdated:
+          type: boolean
+          description: Forecasts updated indicator
+        hierarchyForecasting:
+          type: boolean
+          description: Hierarchy forecasting indicator
+        horizonTableName:
+          type: string
+          description: Horizon table name
+        modifiedBy:
+          type: string
+          description: The last user to modify this resource
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: Time stamp of last resource modification
+        name:
+          type: string
+          description: Name of DataDefinition
+        negativeForecasts:
+          type: boolean
+          description: Has negative forecasts indicator
+        outputDataSourceUri:
+          type: string
+          description: Data Source for all output data
+        parentUri:
+          type: string
+          description: The parentUri for this data definition
+        revision:
+          type: integer
+          format: int64
+          description: Revision of DataDefinition
+        singleTimeSeries:
+          type: boolean
+          description: Single time series indicator
+        status:
+          $ref: "#/components/schemas/dataDefinitionStatus"
+        links:
+          type: array
+          description: Links available for this resource
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: The version number of this schema. This representation is version
+            1.
+    forecastSettings:
+      type: object
+      properties:
+        confidenceLimit:
+          type: number
+          format: double
+          description: Forecasting confidence limit
+        horizonLength:
+          type: integer
+          format: int32
+          description: Forecasting horizon length
+      title: Forecast Settings
+      description: Representation of forecast settings
+    dataDefinitionStatus:
+      type: object
+      properties:
+        status:
+          description: Indicates whether the data definition is valid or invalid
+          type: string
+        statusMessages:
+          type: array
+          items:
+            type: string
+      title: Data Definition Status
+      description: Data definition status
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    tableReference:
+      title: Table Reference
+      description: A reference to a data table.
+      x-sas-media-type:
+        name: application/vnd.sas.forecasting.table.reference
+      required:
+      - dataSourceUri
+      - tableName
+      properties:
+        dataSourceUri:
+          type: string
+          description: The URI of the data source where the table is located.
+        tableName:
+          type: string
+          description: The name of the table.
+        version:
+          type: integer
+          format: int32
+          description: The version number of this representation schema.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    report:
+      title: Analytics Report
+      description: An analytics report consisting of rows of data and associated metadata
+        (parameters).
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.report
+      required:
+      - data
+      - parameterMap
+      - type
+      properties:
+        id:
+          type: string
+          description: The unique identifier of this analytics report.
+        data:
+          type: array
+          description: The rows of data.
+          items:
+            $ref: "#/components/schemas/dataRow"
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        parameterMap:
+          type: object
+          description: 'The collection of parameters, categorized by parameter name.'
+          additionalProperties:
+            $ref: "#/components/schemas/parameter"
+        order:
+          type: integer
+          format: int32
+          description: The index in a collection of analytics reports. Useful when
+            analytics reports are stored in an unordered collection but order is desired.
+        type:
+          type: string
+          description: The type of analytics report. Informs clients how this analytics
+            report should be rendered.
+          enum:
+          - undefined
+          - table
+          - barChart
+          - refreshableBarChart
+          - seriesPlot
+          - pieChart
+          - histogram
+          - decisionTree
+          - networkDiagram
+          - html
+          - textViewer
+          - matrix
+          - bandPlot
+          - codeEditor
+          - iciclePlot
+          - scatterPlot
+          - comboBox
+        xInteger:
+          type: boolean
+          description: Whether or not to suppress intermediate tick marks on the X-axis.
+        yInteger:
+          type: boolean
+          description: Whether or not to suppress intermediate tick marks on the Y-axis.
+        version:
+          type: integer
+          format: int32
+          description: This media type's schema version number. This representation
+            is version 1.
+        description:
+          type: string
+          description: A description of this analytics report.
+        revision:
+          type: integer
+          description: A revision number that is incremented on every update to the
+            analytics report.
+          format: int64
+    analyticsComponentTemplate:
+      title: Analytics Component Template
+      description: A template from which new components can be created. A component
+        template encapsulates information on how to validate and execute the components
+        created from it. It also defines the default properties that can be used to
+        control the component's execution.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.component.template
+        version: 3
+      properties:
+        applicationId:
+          type: string
+          description: ID of the application in which the component template is used
+          maximum: 100
+        classification:
+          type: string
+          description: the component type
+          maximum: 36
+        createdBy:
+          type: string
+          description: The userid who created this resource.
+          maximum: 255
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp when this resource was created.
+        description:
+          description: A description of this resource
+          type: string
+          maximum: 500
+        group:
+          type: string
+          description: 'the group, if any, into which this component template is categorized'
+          maximum: 36
+        hidden:
+          type: boolean
+          description: 'component template marked with hidden as true will not be
+            visible to the user. default value is false (visible). Filter Query: filter=eq(hidden,
+            false)'
+        id:
+          description: A unique identifier for this resource
+          type: string
+          maximum: 255
+        links:
+          description: Links that apply to this resource
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        modifiedBy:
+          description: The userid who last modified this resource.
+          type: string
+          maximum: 255
+        modifiedTimeStamp:
+          description: The timestamp when this resource was last modified.
+          type: string
+          format: date-time
+        name:
+          description: The name of the resource
+          type: string
+          maximum: 100
+        prototype:
+          $ref: "#/components/schemas/analyticsComponent"
+        providerId:
+          type: string
+          description: 'ID of the provider of the component template. For SAS-provided
+            component templates, the value is "SAS"'
+          maximum: 255
+        revision:
+          description: revision of this object
+          type: integer
+          format: int64
+          minimum: 0
+        version:
+          type: integer
+          format: int32
+          description: This media type's schema version number. This representation
+            is version 2.
+          minimum: 0
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    pipeline:
+      title: Pipeline
+      description: A process flow for analytic components. Pipelines group individual
+        components into a higher-level workflow
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.pipeline
+        version: 3
+      allOf:
+      - $ref: "#/components/schemas/pipelineSummary"
+      - type: object
+        properties:
+          revision:
+            type: integer
+            description: A revision number that is incremented on every update to
+              the pipeline.
+            format: int64
+          componentType:
+            description: Media type for pipeline components.
+            type: string
+            default: application/vnd.sas.summary
+            enum:
+            - application/vnd.sas.summary
+            - application/vnd.sas.analytics.component.summary
+            - application/vnd.sas.analytics.component
+          swimLanes:
+            type: array
+            description: The pipeline's swim lanes, ordered as they are defined in
+              the pipeline policy. A swim lane is a container for components with
+              the same policy constraints.
+            items:
+              properties:
+                name:
+                  type: string
+                  description: A unique, descriptive identifier for the swim lane.
+                orderConstraints:
+                  type: array
+                  description: Display order constraints for components in a swim
+                    lane. Each predecessor/successor pair is a hint for the preferred
+                    display order for components. These constraints do not affect
+                    execution order.
+                  items:
+                    properties:
+                      predecessor:
+                        type: string
+                        description: The id of the predecessor component. For added
+                          components, this is a placeholder id.
+                      successor:
+                        type: string
+                        description: The id of the successor component. For added
+                          components, this is a placeholder id.
+                orderedComponentIds:
+                  type: array
+                  description: Ids for each component in the swim lane in display
+                    order. The defined connections and display order contraints contribute
+                    to this ordering.
+                  items:
+                    type: string
+                components:
+                  type: object
+                  description: The swim lane's components, indexed by id.
+                  additionalProperties:
+                    $ref: "#/components/schemas/analyticsComponentSummary"
+          connections:
+            type: object
+            description: The pipeline's component connections, indexed by connection
+              id. Connections add sequential execution constraints to pairs of components.
+            additionalProperties:
+              $ref: "#/components/schemas/pipelineComponentConnection"
+          version:
+            type: integer
+            format: int32
+            description: The version number of this representation schema.  This representation
+              is version 3.
+          annotation:
+            type: string
+            description: A user specified annotation for the pipeline.
+    dataTable:
+      title: Table
+      description: The table.
+      x-sas-media-type:
+        name: application/vnd.sas.data.table
+        version: 1
+      properties:
+        providerId:
+          type: string
+          description: The table provider name.
+        dataSourceId:
+          type: string
+          description: The parent source name.
+        name:
+          type: string
+          description: The unique name of the table.
+        label:
+          type: string
+          description: The user visible name of this table. This value might vary
+            depending on the Accept-Language header.
+        type:
+          type: string
+          description: The type of this table.
+        createdBy:
+          description: userid of the user who created/submitted the job
+          type: string
+        modifiedBy:
+          description: userid of the user who last modified the job
+          type: string
+        attributes:
+          type: object
+          description: Additional provider specific attributes.
+        creationTimeStamp:
+          description: creation date (date job was submitted), in yyyy-MM-ddTHH:mm:ss.SSSZ
+            format.
+          type: string
+        modifiedTimeStamp:
+          description: date of last modification, in yyyy-MM-ddTHH:mm:ss.SSSZ format.
+          type: string
+        version:
+          description: The table schema version.
+          type: integer
+        links:
+          type: array
+          description: zero or more link objects
+          items:
+            $ref: "#/components/schemas/link"
+    analyticsComponent:
+      title: Analytics Component
+      description: An analytics component.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.component
+        version: 3
+      allOf:
+      - $ref: "#/components/schemas/analyticsComponentSummary"
+      - type: object
+        properties:
+          revision:
+            type: integer
+            description: A revision number that is incremented on every update to
+              the component.
+            format: int64
+            minimum: 0
+          code:
+            type: string
+            description: The code to execute when running the component.
+          executionProviderId:
+            type: string
+            description: The job execution provider that runs the component's codeTemplate.
+            maximum: 36
+          componentProperties:
+            type: object
+            additionalProperties: true
+            description: User defined properties that control component execution.
+          componentPropertyMetadata:
+            type: object
+            additionalProperties: true
+            description: Client-defined metadata describing one or more of the componentProperties.
+              A property's metadata is stored in this object using the property name
+              as a key.
+          systemAttributes:
+            type: object
+            additionalProperties: true
+            description: Additional properties, not visible to the user, that control
+              component execution.
+          validationModel:
+            $ref: "#/components/schemas/validationModel"
+    dataRow:
+      title: Data Row
+      description: A row of data.
+      required:
+      - dataMap
+      - rowNumber
+      properties:
+        dataMap:
+          type: object
+          description: 'Map of parameter name to associated value.'
+        header:
+          type: string
+          description: 'Optional title. May be localized.'
+        rowNumber:
+          type: integer
+          format: int32
+          description: 'The index of this row in the collection.'
+    analyticsComponentSummary:
+      title: Analytics Component Summary
+      description: A summary of an analytics component representation.  It omits revision,
+        code, executionProviderId, componentProperties, and validationModel
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.component.summary
+        version: 2
+      properties:
+        createdBy:
+          type: string
+          description: The user who created the component.
+          maximum: 255
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the component.
+          maximum: 255
+        creationTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            component was created.
+          format: date-time
+        modifiedTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            component was last modified.
+          format: date-time
+        id:
+          type: string
+          description: A unique identifier for the component.
+          maximum: 255
+        name:
+          type: string
+          description: The component name.
+          maximum: 100
+        description:
+          type: string
+          description: The component description.
+          maximum: 500
+        group:
+          type: string
+          description: The component group name. Similar components can be grouped
+            together by assigning the same group name to each.
+          maximum: 36
+        classification:
+          type: string
+          description: An application-defined component classification.
+          maximum: 36
+        state:
+          type: string
+          description: The current execution state of the component.
+          enum:
+          - undefined
+          - created
+          - modified
+          - pending
+          - waiting
+          - running
+          - completed
+          - canceled
+          - paused
+          - deleted
+          - failed
+          maximum: 20
+        iconCode:
+          type: string
+          description: An application-defined value that identifies a visual representation
+            of the component type.
+          maximum: 10
+        imageUri:
+          type: string
+          description: A application-defined URI used to retrieve a visual representation
+            of the component state.
+          maximum: 500
+        systemAttributes:
+          type: object
+          additionalProperties: true
+          description: Additional properties, not visible to the user, that control
+            component execution.
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: This media type's schema version number. This representation
+            is version 2.
+    parameter:
+      title: Parameter
+      description: Metadata describing a particular variable.
+      required:
+      - parameter
+      - type
+      - values
+      properties:
+        label:
+          type: string
+          description: 'The display name. May be localized.'
+        length:
+          type: integer
+          format: int32
+          description: 'The maximum width among this parameter''s values.'
+        order:
+          type: integer
+          format: int32
+          description: 'The index of this parameter in the collection.'
+        parameter:
+          type: string
+          description: 'The parameter name. Should not be localized.'
+        preformatted:
+          type: boolean
+          description: 'Indicates whether this parameter''s values have already been
+            formatted.'
+        type:
+          type: string
+          description: 'The data type of this parameter''s values.'
+          enum:
+          - undefined
+          - num
+          - char
+          - report
+        values:
+          type: array
+          description: 'Keys used to associate this parameter with values in the rows
+            of data.'
+          items:
+            type: string
+    pipelineComponentConnection:
+      title: Pipeline Component Connection
+      description: A representation of a connection between two pipeline components.
+        Connected components are executed sequentially.
+      properties:
+        id:
+          type: string
+          description: A unique identifier for the connection.
+        from:
+          type: string
+          description: The id of the connection source component. This component must
+            complete execution before the target component can execute.
+        to:
+          type: string
+          description: The id of the connection target component. This component can
+            begin execution only after the source component completes.
+    pipelineSummary:
+      title: Pipeline Summary
+      description: A summary of a pipeline representation
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.pipeline.summary
+        version: 2
+      properties:
+        createdBy:
+          type: string
+          description: The user who created the pipeline.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the pipeline.
+        creationTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            pipeline was created.
+          format: date-time
+        modifiedTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            pipeline was last modified.
+          format: date-time
+        id:
+          type: string
+          description: A unique identifier for the pipeline.
+        name:
+          type: string
+          description: The pipeline name.
+        description:
+          type: string
+          description: The pipeline description.
+        systemAttributes:
+          type: object
+          additionalProperties: true
+          description: Client-defined attributes used to control pipeline update and
+            execution.
+        version:
+          type: integer
+          format: int32
+          description: The version number of the pipeline representation. This representation
+            is version 2.
+        links:
+          description: The links that apply to the pipeline.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        pipelineType:
+          type: string
+          description: The provider assigned pipeline type.
+          default: default
+    validationModel:
+      title: Validation Model
+      description: The validation rules applied to a map of properties.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.validation.model
+        version: 3
+      allOf:
+      - $ref: "#/components/schemas/validationModelSummary"
+      - type: object
+        properties:
+          revision:
+            type: integer
+            description: A revision number that is incremented on every update to
+              the model.
+            format: int64
+          id:
+            type: string
+            description: A unique identifier for the model.
+            maximum: 255
+          name:
+            type: string
+            description: The model name.
+            maximum: 100
+          description:
+            type: string
+            description: The model description.
+            maximum: 500
+          items:
+            type: array
+            description: The top-level validation groups and properties
+            items:
+              anyOf:
+              - $ref: "#/components/schemas/validationProperty"
+              - $ref: "#/components/schemas/validationGroup"
+          version:
+            type: integer
+            format: int32
+            description: The version number of this representation schema.
+    validationProperty:
+      title: Validation Property
+      description: A property member of a validation model.
+      allOf:
+      - $ref: "#/components/schemas/validationItem"
+      - properties:
+          type:
+            type: string
+            description: The data type of the property.
+            enum:
+            - string
+            - code
+            - dataLocation
+            - resourceLocation
+            - double
+            - float
+            - integer
+            - boolean
+            - external
+          mediaType:
+            type: string
+            description: The property media type. Can be used with string and code
+              data types. Further describes the property with an IANA media type.
+          required:
+            type: boolean
+            description: An indication of whether the property is required to be present.
+          selector:
+            type: boolean
+            description: An indication of whether the property is used to control
+              access to a separate group of properties. Used with boolean properties
+              only.
+          targetRelation:
+            type: string
+            description: For properties of type "external", the name of a link relation
+              that will be used by a client to navigate to and edit the property.
+              Required for external propeties, and ignored for all other property
+              types.
+          constraints:
+            type: array
+            items:
+              $ref: "#/components/schemas/validationConstraint"
+    validationGroup:
+      title: Validation Group
+      description: An aggregate member of a validation model.
+      allOf:
+      - $ref: "#/components/schemas/validationItem"
+      - properties:
+          style:
+            type: string
+            description: Application-defined style information used to render the
+              group in a user interface.
+            maximum: 100
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/validationItem"
+    validationModelSummary:
+      title: Validation Model Summary
+      description: A summary of a validation model representation.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.validation.model.summary
+        version: 1
+      properties:
+        createdBy:
+          type: string
+          description: The user who created the model.
+          maximum: 255
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the model.
+          maximum: 255
+        creationTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            model was created.
+          format: date-time
+        modifiedTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            model was last modified.
+          format: date-time
+        id:
+          type: string
+          description: A unique identifier for the model.
+          maximum: 255
+        name:
+          type: string
+          description: The model name.
+          maximum: 100
+        description:
+          type: string
+          description: The model description.
+          maximum: 500
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: The version number of this representation schema.
+    validationItem:
+      title: Validation Item
+      description: A member of a validation model.
+      discriminator:
+        propertyName: itemType
+      properties:
+        itemType:
+          type: string
+          description: Indicates whether this item represents a single property or
+            a group of validation items.
+          enum:
+          - group
+          - property
+        id:
+          type: string
+          description: A unique identifier for the validation item.
+          maximum: 36
+        name:
+          type: string
+          description: The validation item's name, if any. If set, this value is unique
+            among all items in the same parent group.
+          maximum: 100
+        displayName:
+          type: string
+          description: A user-friendly name for the validation item"
+          maximum: 100
+        description:
+          type: string
+          description: A description of the validation item
+          maximum: 500
+        array:
+          type: boolean
+          description: An indication of whether this item represents an array of property
+            values
+        clientProperties:
+          type: object
+          description: A container for client-defined properties.
+          properties:
+            properties:
+              type: array
+              description: Client-defined name/value pairs associated with this item.
+              items:
+                $ref: "#/components/schemas/property"
+        enabledWhen:
+          type: string
+          description: An expression describing when the validation item is enabled.
+          maximum: 1000
+        enabledWhenValue:
+          type: boolean
+          description: An indication of whether or not this item is enabled for a
+            given set of property values. It is an evaluation of the enabledWhen expression
+            over property values, when available.
+    validationConstraint:
+      title: Validation Constraint
+      description: A description of the valid values for a property.
+      discriminator:
+        propertyName: type
+      properties:
+        type:
+          type: string
+          description: The constraint type.
+          enum:
+          - range
+          - choicelist
+        enabledWhen:
+          type: string
+          description: An expression describing when the constraint is enabled.
+          maximum: 1000
+        enabledWhenValue:
+          type: boolean
+          description: An indication of whether or not this item is enabled for a
+            given set of property values. It is an evaluation of the enabledWhen expression
+            over the property values.
+        overrideLink:
+          $ref: "#/components/schemas/link"
+    property:
+      title: Property
+      description: A pair consisting of a string name and a string value. This is
+        an element of `application/vnd.sas.properties`
+      required:
+      - name
+      - value
+      properties:
+        name:
+          type: string
+          description: The property name.
+        value:
+          type: string
+          description: The property value.
+  examples:
+    rootResponse:
+      description: An example of a response from invoking the root API.
+      value: {"version": 1, "links": [{"method": "POST", "rel": "createComparison",
+            "href": "/forecastingPipelines/comparison", "uri": "/forecastingPipelines/comparison",
+            "type": "application/vnd.sas.forecasting.pipeline.comparison.request",
+            "responseType": "application/vnd.sas.analytics.pipeline"}, {"method": "PUT",
+            "rel": "championPipeline", "href": "/forecastingPipelines/comparison/champion",
+            "uri": "/forecastingPipelines/comparison/champion"}, {"method": "GET",
+            "rel": "comparisonResults", "href": "/forecastingPipelines/comparison/results",
+            "uri": "/forecastingPipelines/comparison/results", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.analytics.report"}, {"method": "GET",
+            "rel": "comparisonTable", "href": "/forecastingPipelines/comparison/table",
+            "uri": "/forecastingPipelines/comparison/table", "type": "application/vnd.sas.analytics.report"},
+          {"method": "GET", "rel": "componentResults", "href": "/forecastingPipelines/pipelines/{pipelineId}/components/{componentId}/results",
+            "uri": "/forecastingPipelines/pipelines/{pipelineId}/components/{componentId}/results",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.report"},
+          {"method": "GET", "rel": "componentResult", "href": "/forecastingPipelines/pipelines/{pipelineId}/components/{componentId}/results/{resultId}",
+            "uri": "/forecastingPipelines/pipelines/{pipelineId}/components/{componentId}/results/{resultId}",
+            "type": "application/vnd.sas.analytics.report"}, {"method": "POST", "rel": "createResults",
+            "href": "/forecastingPipelines/pipelines/{pipelineId}/results", "uri": "/forecastingPipelines/pipelines/{pipelineId}/results",
+            "type": "application/vnd.sas.forecasting.table.reference"}]}
+    publishResultsRequest:
+      description: An example request body to publishe the results of the given pipeline
+        to the specified location. | Concisely refers to a table by data source location
+        and name. Provides enough information for the service to then read/write the
+        specified table as necessary.
+      value: {"dataSourceUri": "/dataSources/providers/cas/sources/cas~fs~HPS", "tableName": "hierarchicalForecasts",
+        "version": 1}
+    comparePipelinesForChampRequest:
+      description: An example to compare the given pipelines to determine which one
+        has the most accurate results.
+      value: {"pipelineSelection": ["/analyticsPipelines/pipelines/abcd-1234...",
+          "/analyticsPipelines/pipelines/efgh-2345...", "/analyticsPipelines/pipelines/ijkl-3456..."],
+        "stat": "MAPE", "version": 1}
+    statusUpdateRequest:
+      description: An example to notify that the status of the given pipeline will
+        be updated.
+      value: {"status": "RUNNING", "dataSourceUri": "/dataSources/providers/cas/sources/cas~fs~HPS",
+        "dataDefinition": {"id": "a5296039-86b4-4ea5-a6a6-ce1c55457b6d", "name": "pdata-DataDefinition",
+          "links": [{"method": "GET", "rel": "up", "href": "/analyticsGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3",
+              "uri": "/analyticsGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3",
+              "type": "application/vnd.sas.analytics.project"}, {"method": "GET",
+              "rel": "self", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d",
+              "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d",
+              "type": "application/vnd.sas.analytics.forecasting.data.definition"},
+            {"method": "PUT", "rel": "update", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d",
+              "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d",
+              "type": "application/vnd.sas.analytics.forecasting.data.definition",
+              "responseType": "application/vnd.sas.analytics.forecasting.data.definition"},
+            {"method": "GET", "rel": "timeDefinition", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/timeDefinition",
+              "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/timeDefinition",
+              "type": "application/vnd.sas.analytics.forecasting.time.definition"},
+            {"method": "GET", "rel": "timeIntervals", "href": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/timeIntervals",
+              "uri": "/forecastingDataDefinition/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/timeIntervals",
+              "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.time.interval"},
+            {"method": "GET", "rel": "tableDefinitions", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions?filter=eq(tableClass,INPUT)",
+              "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions?filter=eq(tableClass,INPUT)",
+              "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.table.definition"},
+            {"method": "GET", "rel": "attributesTableDefinition", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/@attributes",
+              "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/@attributes",
+              "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+            {"method": "GET", "rel": "inputTableDefinition", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/@input",
+              "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/@input",
+              "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+            {"method": "GET", "rel": "eventTableDefinition", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/@event",
+              "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/tableDefinitions/@event",
+              "type": "application/vnd.sas.analytics.forecasting.table.definition"},
+            {"method": "GET", "rel": "hierarchies", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/hierarchies",
+              "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataDefinitions/a5296039-86b4-4ea5-a6a6-ce1c55457b6d/hierarchies",
+              "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.forecasting.hierarchy"}],
+          "creationTimeStamp": "2022-02-03T17:15:56.921327Z", "createdBy": "sasiom5",
+          "modifiedTimeStamp": "2022-02-08T20:41:18.65976Z", "modifiedBy": "sasiom5",
+          "revision": 12, "version": 1, "parentUri": "/analyticsGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3",
+          "serverName": "cas-shared-default", "caslibName": "Analytics_Project_a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3",
+          "status": {"status": "valid", "statusMessages": []}, "accumulatedTimeSeriesTableName": "_ACCUMULATED_TS",
+          "forecastsTableName": "OUTFOR", "horizonTableName": "HORIZON", "outputDataSourceUri": "/analyticsGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/dataSource",
+          "singleTimeSeries": false, "hierarchyForecasting": true, "forecastsUpdated": false,
+          "negativeForecasts": false, "overridesStarted": false, "forecastSettings": {
+            "horizonLength": 12, "back": 0, "confidenceLimit": 0.05, "version": 1}},
+        "modelingSettings": {"lead": "12"}, "toNode": "c58ab962-903c-11ed-93c4-0242ac120002",
+        "links": [{"method": "GET", "rel": "fromNode", "href": "/analyticsComponents/components/4c25ab94-903d-11ed-9e0c-0242ac120002",
+            "uri": "/analyticsComponents/components/4c25ab94-903d-11ed-9e0c-0242ac120002",
+            "type": "application/vnd.sas.analytics.component"}], "version": 1}
+    componentTemplate:
+      description: An example of a strategy in the form of a component template.
+      value: {"applicationId": "forecasting", "classification": "pluggable_auto",
+        "createdBy": "sas.forecastingPipelines", "creationTimeStamp": "2023-01-06T18:39:37.022881Z",
+        "description": "Automatically fit the best model to generate forecasts from\
+          \ the selected model families.", "eTag": 'W/"1673277296728454000"', "group": "modeling",
+        "hidden": false, "id": "forecasting-modeling-sforecast-1", "links": [{"method": "GET",
+            "rel": "localizationContext", "uri": "/analyticsLocalization/contexts/forecasting.nls",
+            "type": "application/vnd.sas.analytics.localization.context"}, {"method": "GET",
+            "rel": "self", "href": "/analyticsComponents/templates/forecasting-modeling-sforecast-1",
+            "uri": "/analyticsComponents/templates/forecasting-modeling-sforecast-1",
+            "type": "application/vnd.sas.analytics.component.template"}, {"method": "GET",
+            "rel": "transferExport", "href": "/analyticsComponents/templates/forecasting-modeling-sforecast-1",
+            "uri": "/analyticsComponents/templates/forecasting-modeling-sforecast-1",
+            "type": "application/vnd.sas.transfer.object"}], "modifiedBy": "sas.forecastingPipelines",
+        "modifiedTimeStamp": "2023-01-09T15:14:56.728454Z", "name": "Auto-forecasting",
+        "prototype": {"creationTimeStamp": "2023-01-09T15:14:56.729798Z", "createdBy": "sas.forecastingPipelines",
+          "modifiedTimeStamp": "2023-01-09T15:14:56.729786Z", "modifiedBy": "sas.forecastingPipelines",
+          "eTag": 'W/"1673277296729786000"', "revision": 0, "id": "638a1f8e-c1ec-434a-84e4-a6aa6f58a313",
+          "name": "Auto-forecasting", "description": "Automatically fit the best model\
+            \ to generate forecasts from the selected model families.", "links": [
+            {"method": "GET", "rel": "authorizedAs", "href": "/analyticsComponents/templates/forecasting-modeling-sforecast-1",
+              "uri": "/analyticsComponents/templates/forecasting-modeling-sforecast-1",
+              "type": "application/vnd.sas.analytics.component.template"}, {"method": "GET",
+              "rel": "validationModel", "href": "/analyticsValidation/models/forecasting-modeling-sforecast-1-val",
+              "uri": "/analyticsValidation/models/forecasting-modeling-sforecast-1-val",
+              "type": "application/vnd.sas.analytics.validation.model"}, {"method": "POST",
+              "rel": "createComponentTemplateFromComponent", "href": "/analyticsComponents/templates",
+              "uri": "/analyticsComponents/templates", "type": "application/vnd.sas.analytics.component",
+              "responseType": "application/vnd.sas.analytics.component.template"},
+            {"method": "GET", "rel": "jobDefinition", "href": "/analyticsComponents/components/638a1f8e-c1ec-434a-84e4-a6aa6f58a313",
+              "uri": "/analyticsComponents/components/638a1f8e-c1ec-434a-84e4-a6aa6f58a313",
+              "type": "application/vnd.sas.job.definition"}, {"method": "GET", "rel": "transferExport",
+              "href": "/analyticsComponents/components/638a1f8e-c1ec-434a-84e4-a6aa6f58a313",
+              "uri": "/analyticsComponents/components/638a1f8e-c1ec-434a-84e4-a6aa6f58a313",
+              "type": "application/vnd.sas.transfer.object"}, {"method": "GET", "rel": "up",
+              "href": "/analyticsComponents/templates/forecasting-modeling-sforecast-1",
+              "uri": "/analyticsComponents/templates/forecasting-modeling-sforecast-1",
+              "type": "application/vnd.sas.analytics.component.template"}, {"method": "POST",
+              "rel": "validateProperties", "href": "/analyticsValidation/models/forecasting-modeling-sforecast-1-val/validationResults",
+              "uri": "/analyticsValidation/models/forecasting-modeling-sforecast-1-val/validationResults",
+              "type": "application/vnd.sas.analytics.validation.request", "responseType": "application/vnd.sas.analytics.validation.response"},
+            {"method": "GET", "rel": "self", "href": "/analyticsComponents/components/638a1f8e-c1ec-434a-84e4-a6aa6f58a313",
+              "uri": "/analyticsComponents/components/638a1f8e-c1ec-434a-84e4-a6aa6f58a313",
+              "type": "application/vnd.sas.analytics.component"}], "version": 3, "group": "modeling",
+          "classification": "pluggable_auto", "status": "created", "iconCode": "",
+          "executionProviderId": "Compute", "code": "options mprint;\noptions validmemname=extend;\n\
+            options VALIDVARNAME=ANY;\n\n%let temp_work_location = %sysfunc(pathname(work));\n\
+            %let sas_root_location = %sysget(SASROOT);\n\n/* connect to CAS session\
+            \ */\ncas vf_session uuid=\"&casSessionId\";\ncas vf_session SESSOPTS=(caslib=\"\
+            &caslibIn\");\nlibname inlib cas sessref=vf_session caslib=\"&caslibIn\"\
+            ;\nlibname outlib cas sessref=vf_session caslib=\"&caslibOut\";\n\nproc\
+            \ lua restart;\nsubmit;\nlocal sasrootpath = sas.symget('sas_root_location')\n\
+            local rootPath = sasrootpath..'/misc/codegenscrpt/source/lua'\npackage.path\
+            \ = rootPath..'/?.lua;'..package.path\n\npackage.loaded[\"fscb.common.plugin_contract_init\"\
+            ] = nil\nlocal run = require(\"fscb.common.plugin_contract_init\")\n\n\
+            package.loaded[\"fscb.common.json\"] = nil\nlocal JSON = require(\"fscb.common.json\"\
+            )\n\nlocal args = JSON:decode(sas.symget('_backendArgs'))\nargs.cas.sessionID\
+            \ = sas.symget(\"casSessionId\")\nargs.cas.libIn = \"inlib\"\nargs.cas.libOut\
+            \ = \"outlib\"\nargs.cas.session = \"vf_session\"\n\n![CODE[preProcessArgsCode]]\n\
+            \nfileName = sas.symget('temp_work_location')..\"/vfMacros.sas\"\nmacroList\
+            \ = sas.symget('temp_work_location')..\"/vfMacroList.sas\"\nrun.vf_setMacros(args,\
+            \ fileName, macroList)\n\n--[[ write code to file ]]\nargs.cas.sasCodeFile\
+            \ = sas.symget('temp_work_location')..\"/\"..args.cas.sasCodeFile\nsas.symput('codeFilePath',\
+            \ args.cas.sasCodeFile)\n\n![CODE[preProcessTransformationsCode]]\n\n\
+            endsubmit;\nrun;\n%include \"&temp_work_location./vfMacros.sas\" /encoding=utf8;\n\
+            %include \"&temp_work_location./vfMacroList.sas\" /encoding=utf8;\n\n\
+            %macro __validateBackendArgs;\n    %global preProcessErrorStatus;\n  \
+            \  %if \"&vf_classification\" eq \"pluggable_hierarchical\" %then %do;\n\
+            \        proc cas;\n            %include \"&sas_root_location/misc/codegenscrpt/source/casl/hfp_args_comparison.casl\"\
+            ;\n            errorStatus = 0;\n            args = json2casl(symget('_backendArgs'));\n\
+            \            if args._forecastTask ne \"DIAGNOSE\" then do;\n        \
+            \        argsLast = json2casl(symget('_backendArgsLast'));\n         \
+            \       if dim(argsLast) ne 0 then do;\n                    argsComp =\
+            \ hfp_args_comparison(args, argsLast);\n                    errorStatus\
+            \ = argsComp.errorStatus;\n                    if argsComp.errorStatus\
+            \ eq 0 then symputx('_forecastTask', argsComp.forecastTask);\n       \
+            \         end;\n                else do;\n                    print (error)\
+            \ \"The DIAGNOSE task has never been executed and should be successfully\
+            \ executed at least once before any other forecast task can be enabled.\"\
+            ;   \n                    errorStatus = 1;\n                end;\n   \
+            \         end;\n            symputx('preProcessErrorStatus', errorStatus);\n\
+            \        quit;\n    %end;\n    %else %do;\n        %let preProcessErrorStatus\
+            \ = 0;\n    %end;\n%mend __validateBackendArgs;\n%__validateBackendArgs;\n\
+            \n/* set _leadExtend and _forecastBack for backwards compatibility */\n\
+            %let _leadExtend = false;\n%let _forecastBack = &vf_back;\n\n/* wrap in\
+            \ macro so we can print resolved code to file */\n%macro vf_wrapper;\n\
+            \    %if &preProcessErrorStatus ne 0 %then %abort;\n\n\n/* CODE_START\
+            \ */\n![CODE[code]]\n/* CODE_END */\n%mend vf_wrapper;\n\nfilename mprint\
+            \ \"&codeFilePath\";\noptions mfile;\n%vf_wrapper;\noptions nomfile;\n\
+            \n/* Promote Tables */\n%vf_promoteCASTable(localCASTable = &vf_outFor,\
+            \ globalCASTable = &vf_tableOutPrefix..OUTFOR);\n%vf_promoteCASTable(localCASTable\
+            \ = &vf_outStat, globalCASTable = &vf_tableOutPrefix..OUTSTAT);\n%vf_promoteCASTable(localCASTable\
+            \ = &vf_outInformation, globalCASTable = &vf_tableOutPrefix..OUTINFORMATION);\n\
+            %vf_promoteCASTable(localCASTable = &vf_outLog, globalCASTable = &vf_tableOutPrefix..OUTLOG);\n\
+            %vf_promoteCASTable(localCASTable = &vf_outModelInfo, globalCASTable =\
+            \ &vf_tableOutPrefix..OUTMODELINFO);\n%vf_promoteCASTable(localCASTable\
+            \ = &vf_outSelect, globalCASTable = &vf_tableOutPrefix..OUTSELECT);\n\
+            %vf_promoteCASTable(localCASTable = &vf_outFmsg, globalCASTable = &vf_tableOutPrefix..DIAGNOSEOUTFMSG);\n\
+            %vf_promoteCASTable(localCASTable = &vf_outEst, globalCASTable = &vf_tableOutPrefix..OUTEST);\n\
+            %vf_promoteCASTable(localCASTable = &vf_outComp, globalCASTable = &vf_tableOutPrefix..OUTCOMPONENT);\n\
+            %vf_promoteCASTable(localCASTable = &vf_outEvent, globalCASTable = &vf_tableOutPrefix..OUTEVENT);\n\
+            %vf_promoteCASTable(localCASTable = &vf_outEventDum, globalCASTable =\
+            \ &vf_tableOutPrefix..OUTEVENTDUM);\n%vf_promoteCASTable(localCASTable\
+            \ = &vf_outIndep, globalCASTable = &vf_tableOutPrefix..OUTINDEP);\n%vf_promoteCASTable(localCASTable\
+            \ = &vf_outFor_Model, globalCASTable = &vf_tableOutPrefix..OUTFOR_MODEL);\n\
+            %vf_promoteCASTable(localCASTable = &vf_outStat_Model, globalCASTable\
+            \ = &vf_tableOutPrefix..OUTSTAT_MODEL);\n%vf_promoteCASTable(localCASTable\
+            \ = &vf_outFor_Horizon, globalCASTable = &vf_tableOutPrefix..OUTFOR_HORIZON);\n\
+            %vf_promoteCASTable(localCASTable = &vf_outFeature, globalCASTable = &vf_tableOutPrefix..OUTFEATURE);\n\
+            \ncas vf_session disconnect;\ncas vf_session clear;\n\n\n\n/*SUMMARY_START*/\n\
+            proc lua restart;\nsubmit;\n\nlocal sasrootpath = sas.symget('sas_root_location')\n\
+            local rootPath = sasrootpath..'/misc/codegenscrpt/source/lua'\npackage.path\
+            \ = rootPath..'/?.lua;'..package.path\npackage.loaded[\"fscb.forecastSummary.forecast_summary\"\
+            ] = nil\nlocal run = require(\"fscb.forecastSummary.forecast_summary\"\
+            )\n\npackage.loaded[\"fscb.common.json\"] = nil\nlocal JSON = require(\"\
+            fscb.common.json\")\nlocal args = JSON:decode(sas.symget('_backendArgs'))\n\
+            args.cas.sessionID = sas.symget(\"casSessionId\")\nargs.cas.caslibIn =\
+            \ args.cas.caslibOut\nif args.cas.tableInPrefix == \"\" or args.cas.tableInPrefix\
+            \ == nil then\n  args.isSegmentationPipeline = false\nelse\n  args.isSegmentationPipeline\
+            \ = true\nend\nargs.cas.tableInPrefix = args.cas.tableOutPrefix\nargs.output={\n\
+            \    basicstat_summary = \"STAT_SUMMARY\",\n    pattern_summary = \"PATTERN_SUMMARY\"\
+            ,\n    advancedstat_summary = \"ADV_STAT_SUMMARY\",\n    outlog = \"VALIDATIONLOG\"\
+            \n}\n\n--[[ disable writing summary code to file ]]\nargs.cas.sasCodeFile\
+            \ = nil\n\nrun.forecast_summary(args)\nendsubmit;\nrun;\nquit;\n\n/* call\
+            \ the post-processing rest endpoint */\n%put If necessary, post-process\
+            \ component...;\n%let http_prefix =%sysget(SAS_URL_SERVICE_TEMPLATE);\n\
+            %let ndx = %eval(%index(&http_prefix, @) - 1);\n%let http_prefix = %substr(&http_prefix,\
+            \ 1, &ndx);\nfilename resp TEMP;\nproc http\n  method=\"POST\"\n  url=\"\
+            &http_prefix.sas-forecasting-pipelines/forecastingPipelines/pipelines/&pipelineId./components/&componentId./postprocessJobs?casSessionId=&casSessionId.\"\
+            \n  OAUTH_BEARER = SAS_SERVICES\n  out=resp; \nrun;\n%put Response status:\
+            \ &SYS_PROCHTTP_STATUS_CODE;\n\n%if not (&SYS_PROCHTTP_STATUS_CODE <=\
+            \ 299) %then %do;\n  %put ERROR: An invalid response was received.;\n\
+            \  %abort;\n%end;\n\n/*SUMMARY_END*/\n", "systemAttributes": {"casSessionId": "",
+            "sasCode_Language": "sas", "vfBuildVersion": "14"}, "componentProperties": {
+            "_arimaxInclude": true, "_esmInclude": true, "_holdoutSampleSize": 0,
+            "_idmInclude": true, "_idmMethod": "BEST", "_intermittencySensitivity": 2,
+            "_minobs": 2, "_minobsSeason": 2, "_minobsTrend": 2, "_outtable_mergedAttrInclude": true,
+            "_outtable_outcompInclude": false, "_outtable_outestInclude": false, "_outtable_outeventInclude": false,
+            "_outtable_outeventdumInclude": false, "_outtable_outfmsgInclude": false,
+            "_outtable_outforInclude": true, "_outtable_outindepInclude": false, "_outtable_outlogInclude": true,
+            "_outtable_outmodelinfoInclude": true, "_outtable_outselectInclude": true,
+            "_outtable_outstatInclude": true, "_outtable_outsumInclude": true, "_selectionCriteria": "MAPE",
+            "_ucmInclude": false, "cas": {"sasCodeFile": "vf_code.sas"}, "code": "/*-------------------------------------------------------------------\n\
+              \ * copyright (c) 2022 by SAS Institute Inc., Cary NC\n * name    :\
+              \ vf_auto_forecast.sas\n * purpose : Example of using Proc TSMODEL to\
+              \ forecast.  \n *           Generate forecast using  auto-forecasting\
+              \ model to include\n                more model families: with ESM, IDM,\
+              \ UCM or ARIMAX model\n *-------------------------------------------------------------------\
+              \ \n *  List of strategy specific properties for this Sample\n *  (available\
+              \ as sas MACRO variable to be used in code):\n *     _arimaxInclude\
+              \            - Specify whether to include ARIMAX model\n *         \
+              \                        for diagnosis\n *     _esmInclude         \
+              \      - Specify whether to include ESM model\n *                  \
+              \               for diagnosis\n *     _idmInclude               - Specify\
+              \ whether to include IDM model\n *                                 for\
+              \ diagnosis\n *     _intermittencySensitivity - Sensitivity for intermittency\
+              \ test\n *     _idmMethod                - IDM method \n *     _ucmInclude\
+              \               - Specify whether to include UCM model\n *         \
+              \                        for diagnosis\n *     _combInclude        \
+              \      - Specify whether to combine the models\n *                 \
+              \                other than the external ones for \n *             \
+              \                    diagnosis\n *     _minobs                   - Minimum\
+              \ number of observations for a \n *                                \
+              \ non-mean model\n *     _minobsTrend              - Minimum number\
+              \ of observations for a\n *                                 trend model\n\
+              \ *     _minobsSeason             - Minimum number of seasonal cycles\
+              \ for\n *                                 a seasonal model\n *     _holdoutSampleSize\
+              \        - Size of data to be used for holdout\n *     _holdoutSamplePercent\
+              \     - Percentage of data to be used for \n *                     \
+              \            holdout\n *     _selectionCriteria        - Model selection\
+              \ criteria\n *-------------------------------------------------------------------\
+              \ \n * Component needs to produce output datasets and promote to &vf_caslibOut\
+              \ as necessary.\n * Output dataset names:\n *     &vf_outFor   - Required\
+              \ table containing forecast results. It contains\n *               \
+              \     BY variables, time ID variable, ACTUAL, PREDICT, STD, LOWER, UPPER,\
+              \ ERROR.\n *     &vf_outStat  - Required table containing summary statistics.\
+              \ It contains BY variables,\n *                    _REGION_, _SELECT_,\
+              \ _MODEL_, and various statistics of fit.\n *     &vf_outInformation\
+              \ - Required table containing execution summary. It contains processing\
+              \ information of TSMODEL\n *                          such as number\
+              \ of groups, maximum time ID, number of variables, etc. \n *     &vf_outModelInfo\
+              \   - Required table containing selected model information. It contains\
+              \ BY variables, \n *                          _MODEL_, _MODELTYPE_,\
+              \ and various flags for seasonal, trend, inputs, events, etc.\n *  \
+              \   &vf_outLog   - Required table containing log messages. It contains\n\
+              \ *                    BY variables, _ERRORNO_, _LOGLEN_, _LOG_.\n *\
+              \     &vf_outSelect - Required table containing model selection statistics.\
+              \ It contains BY variables, \n *                     _REGION_, _SELECT_,\
+              \ _MODEL_, _SELECTED_ and various statistics of fit.\n *     &vf_outEst\
+              \   - Optional table containing parameter estimates. It contains _PARM_,\
+              \ _STDERR_, \n *                    _TVALUE_, _PVALUE_, and model information,\
+              \ etc.\n *     &vf_outFmsg  - Optional table containing forecast model\
+              \ selection graph. It contains\n *                    _SPECNAME_, _SPECLEN_,\
+              \ _FMSGPEC_, and _NAME_.\n *     &vf_outComp         - Optional table\
+              \ containing model forecast components. It contains BY variables,\n\
+              \ *                           time ID variable, _ACTUAL_, _PREDICT_,\
+              \ _COMP_, _STD_, _LOWER_, _UPPER_.\n *     &vf_outEvent        - Optional\
+              \ table containing event definitions. It contains the definitions for\
+              \ \n *                           event variables that are specified\
+              \ in an instance of the EVENT object.\n *     &vf_outEventdum   - Optional\
+              \ table containing event dum variables. It contains time ID variable,\n\
+              \ *                           _XVAR_(event name), X(values of event).\n\
+              \ *     &vf_outIndep        - Optional table containing independent\
+              \ variables. It contains BY variables, time ID variable,\n *       \
+              \                    _XVAR_(independent name) and X(values of independent\
+              \ variable).\n *-------------------------------------------------------------------*/\n\
+              \n/* clean up tables from previous run */\nproc cas;\n    session &vf_session;\n\
+              \    setsessopt / caslib = \"&vf_caslibOut\";\n    droptable / table\
+              \ = \"&vf_outFor\"           quiet = 1;\n    droptable / table = \"\
+              &vf_outInformation\"   quiet = 1;\n    droptable / table = \"&vf_outLog\"\
+              \           quiet = 1;\n    droptable / table = \"&vf_outModelInfo\"\
+              \     quiet = 1;\n    droptable / table = \"&vf_outSelect\"        quiet\
+              \ = 1;\n    droptable / table = \"&vf_outEst\"           quiet = 1;\n\
+              \    droptable / table = \"&vf_outComp\"          quiet = 1;\n    droptable\
+              \ / table = \"&vf_outEvent\"         quiet = 1;\n    droptable / table\
+              \ = \"&vf_outEventdum\"    quiet = 1;\n    droptable / table = \"&vf_outIndep\"\
+              \         quiet = 1;\n    droptable / table = \"&vf_outFmsg\"      \
+              \    quiet = 1;\nrun;\nquit;\n\n*request ODS output outInfo and name\
+              \ it as sforecast_outInformation;\nods output OutInfo = sforecast_outInformation;\n\
+              \n/* checking existence of event, independent variables */\n%if %UPCASE(\"\
+              &_outtable_outeventInclude\") eq \"TRUE\" %then %do;\n    %if \"&vf_inEventObj\"\
+              \ eq \"\" and \"&vf_events\" eq \"\" %then %do;\n        %put WARNING:\
+              \ Cannot create OUTEVENT table because there are no events in the project.;\n\
+              \        %let _outtable_outeventInclude = FALSE;\n    %end;\n    %if\
+              \ \"&vf_inEventObj\" ne \"\" and \"&vf_events\" eq \"\" %then %do;\n\
+              \        %put WARNING: OUTEVENT table can be large because it copies\
+              \ event definitions for all events to all BY groups.;\n    %end;\n%end;\n\
+              %if %UPCASE(\"&_outtable_outeventdumInclude\") eq \"TRUE\" %then %do;\n\
+              \    %if \"&vf_events\" eq \"\" %then %do;\n        %put WARNING: Cannot\
+              \ create OUTEVENTDUM table because there are no events in the project.;\n\
+              \        %let _outtable_outeventdumInclude = FALSE;\n    %end;\n%end;\n\
+              %if %UPCASE(\"&_outtable_outindepInclude\") eq \"TRUE\" %then %do;\n\
+              \    %if \"&vf_indepVars\" eq \"\" %then %do;\n        %put WARNING:\
+              \ Cannot create OUTINDEP table because there are no independent variables\
+              \ in the project.;\n        %let _outtable_outindepInclude = FALSE;\n\
+              \    %end;\n%end;\n\n*run TSMODEL to generate forecasts;\nproc tsmodel\
+              \ data = &vf_libIn..\"&vf_inData\"n\n          logcontrol = (error =\
+              \ keep warning = keep)\n          %if \"&vf_inEventObj\" ne \"\" %then\
+              \ %do;\n             inobj = (&vf_inEventObj)\n          %end;\n   \
+              \       outobj = (\n                       outfor  = &vf_libOut..\"\
+              &vf_outFor\"n\n                       outstat = &vf_libOut..\"&vf_outStat\"\
+              n\n                       outSelect = &vf_libOut..\"&vf_outSelect\"\
+              n\n                       outmodelinfo = &vf_libOut..\"&vf_outModelInfo\"\
+              n\n                       %if %UPCASE(\"&_outtable_outestInclude\")\
+              \ eq \"TRUE\" %then outest = &vf_libOut..\"&vf_outEst\"n;\n        \
+              \               %if %UPCASE(\"&_outtable_outcompInclude\") eq \"TRUE\"\
+              \ %then outcomp = &vf_libOut..\"&vf_outComp\"n;\n                  \
+              \     %if %UPCASE(\"&_outtable_outeventInclude\") eq \"TRUE\" %then\
+              \ outevent = &vf_libOut..\"&vf_outEvent\"n;\n                      \
+              \ %if %UPCASE(\"&_outtable_outeventdumInclude\") eq \"TRUE\" %then outeventdum\
+              \ = &vf_libOut..\"&vf_outEventDum\"n;\n                       %if %UPCASE(\"\
+              &_outtable_outindepInclude\") eq \"TRUE\" %then outindep = &vf_libOut..\"\
+              &vf_outIndep\"n;\n                       %if %UPCASE(\"&_outtable_outfmsgInclude\"\
+              ) eq \"TRUE\" %then outfmsg = &vf_libOut..\"&vf_outFmsg\"n;\n      \
+              \                 )\n          outlog  = &vf_libOut..\"&vf_outLog\"\
+              n          \n          errorstop = YES   \n          ;\n          \n\
+              \    *define time series ID variable and the time interval;\n    id\
+              \ &vf_timeID interval = &vf_timeIDInterval\n                  setmissing\
+              \ = &vf_setMissing trimid = LEFT;\n\n    *define time series and the\
+              \ corresponding accumulation methods;\n    %vf_varsTSMODEL;\n\n    *define\
+              \ the by variables if exist;\n    %if \"&vf_byVars\" ne \"\" %then %do;\n\
+              \       by &vf_byVars;\n    %end;\n\n    *using the ATSM (Automatic\
+              \ Time Series Model) package;\n    require atsm;\n\n    *starting user\
+              \ script;\n    submit;\n    \n        /*declare ATSM objects;*/\n  \
+              \      /*\n        TSDF:     Time series data frame used to group series\
+              \ variables for DIAGNOSE and FORENG objects\n        DIAGNOSE: Automatic\
+              \ time series model generation\n        FORENG:   Automatic time series\
+              \ model selection and forecasting\n        DIAGSPEC: Diagnostic control\
+              \ options for DIAGNOSE object\n        OUTFOR:   Collector for FORENG\
+              \ forecasts\n        OUTSTAT:  Collector for FORENG forecast performance\
+              \ statistics\n        */\n        \n        declare object dataFrame(tsdf);\n\
+              \        declare object diagnose(diagnose);\n        declare object\
+              \ diagSpec(diagspec);\n        declare object inselect(selspec); \n\
+              \        declare object FORECAST(foreng);\n        \n        /*initialize\
+              \ the tsdf object and assign the time series roles: setup dependent\
+              \ and independent variables*/\n        rc = dataFrame.initialize();\n\
+              \        rc = dataFrame.addY(&vf_depVar);\n\n        *add independent\
+              \ variables to the tsdf object if there is any;\n        %if \"&vf_indepVars\"\
+              \ ne \"\" %then %do;\n            %vf_addXTSMODEL(dataFrame);\n    \
+              \    %end;\n    \n        /*setup up event information*/\n        %if\
+              \ \"&vf_inEventObj\" ne \"\" or \"&vf_events\" ne \"\" %then %do;\n\
+              \            declare object ev1(event);\n            rc = ev1.Initialize();\n\
+              \            %vf_addEvents(dataFrame, ev1);\n        %end;\n       \n\
+              \        /*open and setup the diagspec object and enable ESM, IDM, UCM\
+              \ and ARIMAX model class for diagnose;*/\n        /*setup time series\
+              \ diagnose specifications*/\n        /*open the diagspec object and\
+              \ enable ESM, IDM, UCM, ARIMAX model class for diagnose; */\n      \
+              \  rc = diagSpec.open();\n        %if %UPCASE(\"&_esmInclude\") eq \"\
+              TRUE\"  %then %do;\n            rc = diagSpec.setESM('method', 'BEST');\n\
+              \        %end;\n        %if %UPCASE(\"&_arimaxInclude\") eq \"TRUE\"\
+              \  %then %do;\n            rc = diagSpec.setARIMAX('identify', 'BOTH');\n\
+              \        %end;\n        %if %UPCASE(\"&_idmInclude\") eq \"TRUE\" %then\
+              \ %do;\n            rc = diagSpec.setIDM('intermittent', \n        \
+              \                         &_intermittencySensitivity);   \n        \
+              \    rc = diagSpec.setIDM('METHOD', \"&_idmMethod\");\n        %end;\n\
+              \        %else %do;\n            rc = diagSpec.setIDM('intermittent',\
+              \ 1000000);\n        %end;\n        %if %UPCASE(\"&_ucmInclude\") eq\
+              \ \"TRUE\" %then %do;\n            rc = diagSpec.setUCM();\n       \
+              \ %end;\n\n\n        \n        rc = diagSpec.close();\n    \n      \
+              \  /*diagnose time series to generate candidate model list*/\n     \
+              \   /*set the diagnose object using the diagspec object and run the\
+              \ diagnose process; */\n        rc = diagnose.initialize(dataFrame);\n\
+              \        rc = diagnose.setSpec(diagSpec);\n        \n        %vf_setObjectOptions(instance=diagnose,\
+              \ object=diagnose)\n        \n        rc = diagnose.Run();\n       \
+              \ ndiag = diagnose.nmodels();                                 \n   \
+              \         \n        /*Run model selection and forecast*/           \
+              \          \n        rc = inselect.Open(ndiag);\n        rc = inselect.AddFrom(diagnose);\
+              \ \n        rc = inselect.close(); \n        \n        /*initialize\
+              \ the foreng object with the diagnose result and run model selecting\
+              \ and generate forecasts;*/         \n        rc = forecast.initialize(dataFrame);\n\
+              \        rc = forecast.AddFrom(inselect);\n\n        %vf_setObjectOptions(instance=forecast,\
+              \ object=foreng)\n\n        rc = forecast.setOption('SEASONTEST', 'NONE');\n\
+              \        %if %UPCASE(\"&_idmInclude\") ne \"TRUE\" %then %do;\n    \
+              \        rc = forecast.setOption('INTERMITTENT', 1000000); /* some large\
+              \ number */\n        %end;\n               \n        rc = forecast.Run();\n\
+              \    \n        /*collect forecast results*/\n        declare object\
+              \ outFor(outFor);\n        declare object outStat(outStat);\n      \
+              \  declare object outSelect(outSelect);\n        declare object outModelInfo(outModelInfo);\n\
+              \        \n        %if %UPCASE(\"&_outtable_outestInclude\") eq \"TRUE\"\
+              \ %then %do;\n            declare object outest(outest);\n         \
+              \   rc = outest.collect(forecast);\n        %end;\n        %if %UPCASE(\"\
+              &_outtable_outcompInclude\") eq \"TRUE\" %then %do;\n            declare\
+              \ object outcomp(outcomp);\n            rc = outcomp.collect(forecast);\n\
+              \        %end;\n        %if %UPCASE(\"&_outtable_outeventInclude\")\
+              \ eq \"TRUE\" %then %do;\n            declare object outevent(outevent);\n\
+              \            rc = outevent.collect(ev1);\n        %end;\n        %if\
+              \ %UPCASE(\"&_outtable_outeventdumInclude\") eq \"TRUE\" %then %do;\n\
+              \            declare object outeventdum(outeventdum);\n            rc\
+              \ = outeventdum.collect(dataFrame);\n        %end;\n        %if %UPCASE(\"\
+              &_outtable_outindepInclude\") eq \"TRUE\" %then %do;\n            declare\
+              \ object outindep(outindep);\n            rc = outindep.collect(forecast);\n\
+              \        %end;\n        %if %UPCASE(\"&_outtable_outfmsgInclude\") eq\
+              \ \"TRUE\" %then %do;\n            declare object outfmsg(outfmsg);\n\
+              \            rc = outfmsg.collect(forecast);\n        %end;\n\n    \
+              \    /*collect the forecast and statistic-of-fit from the forgen object\
+              \ run results; */\n        rc = outFor.collect(forecast);\n        rc\
+              \ = outStat.collect(forecast);\n        rc = outSelect.collect(forecast);\
+              \  \n        rc = outModelInfo.collect(forecast);\n    endsubmit;\n\
+              quit;\n\n*generate outinformation CAS table;\ndata &vf_libOut..\"&vf_outInformation\"\
+              n;\n    set work.sforecast_outInformation;\nrun;\n\n\n/*******************************************************************************************************\n\
+              Optional: promote OUTPUT Datasets.\nBy default following OUTPUT datasets\
+              \ are promoted automatically.\nOUTFOR\nOUTSTAT\nOUTINFORMATION\nOUTMODELINFO\n\
+              OUTSELECT\nIf additional OUTPUT datasets that needs to be promoted to\
+              \ global scope, please use vf_promoteCASTable MACRO.\nSample code as\
+              \ follows:\n%vf_promoteCASTable(localCASTable = localTableName, globalCASTable\
+              \ = globalTableName);\n********************************************************************************************************/",
+            "code_Language": "text/vnd.sas.source.sas", "dataSpecification": {"outAttributesList": [
+                {"columns": ["NOBS", "N", "NMISS", "MIN", "MAX", "MEAN", "STDDEV",
+                    "_STATUS_"], "name": "OUTSUM"}, {"columns": ["_REGION_", "_SELECT_",
+                    "_MODEL_", "DFE", "N", "NOBS", "NMISSA", "NMISSP", "NPARMS", "TSS",
+                    "SST", "SSE", "MSE", "RMSE", "UMSE", "URMSE", "MAPE", "MAE", "RSQUARE",
+                    "ADJRSQ", "AADJRSQ", "RWRSQ", "AIC", "AICC", "SBC", "APC", "MAXERR",
+                    "MINERR", "MAXPE", "MINPE", "ME", "MPE", "MDAPE", "GMAPE", "MINPPE",
+                    "MAXPPE", "MPPE", "MAPPE", "MDAPPE", "GMAPPE", "MINSPE", "MAXSPE",
+                    "MSPE", "SMAPE", "MDASPE", "GMASPE", "MINRE", "MAXRE", "MRE",
+                    "MRAE", "MDRAE", "GMRAE", "MASE", "MINAPES", "MAXAPES", "MAPES",
+                    "MDAPES", "GMAPES"], "name": "OUTSTAT"}, {"columns": ["_MODEL_",
+                    "_MODELTYPE_", "_DEPTRANS_", "_SEASONAL_", "_TREND_", "_INPUTS_",
+                    "_EVENTS_", "_OUTLIERS_", "_STATUS_", "_SOURCE_"], "name": "OUTMODELINFO"}]},
+            "preProcessArgsCode": "--[[ read dynamic args from table ]]\nif sas.exists(\"\
+              inlib._BACKENDARGS\") then\n  local dsid = sas.open(\"inlib._BACKENDARGS\"\
+              )\n\n  for row in sas.rows(dsid) do\n    --[[ split path on \".\" ]]\n\
+              \    local path = {}\n    for k in row.key:gmatch \"[^.]+\" do\n   \
+              \     table.insert(path, k)\n    end\n\n    --[[ traverse path ]]\n\
+              \    local obj = args\n    for i = 1, #path - 1 do\n        if obj[path[i]]\
+              \ == nil then\n          --[[ insert missing object ]]\n          obj[path[i]]\
+              \ = {}\n        end\n        obj = obj[path[i]]\n    end\n\n    --[[\
+              \ set value ]]\n    obj[path[#path]] = row.value\n  end\n\n  sas.close(dsid)\n\
+              \n  --[[ update _backendArgs macro var for use in subsequent code ]]\n\
+              \  sas.symput('_backendArgs', JSON:encode(args))\nend", "preProcessTransformationsCode": "--[[\
+              \ apply transformations to input data ]]\nif args.dataSpecification.inTransformations\
+              \ then\n\n    --[[ set max syserr to 4 (allow warnings) ]]\n    local\
+              \ prevMaxSysErr = sas.get_max_syserr()\n    sas.set_max_syserr(4)\n\n\
+              \    --[[ initialize references to the tables at the root ]]\n    sas.symput('_timeseries',\
+              \ \"&inData\")\n    sas.symput('_attributes', \"&inAttributes\")\n\n\
+              \    --[[ apply series of tranformations to input data ]]\n    for i,\
+              \ transformation in ipairs(args.dataSpecification.inTransformations)\
+              \ do\n        if transformation.type == 'FEDSQL' then\n            --[[\
+              \ submit query ]]--\n            local query = transformation.value\n\
+              \            sas.submit[[\n                proc cas;\n             \
+              \       fedsql.execDirect /\n                        query=\"@query@\"\
+              ;\n                run;\n                quit;\n            ]]\n   \
+              \     end\n\n        --[[ update table reference so next transformation\
+              \ is applied to output of previous one ]]\n        sas.symput(transformation.tableReferenceKey,\
+              \ transformation.tableReferenceValue)\n    end\n\n    --[[ restore max\
+              \ syserr ]]\n    sas.set_max_syserr(prevMaxSysErr)\nend"}, "componentPropertyMetadata": {}},
+        "providerId": "SASTemplate", "revision": 2, "version": 3}
+    status404Response:
+      description: An example response content with 404 status code.
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 12345, "message": "The\
+          \ resource was not found. (ID or URI: /path/to/the/resource)", "details": [
+          "traceId: 76673823245ccda1", "path: /path/to/the/resource", "path: /uri/path",
+          "correlator: 39b72009-d18b-4348-82e9-2ac8bab70612"]}
+    status400Response:
+      description: An example response content with 400 status code.
+      value: {"version": 2, "httpStatusCode": 400, "message": "Bad Request", "details": [
+          "The body member <member_name> has an invalid value. (The specified value\
+            \ is <value>.)"]}
+    preConditionFailed:
+      description: An example response content with 412 status code.
+      value: {"version": 2, "httpStatusCode": 412, "message": "Precondition Failed"}
+    preConditionRequired:
+      description: An example response content with 428 status code.
+      value: {"version": 2, "httpStatusCode": 428, "message": "Precondition Required"}
+    componentResults:
+      description: An example of a component results."
+      value: {"links": [{"method": "GET", "rel": "self", "href": "/analyticsGateway/projects/8def.../pipelines/b5b0.../components/ccb7.../results",
+            "uri": "/analyticsGateway/projects/8def.../pipelines/b5b0.../components/ccb7.../results",
+            "responseType": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.report"},
+          {"method": "GET", "rel": "collection", "href": "/analyticsGateway/projects/8def.../pipelines/b5b0.../components/ccb7.../results",
+            "uri": "/analyticsGateway/projects/8def.../pipelines/b5b0.../components/ccb7.../results",
+            "responseType": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.report"}],
+        "name": "items", "accept": "application/vnd.sas.analytics.report+json", "items": [
+          {"revision": 0, "order": 1, "type": "matrix", "parameterMap": {"mape": {
+                "parameter": "mape", "type": "report", "label": "MAPE Distribution",
+                "order": 1, "values": ["mape"], "preformatted": false}, "modelFamily": {
+                "parameter": "modelFamily", "type": "report", "label": "Model Family",
+                "order": 2, "values": ["modelFamily"], "preformatted": false}, "modelType": {
+                "parameter": "modelType", "type": "report", "label": "Model Type",
+                "order": 3, "values": ["modelType"], "preformatted": false}, "executionSummary": {
+                "parameter": "executionSummary", "type": "report", "label": "Execution\
+                  \ Summary", "order": 4, "values": ["executionSummary"], "preformatted": false}},
+            "data": [{"dataMap": {"mape": {"id": "ccb7...:MapeDistribution", "description": "MAPE\
+                      \ Distribution", "revision": 0, "order": 1, "type": "histogram",
+                    "parameterMap": {"binX": {"parameter": "binX", "type": "num",
+                        "label": "MAPE", "order": 1, "values": ["MAPE"], "preformatted": false},
+                      "binY": {"parameter": "binY", "type": "num", "label": "Percent",
+                        "order": 2, "values": ["percent"], "preformatted": false,
+                        "maxValue": 31.578947368421}}, "data": [{"dataMap": {"MAPE": "2.4",
+                          "percent": "31.578947368421"}, "rowNumber": 1}, {"dataMap": {
+                          "MAPE": "3.6", "percent": "5.26315789473684"}, "rowNumber": 2},
+                      {"dataMap": {"MAPE": "4.79999999999999", "percent": "21.0526315789473"},
+                        "rowNumber": 3}, {"dataMap": {"MAPE": "6", "percent": "26.3157894736842"},
+                        "rowNumber": 4}, {"dataMap": {"MAPE": "7.2", "percent": "10.5263157894736"},
+                        "rowNumber": 5}, {"dataMap": {"MAPE": "8.4000000474152", "percent": "5.26315789473684"},
+                        "rowNumber": 6}], "xInteger": false, "yInteger": false}, "modelFamily": {
+                    "description": "Model Family", "revision": 0, "order": 2, "type": "barChart",
+                    "parameterMap": {"category": {"parameter": "category", "type": "char",
+                        "label": "Model Family", "order": 1, "values": ["FmtVar"],
+                        "preformatted": false}, "response": {"parameter": "response",
+                        "type": "num", "label": "Percent", "order": 2, "values": [
+                          "Frequency"], "preformatted": false}}, "data": [{"dataMap": {
+                          "FmtVar": "ARIMAX", "Frequency": "21.052631578947366"},
+                        "rowNumber": 1}, {"dataMap": {"FmtVar": "ESM   ", "Frequency": "78.94736842105263"},
+                        "rowNumber": 2}], "xInteger": false, "yInteger": false}, "modelType": {
+                    "description": "Model Type", "revision": 0, "order": 3, "type": "barChart",
+                    "parameterMap": {"category": {"parameter": "category", "type": "char",
+                        "label": "Model Type", "order": 1, "values": ["_Column_"],
+                        "preformatted": false}, "response": {"parameter": "response",
+                        "type": "num", "label": "Percent", "order": 2, "values": [
+                          "Frequency"], "preformatted": false}}, "data": [{"dataMap": {
+                          "_Column_": "Seasonal Model", "Frequency": "52.63157894736842"},
+                        "rowNumber": 1}, {"dataMap": {"_Column_": "Trend Model", "Frequency": "100.0"},
+                        "rowNumber": 2}, {"dataMap": {"Frequency": "0", "_Column_": "Inputs\
+                            \ Present"}, "rowNumber": 2}, {"dataMap": {"Frequency": "0",
+                          "_Column_": "Events Present"}, "rowNumber": 3}, {"dataMap": {
+                          "Frequency": "0", "_Column_": "Transformation"}, "rowNumber": 4}],
+                    "xInteger": false, "yInteger": false}, "executionSummary": {"id": "ccb7...:SummaryTable",
+                    "description": "Execution Summary", "revision": 0, "order": 4,
+                    "type": "table", "parameterMap": {"desc": {"parameter": "desc",
+                        "type": "char", "label": "Description", "order": 1, "values": [
+                          "desc"], "preformatted": false}, "value": {"parameter": "value",
+                        "type": "num", "label": "Value", "order": 2, "values": ["value"],
+                        "preformatted": false}}, "data": [{"dataMap": {"desc": "Number\
+                            \ of series", "value": "          19"}, "rowNumber": 0},
+                      {"dataMap": {"desc": "Number of failures", "value": "      \
+                            \     0"}, "rowNumber": 0}, {"dataMap": {"desc": "Number\
+                            \ of forecasts equal to zero", "value": "0"}, "rowNumber": 2},
+                      {"dataMap": {"desc": "Number of intermittent series with flat\
+                            \ forecasts", "value": "0"}, "rowNumber": 2}, {"dataMap": {
+                          "desc": "Number of seasonal series with flat forecasts",
+                          "value": "0"}, "rowNumber": 2}, {"dataMap": {"desc": "Number\
+                            \ of short series with flat forecasts", "value": "0"},
+                        "rowNumber": 2}, {"dataMap": {"desc": "Number of all other\
+                            \ series with flat forecasts", "value": "0"}, "rowNumber": 2},
+                      {"dataMap": {"desc": "Number of forecasts below 70%", "value": "0"},
+                        "rowNumber": 2}, {"dataMap": {"desc": "Number of forecasts\
+                            \ above 300%", "value": "0"}, "rowNumber": 2}], "xInteger": false,
+                    "yInteger": false}}, "rowNumber": 1, "header": '[{"Hierarchy Level":"1"},{"Weighted
+                  MAPE":4.62072668684047}]'}, {"dataMap": {"mape": {"id": "ccb7...:MapeDistribution",
+                    "description": "MAPE Distribution", "revision": 0, "order": 1,
+                    "type": "histogram", "parameterMap": {"binX": {"parameter": "binX",
+                        "type": "num", "label": "MAPE", "order": 1, "values": ["MAPE"],
+                        "preformatted": false}, "binY": {"parameter": "binY", "type": "num",
+                        "label": "Percent", "order": 2, "values": ["percent"], "preformatted": false,
+                        "maxValue": 95.85326953748}}, "data": [{"dataMap": {"MAPE": "20",
+                          "percent": "95.85326953748"}, "rowNumber": 1}, {"dataMap": {
+                          "MAPE": "60", "percent": "1.27591706539074"}, "rowNumber": 2},
+                      {"dataMap": {"MAPE": "100", "percent": "0.47846889952153"},
+                        "rowNumber": 3}, {"dataMap": {"MAPE": "140", "percent": "0"},
+                        "rowNumber": 4}, {"dataMap": {"MAPE": "180", "percent": "0.07974481658692"},
+                        "rowNumber": 5}, {"dataMap": {"MAPE": "220", "percent": "1.27591706539074"},
+                        "rowNumber": 6}, {"dataMap": {"MAPE": "260", "percent": "0"},
+                        "rowNumber": 7}, {"dataMap": {"MAPE": "300", "percent": "0"},
+                        "rowNumber": 8}, {"dataMap": {"MAPE": "340", "percent": "0"},
+                        "rowNumber": 9}, {"dataMap": {"MAPE": "380", "percent": "0"},
+                        "rowNumber": 10}, {"dataMap": {"MAPE": "420", "percent": "0"},
+                        "rowNumber": 11}, {"dataMap": {"MAPE": "460", "percent": "0"},
+                        "rowNumber": 12}, {"dataMap": {"MAPE": "500", "percent": "0.15948963317384"},
+                        "rowNumber": 13}, {"dataMap": {"MAPE": "540", "percent": "0.55821371610845"},
+                        "rowNumber": 14}, {"dataMap": {"MAPE": "580", "percent": "0.15948963317384"},
+                        "rowNumber": 15}, {"dataMap": {"MAPE": "620.000003371747",
+                          "percent": "0.15948963317384"}, "rowNumber": 16}], "xInteger": false,
+                    "yInteger": false}, "modelFamily": {"description": "Model Family",
+                    "revision": 0, "order": 2, "type": "barChart", "parameterMap": {
+                      "category": {"parameter": "category", "type": "char", "label": "Model\
+                          \ Family", "order": 1, "values": ["FmtVar"], "preformatted": false},
+                      "response": {"parameter": "response", "type": "num", "label": "Percent",
+                        "order": 2, "values": ["Frequency"], "preformatted": false}},
+                    "data": [{"dataMap": {"FmtVar": "ARIMAX", "Frequency": "12.360446570972886"},
+                        "rowNumber": 1}, {"dataMap": {"FmtVar": "ESM   ", "Frequency": "87.40031897926634"},
+                        "rowNumber": 2}, {"dataMap": {"FmtVar": "IDM   ", "Frequency": "0.23923444976076555"},
+                        "rowNumber": 3}], "xInteger": false, "yInteger": false}, "modelType": {
+                    "description": "Model Type", "revision": 0, "order": 3, "type": "barChart",
+                    "parameterMap": {"category": {"parameter": "category", "type": "char",
+                        "label": "Model Type", "order": 1, "values": ["_Column_"],
+                        "preformatted": false}, "response": {"parameter": "response",
+                        "type": "num", "label": "Percent", "order": 2, "values": [
+                          "Frequency"], "preformatted": false}}, "data": [{"dataMap": {
+                          "_Column_": "Seasonal Model", "Frequency": "52.791068580542266"},
+                        "rowNumber": 1}, {"dataMap": {"_Column_": "Trend Model", "Frequency": "85.24720893141946"},
+                        "rowNumber": 2}, {"dataMap": {"_Column_": "Transformation",
+                          "Frequency": "0.23923444976076555"}, "rowNumber": 3}, {
+                        "dataMap": {"Frequency": "0", "_Column_": "Inputs Present"},
+                        "rowNumber": 3}, {"dataMap": {"Frequency": "0", "_Column_": "Events\
+                            \ Present"}, "rowNumber": 4}], "xInteger": false, "yInteger": false},
+                  "executionSummary": {"id": "ccb7...:SummaryTable", "description": "Execution\
+                      \ Summary", "revision": 0, "order": 4, "type": "table", "parameterMap": {
+                      "desc": {"parameter": "desc", "type": "char", "label": "Description",
+                        "order": 1, "values": ["desc"], "preformatted": false}, "value": {
+                        "parameter": "value", "type": "num", "label": "Value", "order": 2,
+                        "values": ["value"], "preformatted": false}}, "data": [{"dataMap": {
+                          "desc": "Number of series", "value": "        1254"}, "rowNumber": 0},
+                      {"dataMap": {"desc": "Number of failures", "value": "      \
+                            \     0"}, "rowNumber": 0}, {"dataMap": {"desc": "Number\
+                            \ of forecasts equal to zero", "value": "37"}, "rowNumber": 2},
+                      {"dataMap": {"desc": "Number of intermittent series with flat\
+                            \ forecasts", "value": "0"}, "rowNumber": 2}, {"dataMap": {
+                          "desc": "Number of seasonal series with flat forecasts",
+                          "value": "0"}, "rowNumber": 2}, {"dataMap": {"desc": "Number\
+                            \ of short series with flat forecasts", "value": "0"},
+                        "rowNumber": 2}, {"dataMap": {"desc": "Number of all other\
+                            \ series with flat forecasts", "value": "0"}, "rowNumber": 2},
+                      {"dataMap": {"desc": "Number of forecasts below 70%", "value": "52"},
+                        "rowNumber": 2}, {"dataMap": {"desc": "Number of forecasts\
+                            \ above 300%", "value": "12"}, "rowNumber": 2}], "xInteger": false,
+                    "yInteger": false}}, "rowNumber": 2, "header": '[{"Hierarchy Level":"2"},{"Weighted
+                  MAPE":9.62158535103505}]'}], "xInteger": false, "yInteger": false,
+            "links": [{"method": "GET", "rel": "self", "href": "/analyticsGateway/projects/8def.../pipelines/b5b0.../components/ccb7.../results/98df...",
+                "uri": "/analyticsGateway/projects/8def.../pipelines/b5b0.../components/ccb7.../results/98df...",
+                "type": "application/vnd.sas.analytics.report"}, {"method": "GET",
+                "rel": "up", "href": "/analyticsGateway/projects/8def.../pipelines/b5b0.../components/ccb7.../results",
+                "uri": "/analyticsGateway/projects/8def.../pipelines/b5b0.../components/ccb7.../results",
+                "responseType": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.report"}]}],
+        "version": 2}
+    componentResultsByID:
+      description: An example of a specific component result for @codeReport delegate.
+      value: {"creationTimeStamp": "0001-01-01T00:00:00Z", "modifiedTimeStamp": "0001-01-01T00:00:00Z",
+        "revision": 0, "version": 1, "order": 1, "type": "codeEditor", "parameterMap": {
+          "code": {"order": 1, "parameter": "code", "preformatted": false, "type": "char",
+            "values": ["code"]}, "type": {"order": 1, "parameter": "type", "preformatted": false,
+            "type": "char", "values": ["type"]}}, "data": [{"dataMap": {"code": "*request\
+                \ ODS output outInfo and name it as sforecast_outInformation;\nods\
+                \ output OutInfo = sforecast_outInformation;\n*run TSMODEL to generate\
+                \ forecasts;\nproc tsmodel data = inlib.\"_ACCUMULATED_TS\"n logcontrol\
+                \ = (error = keep warning = keep) outobj = ( outfor = outlib.\"92bbc07d._OUTFOR\"\
+                n outstat = outlib.\"92bbc07d._OUTSTAT\"n outSelect = outlib.\"92bbc07d._OUTSELECT\"\
+                n outmodelinfo = outlib.\"92bbc07d._OUTMODELINFO\"n ) outlog = outlib.\"\
+                92bbc07d._OUTLOG\"n errorstop = YES ;\n*define time series ID variable\
+                \ and the time interval;\nid 'DATE'n interval = WEEK setmissing =\
+                \ MISSING trimid = LEFT;\n*define time series and the corresponding\
+                \ accumulation methods;\nvar 'sales'n/ acc =TOTAL setmiss =MISSING;\n\
+                ;\n*define the by variables if exist;\nby 'location'n 'sku'n ;\n*using\
+                \ the ATSM (Automatic Time Series Model) package;\nrequire atsm;\n\
+                *starting user script;\nsubmit;\ndeclare object dataFrame(tsdf);\n\
+                declare object diagnose(diagnose);\ndeclare object diagSpec(diagspec);\n\
+                declare object inselect(selspec);\ndeclare object FORECAST(foreng);\n\
+                rc = dataFrame.initialize();\nrc = dataFrame.addY('sales'n);\n*add\
+                \ independent variables to the tsdf object if there is any;\nrc =\
+                \ diagSpec.open();\nrc = diagSpec.setESM('method', 'BEST');\nrc =\
+                \ diagSpec.setARIMAX('identify', 'BOTH');\nrc = diagSpec.setIDM('intermittent',\
+                \ 2);\nrc = diagSpec.setIDM('METHOD', \"BEST\");\nrc = diagSpec.close();\n\
+                rc = diagnose.initialize(dataFrame);\nrc = diagnose.setSpec(diagSpec);\n\
+                rc = diagnose.setOption('holdout',0);\nrc = diagnose.setOption('back',0);\n\
+                rc = diagnose.setOption('criterion','MAPE');\nrc = diagnose.setOption('minobs.trend',2);\n\
+                rc = diagnose.setOption('minobs.season',2);\nrc = diagnose.Run();\n\
+                ndiag = diagnose.nmodels();\nrc = inselect.Open(ndiag);\nrc = inselect.AddFrom(diagnose);\n\
+                rc = inselect.close();\nrc = forecast.initialize(dataFrame);\nrc =\
+                \ forecast.AddFrom(inselect);\nrc = forecast.setOption('holdout',0);\n\
+                rc = forecast.setOption('back',0);\nrc = forecast.setOption('criterion','MAPE');\n\
+                rc = forecast.setOption('minobs.trend',2);\nrc = forecast.setOption('minobs.season',2);\n\
+                rc = forecast.setOption('minobs.mean',2);\nrc = forecast.setOption('fcst.bd.lower',0);\n\
+                rc = forecast.setOption('horizon',20169);\nrc = forecast.setOption('alpha',0.05);\n\
+                rc = forecast.setOption('lead',12);\nrc = forecast.Run();\ndeclare\
+                \ object outFor(outFor);\ndeclare object outStat(outStat);\ndeclare\
+                \ object outSelect(outSelect);\ndeclare object outModelInfo(outModelInfo);\n\
+                rc = outFor.collect(forecast);\nrc = outStat.collect(forecast);\n\
+                rc = outSelect.collect(forecast);\nrc = outModelInfo.collect(forecast);\n\
+                endsubmit;\nquit;\n*generate outinformation CAS table;\ndata outlib.\"\
+                92bbc07d._OUTINFORMATION\"n;\nset work.sforecast_outInformation;\n\
+                run;\n", "type": "SAS"}, "rowNumber": 1}], "xInteger": false, "yInteger": false}
+    cmpPipelines:
+      description: An example of pipeline comparison results returned as a collection
+        of analytics reports.
+      value: {"items": [{"creationTimeStamp": "0001-01-01T00:00:00Z", "modifiedTimeStamp": "0001-01-01T00:00:00Z",
+            "revision": 0, "id": "8dfde968-3aeb-4772-980a-076ea2d7fc2d:MapeDistribution",
+            "description": "MAPE Distribution (Pipeline 1)", "version": 1, "order": 2,
+            "type": "histogram", "parameterMap": {"binX": {"label": "MAPE", "order": 1,
+                "parameter": "binX", "preformatted": false, "type": "num", "values": [
+                  "MAPE"]}, "binY": {"format": "COMMA12.3", "label": "Percent", "maxValue": 95.58713537771129,
+                "order": 2, "parameter": "binY", "preformatted": false, "type": "num",
+                "values": ["percent"]}}, "data": [{"dataMap": {"MAPE": "15.627913227941121",
+                  "percent": "95.58713537771129"}, "rowNumber": 1}, {"dataMap": {
+                  "MAPE": "44.12408689512556", "percent": "1.6454749439042633"}, "rowNumber": 2},
+              {"dataMap": {"MAPE": "72.62026056231", "percent": "1.0471204188481675"},
+                "rowNumber": 3}, {"dataMap": {"MAPE": "101.11643422949443", "percent": "0"},
+                "rowNumber": 4}, {"dataMap": {"MAPE": "129.61260789667887", "percent": "0"},
+                "rowNumber": 5}, {"dataMap": {"MAPE": "158.10878156386332", "percent": "0.7479431563201197"},
+                "rowNumber": 6}, {"dataMap": {"MAPE": "186.60495523104774", "percent": "0"},
+                "rowNumber": 7}, {"dataMap": {"MAPE": "215.10112889823216", "percent": "0"},
+                "rowNumber": 8}, {"dataMap": {"MAPE": "243.5973025654166", "percent": "0"},
+                "rowNumber": 9}, {"dataMap": {"MAPE": "272.093476232601", "percent": "0"},
+                "rowNumber": 10}, {"dataMap": {"MAPE": "300.5896498997855", "percent": "0"},
+                "rowNumber": 11}, {"dataMap": {"MAPE": "329.0858235669699", "percent": "0"},
+                "rowNumber": 12}, {"dataMap": {"MAPE": "357.58199723415436", "percent": "0"},
+                "rowNumber": 13}, {"dataMap": {"MAPE": "386.0781709013388", "percent": "0"},
+                "rowNumber": 14}, {"dataMap": {"MAPE": "414.5743445685232", "percent": "0.2243829468960359"},
+                "rowNumber": 15}, {"dataMap": {"MAPE": "443.0705182357077", "percent": "0"},
+                "rowNumber": 16}, {"dataMap": {"MAPE": "471.5666919028921", "percent": "0"},
+                "rowNumber": 17}, {"dataMap": {"MAPE": "500.06286557007655", "percent": "0"},
+                "rowNumber": 18}, {"dataMap": {"MAPE": "528.559039237261", "percent": "0.7479431563201197"},
+                "rowNumber": 19}], "xInteger": false, "yInteger": false}, {"creationTimeStamp": "0001-01-01T00:00:00Z",
+            "modifiedTimeStamp": "0001-01-01T00:00:00Z", "revision": 0, "id": "8dfde968-3aeb-4772-980a-076ea2d7fc2d:SummaryTable",
+            "description": "Execution Summary (Pipeline 1)", "version": 1, "order": 2,
+            "type": "table", "parameterMap": {"desc": {"label": "Description", "order": 1,
+                "parameter": "desc", "preformatted": false, "type": "char", "values": [
+                  "desc"]}, "value": {"label": "Value", "order": 2, "parameter": "value",
+                "preformatted": false, "type": "num", "values": ["value"]}}, "data": [
+              {"dataMap": {"desc": "Number of series", "value": "        1337"}, "rowNumber": 1},
+              {"dataMap": {"desc": "Number of failures", "value": "           0"},
+                "rowNumber": 2}, {"dataMap": {"desc": "Number of forecasts equal to\
+                    \ zero", "value": "39"}, "rowNumber": 3}, {"dataMap": {"desc": "Number\
+                    \ of intermittent series with flat forecasts", "value": "3"},
+                "rowNumber": 4}, {"dataMap": {"desc": "Number of seasonal series with\
+                    \ flat forecasts", "value": "0"}, "rowNumber": 5}, {"dataMap": {
+                  "desc": "Number of short series with flat forecasts", "value": "0"},
+                "rowNumber": 6}, {"dataMap": {"desc": "Number of all other series\
+                    \ with flat forecasts", "value": "229"}, "rowNumber": 7}, {"dataMap": {
+                  "desc": "Number of forecasts below 70%", "value": "213"}, "rowNumber": 8},
+              {"dataMap": {"desc": "Number of forecasts above 300%", "value": "10"},
+                "rowNumber": 9}], "xInteger": false, "yInteger": false}], "start": 0,
+        "limit": 0}
+    pipelineResults:
+      description: An example to publish forecasts for the selected pipeline. | Describes
+        a table of data. Does not embed the table's content but does provide links
+        to columns and rows. See the [dataTables](http://localhost/apis/dataTables/v3/apidoc.html)
+        service for more details.
+      value: {"creationTimeStamp": "2022-02-03T19:19:10.882Z", "createdBy": "sasiom5",
+        "modifiedTimeStamp": "2022-02-03T19:19:10.885Z", "version": 2, "name": "PDATA\
+          \ PIPELINE 1 OUTPUT DATA", "providerId": "cas", "dataSourceId": "Public",
+        "type": "dataTable", "attributes": {"caslibId": "Public", "characterSet": "UTF8",
+          "columnCount": 11, "encoding": "utf-8", "lastAccessed": "2022-02-03T19:19:10.884Z",
+          "rowCount": 1224, "scope": "global", "serverId": "cas-shared-default", "sessionId": "05765b1d-c4ac-2c4f-a7dd-475452be5d0e",
+          "sourceCaslibName": "Public", "sourceTableLastModified": "0001-01-01T00:00:00Z",
+          "sourceTableName": "", "state": "loaded"}, "links": [{"method": "GET", "rel": "up",
+            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"},
+          {"method": "GET", "rel": "self", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
+            "type": "application/vnd.sas.data.table"}, {"method": "GET", "rel": "alternate",
+            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
+            "type": "application/vnd.sas.data.table.summary"}, {"method": "GET", "rel": "connectionAttributes",
+            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
+            "type": "application/vnd.sas.attributes"}, {"method": "GET", "rel": "rows",
+            "href": "/rowSets/tables/cas~fs~cas-shared-default~fs~Public~fs~PDATA%20PIPELINE%201%20OUTPUT%20DATA/rows",
+            "uri": "/rowSets/tables/cas~fs~cas-shared-default~fs~Public~fs~PDATA%20PIPELINE%201%20OUTPUT%20DATA/rows",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.row"},
+          {"method": "GET", "rel": "columns", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/columns",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/columns",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.column.summary"},
+          {"method": "GET", "rel": "provider", "href": "/dataSources/providers/cas",
+            "uri": "/dataSources/providers/cas", "type": "application/vnd.sas.data.provider"},
+          {"method": "GET", "rel": "dataSource", "href": "/dataSources/providers/cas/sources/cas-shared-default~fs~Public",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default~fs~Public",
+            "type": "application/vnd.sas.data.source"}, {"method": "PUT", "rel": "updateState",
+            "href": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state",
+            "uri": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state",
+            "responseType": "text/plain"}, {"method": "PUT", "rel": "load", "href": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state?value=loaded",
+            "uri": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state?value=loaded",
+            "responseType": "application/json,text/plain"}, {"method": "PUT", "rel": "unload",
+            "href": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state?value=unloaded",
+            "uri": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state?value=unloaded",
+            "responseType": "application/json,text/plain"}]}
+    cmpPipelinesForChamp:
+      description: An example response to compare the given pipelines to determine
+        which one has the most accurate results.
+      value: {"name": "Pipeline 2", "description": "The second pipeline.", "links": [
+          {"method": "GET", "rel": "self", "href": "/analyticsPipelines/pipelines/efgh-2345...",
+            "uri": "/analyticsPipelines/pipelines/efgh-2345...", "type": "application/vnd.sas.analytics.pipeline"},
+          {"method": "GET", "rel": "derivedfrom", "href": "/analyticsPipelines/templates/dm.empty.template",
+            "uri": "/analyticsPipelines/templates/dm.empty.template", "type": "application/vnd.sas.analytics.pipeline.template"},
+          {"method": "GET", "rel": "policy", "href": "/analyticsPipelines/policies/dm.policy",
+            "uri": "/analyticsPipelines/policies/dm.policy", "type": "application/vnd.sas.analytics.pipeline.policy"}],
+        "version": 3}
+    cmpTableResp:
+      description: |
+        An example of a table that can be used to compare pipelines side-by-side.
+        The columns are various summary statistics and there is a row for each pipeline contained in the given parent project.
+        Analytics reports are designed to aid in client-side rendering of charts and tables.
+        Each analytics report has a type with a consistent set of parameters (e.g. "barChart" with "binX" and "binY").
+      value: {"id": "PipelineComparisonTable", "description": "Table of summary statistics",
+        "revision": 0, "order": 1, "type": "table", "parameterMap": {"MAE": {"parameter": "MAE",
+            "type": "num", "label": "MAE", "length": 8, "order": 16, "values": ["MAE"],
+            "preformatted": false}, "MASE": {"parameter": "MASE", "type": "num", "label": "MASE",
+            "length": 8, "order": 20, "values": ["MASE"], "preformatted": false},
+          "MAPE": {"parameter": "MAPE", "type": "num", "label": "MAPE", "length": 8,
+            "order": 17, "values": ["MAPE"], "preformatted": false}, "RMSE": {"parameter": "RMSE",
+            "type": "num", "label": "RMSE", "length": 8, "order": 45, "values": [
+              "RMSE"], "preformatted": false}, "isChampion": {"parameter": "isChampion",
+            "type": "char", "label": "Champion", "order": 1, "values": ["isChampion"],
+            "preformatted": false}, "PIPELINE_NAME": {"parameter": "PIPELINE_NAME",
+            "type": "char", "label": "Pipeline", "order": 2, "values": ["PIPELINE_NAME"],
+            "preformatted": false}, "id": {"parameter": "id", "type": "char", "label": "ID",
+            "values": ["id"], "preformatted": false}}, "data": [{"dataMap": {"AADJRSQ": "0.6654170418525",
+              "ADJRSQ": "0.66845870510838", "AIC": "1786.75085213448", "AICC": "1786.75085213448",
+              "APC": "3.71127854207468E7", "GMAPE": "4.60173896737934", "GMAPES": "22.9967005494472",
+              "GMAPPE": "4.56210321771693", "GMASPE": "4.58808776574771", "GMRAE": "1.08153078133596",
+              "MAE": "3494.1985697643", "MAPE": "9.62158535103505", "MAPES": "37.9012124903157",
+              "MAPPE": "7.80217378351529", "MASE": "0.91243712391527", "MAXAPES": "215.500527799363",
+              "MAXERR": "17175.7705037723", "MAXPE": "23.6827594954332", "MAXPPE": "57.4749577938374",
+              "MAXRE": "111.565575004001", "MAXSPE": "30.1765439870764", "MDAPE": "5.70977662058945",
+              "MDAPES": "28.0034964674932", "MDAPPE": "5.6096847046575", "MDASPE": "5.71220326809445",
+              "MDRAE": "1.04411009614964", "ME": "-57.7627472973794", "MINAPES": "0.43885581408188",
+              "MINERR": "-16183.6708028848", "MINPE": "-156.008297118566", "MINPPE": "-32.8613767312036",
+              "MINRE": "-101.544335803617", "MINSPE": "-52.369544869907", "MPE": "-3.38439602541708",
+              "MPPE": "0.40894599137131", "MRAE": "4.5598398657789", "MRE": "0.74210276980468",
+              "MSE": "3.71127854207468E7", "MSPE": "-0.8504436463857", "RMSE": "4882.70094869364",
+              "RSQUARE": "0.6654170418525", "RWRSQ": "0.27672107698241", "SBC": "1786.75085213448",
+              "SMAPE": "7.69012553175035", "UMSE": "3.71127854207468E7", "URMSE": "4882.70094869364",
+              "isChampion": "true", "PIPELINE_NAME": "Pipeline 1", "id": "b5b0..."},
+            "rowNumber": 1}], "xInteger": false, "yInteger": false, "version": 1}

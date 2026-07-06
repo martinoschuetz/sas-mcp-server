@@ -1,0 +1,1096 @@
+---
+openapi: 3.0.3
+info:
+  title: Activities
+  description: >
+    The activities API records high level "activities" for an
+    object, and provides an ordered list of these activities for a specific
+    object upon request.
+  contact:
+    name: "SAS Developers"
+    email: "devex@sas.com"
+    url: "https://developer.sas.com"
+  version: "4"
+tags:
+- name: Activities
+  description: The operations adding or querying activity instances.
+- name: Recommendations
+  description: The operations logically part of "recommendations" (and currently used
+    in production).
+- name: Root
+  description: The operations for the root resource.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the top-level links
+      description: The root links for this API. <p>Link relations:</p> <ul> <li>"getActivities"
+        - get collection of activities for a uri; the link includes required parameter
+        `uri`</li> <li>"getActivitiesAggregated" - get collection of activities, with
+        aggregation and compression, for a uri; the link includes required parameter
+        `uri`</li> <li>"bulkGetActivities" - get via post, request body contains a
+        selection of URIs to get activities for</li> <li>"createActivity" - add an
+        activity instance</li> <li>"getFacets" - get a list of activity types, and
+        users, with activities for a uri; the link includes required parameter `uri`</li>
+        <li>"bulkGetFacets" - get via post, request body contains a selection of URIs
+        to get facets for</li> <li>"getTypes" - get collection of activity types</li>
+        <li>"getActiveUris" - get via post, request body contains a selection of URIs
+        to examine for any activity</li> <li>"createTouchpoint" - create the specified
+        touchpoint</li> <li>"getTouchpoints" - get touchpoints</li> <li>"deleteTouchpoints"
+        - delete touchpoints.  This link will only be presented to administrators.</li>
+        <li>"deleteOldRecords" - delete; the link includes required parameter `olderThan`.
+        Optional parameter `uri` restricts the deletion to just records for the specified
+        `uri`. This link will only be presented to administrators.</li> </ul>
+      operationId: root
+      responses:
+        "200":
+          description: The API's links.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                format: media-type
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                root links:
+                  $ref: "#/components/examples/root_links"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                root links:
+                  $ref: "#/components/examples/root_links"
+  /activities:
+    post:
+      tags:
+      - Activities
+      summary: Deprecated - Create an activity
+      description: Deprecated - Create an activity
+      operationId: createActivity
+      requestBody:
+        content:
+          application/vnd.sas.activities.activity+json:
+            schema:
+              $ref: "#/components/schemas/activity"
+            examples:
+              activityRequestBody:
+                $ref: "#/components/examples/activityRequestBody"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/activity"
+            examples:
+              activityRequestBody:
+                $ref: "#/components/examples/activityRequestBody"
+        description: >
+          The activity to create.  The following fields are system generated and
+          ignored in input:  `id`, `label`, `userId`, `userName`, `timeStamp`,
+          `children` & `links`.
+
+
+          Returned links will include `self` and `alternate`, but not `delete` (which
+          is admin restricted and available after following the `self` link).
+        required: true
+      responses:
+        "201":
+          description: The activity has been created
+          headers:
+            Location:
+              description: Location of the new activity.
+              schema:
+                type: string
+                format: URL
+          content:
+            application/vnd.sas.activities.activity+json:
+              schema:
+                $ref: "#/components/schemas/activity"
+              examples:
+                activityResponseCreated:
+                  $ref: "#/components/examples/activityResponseCreated"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/activity"
+              examples:
+                activityResponseCreated:
+                  $ref: "#/components/examples/activityResponseCreated"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                missingRequiredMember:
+                  $ref: "#/components/examples/missingRequiredMember"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                missingRequiredMember:
+                  $ref: "#/components/examples/missingRequiredMember"
+  "/rankedFacets":
+    get:
+      tags:
+      - Recommendations
+      summary: Get ranked facets (recommendations)
+      description: >
+        Return a collection of "ranked facets", recommended items for the current
+        user to consider opening.
+        This is a primary purpose of this API, with a user interface using this in
+        2021.2.1 as a somewhat
+        primitive "recommendation service".  The typical use does not specify any
+        request parameters.
+      operationId: getRankedFacets
+      parameters:
+      - $ref: "#/components/parameters/start"
+      - $ref: "#/components/parameters/limit"
+      - name: relativeDateStr
+        in: query
+        schema:
+          type: string
+          default: "7d"
+        description: >
+          By default, activity records up to 7 days old ("7d") are considered.  The
+          caller may specify an alternate
+          time period using simple \dd\dh format, e.g. "3d", "6h", "12d6h".
+        example: "7d"
+      - name: objectTypes
+        in: query
+        schema:
+          type: string
+          default: "report"
+        description: >
+          String specifying one or more ('|' separator) object types to consider,
+          if specified only these
+          object types are referenced.  Note, use the actual object type, not the
+          user facing label; e.g.
+          "report" not "Report". Default: "report".
+        example: "report|file"
+      - name: favoredUsers
+        in: query
+        schema:
+          type: string
+          default: empty string
+        description: >
+          String specifying one or more ('|' separator) user IDs to favor, these presumably
+          being
+          "close associates"; users whose actions should be weighted more heavily.
+          (At this time
+          there are no known users of this, but if in the future a concept of "following"
+          is added
+          somewhere this would be a good place to specify those you are following.)
+      - name: refresh
+        in: query
+        schema:
+          type: boolean
+          default: false
+        description: >
+          By default a cache of a large number of popular objects are used for analysis,
+          with the cache
+          potentially a few hours old.  This not only helps with performance, but
+          gives the user a
+          consistent view visit to visit (design requirement).  This parameter, default
+          false, when true
+          specifies to ignore the cache and perform direct data queries to satisfy
+          the request.
+      - name: filterFamiliarObjects
+        in: query
+        schema:
+          type: boolean
+          default: true
+        description: >
+          Default true: the primary goal of these recommendations are to suggest to
+          users popular objects they may
+          not be familiar with.  When true then the following are automatically excluded
+          from responses: items in
+          the user's history, favorites, and recycle bin.  Specifying "false" disables
+          this filtering.
+      - name: countSelf
+        in: query
+        schema:
+          type: boolean
+          default: false
+        description: >
+          Default false: should activities performed by the current user "count" toward
+          the scoring of objects?
+          If true, they will score normally.
+      - name: demoMode
+        in: query
+        schema:
+          type: boolean
+          default: false
+        description: >
+          Default false.  The default values for "refresh" (false), "filterFamiliarObjects"
+          (true), and "countSelf"
+          (false) are designed for the primary purpose of this subsystem, however
+          it can make it a challenge to
+          demonstrate functionality or perform general testing (which otherwise would
+          require multiple accounts
+          and care to not "open" an object casually).  demoMode is intended to ease
+          the use case of most demos and
+          tests.  It specifically flips the default values of "refresh" (to true),
+          "filterFamiliarObjects" (to false),
+          and "countSelf" (to true).  Each can still be specified explicitly, and
+          if specified will be honored; only
+          the default is changed.  (be aware, there is also a feature flag to activate
+          demo mode, which will be
+          easier for most cases: "REPSVC-1098_Activities_Recommendations_Demo_Mode".  This
+          feature flag may be
+          withdrawn at any time; although there are no plans to remove it at this
+          time. The inclusion of the FF
+          here is not intended to represent an API promise.)
+      responses:
+        "200":
+          description: The ranked facets (recommendations)
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                format: media-type
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/rankedFacetCollection"
+              examples:
+                rankedFacets:
+                  $ref: "#/components/examples/rankedFacets"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/rankedFacetCollection"
+              examples:
+                rankedFacets:
+                  $ref: "#/components/examples/rankedFacets"
+servers:
+- url: http://example.com/activities
+  description: Sample server URL.
+- url: https://example.com/activities
+  description: Sample server URL.
+components:
+  parameters:
+    start:
+      name: start
+      in: query
+      description: Pagination parameter, what is the starting index.
+      schema:
+        type: integer
+        format: int32
+        default: 0
+    limit:
+      name: limit
+      in: query
+      description: Pagination parameter, how many items to return.
+      schema:
+        type: integer
+        format: int32
+        default: 100
+    filter:
+      name: filter
+      in: query
+      description: >
+        Query filter, supported fields: `type`, `objectType`, `userId`,
+        `application`, `timeStamp`.
+      schema:
+        type: string
+    filterFacets:
+      name: filter
+      in: query
+      description: >
+        Query filter, supported fields: `type`, `objectType`, `userId`,
+        `application`, `timeStamp` as well as  `activityType` which is a synonym
+        for `type`.
+      schema:
+        type: string
+    sortBy:
+      name: sortBy
+      in: query
+      description: Optional sorting instruction, by default by date, newest first.
+      schema:
+        type: string
+        default: timeStamp:descending
+    client:
+      name: client
+      in: query
+      description: >
+        The requesting client, used to apply additional filtering rules.  For
+        example, "sasdrive" does not want "open" activities returned.
+        Conventionally this is lower case.
+      required: false
+      schema:
+        type: string
+    uri:
+      name: uri
+      in: query
+      description: >
+        URI to the object to get activities for.  This is expected to be a
+        "relative" URI without request parameters, for example
+        `/reports/reports/1234`.
+      required: true
+      schema:
+        type: string
+    compress:
+      name: compress
+      in: query
+      description: Should eligible records be "compressed"
+      schema:
+        type: boolean
+        default: false
+    aggregate:
+      name: aggregate
+      in: query
+      description: Should elibible records be "aggregated"
+      schema:
+        type: boolean
+        default: false
+    aggregationLimit:
+      name: aggregationLimit
+      in: query
+      description: >
+        This defines the limit of how many records are part of a single
+        aggregate before aggregation paging begins.
+      schema:
+        type: integer
+        format: int32
+        default: 50
+    application:
+      name: application
+      in: query
+      description: |
+        This specifies the application as a filter for the query.
+      schema:
+        type: string
+    feature:
+      name: feature
+      in: query
+      description: |
+        This specifies the feature as a filter for the query.
+      schema:
+        type: string
+    touchpointsFilter:
+      name: filter
+      in: query
+      description: >
+        Query filter, supported fields: `application`, `feature`, `count`,
+        `creationTimeStamp`, `modifiedTimeStamp`.
+      schema:
+        type: string
+    touchpointsSortBy:
+      name: sortBy
+      in: query
+      description: Optional sorting instruction.
+      schema:
+        type: string
+        default: application:ascending,feature:ascending
+  requestBodies:
+    selectionBody:
+      content:
+        application/vnd.sas.selection+json:
+          schema:
+            $ref: "#/components/schemas/urisSelection"
+          examples:
+            selectionBody:
+              $ref: "#/components/examples/selectionBody"
+        application/json:
+          schema:
+            $ref: "#/components/schemas/urisSelection"
+          examples:
+            selectionBody:
+              $ref: "#/components/examples/selectionBody"
+      description: >
+        The URIs to check, in the form of a "selection". Any use of selection's
+        `type` is supported, but must resolve to relative URIs.
+      required: true
+  schemas:
+    activitySummaryCollection:
+      title: collection of activities
+      description: A standard SAS collection (of Activity) which supports paging.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/activitySummary"
+            description: Array of activities.
+    activitySummary:
+      title: details of an activity
+      description: >
+        Primary media type of this API. This media type represents an
+        activity.  (`application/vnd.sas.activities.activity.summary`)  Contains
+        all members of the full form except "properties". The following members
+        are system generated: `id`, `label`, `userId`, `userName`, `timeStamp`,
+        `children`, `links`.
+      x-sas-media-type:
+        name: application/vnd.sas.activities.activity.summary
+        version: 1
+      required:
+      - uri
+      - type
+      - objectType
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for this activity
+        uri:
+          type: string
+          description: >
+            URI to the object.  This is expected to be a "relative" URI without
+            request parameters, for example `/reports/reports/1234`.
+        type:
+          type: string
+          description: >
+            The "type" of this activity, for example: "update", "open", "print",
+            "setChampion".
+        objectType:
+          type: string
+          description: >
+            The type of the object the URI refers to, e.g. report, model. Must
+            be the underlying type not its label.
+        label:
+          type: string
+          description: Localized label suitable to present to the user.
+        userId:
+          type: string
+          description: The userId of the user who performed this activity.
+        userName:
+          type: string
+          description: The name of the user who performed this activity.
+        application:
+          type: string
+          description: >
+            The application name which performed this activity.  Conventionally
+            this is lower case.  Clients are encouraged to specify this for
+            various "reporting" use cases.
+        timeStamp:
+          type: string
+          format: date-time
+          description: When the activity was performed
+        count:
+          type: integer
+          format: int32
+          description: Positive integer, how many times was this activity performed.
+          default: 1
+        values:
+          type: array
+          items:
+            type: string
+          description: Associated values, for example a list of tags added, or a portion
+            of the comment text.
+        associatedUris:
+          type: array
+          items:
+            type: string
+          description: >
+            Often null, URIs to objects corresponding to values.  For example,
+            for a comment, this will contain a URI to the corresponding comment
+            object.  For users or groups (sharing, possibly other use cases)
+            this will be the URI to the user or group identity.
+        children:
+          description: Array of child records, will only appear for "aggregation"
+            cases, and only a single level (no recursion).
+          type: array
+          items:
+            $ref: "#/components/schemas/activitySummary"
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: This media type's schema version number. This representation
+            is version 1.
+    activity:
+      title: full activity details
+      x-sas-media-type:
+        name: application/vnd.sas.activities.activity
+        version: 1
+      description: >
+        Activity details, including internal "properties". This media type
+        represents an activity.  (`application/vnd.sas.activities.activity`) The
+        following members are system generated: `id`, `label`, `userId`,
+        `userName`, `timeStamp`, `children`, `links`.
+      required:
+      - uri
+      - type
+      - objectType
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/activitySummary"
+      - type: object
+        properties:
+          properties:
+            type: object
+            description: (Rare) map(string,string) of associated properties.  These
+              are specified by the client to provide substitution parameters corresponding
+              to the activity type's label.  For example, a rename activity would
+              specify both oldName and newName.
+    activityTypeCollection:
+      title: collection of activity types
+      description: A standard SAS collection (of ActivityType). This collection will
+        be small and does not support paging or filtering.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/activityType"
+            description: Array of activity type.
+    activityType:
+      title: an activity type definition
+      x-sas-media-type:
+        name: application/vnd.sas.activities.type
+        version: 1
+      description: An activity type definition
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique id for this type, this will be the "activity type"
+            and can be used in a filter. e.g. "open", "print", "setChampion".
+        label:
+          type: string
+          description: Localized label for this activty type.
+        objectTypes:
+          type: array
+          description: >
+            Often null, this identifies the object type(s) this activityType is
+            constrained to.  For example `setChampion` and `clearChampion` might
+            both specify `model`.  Possibly multiple object types  are
+            appropriate.  Typically registrations will not specify this,
+            allowing the activity to be registered with any object type. (Note
+            that this is the actual type of the object, e.g. "report", not its
+            label, "Report".)
+          items:
+            type: string
+        valueBehavior:
+          type: string
+          enum:
+          - identity
+          - comment
+          - tag
+          description: >
+            (Typically null) this describes the type of item in the values array
+            of an activity of  this type, allowing the client to perform type
+            specific behavior. New values of this enum may be
+            registered,  clients need to be prepared for unrecognized
+            values.  Clients are free to ignore this.  Note that for `identity`,
+            the values will be calculated based corresponding entries in
+            `associatedUris`, each which will be a link in the Identities
+            API.
+        valueRendering:
+          type: string
+          enum:
+          - identity
+          - oval
+          - removedOval
+          description: >
+            (Typically null) this is a rendering hint for items in the values
+            array of an activity of  this type, allowing the client to render
+            the value appropriately. New values of this enum may be
+            registered,  clients need to be prepared for unrecognized
+            values.  Clients are free to ignore this.
+        valueMaxLength:
+          type: integer
+          description: >
+            (Typically null) if the value(s) returned with an activity of this
+            type are subject to  truncation, what is the length limit? A client
+            could use this to know the string was truncated.
+        usageNote:
+          type: string
+          description: >
+            (Not to be shown to the user) - developer hint from designer of the
+            activity to the developer POSTing an activity.  Principle use is to
+            document any `properties` needed. This will not be localized.
+        version:
+          type: integer
+          format: int32
+          description: This media type's schema version number. This representation
+            is version 1.
+    touchpointCollection:
+      title: collection of touchpoints
+      description: A standard SAS collection (of Touchpoint) which supports paging.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/touchpoint"
+            description: Array of touchpoints.
+    touchpoint:
+      title: touchpoint
+      x-sas-media-type:
+        name: application/vnd.sas.activities.touchpoint
+        version: 1
+      description: >
+        Separate from activity, a touchpoint is composed of string application
+        and feature and represent areas of an application being tracked to see
+        if it is being used.  The user using the application is not tracked.
+      required:
+      - application
+      - feature
+      type: object
+      properties:
+        id:
+          title: id
+          description: System determined identifier of this touchpoint
+          type: string
+        application:
+          title: application
+          description: The application's name, this can be its internal name, but
+            should be consistent. lowerCamelCase is recommended.
+          type: string
+        feature:
+          title: feature
+          description: The application determined 'feature' for the portion of the
+            application being tracked. lowerCamelCase is recommended.
+          type: string
+        count:
+          title: count
+          description: The number of times this touchpoint has been updated.  System
+            derived.
+          type: integer
+          format: int32
+        creationTimeStamp:
+          title: creation time stamp
+          description: The time stamp this touchpoint was created.
+          type: string
+          format: date-time
+        modifiedTimeStamp:
+          title: modified time stamp
+          description: The time stamp of the last time this touchpoint was updated.
+          type: string
+          format: date-time
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: This media type's schema version number. This representation
+            is version 1.
+    rankedFacetCollection:
+      title: collection of ranked facets
+      description: A standard SAS collection (of RankedFacet).
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/rankedFacet"
+            description: Array of ranked facets.
+    rankedFacet:
+      title: rankedFacet
+      description: >
+        A ranked facet. This will indicate the URI, the score, reasons,
+        and a list of facets.
+      required:
+      - uri
+      - score
+      type: object
+      properties:
+        uri:
+          title: uri
+          description: The uri of the object in question, for example "/reports/reports/1234"
+          type: string
+        score:
+          title: score
+          description: The recommendation score, larger is better.
+          type: integer
+        reasons:
+          title: reasons
+          description: >
+            A list of localized strings suitable to show the user. The first
+            will be general, such as the time frame considered; the remaining
+            will be a short ordered list of reasons to recommend this object
+          type: array
+        resourceType:
+          title: resourceType
+          description: The resource type, for example "report".
+          type: string
+        facets:
+          $ref: "#/components/schemas/facets"
+        version:
+          type: integer
+          format: int32
+          description: This media type's schema version number. This representation
+            is version 1.
+    activeUris:
+      title: active URIs
+      x-sas-media-type:
+        name: application/vnd.sas.activities.active.uris
+        version: 1
+      description: >
+        Contains a list of URIs which are "active" (per query parameters).  In
+        very rare case, also has a list of unreadableUris.  The size of the
+        return is limited to be a subset of the selection passed as input, and
+        so will be reasonably constrained.
+      required:
+      - activeUris
+      type: object
+      properties:
+        activeUris:
+          title: list of active URIs
+          description: List of active URIs
+          type: array
+          items:
+            type: string
+        unreadableUris:
+          title: list of unreadable URIs
+          description: Very unusual, caller supplied 1 or more unreadable URIs, which
+            are listed here. Typically this list is null.
+          type: array
+          items:
+            type: string
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: This media type's schema version number. This representation
+            is version 1.
+    urisSelection:
+      title: selection of URIs
+      description: Selection (list) of URIs to examine.
+      allOf:
+      - $ref: "#/components/schemas/selection"
+    facets:
+      title: the facets of a resource
+      x-sas-media-type:
+        name: application/vnd.sas.activities.facets
+        version: 1
+      description: >
+        For the specified resource, lists of users and types with
+        activities.  Counts are supplied.  The `activityTypes` list will be
+        sorted by `label`. The `users` list will be sorted by `userName`.
+      required:
+      - activityTypes
+      - users
+      type: object
+      properties:
+        activityTypes:
+          title: list of activity types.
+          description: List of activity types.
+          type: array
+          items:
+            $ref: "#/components/schemas/facetTypeItem"
+        users:
+          title: list of users.
+          description: List of users.
+          type: array
+          items:
+            $ref: "#/components/schemas/facetUserItem"
+        version:
+          type: integer
+          format: int32
+          description: This media type's schema version number. This representation
+            is version 1.
+    facetTypeItem:
+      title: single type information
+      description: Single type information
+      required:
+      - activityType
+      - label
+      - count
+      type: object
+      properties:
+        activityType:
+          type: string
+          description: The specific type code, such as `update`, `open`, `rename`.
+        label:
+          type: string
+          description: Localized label for this activity type.  The list will be sorted
+            by this member.
+        count:
+          type: integer
+          format: int32
+          description: How many instances.
+    facetUserItem:
+      title: single user information
+      description: Single user information
+      required:
+      - userId
+      - userName
+      - count
+      type: object
+      properties:
+        userId:
+          type: string
+          description: The user id.
+        userName:
+          type: string
+          description: The user name.  The list will be sorted by this member.
+        count:
+          type: integer
+          format: int32
+          description: How many instances.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    selection:
+      title: Selection
+      description: Identifies a set of resources.
+      x-sas-media-type:
+        name: application/vnd.sas.selection
+        version: 1
+      required:
+      - version
+      - resources
+      properties:
+        version:
+          description: The schema version number of this media type. This representation
+            is version 1.
+          type: integer
+        template:
+          description: 'A URI template in which the {id} parameter can be replaced
+            with a value from the "resources" array in order to yield the URI of the
+            identified resource. '
+          type: string
+        type:
+          description: "Specifies whether the resources array contains IDs, URIs,\
+            \ or both. \n<dl>\n<dt>\"id\"</dt><dd>the array contains resource identifiers\
+            \ only. This is the default if \"type\" is omitted.</dd>\n<dt>\"uri\"\
+            </dt><dd>the array contains resource URIs</dd>\n<dt>\"mixed\"</dt><dd>the\
+            \ array contains a mixture of identifiers and URIs.</dd>\n</dl>"
+          type: string
+          enum:
+          - id
+          - uri
+          - mixed
+        resources:
+          description: An array of resource IDs or URIs
+          type: array
+          items:
+            type: string
+        links:
+          type: array
+          description: An array of links to related resources and actions.
+          items:
+            $ref: "#/components/schemas/link"
+  examples:
+    root_links:
+      description: Root Hateoas links
+      value: {"links": [{"method": "POST", "rel": "createActivity", "href": "/activities/activities",
+            "uri": "/activities/activities", "type": "application/vnd.sas.activities.activity"},
+          {"method": "GET", "rel": "getRankedFacets", "href": "/activities/rankedFacets",
+            "uri": "/activities/rankedFacets", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.activities.ranked.facets"}], "version": 1}
+    missingRequiredMember:
+      description: >
+        missing required member
+      value: {"details": ["objectType", "path: /activities/...", "correlator: 7acf06ba-6624-49f3-ad8f-87ad31da8825"],
+        "errorCode": 94500, "httpStatusCode": 400, "message": 'Missing required member
+          "objectType".', "version": 2}
+    selectionBody:
+      description: >
+        the selection body
+      value: {"version": 1, "type": "uri", "resources": ["/reports/reports/a7416763-f0ec-453d-84ad-6c70e98efe27",
+          "/reports/reports/ba2e5361-51ae-4d1e-91c6-eac635bee966", "/modelRepository/models/f8ca7525-77f7-48d6-b582-f3395da6045c"]}
+    activityResponseCreated:
+      description: >
+        the response body for the activity created
+      value: {"application": "sasdrive", "count": 1, "id": "da90fb96-f412-4573-86be-a91b9255901d",
+        "label": "Opened by guides", "links": [{"method": "GET", "rel": "self", "href": "/activities/activities/da90fb96-f412-4573-86be-a91b9255901d",
+            "uri": "/activities/activities/da90fb96-f412-4573-86be-a91b9255901d",
+            "type": "application/vnd.sas.activities.activity"}, {"method": "GET",
+            "rel": "alternate", "href": "/activities/activities/da90fb96-f412-4573-86be-a91b9255901d",
+            "uri": "/activities/activities/da90fb96-f412-4573-86be-a91b9255901d",
+            "type": "application/vnd.sas.activities.activity.summary"}, {"method": "DELETE",
+            "rel": "delete", "href": "/activities/activities/da90fb96-f412-4573-86be-a91b9255901d",
+            "uri": "/activities/activities/da90fb96-f412-4573-86be-a91b9255901d"}],
+        "objectType": "report", "timeStamp": "2023-11-14T19:52:05.629656154Z", "type": "open",
+        "uri": "/reports/reports/5e26d02c-9e88-4f85-bf5e-ee91fa10a563", "userId": "guides",
+        "userName": "guides", "version": 1}
+    activityRequestBody:
+      description: >
+        the request body for an activity
+      value: {"uri": "/reports/reports/5e26d02c-9e88-4f85-bf5e-ee91fa10a563", "type": "open",
+        "objectType": "report", "application": "sasdrive"}
+    rankedFacets:
+      description: >
+        a collection of "ranked facets"
+      value: {"version": 2, "accept": "application/vns.sas.activities.ranked.facets",
+        "start": 0, "limit": 4, "name": "rankedFacets", "links": [{"method": "GET",
+            "rel": "collection", "href": "/activities/rankedFacets", "uri": "/activities/rankedFacets",
+            "type": "application/vnd.sas.collection", "itemType": "application/vns.sas.activities.ranked.facets"},
+          {"method": "GET", "rel": "self", "href": "/activities/rankedFacets?start=0&limit=4",
+            "uri": "/activities/rankedFacets?start=0&limit=4", "type": "application/vnd.sas.collection",
+            "itemType": "application/vns.sas.activities.ranked.facets"}, {"method": "GET",
+            "rel": "next", "href": "/activities/rankedFacets?start=4&limit=4", "uri": "/activities/rankedFacets?start=4&limit=4",
+            "type": "application/vnd.sas.collection", "itemType": "application/vns.sas.activities.ranked.facets"}],
+        "items": [{"uri": "/reports/reports/82384cc6-1e65-4c33-b306-755be61f4600",
+            "score": 110, "reasons": ["This item is recommended because of activity\
+                \ in the last 7 days:", "Opened 7 times", "Link copied 1 time"], "resourceType": "report",
+            "facets": {"activityTypes": [{"activityType": "open", "label": "Open",
+                  "count": 7, "score": 60}, {"activityType": "copyLink", "label": "Copy\
+                    \ link", "count": 1, "score": 50}], "users": [{"userId": "sasboot",
+                  "userName": "sasboot", "count": 4}, {"userId": "tibees", "userName": "Tim\
+                    \ Beese", "count": 3}, {"userId": "sakarp", "userName": "Sasha\
+                    \ Karpinski", "count": 1}]}, "version": 1}, {"uri": "/reports/reports/5a86a8c4-8f23-426d-a7c1-27ece348033a",
+            "score": 50, "reasons": ["This item is recommended because of activity\
+                \ in the last 7 days:", "Opened 2 times", "Created 1 time"], "resourceType": "report",
+            "facets": {"activityTypes": [{"activityType": "open", "label": "Open",
+                  "count": 2, "score": 40}, {"activityType": "create", "label": "Create",
+                  "count": 1, "score": 10}], "users": [{"userId": "stehun", "userName": "Stephen\
+                    \ Hunt", "count": 2}, {"userId": "guides", "userName": "guides",
+                  "count": 1}]}, "version": 1}, {"uri": "/reports/reports/080bbd0f-20ad-4a5c-b639-c45bef20b529",
+            "score": 40, "reasons": ["This item is recommended because of activity\
+                \ in the last 7 days:", "Opened 3 times"], "resourceType": "report",
+            "facets": {"activityTypes": [{"activityType": "open", "label": "Open",
+                  "count": 3, "score": 40}], "users": [{"userId": "sasboot", "userName": "sasboot",
+                  "count": 2}, {"userId": "tibees", "userName": "Tim Beese", "count": 1}]},
+            "version": 1}, {"uri": "/reports/reports/7d948d64-3a7a-45db-938a-d99f347359d7",
+            "score": 30, "reasons": ["This item is recommended because of activity\
+                \ in the last 7 days:", "Modified 4 times", "Created 1 time"], "resourceType": "report",
+            "facets": {"activityTypes": [{"activityType": "update", "label": "Modify",
+                  "count": 4, "score": 20}, {"activityType": "create", "label": "Create",
+                  "count": 1, "score": 10}], "users": [{"userId": "guides", "userName": "guides",
+                  "count": 5}]}, "version": 1}]}

@@ -1,0 +1,2608 @@
+---
+openapi: 3.0.3
+info:
+  version: "3"
+  title: Report Alerts
+  description: Creates, reads, updates, and deletes subscriptions to alertable data
+    conditions in reports.
+  contact:
+    name: "SAS Developers"
+    email: "devex@sas.com"
+    url: "https://developer.sas.com"
+tags:
+- name: Root
+  description: The API root for a list of links.
+- name: Subscription
+  description: The endpoints for subscriptions to alertable data conditions.
+- name: Condition
+  description: The endpoints for alertable data conditions in reports.
+- name: Subscriber
+  description: The endpoints for subscriber resources.
+- name: Evaluator
+  description: The endpoints for internal use only.
+paths:
+  /:
+    get:
+      summary: Get a list of top-level links
+      description: Returns a collection of links to the top-level collections surfaced
+        through this API.
+      operationId: root
+      tags:
+      - Root
+      responses:
+        "200":
+          description: The services top-level links.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/rootLinks"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/rootLinks"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.api+json"
+  /subscriptions#standard:
+    get:
+      operationId: getSubscriptions
+      summary: Get a list of either summary or full subscriptions
+      tags:
+      - Subscription
+      description: Gets collection of either full or summary Subscription objects,
+        controlled by the type requested in the Accept-Item header. Full objects are
+        not that much larger than summary objects, so the usual pattern of getting
+        a collection of summary objects, then following "self" links to the full objects
+        has less importance here. Optional query params of start/limit/filter/sortBy
+        can be used, such as to query for a certain report's subscriptions.
+      parameters:
+      - name: Accept
+        description: the collection media type
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.collection+json
+          default: application/vnd.sas.collection+json
+      - name: Accept-Item
+        description: This is an optional header. If not present, items of application/vnd.sas.summary+json
+          type are returned. The other valid value is application/vnd.sas.report.alert.subscription+json,
+          which gives full subscription items.
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.summary+json
+          - application/vnd.sas.report.alert.subscription+json
+          default: application/vnd.sas.summary+json
+      - name: start
+        in: query
+        description: 0-based index of first one to return.
+        required: false
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        description: maximum number of results to return.
+        required: false
+        schema:
+          type: integer
+          default: 20
+      - name: filter
+        in: query
+        description: Filter criteria for returned reports. Subscription attributes
+          that can be used include id, reportName, reportUri, alertableConditionName,
+          evaluationIntervalUnit, evaluationIntervalValue, evaluationQueryEvaluationControl,
+          createdBy, creationTimeStamp, modifiedBy, and modifiedTimeStamp.
+        required: false
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: Sort criteria for returned report.  See https://developer.sas.com/rest-apis/reportAlerts-v3/docs/getting-started/usage-notes#sorting
+          for more information on the format of the sort keys. The default sorting
+          is name ascending.  Report attributes that can be used are id, name, description,
+          createdBy, creationTimeStamp, modifiedBy, and modifiedTimeStamp.
+        required: false
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: Successful response.  The collection returned can be empty.
+          headers:
+            Content-Type:
+              description: collection media type
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/subscription"
+              examples:
+                subscriptionCollection:
+                  $ref: "#/components/examples/subscriptionCollection"
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/subscription"
+              examples:
+                subscriptionCollection:
+                  $ref: "#/components/examples/subscriptionCollection"
+        "400":
+          description: The input parameters are invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidParameter:
+                  $ref: "#/components/examples/invalidParameterValue"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidParameter:
+                  $ref: "#/components/examples/invalidParameterValue"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+        "406":
+          description: Not Acceptable.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidMediaType:
+                  $ref: "#/components/examples/invalidMediaType"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidMediaType:
+                  $ref: "#/components/examples/invalidMediaType"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+    post:
+      operationId: createSubscription
+      summary: Create a new subscription from information given in the body of the
+        request
+      description: Create one subscription for one or more subscribers to an alertable
+        condition in a report.
+      tags:
+      - Subscription
+      requestBody:
+        $ref: "#/components/requestBodies/subscription"
+      responses:
+        "201":
+          description: Successful response. Created subscription.
+          headers:
+            Location:
+              description: The full URL for the new subscription
+              schema:
+                type: string
+                format: url
+            ETag:
+              description: string that identifies the current state of the subscription
+                for subsequent use on PUT
+              schema:
+                type: string
+            Content-Type:
+              description: the type returned, a standard
+              schema:
+                type: string
+                enum:
+                - application/vnd.sas.report.alert.subscription+json
+                - application/json
+                default: application/vnd.sas.report.alert.subscription+json
+          content:
+            application/vnd.sas.report.alert.subscription+json:
+              schema:
+                $ref: "#/components/schemas/subscription"
+              examples:
+                subscriptionRespBody:
+                  $ref: "#/components/examples/subscriptionResponseBody"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subscription"
+              examples:
+                subscriptionRespBody:
+                  $ref: "#/components/examples/subscriptionResponseBody"
+        "400":
+          description: The input is not valid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidInput:
+                  $ref: "#/components/examples/invalidInput"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidInput:
+                  $ref: "#/components/examples/invalidInput"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+  "/subscriptions/{subscriptionId}":
+    get:
+      operationId: getSubscription
+      summary: Get a subscription
+      tags:
+      - Subscription
+      description: Get one subscription by its identifier.
+      parameters:
+      - name: subscriptionId
+        description: The resource identifier for a single subscription.
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: If-None-Match
+        in: header
+        required: false
+        description: ETag
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Successful response
+          headers:
+            ETag:
+              description: A string identifying this particular state of the subscription.
+              schema:
+                type: string
+                enum:
+                - application/vnd.sas.report.alert.subscription+json
+                - application/json
+                default: application/vnd.sas.report.alert.subscription+json
+            Location:
+              description: The full URL for the resource
+              schema:
+                type: string
+          content:
+            application/vnd.sas.report.alert.subscription+json:
+              schema:
+                $ref: "#/components/schemas/subscription"
+              examples:
+                subscriptionRepBody:
+                  $ref: "#/components/examples/subscriptionResponseBody"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subscription"
+              examples:
+                subscriptionRepBody:
+                  $ref: "#/components/examples/subscriptionResponseBody"
+        "404":
+          description: Subscription Not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                subscriptionNotFound:
+                  $ref: "#/components/examples/subscriptionNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                subscriptionNotFound:
+                  $ref: "#/components/examples/subscriptionNotFound"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+    head:
+      operationId: headersForSubscription
+      summary: Existence check one subscription
+      tags:
+      - Subscription
+      description: Existence check one subscription by its identifier.
+      parameters:
+      - name: subscriptionId
+        description: The resource identifier for a single subscription.
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: If-None-Match
+        in: header
+        required: false
+        description: ETag
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Successful response
+          headers:
+            ETag:
+              description: A string identifying this particular state of the subscription.
+              schema:
+                type: string
+                enum:
+                - application/vnd.sas.report.alert.subscription+json
+                - application/json
+                default: application/vnd.sas.report.alert.subscription+json
+            Location:
+              description: The full URL for the resource
+              schema:
+                type: string
+          content:
+            application/vnd.sas.report.alert.subscription+json:
+              schema:
+                $ref: "#/components/schemas/subscription"
+              examples:
+                subscriptionRepBody:
+                  $ref: "#/components/examples/subscriptionResponseBody"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subscription"
+              examples:
+                subscriptionRepBody:
+                  $ref: "#/components/examples/subscriptionResponseBody"
+        "404":
+          description: Subscription Not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                subscriptionNotFound:
+                  $ref: "#/components/examples/subscriptionNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                subscriptionNotFound:
+                  $ref: "#/components/examples/subscriptionNotFound"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+    put:
+      operationId: updateSubscription
+      summary: Modify a subscription
+      tags:
+      - Subscription
+      description: Update a subscription, replacing its contents with the subscription
+        in the request body.
+      parameters:
+      - name: subscriptionId
+        description: the resource identifier for a single subscription
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        required: true
+        description: The ETag identifier from last GET of the subscription.
+        schema:
+          type: string
+      requestBody:
+        $ref: "#/components/requestBodies/subscription"
+      responses:
+        "200":
+          description: Successful response.
+          headers:
+            ETag:
+              description: A tag that identifies this revision of the object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.report.alert.subscription+json:
+              schema:
+                $ref: "#/components/schemas/subscription"
+              examples:
+                subscriptionRespBody:
+                  $ref: "#/components/examples/subscriptionResponseBody"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subscription"
+              examples:
+                subscriptionRespBody:
+                  $ref: "#/components/examples/subscriptionResponseBody"
+        "400":
+          description: The input subscription is not valid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidInput:
+                  $ref: "#/components/examples/invalidInput"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidInput:
+                  $ref: "#/components/examples/invalidInput"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+        "404":
+          description: Subscription does not exist
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                subscriptionNotFound:
+                  $ref: "#/components/examples/subscriptionNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                subscriptionNotFound:
+                  $ref: "#/components/examples/subscriptionNotFound"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+        "412":
+          description: The ETag provided does not match the current version of the
+            object
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                eTagNotMatch:
+                  $ref: "#/components/examples/eTagNotMatch"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                eTagNotMatch:
+                  $ref: "#/components/examples/eTagNotMatch"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+        "428":
+          description: The ETag was not provided when updating an existing type. (Not
+            enforced)
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                eTagNotProvided:
+                  $ref: "#/components/examples/eTagNotProvided"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                eTagNotProvided:
+                  $ref: "#/components/examples/eTagNotProvided"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+    delete:
+      operationId: deleteSubscription
+      summary: Delete a subscription
+      tags:
+      - Subscription
+      description: Delete a subscription identified by its id.
+      parameters:
+      - name: subscriptionId
+        description: the resource identifier for a single subscription
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No content, meaning successful deletion
+        "400":
+          description: The input subscription is not valid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                inputValidation:
+                  $ref: "#/components/examples/inputValidation"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+  /subscriptions#evaluation:
+    x-sas-internal: true
+    get:
+      operationId: getSubscriptionCandidates
+      summary: Gets collection of evaluation candidates
+      tags:
+      - Evaluator
+      description: This "evaluation candidate resource" is intended only for the use
+        of the Report Alert Evaluator service. It serves to coordinate the work of
+        multiple Report Alert Evaluator services in a cluster by returning the batch
+        of candidate subscriptions that should be evaluated next. Gets a fixed number
+        that is limited by the configuration property "query.maxNumberOfSubscriptions".
+        The collection is ordered in ascending order of the the last time the subscription
+        was returned for evaluation by this endpoint.
+      parameters:
+      - name: Accept-Item
+        description: This header must be set to application/vnd.sas.report.alert.candidate+json
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.report.alert.candidate+json
+      - name: limit
+        description: This parameter is expected as part of the standard for collections,
+          but it will be ignored.
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: start
+        description: This parameter is expected as part of the standard for collections,
+          but it will be ignored.
+        in: query
+        required: false
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: Successful response.  Ordered list of subscriptions that are
+            candidates for evaluation.
+          headers:
+            Content-Length:
+              description: The number of subscription candidates that returned. Might
+                be zero, meaning there are no subscriptions, which is not an error.
+              schema:
+                type: integer
+            Content-Type:
+              description: the actual returned collection type
+              schema:
+                type: string
+                default: application/vnd.sas.collection+json
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/evaluationCandidate"
+              examples:
+                subscriptionCandidateCollection:
+                  $ref: "#/components/examples/subscriptionCandidateCollection"
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/evaluationCandidate"
+              examples:
+                subscriptionCandidateCollection:
+                  $ref: "#/components/examples/subscriptionCandidateCollection"
+        "400":
+          description: The input is not valid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidParameter:
+                  $ref: "#/components/examples/invalidParameterValue"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidParameter:
+                  $ref: "#/components/examples/invalidParameterValue"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+  /conditions:
+    get:
+      operationId: getConditions
+      summary: Get a collection of alertable conditions for a designated report
+      description: Returns a collection containing the alertable conditions in a designated
+        persistent report. Conditions do not have to be subscribed to in order to
+        be returned. For this collection the standard paging parameters are not supported.
+        The usual intent is to retrieve all conditions for the report.  It is typical
+        that there might be a one or two conditions for each primary visual element
+        in the report.
+      tags:
+      - Condition
+      parameters:
+      - name: Accept-Item
+        description: Specifies the required type and format of the returned elements
+          in the collection
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.report.alert.condition+json
+          - application/json
+          default: application/vnd.sas.report.alert.condition+json
+      - name: reportUri
+        in: query
+        description: Resource URI of a persisted report.
+        required: true
+        schema:
+          type: string
+      - name: alertableConditionName
+        in: query
+        description: Name of an AlertableState BIRD element in the report. If it is
+          omitted, all AlertableStates in the  report are retrieved.
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Successful response.  The collection returned can be empty,
+            however, if the report exists but has no AlertableState elements.
+          headers:
+            Content-Type:
+              description: application/vnd.sas.collection
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/alertableCondition"
+              examples:
+                conditionCollectionItems:
+                  $ref: "#/components/examples/conditionCollectionItems"
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/alertableCondition"
+              examples:
+                conditionCollectionItems:
+                  $ref: "#/components/examples/conditionCollectionItems"
+        "400":
+          description: The input parameters are invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidCondition:
+                  $ref: "#/components/examples/invalidCondition"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidCondition:
+                  $ref: "#/components/examples/invalidCondition"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+        "404":
+          description: Not Found. This may be returned if the requested report does
+            not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+  "/reports/{reportId}/conditions":
+    get:
+      operationId: getConditionsForReport
+      summary: Gets a collection of the alertable conditions for a single report
+      description: Gets the alertable conditions for a single report. This is alternative
+        syntax for using the query paramater, as in '/conditions/?reportUri={reportUri}'.
+        It is provided for consistency with the resource path for the subscribers
+        collection, which extends the path out to "/reports/{reportId}/conditions/{alertableConditionName}/subscribers".
+      tags:
+      - Condition
+      parameters:
+      - name: Accept
+        description: Specifies the required type and format of the returned elements
+          in the collection
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.collection+json
+          - application/json
+          default: application/vnd.sas.collection+json
+      - name: Accept-Item
+        description: Specifies the required type and format of the returned elements
+          in the collection
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.report.alert.condition+json
+          - application/json
+          default: application/vnd.sas.report.alert.condition+json
+      - name: reportId
+        in: path
+        description: Resource id of a persisted report.
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Ignored. This standard collection query parameter is documented
+          to suppress arREST warnings
+        schema:
+          type: integer
+      - name: start
+        in: query
+        description: Ignored. This standard collection query parameter is documented
+          to suppress arREST warnings
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: Successful response. Collection can exist, although may be
+            empty when retrieved.
+          headers:
+            Content-Type:
+              description: application/vnd.sas.collection
+              schema:
+                type: string
+            Content-Item-Type:
+              description: application/vnd.sas.report.alert.condition
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/collection2"
+              examples:
+                conditionCollection:
+                  $ref: "#/components/examples/conditionCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/collection2"
+              examples:
+                conditionCollection:
+                  $ref: "#/components/examples/conditionCollection"
+        "404":
+          description: Report resource not found. This error is not returned if report
+            exists but there are no conditions in the report.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+    head:
+      operationId: headersForConditionsForReport
+      summary: Existence check a collection of the alertable conditions for a single
+        report
+      description: Existence check the alertable conditions for a single report. This
+        is alternative syntax for using the query paramater, as in '/conditions/?reportUri={reportUri}'.
+        It is provided for consistency with the resource path for the subscribers
+        collection, which extends the path out to "/reports/{reportId}/conditions/{alertableConditionName}/subscribers".
+      tags:
+      - Condition
+      parameters:
+      - name: Accept
+        description: Specifies the required type and format of the returned elements
+          in the collection
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.collection+json
+          - application/json
+          default: application/vnd.sas.collection+json
+      - name: Accept-Item
+        description: Specifies the required type and format of the returned elements
+          in the collection
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.report.alert.condition+json
+          - application/json
+          default: application/vnd.sas.report.alert.condition+json
+      - name: reportId
+        in: path
+        description: Resource id of a persisted report.
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Ignored. This standard collection query parameter is documented
+          to suppress arREST warnings
+        schema:
+          type: integer
+      - name: start
+        in: query
+        description: Ignored. This standard collection query parameter is documented
+          to suppress arREST warnings
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: Successful response. Collection can exist, although may be
+            empty when retrieved.
+          headers:
+            Content-Type:
+              description: application/vnd.sas.collection
+              schema:
+                type: string
+            Content-Item-Type:
+              description: application/vnd.sas.report.alert.condition
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/collection2"
+              examples:
+                conditionCollection:
+                  $ref: "#/components/examples/conditionCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/collection2"
+              examples:
+                conditionCollection:
+                  $ref: "#/components/examples/conditionCollection"
+        "404":
+          description: Report resource not found. This error is not returned if report
+            exists but there are no conditions in the report.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+  "/reports/{reportId}/conditions/{alertableConditionName}":
+    get:
+      operationId: getConditionForReport
+      summary: Get an designated alertable condition for a designated report
+      description: Gets a particular alertable condition from a single report. This
+        is a syntactic alternative to using the query paramater, as in '/conditions/?reportUri={reportUri}&alertableConditionName={alertableConditionName}'.
+        They have the same meaning and should return the same collection.
+      tags:
+      - Condition
+      parameters:
+      - name: Accept
+        description: Specifies the required type and format of the returned condition
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.report.alert.condition+json
+          - application/json
+          default: application/vnd.sas.report.alert.condition+json
+      - name: reportId
+        in: path
+        description: Resource id of a persisted report.
+        required: true
+        schema:
+          type: string
+      - name: alertableConditionName
+        in: path
+        description: The report-internal unique identifier of an alertable condition
+          (which is an "AlertableState" BIRD element).
+        required: true
+        schema:
+          type: string
+      - name: If-None-Match
+        in: header
+        required: false
+        description: ETag
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Successful response.
+          content:
+            application/vnd.sas.report.alert.condition+json:
+              schema:
+                $ref: "#/components/schemas/alertableCondition"
+              examples:
+                conditionRespBody:
+                  $ref: "#/components/examples/conditionResponseBody"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/alertableCondition"
+              examples:
+                conditionRespBody:
+                  $ref: "#/components/examples/conditionResponseBody"
+          headers:
+            Content-Type:
+              description: application/vnd.sas.report.alert.condition
+              schema:
+                type: string
+        "404":
+          description: Not found. The report with the specified alertable condition
+            is not a known resource.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+    head:
+      operationId: headersForConditionForReport
+      summary: Existence check an designated alertable condition for a designated
+        report
+      description: Existence check a particular alertable condition from a single
+        report. This is a syntactic alternative to using the query paramater, as in
+        '/conditions/?reportUri={reportUri}&alertableConditionName={alertableConditionName}'.
+        They have the same meaning and should return the same collection.
+      tags:
+      - Condition
+      parameters:
+      - name: Accept
+        description: Specifies the required type and format of the returned condition
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.report.alert.condition+json
+          - application/json
+          default: application/vnd.sas.report.alert.condition+json
+      - name: reportId
+        in: path
+        description: Resource id of a persisted report.
+        required: true
+        schema:
+          type: string
+      - name: alertableConditionName
+        in: path
+        description: The report-internal unique identifier of an alertable condition
+          (which is an "AlertableState" BIRD element).
+        required: true
+        schema:
+          type: string
+      - name: If-None-Match
+        in: header
+        required: false
+        description: ETag
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Successful response.
+          content:
+            application/vnd.sas.report.alert.condition+json:
+              schema:
+                $ref: "#/components/schemas/alertableCondition"
+              examples:
+                conditionRespBody:
+                  $ref: "#/components/examples/conditionResponseBody"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/alertableCondition"
+              examples:
+                conditionRespBody:
+                  $ref: "#/components/examples/conditionResponseBody"
+          headers:
+            Content-Type:
+              description: application/vnd.sas.report.alert.condition
+              schema:
+                type: string
+        "404":
+          description: Not found. The report with the specified alertable condition
+            is not a known resource.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "application/vnd.sas.error+json;version=2"
+  "/reports/{reportId}/conditions/{alertableConditionName}/subscribers":
+    get:
+      summary: Get a collection of all the subscribers for a given report and condition
+      description: Returns a collection of subscribers to the given condition in the
+        given report. Finds actual subscriptions based on the report and condition
+        and extracts the subscribers from any such subscriptions. The standard pagination,
+        filtering, and sorting options that normally apply to collections are not
+        used here. All subscribers will be returned. The items in the collection are
+        of media type 'application/vnd.sas.report.alert.subscriber'.
+      operationId: getSubscribers
+      tags:
+      - Subscriber
+      parameters:
+      - name: Accept-Item
+        description: Designates the type of the items in the returned collection.
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.report.alert.subscriber
+          - application/json
+          default: application/vnd.sas.report.alert.subscriber
+      - name: reportId
+        in: path
+        required: true
+        description: The unique identifier for the report resource.
+        schema:
+          type: string
+      - name: alertableConditionName
+        in: path
+        required: true
+        description: The identifier for the alertable condition, which is the internal
+          name attribute of an "AlertableState" element in the report.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Length:
+              description: the number of subscribers returned
+              schema:
+                type: integer
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/subscriberCollection"
+              examples:
+                subscriberCollection:
+                  $ref: "#/components/examples/subscriberCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subscriberCollection"
+              examples:
+                subscriberCollection:
+                  $ref: "#/components/examples/subscriberCollection"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                inputValidation:
+                  $ref: "#/components/examples/inputValidation"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                inputValidation:
+                  $ref: "#/components/examples/inputValidation"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        "404":
+          description: The report or the condition in the report could not be found.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+    head:
+      summary: Existence check a collection of all the subscribers for a given report
+        and condition
+      description: Existence check a collection of subscribers to the given condition
+        in the given report. Finds actual subscriptions based on the report and condition
+        and extracts the subscribers from any such subscriptions. The standard pagination,
+        filtering, and sorting options that normally apply to collections are not
+        used here. All subscribers will be returned. The items in the collection are
+        of media type 'application/vnd.sas.report.alert.subscriber'.
+      operationId: headersForSubscribers
+      tags:
+      - Subscriber
+      parameters:
+      - name: Accept-Item
+        description: Designates the type of the items in the returned collection.
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.report.alert.subscriber
+          - application/json
+          default: application/vnd.sas.report.alert.subscriber
+      - name: reportId
+        in: path
+        required: true
+        description: The unique identifier for the report resource.
+        schema:
+          type: string
+      - name: alertableConditionName
+        in: path
+        required: true
+        description: The identifier for the alertable condition, which is the internal
+          name attribute of an "AlertableState" element in the report.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Length:
+              description: the number of subscribers returned
+              schema:
+                type: integer
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/subscriberCollection"
+              examples:
+                subscriberCollection:
+                  $ref: "#/components/examples/subscriberCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subscriberCollection"
+              examples:
+                subscriberCollection:
+                  $ref: "#/components/examples/subscriberCollection"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                inputValidation:
+                  $ref: "#/components/examples/inputValidation"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                inputValidation:
+                  $ref: "#/components/examples/inputValidation"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        "404":
+          description: The report or the condition in the report could not be found.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+    post:
+      summary: Create a new subscriber to an existing subscription
+      description: Creates a new subscriber based on the representation in the request
+        body.  Finds the first current subscription to the given condition and report,
+        then adds the subscriber to that subscription.  Does not modify the subscription
+        other than adding the subscriber. (Current conventions in the report authoring
+        tool are that a subscription is created when the first user is subscribed,
+        but not just because a BIRD AlertableState exists in the report.)  Therefore,
+        this operation has a choice of whether to create a subscription if none exists
+        and subscribe the user, or, if there is no existing subscription, treat it
+        as an error, and fail the POST operation.
+      operationId: createSubscriber
+      tags:
+      - Subscriber
+      parameters:
+      - name: reportId
+        in: path
+        required: true
+        description: The unique resource identifier for the report.
+        schema:
+          type: string
+      - name: alertableConditionName
+        in: path
+        required: true
+        description: The identifier for the alertable condition in the report. It
+          is the "name" attribute of an "AlertableState" BIRD element. It is unique
+          only within the scope of the report content.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.report.alert.subscriber+json:
+            schema:
+              $ref: "#/components/schemas/subscriber"
+            examples:
+              subscriberReqBody:
+                $ref: "#/components/examples/subscriberRequestBody"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/subscriber"
+            examples:
+              subscriberReqBody:
+                $ref: "#/components/examples/subscriberRequestBody"
+        description: The representation of a subscriber.
+        required: true
+      responses:
+        "201":
+          description: A subscriber was created
+          headers:
+            Location:
+              description: The URL of the subscriber.
+              schema:
+                type: string
+                format: uri
+            ETag:
+              description: The entity tag for the subscriber.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.report.alert.subscriber+json:
+              schema:
+                $ref: "#/components/schemas/subscriber"
+              examples:
+                subscribeRespBody:
+                  $ref: "#/components/examples/subscriberResponseBody"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subscriber"
+              examples:
+                subscribeRespBody:
+                  $ref: "#/components/examples/subscriberResponseBody"
+        "400":
+          description: The request was invalid.  This can happen for a variety of
+            reasons, and the actual cause is specified in the error object by error
+            code.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                inputValidation:
+                  $ref: "#/components/examples/inputValidation"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                inputValidation:
+                  $ref: "#/components/examples/inputValidation"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        "404":
+          description: Either the report or the condition in the report could not
+            be found.  The specific cause is specified in the error object by error
+            code.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+        "409":
+          description: Conflict. The user was already subscribed to this particular
+            subscription. To change some subscriber properties, such as whether to
+            send email, one remove the subscriber and then add it again.  (Support
+            for PUT is to be determined).
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                userConflict:
+                  $ref: "#/components/examples/userConflict"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                userConflict:
+                  $ref: "#/components/examples/userConflict"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+  "/reports/{reportId}/conditions/{alertableConditionName}/subscribers/{subscriberId}":
+    get:
+      parameters:
+      - name: reportId
+        in: path
+        required: true
+        description: The unique identifier for the report resource.
+        schema:
+          type: string
+      - name: alertableConditionName
+        in: path
+        required: true
+        description: The identifier for the alertable condition in the report.  It
+          is the "name" attribute of an "AlertableState" BIRD element, which represents
+          the condition. It is unique only within the scope of the report content.
+        schema:
+          type: string
+      - name: subscriberId
+        in: path
+        required: true
+        description: The unique identifier for the user who is subscriber.
+        schema:
+          type: string
+      - name: If-None-Match
+        in: header
+        required: false
+        description: ETag
+        schema:
+          type: string
+      summary: Get a subscriber
+      description: Returns the representation of the specified subscriber.
+      operationId: getSubscriber
+      tags:
+      - Subscriber
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the subscriber.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.report.alert.subscriber+json:
+              schema:
+                $ref: "#/components/schemas/subscriber"
+              examples:
+                subscriberRespBody:
+                  $ref: "#/components/examples/subscriberResponseBody"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subscriber"
+              examples:
+                subscriberRespBody:
+                  $ref: "#/components/examples/subscriberResponseBody"
+        "400":
+          description: The request was invalid.  This can happen for a variety of
+            reasons, and the actual cause is specified in the error object by error
+            code.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                inputValidation:
+                  $ref: "#/components/examples/inputValidation"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                inputValidation:
+                  $ref: "#/components/examples/inputValidation"
+        "404":
+          description: Either the report or the condition in the report could not
+            be found.  The specific cause is specified in the error object by error
+            code.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+    head:
+      parameters:
+      - name: reportId
+        in: path
+        required: true
+        description: The unique identifier for the report resource.
+        schema:
+          type: string
+      - name: alertableConditionName
+        in: path
+        required: true
+        description: The identifier for the alertable condition in the report.  It
+          is the "name" attribute of an "AlertableState" BIRD element, which represents
+          the condition. It is unique only within the scope of the report content.
+        schema:
+          type: string
+      - name: subscriberId
+        in: path
+        required: true
+        description: The unique identifier for the user who is subscriber.
+        schema:
+          type: string
+      - name: If-None-Match
+        in: header
+        required: false
+        description: ETag
+        schema:
+          type: string
+      summary: Existence check a subscriber
+      description: Existence check the representation of the specified subscriber.
+      operationId: headersForSubscriber
+      tags:
+      - Subscriber
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            ETag:
+              description: The entity tag for the subscriber.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.report.alert.subscriber+json:
+              schema:
+                $ref: "#/components/schemas/subscriber"
+              examples:
+                subscriberRespBody:
+                  $ref: "#/components/examples/subscriberResponseBody"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subscriber"
+              examples:
+                subscriberRespBody:
+                  $ref: "#/components/examples/subscriberResponseBody"
+        "400":
+          description: The request was invalid.  This can happen for a variety of
+            reasons, and the actual cause is specified in the error object by error
+            code.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                inputValidation:
+                  $ref: "#/components/examples/inputValidation"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                inputValidation:
+                  $ref: "#/components/examples/inputValidation"
+        "404":
+          description: Either the report or the condition in the report could not
+            be found.  The specific cause is specified in the error object by error
+            code.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFound:
+                  $ref: "#/components/examples/reportNotFound"
+    put:
+      summary: Update a subscriber
+      description: Updates the specified subscriber based on the representation in
+        the request body.  Does not modify other subscribers associated with the subscription
+        or the subscription itself.
+      operationId: updateSubscriber
+      tags:
+      - Subscriber
+      parameters:
+      - name: reportId
+        in: path
+        required: true
+        description: The unique identifier for the report resource.
+        schema:
+          type: string
+      - name: alertableConditionName
+        in: path
+        required: true
+        description: The identifier for the alertable condition in the report. It
+          is the "name" attribute of an "AlertableState" BIRD element. It is unique
+          only within the scope of the report content.
+        schema:
+          type: string
+      - name: subscriberId
+        description: The unique identifier for the user who is subscribed. The subscriber
+          Id.
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: "The entity tag obtained from the most recent `ETag` response\
+          \ header. Must match the current entity tag for the subscriber. "
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.report.alert.subscriber+json:
+            schema:
+              $ref: "#/components/schemas/subscriber"
+            examples:
+              subscriberReqBody:
+                $ref: "#/components/examples/subscriberRequestBody"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/subscriber"
+            examples:
+              subscriberReqBody:
+                $ref: "#/components/examples/subscriberRequestBody"
+        description: The unique identifier for the user who is subscriber. The subscriber
+          Id.
+      responses:
+        "200":
+          description: The request succeeded
+          headers:
+            ETag:
+              description: The entity tag for the subscriber.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.report.alert.subscriber+json:
+              schema:
+                $ref: "#/components/schemas/subscriber"
+              examples:
+                subscriberRespBody:
+                  $ref: "#/components/examples/subscriberResponseBody"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subscriber"
+              examples:
+                subscriberRespBody:
+                  $ref: "#/components/examples/subscriberResponseBody"
+        "400":
+          description: Input error, such as the userId field of the request subscriber
+            object not matching the userId path parameter.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                userIdNotMatch:
+                  $ref: "#/components/examples/userIdNotMatch"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                userIdNotMatch:
+                  $ref: "#/components/examples/userIdNotMatch"
+        "404":
+          description: No subscriber exists at the requested path.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                subscriberNotExist:
+                  $ref: "#/components/examples/subscriberNotExist"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                subscriberNotExist:
+                  $ref: "#/components/examples/subscriberNotExist"
+        "412":
+          description: The `If-Match` request header did not match the resource's
+            entity tag
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                eTagNotMatch:
+                  $ref: "#/components/examples/eTagNotMatch"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                eTagNotMatch:
+                  $ref: "#/components/examples/eTagNotMatch"
+        "428":
+          description: The request headers did not include a `If-Match` precondition.
+            This API does not support the modified date for precondition checking.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                eTagNotProvided:
+                  $ref: "#/components/examples/eTagNotProvided"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                eTagNotProvided:
+                  $ref: "#/components/examples/eTagNotProvided"
+    delete:
+      summary: Delete a subscriber
+      description: Deletes the specified subscriber. Does not delete any other subscribers
+        on the subscription. Does not otherwise modify the subscription object.
+      operationId: deleteSubscriber
+      tags:
+      - Subscriber
+      parameters:
+      - name: reportId
+        in: path
+        required: true
+        description: The unique identifier for the report resource.
+        schema:
+          type: string
+      - name: alertableConditionName
+        in: path
+        required: true
+        description: The identifier for the alertable condition in the report. It
+          is the "name" attribute of an "AlertableState" BIRD element. It is unique
+          only within the scope of the report content.
+        schema:
+          type: string
+      - name: subscriberId
+        description: The unique identifier for the user who is subscribed. The subscriber
+          Id.
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No content. The subscriber was deleted.  Nothing is returned.
+servers:
+- url: "http://example.com/reportAlerts"
+  description: The alerts API server.
+components:
+  requestBodies:
+    subscription:
+      content:
+        application/vnd.sas.report.alert.subscription+json:
+          schema:
+            $ref: "#/components/schemas/subscription"
+          examples:
+            subscriptionReqBody:
+              $ref: "#/components/examples/subscriptionRequestBody"
+        application/json:
+          schema:
+            $ref: "#/components/schemas/subscription"
+          examples:
+            subscriptionReqBody:
+              $ref: "#/components/examples/subscriptionRequestBody"
+      description: Subscription to create.  Includes one or more subscribers. Indicates
+        the report and the alertable condition in the report. Gives options for intervals
+        between evaluations of the condition.
+      required: true
+  schemas:
+    subscription:
+      title: Subscription
+      type: object
+      x-sas-media-type:
+        name: application/vnd.sas.report.alert.subscription
+        version: 1
+      description: Subscription  of users to a data condition in a report. The type
+        corresponding to application/vnd.sas.report.alert.subscription.
+      required:
+      - id
+      - report
+      - alertableConditionName
+      properties:
+        version:
+          type: integer
+          description: This media type's schema version number.
+        id:
+          type: string
+          description: The unique identifier assigned on creation. Note that this
+            property is set by the server when a new subscription is created and is
+            returned to the client, but the client should not assign a value to it.
+            If a subscription already exists and is being updated, the client must
+            keep the value originally assigned by the server.
+          format: object-id
+        createdBy:
+          type: string
+          description: The id of the user who created this subscription.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The date and time the subscription wast first created.
+        modifiedBy:
+          type: string
+          description: The id of the last user who modified this subscription.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The date and time the subscription was last modified.
+        lastQueriedTimeStamp:
+          type: string
+          description: The date and time of the last retrieval from the database for
+            the purpose of evaluating the condition. This is read and set by the Report
+            Alerts Evaluator  as it works through all the subscriptions during background
+            processing.
+          format: date-time
+        subscribers:
+          type: array
+          description: Users that are currently subscribers to this subscription.
+          items:
+            $ref: "#/components/schemas/subscriber"
+        report:
+          $ref: "#/components/schemas/reportReference"
+        alertableConditionName:
+          description: The unique name of the condition within the report. Identifies
+            the BIRD AlertableState element that is associated with the BIRD Condition
+            of a visual element. It is a string having a pattern of "as" followed
+            by up to 12 digits, e.g. "as12345".
+          type: string
+        evaluation:
+          description: The evaluation object determines how often the subscription
+            is evaluated. If the evaluation object is not supplied, it is interpreted
+            as if it were supplied with a value of "systemControlled" specified for
+            its intervalControl property.
+          type: object
+          required:
+          - intervalControl
+          properties:
+            intervalControl:
+              description: Strategy for how the interval is determined. If this is
+                systemControlled, the intervalValue and the intervalUnit are ignored,
+                and the evaluation system uses its own defaults for selecting the
+                interval between running queries. If the value is "lookupReportStrategy",
+                the system uses values specified in the report, and looks them up
+                at evaluation time.
+              type: string
+              enum:
+              - systemControlled
+              - fixedInterval
+              - lookupReportStrategy
+            intervalUnit:
+              description: Unit of interval for evaluation frequency. It is required
+                when intervalControl is "fixedInterval", and if intervalControl is
+                not "fixedInterval", it is ignored.
+              type: string
+              enum:
+              - days
+              - hours
+              - minutes
+              - seconds
+            intervalValue:
+              description: The amount of time between evaluations in the units specified
+                by intervalUnit. It is required when intervalControl is "fixedInterval",
+                and if intervalControl is not "fixedInterval", it is ignored. This
+                is a target minimum amount of time between evaluations of the condition,
+                which may require running CAS data queries so setting it correctly
+                serves to prevent running data queries too often. It is considered
+                a recommendation, not a firm guarantee, and the system should evaluate
+                the condition each time the interval has expired unless other checks
+                tell the system that the answer is already known.   The answer may
+                be cached and known to still be valid when the elapsed time is passed.
+              type: number
+        notification:
+          description: Determines the minimum time between notifications to subscribers.
+            If the notification object is not supplied, the default is as if it were
+            supplied with a value of "systemControlled" specified for the notification.intervalControl
+            property.
+          type: object
+          required:
+          - intervalControl
+          properties:
+            intervalControl:
+              description: The strategy for how the interval betwen notifications
+                is determined. If the value is systemControlled, the intervalValue
+                and the intervalUnit are ignored, and the system chooses a notification
+                interval based on some user preference or application default. If
+                the value is "fixedInterval", notifications will not be sent any more
+                often than the actual value and unit specified. If the value is "lookupReportStrategy",
+                the system will use the values specified in the report by looking
+                them up at evaluation time.
+              type: string
+              enum:
+              - systemControlled
+              - fixedInterval
+              - lookupReportStrategy
+            intervalUnit:
+              description: Unit of notification interval if the intervalControl attribute
+                is "fixedInterval." The unit is required if intervalControl is "fixedInterval";
+                otherwise it is ignored.
+              type: string
+              enum:
+              - days
+              - hours
+              - minutes
+              - seconds
+            intervalValue:
+              description: Value of notification interval if the intervalControl attribute
+                is "fixedInterval". The value is required if intervalControl is "fixedInterval";
+                otherwise it is ignored.
+              type: number
+        links:
+          type: array
+          description: Paging links that apply to this object.
+          items:
+            $ref: "#/components/schemas/link"
+    evaluationCandidate:
+      title: Candidate Subscription for Evaluation
+      type: object
+      x-sas-media-type:
+        name: application/vnd.sas.report.alert.candidate
+        version: 1
+      description: Designates a subscription that is a candidate for evaluation. It
+        contains timestamps for when  a subscription was last retrieved and processed
+        by the Report Alerts Evaluator. It contains a reference link to the original
+        subscription but does not repeat the fields of that object. Its purpose is
+        to help multiple cooperating Report Alert Evaluator service instances to coordinate
+        their work and to find the next condition(s) to be checked.
+      required:
+      - id
+      properties:
+        id:
+          type: string
+          description: the unique identifier
+          format: object-id
+        version:
+          type: integer
+          description: This schema version of this object.
+        lastQueriedTimeStamp:
+          type: string
+          format: date-time
+          description: The date and time the subscription was last queried.
+        links:
+          type: array
+          description: Links that apply to this object, especially for retrieving
+            the subscription and subscribers.
+          items:
+            $ref: "#/components/schemas/link"
+    subscriber:
+      title: Subscriber
+      description: The user subscribed to a data condition in a report with information
+        about how to notify the user.
+      type: object
+      x-sas-media-type:
+        name: application/vnd.sas.report.alert.subscriber
+        version: 1
+      required:
+      - userId
+      properties:
+        userId:
+          description: Identifier of user.
+          type: string
+        group:
+          description: Whether subscriber is a group, not a single identity.
+          type: boolean
+          default: false
+        sendEmail:
+          description: Whether to send email when notifying.
+          type: boolean
+          default: true
+        sendSms:
+          description: Whether to send SMS message when notifying.
+          type: boolean
+          default: false
+        retainNotification:
+          description: Whether to retain the notification after sending
+          type: boolean
+          default: false
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the subscriber.
+        modifiedTimeStamp:
+          type: string
+          description: The time stamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            subscriber was last modified.
+          format: date-time
+    subscriberCollection:
+      title: Resource Collection of Subscribers.
+      description: A collection of subscriber representations.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/subscriber"
+            description: The array of representations.
+    reportReference:
+      title: Reference to Report
+      description: Information needed in order to label a reference to a report and
+        to create the link to the report resource.
+      type: object
+      required:
+      - uri
+      properties:
+        name:
+          type: string
+          description: A user readable name, typically the name shown in a file selector.
+            It is intended to be used in notification messages to a subscriber. It
+            is likely the one that is returned as the name field of the application/vnd.sas.report
+            media type from the Reports Rervice, but it can be set to any name that
+            is more descriptive.
+        uri:
+          type: string
+          description: The resource URI for the report by which it is available from
+            the reports service.
+    alertableCondition:
+      title: Alertable Condition
+      description: Information about an "AlertableState" in a BIRD Report and the
+        conditional expression that defines it.
+      type: object
+      x-sas-media-type:
+        name: application/vnd.sas.report.alert.condition
+        version: 1
+      required:
+      - alertableState
+      - report
+      properties:
+        alertableState:
+          description: The unique name of the BIRD AlertableState element in the report.
+          type: string
+          example: as456
+        report:
+          $ref: "#/components/schemas/reportReference"
+        expression:
+          description: The data condition specified in BIRD expression language
+          type: string
+          example: "gt(${bi123}, 10000)"
+        clauseName:
+          type: string
+          description: Unique internal name for condition clause in the report
+        visualElementName:
+          type: string
+          description: BIRD report internal name for the visual element showing alertable
+            data.
+        dataItemNames:
+          description: The data items involved in the condition when evaluated.
+          type: array
+          items:
+            type: string
+            title: Internal names for data items used by the visual element and in
+              the condition expression.
+        defaultEvaluation:
+          description: The default setting for subscriptions for the time interval
+            between evaluations of the condition. If the defaultEvaluation object
+            is not supplied on a condition, it is interpreted as if the defaultEvaluation.intervalControl
+            attribute were "systemControlled."
+          type: object
+          required:
+          - intervalControl
+          properties:
+            intervalControl:
+              description: Default strategy for determining the evaluation frequency
+                interval for subscriptions to the condition.
+              type: string
+              enum:
+              - systemControlled
+              - fixedInterval
+            intervalUnit:
+              description: Default unit of time for evaluation frequency. The unit
+                is required if the intervalControl is "fixedInterval"; otherwise,
+                it is ignored. Note that the value "seconds" is allowed by the API,
+                but the VA Editor user interface only provides selection of days,
+                hours, or minutes.
+              type: string
+              enum:
+              - days
+              - hours
+              - minutes
+              - seconds
+            interval:
+              type: number
+              description: Value of interval for evaluation frequency. The value is
+                required if the intervalControl is "fixedInterval"; otherwise, it
+                is ignored.
+              minimum: 1
+        defaultNotification:
+          description: The default settings for minimum time between notifications
+            for subscriptions to the condition. If the defaultNotification object
+            is not supplied on a condition, it is interpreted as if the defaultNotification.intervalControl
+            attribute were systemControlled.
+          type: object
+          required:
+          - intervalControl
+          properties:
+            intervalControl:
+              description: Default strategy for how notification interval is determined
+                for subscriptions to the condition.
+              type: string
+              enum:
+              - systemControlled
+              - fixedInterval
+              default: systemControlled
+            intervalUnit:
+              description: Unit of interval for time between notifications if intervalControl
+                is "fixedInterval". The unit "seconds" is allowed by the API, but
+                note that the VA Editor user interface only provides selection of  days,
+                hours, or minutes. The unit is required if the intervalControl is
+                "fixedInterval"; otherwise, it is ignored.
+              type: string
+              enum:
+              - days
+              - hours
+              - minutes
+              - seconds
+            interval:
+              description: Minimum time interval between notifications if intervalControl
+                is "fixedInterval". The value is required if the intervalControl is
+                "fixedInterval"; otherwise, it is ignored.
+              type: number
+              minimum: 1
+        id:
+          type: string
+          format: object-id
+          description: A system-generated id that appears in reponse objects.  Does
+            not need to be provided on requests.
+        version:
+          type: integer
+          description: The version of this object.
+        links:
+          type: array
+          description: Links that apply to this object.
+          items:
+            $ref: "#/components/schemas/link"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    collection2:
+      title: Collection
+      description: A collection of zero or more resource representations. Collections
+        are often paginated and the items array contains one page of representations.
+      required:
+      - items
+      x-sas-media-type:
+        name: application/vnd.sas.collection
+        version: 2
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: Array consisting API resource representations, normally a
+              page worth.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+  examples:
+    invalidCondition:
+      description: >
+        invalid alertable condition
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 27804, "message": "The\
+          \ alertable condition name requested is invalid: ..", "details": ["path:\
+            \ /reportAlerts/conditions", "correlator: 070b768e-0e4d-4745-9f1d-cb17e5faae36"]}
+    conditionResponseBody:
+      description: >
+        condition collection
+      value: {"id": "23f0ce6b-8c67-482f-a787-76d87364b16a", "version": 1, "alertableState": "as42",
+        "report": {"uri": "/reports/reports/d7b26fc7-c7d7-4c88-b554-4382bd0b84b9",
+          "name": "Test Report for Alert Subscriptions"}, "expression": "gt(${bi1},200)",
+        "clauseName": "cc43", "visualElementName": "ve32", "dataItemNames": ["bi38"],
+        "defaultEvaluation": {"interval": 10, "intervalUnit": "minutes", "intervalControl": "fixedInterval"},
+        "defaultNotification": {"interval": 1, "intervalUnit": "days", "intervalControl": "fixedInterval"},
+        "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+            "type": "application/vnd.sas.report.alert.condition"}, {"method": "GET",
+            "rel": "getReportContent", "href": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
+            "uri": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
+            "type": "application/vnd.sas.report.content", "title": "Get BIRD Content\
+              \ of Report"}, {"method": "GET", "rel": "getReportConditions", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.condition"},
+          {"method": "GET", "rel": "getSubscribers", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.subscriber"}]}
+    eTagNotProvided:
+      description: >
+        eTag is missing
+      value: {"version": 2, "httpStatusCode": 428, "errorCode": 27821, "message": 'The
+          header field "If-Match" is missing or does not have a value.', "details": [
+          "path: /reportAlerts/...", "correlator: c9656b50-2d9c-43a8-872d-026b1fb78e24"],
+        "remediation": "Specify the resource's entity tag."}
+    subscriptionNotFound:
+      description: >
+        subscription not found
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 27802, "message": "record\
+          \ not found", "details": ["subscription not found for id=...", "path: /reportAlerts/subscriptions/...",
+          "correlator: 7c47391d-5d61-4c97-b464-a0cc11b97295"]}
+    subscriptionRequestBody:
+      description: >
+        subscription request body
+      value: {"id": "", "alertableConditionName": "as42", "report": {"uri": "/reports/reports/d7b26fc7-c7d7-4c88-b554-4382bd0b84b9",
+          "name": "Report for Testing Alert Conditions"}, "evaluation": {"interval": 10,
+          "intervalUnit": "minutes", "intervalControl": "fixedInterval"}, "notification": {
+          "interval": 1, "intervalUnit": "days", "intervalControl": "fixedInterval"},
+        "subscribers": [{"userId": "SASAdministrators", "group": true, "sendEmail": false,
+            "sendSms": false, "retainNotification": true}, {"userId": "sasuser", "group": false,
+            "sendEmail": true, "sendSms": true, "retainNotification": true}]}
+    conditionCollectionItems:
+      description: >
+        condition collection items
+      value: [{"id": "23f0ce6b-8c67-482f-a787-76d87364b16a", "version": 1, "alertableState": "as42",
+          "report": {"uri": "/reports/reports/d7b26fc7-c7d7-4c88-b554-4382bd0b84b9",
+            "name": "Test Report for Alert Subscriptions"}, "expression": "gt(${bi1},200)",
+          "clauseName": "cc43", "visualElementName": "ve32", "dataItemNames": ["bi38"],
+          "defaultEvaluation": {"interval": 10, "intervalUnit": "minutes", "intervalControl": "fixedInterval"},
+          "defaultNotification": {"interval": 1, "intervalUnit": "days", "intervalControl": "fixedInterval"},
+          "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+              "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+              "type": "application/vnd.sas.report.alert.condition"}, {"method": "GET",
+              "rel": "getReportContent", "href": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
+              "uri": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
+              "type": "application/vnd.sas.report.content", "title": "Get BIRD Content\
+                \ of Report"}, {"method": "GET", "rel": "getReportConditions", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+              "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+              "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.condition"},
+            {"method": "GET", "rel": "getSubscribers", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+              "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+              "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.subscriber"}]}]
+    userIdNotMatch:
+      description: >
+        input error; userId not match the path parameter
+      value: {"version": 2, "httpStatusCode": 400, "message": "user id must match\
+          \ the subscriber in the body of the request", "details": ["path: /reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+          "correlator: a7c712b8-f052-4682-aff9-1636284b6478"]}
+    invalidInput:
+      description: >
+        invalid input
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 27805, "message": "the\
+          \ input is not valid", "details": ["path: /reportAlerts/...", "correlator:\
+            \ 1af7bdcb-7fde-4dab-b756-b013b64c3c64"]}
+    userConflict:
+      description: >
+        conflict; user already exists.
+      value: {"version": 2, "httpStatusCode": 409, "errorCode": 27806, "message": "User\
+          \ sasdemo is already subscribed to alertable condition as28 of report 7f844d15-6c14-47f5-a746-c9f830cb534e.",
+        "details": ["path: /reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/",
+          "correlator: 0187b50e-e4a7-4d0e-9e04-34c7d14fdfe1"]}
+    subscriberResponseBody:
+      description: >
+        subscriber response body
+      value: {"userId": "sasdemo", "group": false, "sendEmail": true, "sendSms": false,
+        "retainNotification": true, "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+            "type": "application/vnd.sas.report.alert.subscriber"}, {"method": "DELETE",
+            "rel": "deleteSubscriber", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo"},
+          {"method": "PUT", "rel": "updateSubscriber", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+            "type": "application/vnd.sas.report.alert.subscriber"}, {"method": "GET",
+            "rel": "up", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.subscriber"},
+          {"method": "GET", "rel": "getSubscription", "href": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
+            "uri": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
+            "type": "application/vnd.sas.report.alert.subscription"}], "version": 1}
+    subscriptionCollection:
+      description: >
+        subscription collection
+      value: [{"id": "cbeac3b5-729c-4e77-ad6a-f8f05540a54d", "createdBy": "sasdemo",
+          "creationTimeStamp": "2021-05-20T14:51:51.660Z", "modifiedBy": "sasdemo",
+          "modifiedTimeStamp": "2021-05-26T13:05:30.383Z", "alertableConditionName": "as42",
+          "report": {"uri": "/reports/reports/d7b26fc7-c7d7-4c88-b554-4382bd0b84b9",
+            "name": "Report for Testing Alert Conditions"}, "evaluation": {"interval": 10,
+            "intervalUnit": "minutes", "intervalControl": "fixedInterval"}, "notification": {
+            "interval": 1, "intervalUnit": "days", "intervalControl": "fixedInterval"},
+          "subscribers": [{"userId": "SASAdministrators", "group": true, "sendEmail": false,
+              "sendSms": false, "retainNotification": true, "version": 1}, {"userId": "sasuser",
+              "group": false, "sendEmail": true, "sendSms": true, "retainNotification": true,
+              "version": 1}], "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/subscriptions/cbeac3b5-729c-4e77-ad6a-f8f05540a54d",
+              "uri": "/reportAlerts/subscriptions/cbeac3b5-729c-4e77-ad6a-f8f05540a54d",
+              "type": "application/vnd.sas.report.alert.subscription"}, {"method": "GET",
+              "rel": "alternate", "href": "/reportAlerts/subscriptions/cbeac3b5-729c-4e77-ad6a-f8f05540a54d",
+              "uri": "/reportAlerts/subscriptions/cbeac3b5-729c-4e77-ad6a-f8f05540a54d",
+              "type": "application/vnd.sas.summary+json"}, {"method": "DELETE", "rel": "deleteSubscription",
+              "href": "/reportAlerts/subscriptions/cbeac3b5-729c-4e77-ad6a-f8f05540a54d",
+              "uri": "/reportAlerts/subscriptions/cbeac3b5-729c-4e77-ad6a-f8f05540a54d"},
+            {"method": "PUT", "rel": "updateSubscription", "href": "/reportAlerts/subscriptions/cbeac3b5-729c-4e77-ad6a-f8f05540a54d",
+              "uri": "/reportAlerts/subscriptions/cbeac3b5-729c-4e77-ad6a-f8f05540a54d",
+              "type": "application/vnd.sas.report.alert.subscription"}], "version": 1}]
+    subscriberNotExist:
+      description: >
+        no subscriber exists at the requested path.
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 27807, "message": "cannot\
+          \ update if the subscriber is not already subscribed to the subscription",
+        "details": ["path: /reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo1",
+          "correlator: 36aa84d3-e0d1-42bd-92cf-b2494425557f"]}
+    inputValidation:
+      description: >
+        input validation error
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 27811, "message": "one\
+          \ or more invalid parameters", "details": ["path: /reportAlerts/...", "correlator:\
+            \ 92409ce3-a03a-4487-a94d-17259c184877"]}
+    conditionCollection:
+      description: >
+        condition collection
+      value: {"version": 2, "accept": "application/vnd.sas.report.alert.condition",
+        "count": 1, "start": 0, "limit": 10, "name": "items", "items": [{"id": "23f0ce6b-8c67-482f-a787-76d87364b16a",
+            "version": 1, "alertableState": "as42", "report": {"uri": "/reports/reports/d7b26fc7-c7d7-4c88-b554-4382bd0b84b9",
+              "name": "Test Report for Alert Subscriptions"}, "expression": "gt(${bi1},200)",
+            "clauseName": "cc43", "visualElementName": "ve32", "dataItemNames": [
+              "bi38"], "defaultEvaluation": {"interval": 10, "intervalUnit": "minutes",
+              "intervalControl": "fixedInterval"}, "defaultNotification": {"interval": 1,
+              "intervalUnit": "days", "intervalControl": "fixedInterval"}, "links": [
+              {"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+                "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+                "type": "application/vnd.sas.report.alert.condition"}, {"method": "GET",
+                "rel": "getReportContent", "href": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
+                "uri": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
+                "type": "application/vnd.sas.report.content", "title": "Get BIRD Content\
+                  \ of Report"}, {"method": "GET", "rel": "getReportConditions", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+                "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.condition"},
+              {"method": "GET", "rel": "getSubscribers", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+                "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.subscriber"}]}],
+        "links": [{"method": "GET", "rel": "collection", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.condition"},
+          {"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.condition"}]}
+    invalidParameterValue:
+      description: >
+        invalid parameter
+      value: {"httpStatusCode": 400, "errorCode": 1125, "message": "The input parameter\
+          \ is not valid.", "details": ["path: /reportAlerts/subscriptions", "correlator:\
+            \ 30ca221b-81a0-4651-99fb-b475102c538b"]}
+    reportNotFound:
+      description: >
+        report not found
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 27801, "message": "the\
+          \ report was not found", "details": ["path: /reportAlerts/...", "correlator:\
+            \ 14341210-8ab3-45f0-80c7-5856675388d8"]}
+    rootLinks:
+      description: >
+        root links
+      value: {"version": 1, "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts",
+            "uri": "/reportAlerts", "responseType": "application/vnd.sas.api+json"},
+          {"method": "GET", "rel": "subscriptions", "href": "/reportAlerts/subscriptions",
+            "uri": "/reportAlerts/subscriptions", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.summary+json"}, {"method": "POST", "rel": "createSubscription",
+            "href": "/reportAlerts/subscriptions", "uri": "/reportAlerts/subscriptions",
+            "type": "application/vnd.sas.report.alert.subscription", "responseType": "application/vnd.sas.report.alert.subscription"},
+          {"method": "GET", "rel": "conditions", "href": "/reportAlerts/conditions/?reportUri={reportUri}",
+            "uri": "/reportAlerts/conditions/?reportUri={reportUri}", "responseType": "application/vnd.sas.collection",
+            "responseItemType": "application/vnd.sas.report.alert.condition"}]}
+    subscriberCollection:
+      description: >
+        subscriber collection
+      value: {"version": 2, "accept": "application/vnd.sas.report.alert.subscriber",
+        "count": 1, "start": 0, "limit": 10, "name": "items", "items": [{"userId": "sasdemo",
+            "group": false, "sendEmail": false, "sendSms": false, "retainNotification": true,
+            "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+                "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+                "type": "application/vnd.sas.report.alert.subscriber"}, {"method": "DELETE",
+                "rel": "deleteSubscriber", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+                "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo"},
+              {"method": "PUT", "rel": "updateSubscriber", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+                "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+                "type": "application/vnd.sas.report.alert.subscriber"}, {"method": "GET",
+                "rel": "up", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+                "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.subscriber"},
+              {"method": "GET", "rel": "getSubscription", "href": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
+                "uri": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
+                "type": "application/vnd.sas.report.alert.subscription"}], "version": 1}],
+        "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.subscriber"},
+          {"method": "POST", "rel": "createSubscriber", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+            "type": "application/vnd.sas.report.alert.subscriber"}, {"method": "GET",
+            "rel": "getSubscription", "href": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
+            "uri": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
+            "type": "application/vnd.sas.report.alert.subscription"}]}
+    subscriberRequestBody:
+      description: >
+        subscriber request body
+      value: {"userId": "sasdemo", "group": false, "sendEmail": true, "sendSms": false,
+        "retainNotification": true}
+    subscriptionResponseBody:
+      description: >
+        subscription response body
+      value: {"id": "6cde2eda-0fb6-4057-a04c-3eb337f7aab7", "creationTimeStamp": "2023-11-08T16:09:45.024488471Z",
+        "createdBy": "sasdemo", "modifiedTimeStamp": "2023-11-08T16:09:45.024488471Z",
+        "modifiedBy": "sasdemo", "alertableConditionName": "as42", "report": {"uri": "/reports/reports/d7b26fc7-c7d7-4c88-b554-4382bd0b84b9",
+          "name": "Report for Testing Alert Conditions"}, "evaluation": {"interval": 10,
+          "intervalUnit": "minutes", "intervalControl": "fixedInterval"}, "notification": {
+          "interval": 1, "intervalUnit": "days", "intervalControl": "fixedInterval"},
+        "version": 1, "subscribers": [{"userId": "SASAdministrators", "group": true,
+            "sendEmail": false, "sendSms": false, "retainNotification": true, "version": 1},
+          {"userId": "sasuser", "group": false, "sendEmail": true, "sendSms": true,
+            "retainNotification": true, "version": 1}], "links": [{"method": "GET",
+            "rel": "self", "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "type": "application/vnd.sas.report.alert.subscription"}, {"method": "GET",
+            "rel": "alternate", "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "type": "application/vnd.sas.summary+json"}, {"method": "DELETE", "rel": "deleteSubscription",
+            "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7"},
+          {"method": "PUT", "rel": "updateSubscription", "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "type": "application/vnd.sas.report.alert.subscription"}]}
+    eTagNotMatch:
+      description: >
+        eTag not match
+      value: {"version": 2, "httpStatusCode": 412, "errorCode": 27820, "message": 'The
+          header field "If-Match" has a value that is different from the entity tag
+          for the resource. (The specified values are ... and ..., respectively.)',
+        "details": ["path: /reportAlerts/...", "correlator: 7b14e794-16eb-4296-86f5-ab7008f20a6e"]}
+    invalidMediaType:
+      description: >
+        no matched media type found
+      value: {"version": 2, "httpStatusCode": 406, "message": "no match found", "details": [
+          "path: /reportAlerts/subscriptions", "correlator: e1ae18c7-f099-4698-9d1e-3fef18bf3ee5"]}
+    subscriptionCandidateCollection:
+      description: >
+        subscription candidates collection
+      value: [{"id": "ac64cdca-b404-43b9-8621-0eb937c76fbc", "lastQueriedTimeStamp": "2023-11-08T16:38:11.584Z",
+          "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
+              "uri": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
+              "type": "application/vnd.sas.report.alert.subscription"}], "version": 1},
+        {"id": "6cde2eda-0fb6-4057-a04c-3eb337f7aab7", "lastQueriedTimeStamp": "2023-11-08T16:38:11.584Z",
+          "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+              "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+              "type": "application/vnd.sas.report.alert.subscription"}], "version": 1}]

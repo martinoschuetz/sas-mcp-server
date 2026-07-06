@@ -1,0 +1,652 @@
+---
+openapi: 3.0.3
+info:
+  description: 'The forecasting comparison API provides summary statistics that describe
+    the fit of forecasting models. A comparison can be performed using these statistics
+    with the "champion" results being published to a specified location. In addition,
+    a particular set of results can be selected as the "champion" in order to by-pass
+    the comparison.'
+  version: "2"
+  title: Forecasting Comparison
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: devex@sas.com
+  license:
+    name: SAS Institute Inc.
+    url: "https://support.sas.com/techsup/license/index.html"
+tags:
+- name: Root
+  description: Returns API resource that contains links for discovering other endpoints.
+- name: Comparison
+  description: 'Determine which of the given result sets is optimal based on a particular
+    statistic. If a target location is specified, the "champion" result set is promoted
+    to that location. Optionally, a particular result set can be denoted as "champion"
+    in order to by-pass the comparison. Note: No "Location" header is returned since
+    a comparison is a transient resource that is not persisted.'
+- name: SummaryStatistics
+  description: Fetches the specified summary statistics, combining the results into
+    a single table report. This is logically a "GET" operation, but is using "POST"
+    to convey details in the request body.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Fetch root of API
+      description: Returns API resource that contains links for discovering other
+        endpoints.
+      operationId: root
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/rootResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/rootResp"
+  /comparisons:
+    post:
+      tags:
+      - Comparison
+      description: 'Determine which of the given result sets is optimal based on a
+        particular statistic. If a target location is specified, the "champion" result
+        set is promoted to that location. Optionally, a particular result set can
+        be denoted as "champion" in order to by-pass the comparison. Note: No "Location"
+        header is returned since a comparison is a transient resource that is not
+        persisted.'
+      summary: Compare statistics-of-fit
+      operationId: createComparison
+      requestBody:
+        content:
+          application/vnd.sas.analytics.forecasting.compare+json:
+            schema:
+              $ref: "#/components/schemas/compareRequest"
+            examples:
+              compare:
+                $ref: "#/components/examples/compareFitStatsRequest"
+              comparePromote:
+                $ref: "#/components/examples/compareFitStatsPromoteRequest"
+              compareFitStatsChampPromoteRequest:
+                $ref: "#/components/examples/compareFitStatsChampPromoteRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/compareRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/compareFitStatsRequest"
+        description: request
+        required: true
+      responses:
+        "200":
+          description: Comparison successful
+          content:
+            application/vnd.sas.analytics.forecasting.cas.data.source+json:
+              schema:
+                $ref: "#/components/schemas/casDataSource"
+              examples:
+                json:
+                  $ref: "#/components/examples/compareFitStatsResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/casDataSource"
+              examples:
+                json:
+                  $ref: "#/components/examples/compareFitStatsResponse"
+        "201":
+          description: Comparison successful and target result set promoted to specified
+            location
+          content:
+            application/vnd.sas.analytics.forecasting.cas.data.source+json:
+              schema:
+                $ref: "#/components/schemas/casDataSource"
+              examples:
+                json:
+                  $ref: "#/components/examples/compareFitStatsResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/casDataSource"
+              examples:
+                json:
+                  $ref: "#/components/examples/compareFitStatsResponse"
+        "400":
+          description: Request body contains an error or is incomplete
+  /summaryStatistics:
+    post:
+      tags:
+      - SummaryStatistics
+      summary: Retrieve summary statistics
+      description: Fetches the specified summary statistics, combining the results
+        into a single table report. This is logically a "GET" operation, but is using
+        "POST" to convey details in the request body.
+      operationId: createSummaryStatistics
+      requestBody:
+        content:
+          application/vnd.sas.analytics.forecasting.summary.stats+json:
+            schema:
+              $ref: "#/components/schemas/summaryStatisticsRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/summaryStatRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/summaryStatisticsRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/summaryStatRequest"
+        description: request
+        required: true
+      responses:
+        "200":
+          description: Summary statistics returned successfully
+          content:
+            application/vnd.sas.analytics.report+json:
+              schema:
+                $ref: "#/components/schemas/report"
+              examples:
+                default:
+                  $ref: "#/components/examples/sumStatResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/report"
+              examples:
+                default:
+                  $ref: "#/components/examples/sumStatResp"
+        "400":
+          description: Request body contains an error or is incomplete
+        "404":
+          description: No summary statistics found
+servers:
+- url: http://example.com/forecastingComparison
+  description: Kubernetes mock server
+components:
+  schemas:
+    summaryStatisticsRequest:
+      type: object
+      description: A specification for summary statistics
+      properties:
+        dataSources:
+          type: array
+          description: The data sources from which to retrieve summary statistics
+          items:
+            $ref: "#/components/schemas/casDataSource"
+        regions:
+          type: array
+          description: The regions for which statistics are to be retrieved
+          items:
+            type: string
+            enum:
+            - forecast
+            - fit
+        statTypes:
+          type: array
+          description: The types of summary statistics to be retrieved
+          items:
+            type: string
+            enum:
+            - all
+            - min
+            - q1
+            - medium
+            - q3
+            - max
+            - mean
+            - weightedMean
+        stats:
+          type: array
+          description: The summary statistics to be retrieved
+          items:
+            type: string
+            enum:
+            - AADJRSQ
+            - ADJRSQ
+            - AIC
+            - AICC
+            - APC
+            - GMAPE
+            - GMAPES
+            - GMAPPE
+            - GMASPE
+            - GMRAE
+            - MAE
+            - MAPE
+            - MAPES
+            - MAPPE
+            - MASE
+            - MAXAPES
+            - MAXERR
+            - MAXPE
+            - MAXPPE
+            - MAXRE
+            - MAXSPE
+            - MDAPE
+            - MDAPES
+            - MDAPPE
+            - MDASPE
+            - MDRAE
+            - ME
+            - MINAPES
+            - MINERR
+            - MINPE
+            - MINPPE
+            - MINRE
+            - MINSPE
+            - MPE
+            - MPPE
+            - MRAE
+            - MRE
+            - MSE
+            - MSPE
+            - RMSE
+            - RSQUARE
+            - RWRSQ
+            - SBC
+            - SMAPE
+            - UMSE
+            - URMSE
+            - WAPE
+            - MOVINGAVERAGE_WASE
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+      required:
+      - dataSources
+      - regions
+      - statTypes
+      - stats
+    compareRequest:
+      type: object
+      description: A specification for compare request
+      required:
+      - casServer
+      - sourceCaslibs
+      - stat
+      properties:
+        casServer:
+          type: string
+          description: The CAS server where the result sets reside
+        championDataSource:
+          $ref: "#/components/schemas/casDataSource"
+        sourceCaslibs:
+          type: array
+          description: The caslibs where the source result sets are located
+          items:
+            type: string
+        sourcePrefixes:
+          type: array
+          description: The prefixes prepended to any tables in the source result sets
+          items:
+            type: string
+        stat:
+          type: string
+          description: The stat used to determine the optimal result set
+          enum:
+          - AADJRSQ
+          - ADJRSQ
+          - AIC
+          - AICC
+          - APC
+          - GMAPE
+          - GMAPES
+          - GMAPPE
+          - GMASPE
+          - GMRAE
+          - MAE
+          - MAPE
+          - MAPES
+          - MAPPE
+          - MASE
+          - MAXAPES
+          - MAXERR
+          - MAXPE
+          - MAXPPE
+          - MAXRE
+          - MAXSPE
+          - MDAPE
+          - MDAPES
+          - MDAPPE
+          - MDASPE
+          - MDRAE
+          - ME
+          - MINAPES
+          - MINERR
+          - MINPE
+          - MINPPE
+          - MINRE
+          - MINSPE
+          - MPE
+          - MPPE
+          - MRAE
+          - MRE
+          - MSE
+          - MSPE
+          - RMSE
+          - RSQUARE
+          - RWRSQ
+          - SBC
+          - SMAPE
+          - UMSE
+          - URMSE
+          - WAPE
+          - MOVINGAVERAGE_WASE
+        targetCaslib:
+          type: string
+          description: The caslib where the champion result set is to be promoted
+        targetPrefix:
+          type: string
+          description: The prefix to be prepended to any tables in the champion result
+            set when promoting
+        targetTables:
+          type: array
+          description: The tables of the champion result set to be promoted
+          items:
+            type: string
+            enum:
+            - OUTFOR
+            - OUTSTAT
+            - RECFOR
+            - RECSTAT
+            - OUTINFORMATION
+            - COMPONENTINFORMATION
+            - STAT_SUMMARY
+            - PATTERN_SUMMARY
+            - VALIDATIONLOG
+            - OUTMODELINFO
+            - ADV_STAT_SUMMARY
+        comparisonTableName:
+          type: string
+          description: "If specified, a table of comparison results will be created\
+            \ with the given name. Added in version 2."
+        markChampionDataSource:
+          type: boolean
+          description: Whether or not to mark the champion data source by setting
+            attributes on the source tables. The default value is true. Added in version
+            2.
+          default: true
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 2.
+    casDataSource:
+      type: object
+      description: A specification of a CAS data source
+      required:
+      - casServer
+      - caslib
+      properties:
+        casServer:
+          type: string
+          description: The CAS server where this data source is located
+        caslib:
+          type: string
+          description: The name of the caslib associated with this data source
+        tablePrefix:
+          type: string
+          description: The prefix prepended to any tables within this data source
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    report:
+      title: Analytics Report
+      description: An analytics report consisting of rows of data and associated metadata
+        (parameters).
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.report
+      required:
+      - data
+      - parameterMap
+      - type
+      properties:
+        id:
+          type: string
+          description: The unique identifier of this analytics report.
+        data:
+          type: array
+          description: The rows of data.
+          items:
+            $ref: "#/components/schemas/dataRow"
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        parameterMap:
+          type: object
+          description: 'The collection of parameters, categorized by parameter name.'
+          additionalProperties:
+            $ref: "#/components/schemas/parameter"
+        order:
+          type: integer
+          format: int32
+          description: The index in a collection of analytics reports. Useful when
+            analytics reports are stored in an unordered collection but order is desired.
+        type:
+          type: string
+          description: The type of analytics report. Informs clients how this analytics
+            report should be rendered.
+          enum:
+          - undefined
+          - table
+          - barChart
+          - refreshableBarChart
+          - seriesPlot
+          - pieChart
+          - histogram
+          - decisionTree
+          - networkDiagram
+          - html
+          - textViewer
+          - matrix
+          - bandPlot
+          - codeEditor
+          - iciclePlot
+          - scatterPlot
+          - comboBox
+        xInteger:
+          type: boolean
+          description: Whether or not to suppress intermediate tick marks on the X-axis.
+        yInteger:
+          type: boolean
+          description: Whether or not to suppress intermediate tick marks on the Y-axis.
+        version:
+          type: integer
+          format: int32
+          description: This media type's schema version number. This representation
+            is version 1.
+        description:
+          type: string
+          description: A description of this analytics report.
+        revision:
+          type: integer
+          description: A revision number that is incremented on every update to the
+            analytics report.
+          format: int64
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    dataRow:
+      title: Data Row
+      description: A row of data.
+      required:
+      - dataMap
+      - rowNumber
+      properties:
+        dataMap:
+          type: object
+          description: 'Map of parameter name to associated value.'
+        header:
+          type: string
+          description: 'Optional title. May be localized.'
+        rowNumber:
+          type: integer
+          format: int32
+          description: 'The index of this row in the collection.'
+    parameter:
+      title: Parameter
+      description: Metadata describing a particular variable.
+      required:
+      - parameter
+      - type
+      - values
+      properties:
+        label:
+          type: string
+          description: 'The display name. May be localized.'
+        length:
+          type: integer
+          format: int32
+          description: 'The maximum width among this parameter''s values.'
+        order:
+          type: integer
+          format: int32
+          description: 'The index of this parameter in the collection.'
+        parameter:
+          type: string
+          description: 'The parameter name. Should not be localized.'
+        preformatted:
+          type: boolean
+          description: 'Indicates whether this parameter''s values have already been
+            formatted.'
+        type:
+          type: string
+          description: 'The data type of this parameter''s values.'
+          enum:
+          - undefined
+          - num
+          - char
+          - report
+        values:
+          type: array
+          description: 'Keys used to associate this parameter with values in the rows
+            of data.'
+          items:
+            type: string
+  examples:
+    summaryStatRequest:
+      description: An example request for fetching summary statistics.
+      value: {"dataSources": [{"casServer": "cas-shared-default", "caslib": "Forecasting_Pipeline_1",
+            "tablePrefix": "Model_1"}, {"casServer": "cas-shared-default", "caslib": "Forecasting_Pipeline_1",
+            "tablePrefix": "Model_2"}], "regions": ["fit"], "statTypes": ["weightedMean"],
+        "stats": ["MAPE", "RMSE", "MAE", "MASE"]}
+    compareFitStatsRequest:
+      description: An example requesting for comparing statistics-of-fit.
+      value: {"casServer": "cas-shared-default", "sourceCaslibs": ["Forecasting_Pipeline_1",
+          "Forecasting_Pipeline_2"], "sourcePrefixes": ["Model_1", "Model_2"], "stat": "MAPE"}
+    compareFitStatsPromoteRequest:
+      description: An example requesting for comparing statistics-of-fit and promote
+        champion result set.
+      value: {"casServer": "cas-shared-default", "sourceCaslibs": ["Forecasting_Pipeline_1",
+          "Forecasting_Pipeline_2"], "sourcePrefixes": ["Model_1", "Model_2"], "stat": "MAPE",
+        "targetCaslib": "Forecasting_Project_1", "targetPrefix": "Champion_Pipeline",
+        "targetTables": ["OUTFOR"], "comparisonTableName": "outcomparison", "markChampionDataSource": false}
+    compareFitStatsChampPromoteRequest:
+      description: |
+        An example to set champion and promote champion result set.
+        The champion's source table *Forecasting_Pipeline_2.Model_1.OUTFOR* is copied and promoted to Forecasting_Project_1.Champion_Pipeline.OUTFOR.
+      value: {"casServer": "cas-shared-default", "championDataSource": {"casServer": "cas-shared-default",
+          "caslib": "Forecasting_Pipeline_2", "tablePrefix": "Model_1"}, "sourceCaslibs": [
+          "Forecasting_Pipeline_1", "Forecasting_Pipeline_2"], "sourcePrefixes": [
+          "Model_1", "Model_2"], "stat": "MAPE", "targetCaslib": "Forecasting_Project_1",
+        "targetPrefix": "Champion_Pipeline", "targetTables": ["OUTFOR"]}
+    compareFitStatsResponse:
+      description: An example response from compare statistics-of-fit that determines
+        which of the given result sets is optimal based on a particular statistic.
+      value: {"casServer": "cas-shared-default", "caslib": "Forecasting_Pipeline_1",
+        "tablePrefix": "Model_2", "version": 1}
+    sumStatResp:
+      description: An example response of speecified summary statistics returned as
+        a single table report.
+      value: {"id": "id-of-summary-stats-table", "order": 1, "type": "table", "parameterMap": {
+          "MAE": {"parameter": "MAE", "type": "num", "label": "MAE", "length": 8,
+            "order": 4, "values": ["MAE"], "preformatted": false}, "MASE": {"parameter": "MASE",
+            "type": "num", "label": "MASE", "length": 8, "order": 5, "values": ["MASE"],
+            "preformatted": false}, "MAPE": {"parameter": "MAPE", "type": "num", "label": "MAPE",
+            "length": 8, "order": 3, "values": ["MAPE"], "preformatted": false}, "model": {
+            "parameter": "model", "type": "char", "label": "Model Name", "order": 2,
+            "values": ["model"], "preformatted": false}, "RMSE": {"parameter": "RMSE",
+            "type": "num", "label": "RMSE", "length": 8, "order": 6, "values": ["RMSE"],
+            "preformatted": false}, "isChampion": {"parameter": "isChampion", "type": "char",
+            "label": "Champion", "order": 1, "values": ["isChampion"], "preformatted": false},
+          "status": {"parameter": "status", "type": "char", "label": "Status", "order": 3,
+            "values": ["status"], "preformatted": false}}, "data": [{"dataMap": {
+              "MAE": "2743.4022030444", "MAPE": "8.39988698286521", "MASE": "0.69012166538594",
+              "RMSE": "3954.28339097497", "isChampion": "true", "model": "Model 1",
+              "status": "Successful"}, "rowNumber": 1}, {"dataMap": {"MAE": "3000.34",
+              "MAPE": "10.45987", "MASE": "0.98435", "RMSE": "4984.982374", "isChampion": "false",
+              "model": "Model 2", "status": "Successful"}, "rowNumber": 2}], "version": 1}
+    rootResp:
+      description: An example of a response from invoking the Root application/vnd.sas.analytics.forecasting.cas.data.source
+      value: {"version": 1, "links": [{"method": "POST", "rel": "compare", "href": "/forecastingComparison/comparisons",
+            "uri": "/forecastingComparison/comparisons", "type": "application/vnd.sas.analytics.forecasting.compare",
+            "responseType": "application/vnd.sas.analytics.forecasting.cas.data.source"},
+          {"method": "POST", "rel": "summaryStatistics", "href": "/forecastingComparison/summaryStatistics",
+            "uri": "/forecastingComparison/summaryStatistics", "type": "application/vnd.sas.analytics.forecasting.summary.stats",
+            "responseType": "application/vnd.sas.analytics.report"}]}

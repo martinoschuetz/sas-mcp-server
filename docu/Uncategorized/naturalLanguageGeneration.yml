@@ -1,0 +1,2470 @@
+---
+openapi: 3.0.3
+info:
+  title: Natural Language Generation
+  description: |
+    This API generates natural language given both data and templates
+    using advanced natural language concepts.
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+  version: "2"
+servers:
+- url: https://example.com/naturalLanguageGeneration
+  description: This is an example of a base URL.
+security:
+- SASLogon:
+  - openid
+tags:
+- name: Root
+  description: Operations for the root resource.
+- name: Documents
+  description: A document is produced when a template is executed and contains the
+    result of the template execution. Interact with these operations to execute template
+    code.
+- name: Templates
+  description: A template is plain text representing the code that will be passed
+    to the template execution context along with optional data to generate the desired
+    natural language. Interact with these operations to store templates for future
+    execution.
+- name: Transfer
+  description: Operations for transferring object resources.
+- name: Languages
+  description: Operations for natural languages supported by this API.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get API resource links
+      description: |
+        Return a list of links to the top level resources in this API. This entry point does not require authentication. Some
+        links may be omitted for non-authenticated calls.
+      operationId: root
+      responses:
+        "200":
+          description: A collection of link objects.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/apiResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/apiResponse"
+      security:
+      - SASLogon:
+        - openid
+    head:
+      tags:
+      - Root
+      summary: Determine if API resource links are available
+      description: |
+        Determines if the list of links to the top level resources in this API are available. This entry point does not require
+        authentication.
+      operationId: headersForRoot
+      responses:
+        "200":
+          description: API resource links are available
+      security:
+      - SASLogon:
+        - openid
+  /documents:
+    get:
+      tags:
+      - Documents
+      summary: Get All Documents
+      description: Returns a collection of documents that have been stored for the
+        current user. If no such document exists, an empty collection is returned.
+      operationId: getDocuments
+      parameters:
+      - name: filter
+        in: query
+        description: The criteria for filtering the collection. See [Filtering in
+          REST APIs](https://developer.sas.com/rest-apis/naturalLanguageGeneration-v2/docs/getting-started/usage-notes#filtering)
+        schema:
+          type: string
+          format: string
+      - name: start
+        in: query
+        description: The start index for pagination
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: The limit parameter for pagination
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the collection. See [Sorting in REST
+          APIs](https://developer.sas.com/rest-apis/naturalLanguageGeneration-v2/docs/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: All of the current documents
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/documents"
+              examples:
+                default:
+                  $ref: "#/components/examples/documentCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/documents"
+              examples:
+                default:
+                  $ref: "#/components/examples/documentCollection"
+      security:
+      - SASLogon:
+        - openid
+    post:
+      tags:
+      - Documents
+      summary: Create a Document from Raw Template Text
+      description: The endpoint that combines the provided template and data into
+        a string response
+      operationId: createDocumentFromText
+      requestBody:
+        description: Apply the given data to the template provided.
+        content:
+          application/vnd.sas.cognitive.natural.language.generation.document.request.from.text+json:
+            schema:
+              $ref: "#/components/schemas/documentRequestFromText"
+            examples:
+              default:
+                $ref: "#/components/examples/documentFromTextRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/documentRequestFromText"
+            examples:
+              default:
+                $ref: "#/components/examples/documentFromTextRequest"
+        required: true
+      responses:
+        "201":
+          description: Document created from text
+          headers:
+            Location:
+              description: The URL of the document.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.document+json:
+              schema:
+                $ref: "#/components/schemas/document"
+              examples:
+                default:
+                  $ref: "#/components/examples/document"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/document"
+              examples:
+                default:
+                  $ref: "#/components/examples/document"
+        "400":
+          description: The provided template was either missing or empty.
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.document+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+      x-codegen-request-body-name: payload
+  /documents#asJsonResponse:
+    post:
+      tags:
+      - Documents
+      summary: Create a Document from a Raw Template Text with the data access formatted
+        as Json
+      description: The endpoint that combines the provided template and data into
+        a string response. Any time data is used it is json formatted rather than
+        using traditional toString() format.
+      operationId: createDocumentFromTextAsJsonResponse
+      requestBody:
+        description: Apply the given data to the template provided.
+        content:
+          application/vnd.sas.cognitive.natural.language.generation.document.request.from.text+json:
+            schema:
+              $ref: "#/components/schemas/documentRequestFromText"
+            examples:
+              default:
+                $ref: "#/components/examples/documentFromTextAsJsonRequest"
+        required: true
+      responses:
+        "201":
+          description: Document created from text
+          headers:
+            Location:
+              description: The URL of the document.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.document.as.json+json:
+              schema:
+                $ref: "#/components/schemas/documentAsJson"
+              examples:
+                default:
+                  $ref: "#/components/examples/documentFromTextAsJsonResponse"
+        "400":
+          description: The provided template was either missing or empty.
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.document.as.json+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+      x-codegen-request-body-name: payload
+  /documents#multiPost:
+    post:
+      tags:
+      - Documents
+      summary: Create multiple documents
+      description: The endpoint that combines the provided template and data into
+        a string response
+      operationId: createDocuments
+      requestBody:
+        description: Apply the given data to the templates provided.
+        content:
+          application/vnd.sas.cognitive.natural.language.generation.document.requests+json:
+            schema:
+              $ref: "#/components/schemas/documentRequests"
+            examples:
+              default:
+                $ref: "#/components/examples/documentMultiPostRequest"
+        required: true
+      responses:
+        "201":
+          description: Documents created from text
+          headers:
+            Location:
+              description: The URL where the documents were created.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/documents"
+              examples:
+                default:
+                  $ref: "#/components/examples/documentMultiPostResponse"
+        "400":
+          description: The provided template was either missing or empty.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+      x-sas-returns-heterogeneous-collection: true
+      x-codegen-request-body-name: payload
+  /documents#multiPostAsJsonResponse:
+    post:
+      tags:
+      - Documents
+      summary: Create multiple documents with data access formatted as json
+      description: The endpoint that combines the provided template and data into
+        a string response. When data is accessed then it is formatted as Json rather
+        than toString().
+      operationId: createDocumentsAsJsonResponse
+      requestBody:
+        description: Apply the given data to the templates provided.
+        content:
+          application/vnd.sas.cognitive.natural.language.generation.document.requests+json:
+            schema:
+              $ref: "#/components/schemas/documentRequests"
+            examples:
+              default:
+                $ref: "#/components/examples/documentsFromTextAsJsonRequest"
+        required: true
+      responses:
+        "201":
+          description: Documents created from text
+          headers:
+            Location:
+              description: The URL where the documents were created.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.documents.as.json+json:
+              schema:
+                $ref: "#/components/schemas/documentsAsJson"
+              examples:
+                default:
+                  $ref: "#/components/examples/documentsFromTextAsJsonResponse"
+        "400":
+          description: The provided template was either missing or empty.
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.documents.as.json+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+      x-sas-returns-heterogeneous-collection: true
+      x-codegen-request-body-name: payload
+  /documents#byURI:
+    post:
+      tags:
+      - Documents
+      summary: Create a Document with a Template URI
+      description: The endpoint that combines the provided template and data into
+        a string response
+      operationId: createDocumentFromUri
+      requestBody:
+        description: Apply the given data to the template provided.
+        content:
+          application/vnd.sas.cognitive.natural.language.generation.document.request.from.uri+json:
+            schema:
+              $ref: "#/components/schemas/documentRequestFromUri"
+            examples:
+              default:
+                $ref: "#/components/examples/createDocumentFromUriRequest"
+        required: true
+      responses:
+        "201":
+          description: Document created from uri
+          headers:
+            Location:
+              description: The URL of the document.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.document+json:
+              schema:
+                $ref: "#/components/schemas/document"
+              examples:
+                default:
+                  $ref: "#/components/examples/createDocumentFromUriResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/document"
+              examples:
+                default:
+                  $ref: "#/components/examples/createDocumentFromUriResponse"
+        "400":
+          description: The given uri did not contain a valid template.
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.document+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+      x-codegen-request-body-name: payload
+  /documents#byURIAsJsonResponse:
+    post:
+      tags:
+      - Documents
+      summary: Create a Document with a Template URI and data formatted as Json
+      description: The endpoint that combines the provided template and data into
+        a string response and outputs the template with Json toString instead of normal
+        Velocity output
+      operationId: createDocumentFromUriAsJsonResponse
+      requestBody:
+        description: Apply the given data to the template provided.
+        content:
+          application/vnd.sas.cognitive.natural.language.generation.document.request.from.uri+json:
+            schema:
+              $ref: "#/components/schemas/documentRequestFromUri"
+            examples:
+              default:
+                $ref: "#/components/examples/createDocumentFromUriAsJsonRequest"
+        required: true
+      responses:
+        "201":
+          description: Document created from uri
+          headers:
+            Location:
+              description: The URL of the document.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.document.as.json+json:
+              schema:
+                $ref: "#/components/schemas/documentAsJson"
+              examples:
+                default:
+                  $ref: "#/components/examples/createDocumentFromUriAsJsonResponse"
+        "400":
+          description: The given uri did not contain a valid template.
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.document.as.json+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+      x-codegen-request-body-name: payload
+  /documents#transfer:
+    post:
+      tags:
+      - Documents
+      summary: Create a new document from a transfer object
+      description: Create a new document from transfer object.
+      operationId: createDocumentFromTransfer
+      requestBody:
+        description: The document in transferable format.
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/documentTransferObject"
+            examples:
+              default:
+                $ref: "#/components/examples/createDocumentFromTransferRequest"
+        required: true
+      responses:
+        "201":
+          description: A document was imported successfully.
+          headers:
+            ETag:
+              description: The entity tag for the newly created document.
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the document was last modified.
+              schema:
+                type: string
+            Location:
+              description: The URI of the newly created document.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                default:
+                  $ref: "#/components/examples/documentSummary"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                default:
+                  $ref: "#/components/examples/documentSummary"
+        "400":
+          description: The request was invalid. There was a provider mismatch between
+            the transfer object content and requested provider.
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+      x-codegen-request-body-name: documentTransfer
+  /documents/{documentId}:
+    get:
+      tags:
+      - Documents
+      summary: Retrieve a specific document
+      description: Returns the current document specified by the id provided.
+      operationId: getDocument
+      parameters:
+      - name: documentId
+        in: path
+        description: The ID of the document to lookup
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The contents of the document
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.document+json:
+              schema:
+                $ref: "#/components/schemas/document"
+              examples:
+                default:
+                  $ref: "#/components/examples/document"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/document"
+              examples:
+                default:
+                  $ref: "#/components/examples/document"
+        "404":
+          description: The supplied ID was not found
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.document+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorNotFound"
+      security:
+      - SASLogon:
+        - openid
+    delete:
+      tags:
+      - Documents
+      summary: Delete the specified document from the server
+      description: Deletes the document specified by its id.
+      operationId: deleteDocument
+      parameters:
+      - name: documentId
+        in: path
+        description: The ID of the document to lookup
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: The document was successfully deleted.
+        "404":
+          description: The supplied ID was not found.
+          content:
+            application/vnd.sas.error:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorNotFound"
+      security:
+      - SASLogon:
+        - openid
+    head:
+      tags:
+      - Documents
+      summary: Retrieve headers for the document
+      description: Retrieve headers for the document. Can also be used to check if
+        the document exists.
+      operationId: headersForDocument
+      parameters:
+      - name: documentId
+        in: path
+        description: The ID of the document to lookup
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The supplied ID exists
+        "404":
+          description: The supplied ID was not found
+      security:
+      - SASLogon:
+        - openid
+  /documents/{documentId}#transfer:
+    get:
+      tags:
+      - Documents
+      summary: Return the document in transfer object format
+      description: Return the transfer object of the specified document.
+      operationId: getDocumentAsTransfer
+      parameters:
+      - name: documentId
+        in: path
+        description: The ID for the document.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. The document returned as a transfer
+            object.
+          headers:
+            ETag:
+              description: The entity tag for the document.
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the document was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/documentTransferObject"
+              examples:
+                default:
+                  $ref: "#/components/examples/documentAsTransfer"
+        "404":
+          description: No document exists at the requested path.
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorNotFound"
+      security:
+      - SASLogon:
+        - openid
+    put:
+      tags:
+      - Documents
+      summary: Update an existing document using a transfer object
+      description: Update a document using the transfer object. If no existing document
+        is found, a new document is created.
+      operationId: updateDocumentFromTransfer
+      parameters:
+      - name: documentId
+        in: path
+        description: The ID for the document.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: Document to be imported.
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/documentTransferObject"
+            examples:
+              default:
+                $ref: "#/components/examples/documentAsTransfer"
+        required: true
+      responses:
+        "200":
+          description: The request succeeded. The imported or updated document returned
+            in resource summary format.
+          headers:
+            ETag:
+              description: The entity tag for the newly created template.
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the template was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                default:
+                  $ref: "#/components/examples/documentSummary"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                default:
+                  $ref: "#/components/examples/documentSummary"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+      security:
+      - SASLogon:
+        - openid
+      x-codegen-request-body-name: Document in transferable format
+  /templates:
+    get:
+      tags:
+      - Templates
+      summary: Get All Templates
+      description: Returns a collection of templates that have been stored for the
+        current user. If no such templates exist, an empty collection is returned.
+      operationId: getTemplates
+      parameters:
+      - name: filter
+        in: query
+        description: The criteria for filtering the collection. See [Filtering in
+          REST APIs](https://developer.sas.com/rest-apis/naturalLanguageGeneration-v2/docs/getting-started/usage-notes#filtering)
+        schema:
+          type: string
+          format: string
+      - name: start
+        in: query
+        description: The start index for pagination
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: The limit parameter for pagination
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the collection. See [Sorting in REST
+          APIs](https://developer.sas.com/rest-apis/naturalLanguageGeneration-v2/docs/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: All of the current templates
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/templates"
+              examples:
+                default:
+                  $ref: "#/components/examples/templateCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/templates"
+              examples:
+                default:
+                  $ref: "#/components/examples/templateCollection"
+      security:
+      - SASLogon:
+        - openid
+      x-annotations:
+      - com.sas.authorization.annotations.FilterLinks
+    post:
+      tags:
+      - Templates
+      summary: Create Template
+      description: Create a new template by supplying the template code directly.
+      operationId: createTemplate
+      requestBody:
+        description: The template that you want created, without id, that will be
+          supplied by the database
+        content:
+          application/vnd.sas.cognitive.natural.language.generation.template+json:
+            schema:
+              $ref: "#/components/schemas/template"
+            examples:
+              default:
+                $ref: "#/components/examples/createTemplateRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/template"
+            examples:
+              default:
+                $ref: "#/components/examples/createTemplateRequest"
+        required: false
+      responses:
+        "201":
+          description: Created Template
+          headers:
+            Location:
+              description: The URL of the template.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.template+json:
+              schema:
+                $ref: "#/components/schemas/template"
+              examples:
+                default:
+                  $ref: "#/components/examples/template"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/template"
+              examples:
+                default:
+                  $ref: "#/components/examples/template"
+        "400":
+          description: The templateText provided was missing or empty.
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.template+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+      x-codegen-request-body-name: payload
+  /templates#transfer:
+    post:
+      tags:
+      - Templates
+      summary: Create a new template from a transfer object
+      description: Create a new template from transfer object.
+      operationId: createTemplateFromTransfer
+      requestBody:
+        description: The template in transferable format.
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/templateTransferObject"
+            examples:
+              default:
+                $ref: "#/components/examples/templateAsTransfer"
+        required: true
+      responses:
+        "201":
+          description: A template was imported successfully.
+          headers:
+            ETag:
+              description: The entity tag for the newly created template.
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the template was last modified.
+              schema:
+                type: string
+            Location:
+              description: The URI of the newly created template.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                default:
+                  $ref: "#/components/examples/templateSummary"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                default:
+                  $ref: "#/components/examples/templateSummary"
+        "400":
+          description: The request was invalid. There was a provider mismatch between
+            the transfer object content and requested provider.
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+      x-codegen-request-body-name: templateTransfer
+  /templates/{templateId}:
+    get:
+      tags:
+      - Templates
+      summary: Retrieve a specific template
+      description: Returns the contents of the template provided by the id.
+      operationId: getTemplate
+      parameters:
+      - name: templateId
+        in: path
+        description: The ID of the template to lookup
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The contents of this template
+          headers:
+            ETag:
+              description: The entity tag for the template.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the template was last modified.
+              schema:
+                type: string
+            Location:
+              description: The URL of the template.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.template+json:
+              schema:
+                $ref: "#/components/schemas/template"
+              examples:
+                default:
+                  $ref: "#/components/examples/template"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/template"
+              examples:
+                default:
+                  $ref: "#/components/examples/template"
+        "404":
+          description: The supplied ID was not found
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.template+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorNotFound"
+      security:
+      - SASLogon:
+        - openid
+    put:
+      tags:
+      - Templates
+      summary: Modify Template
+      description: Modify fields of an existing template.
+      operationId: updateTemplate
+      parameters:
+      - name: templateId
+        in: path
+        description: The ID of the template to lookup
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: The entity tag obtained from the most recent `ETag` response
+          header. Must match the current entity tag for the template.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: The timestamp obtained from the most recent `Last-Modified` response
+          header. Ignored when `If-Match` is specified, otherwise must match the timestamp
+          when the template was last modified.
+        schema:
+          type: string
+      requestBody:
+        description: Template containing the updated fields
+        content:
+          application/vnd.sas.cognitive.natural.language.generation.template+json:
+            schema:
+              $ref: "#/components/schemas/template"
+            examples:
+              default:
+                $ref: "#/components/examples/updateTemplateRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/template"
+            examples:
+              default:
+                $ref: "#/components/examples/updateTemplateRequest"
+        required: true
+      responses:
+        "200":
+          description: The template was successfully updated.
+          headers:
+            ETag:
+              description: The entity tag for the template.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the template was last modified.
+              schema:
+                type: string
+            Location:
+              description: The URL of the template.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.template+json:
+              schema:
+                $ref: "#/components/schemas/template"
+              examples:
+                default:
+                  $ref: "#/components/examples/template"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/template"
+              examples:
+                default:
+                  $ref: "#/components/examples/template"
+        "400":
+          description: The supplied values were invalid
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.template+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+        "404":
+          description: The supplied ID was not found
+          content:
+            application/vnd.sas.cognitive.natural.language.generation.template+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorNotFound"
+        "412":
+          description: The `If-Match` request header did not match the resource's
+            entity tag, or the `If-Unmodified-Since` request header did not match
+            the resource's last modified timestamp.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorPreconditionFailed"
+        "428":
+          description: The request headers did not include a `If-Match` or `If-Unmodified-Since`
+            precondition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorPreconditionRequired"
+      security:
+      - SASLogon:
+        - openid
+      x-codegen-request-body-name: updatedTemplate
+    delete:
+      tags:
+      - Templates
+      summary: Delete the specified template from the server
+      description: Deletes the template specified by its id.
+      operationId: deleteTemplate
+      parameters:
+      - name: templateId
+        in: path
+        description: The ID of the template to lookup
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: The template was successfully deleted
+        "404":
+          description: The supplied ID was not found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorNotFound"
+      security:
+      - SASLogon:
+        - openid
+    head:
+      tags:
+      - Templates
+      summary: Retrieve headers for the template
+      description: Retrieve headers for the template. Can also be used to check if
+        the template exists.
+      operationId: headersForTemplate
+      parameters:
+      - name: templateId
+        in: path
+        description: The ID of the template to lookup
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The supplied ID exists
+          headers:
+            ETag:
+              description: The entity tag for the template.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the template was last modified.
+              schema:
+                type: string
+            Location:
+              description: The URL of the template.
+              schema:
+                type: string
+                format: uri
+        "404":
+          description: The supplied ID was not found
+      security:
+      - SASLogon:
+        - openid
+  /templates/{templateId}#summary:
+    get:
+      tags:
+      - Templates
+      summary: Get a specific template in the summary object format
+      description: Get a specific template in the summary object format.
+      operationId: getTemplateAsSummary
+      parameters:
+      - name: templateId
+        in: path
+        description: The ID of the template.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The summary information describing the template.
+          headers:
+            ETag:
+              description: The entity tag for the template.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the template was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                default:
+                  $ref: "#/components/examples/templateSummary"
+        "404":
+          description: The supplied template ID was not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorNotFound"
+  /templates/{templateId}#transfer:
+    get:
+      tags:
+      - Templates
+      summary: Return the template in transfer object format
+      description: Return the transfer object of the specified template.
+      operationId: getTemplateAsTransfer
+      parameters:
+      - name: templateId
+        in: path
+        description: The ID for the template.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. The template returned as a transfer
+            object.
+          headers:
+            ETag:
+              description: The entity tag for the template.
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the template was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/templateTransferObject"
+              examples:
+                default:
+                  $ref: "#/components/examples/templateAsTransfer"
+        "404":
+          description: No template exists at the requested path.
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorNotFound"
+      security:
+      - SASLogon:
+        - openid
+    put:
+      tags:
+      - Templates
+      summary: Update an existing template using a transfer object
+      description: Update a template using the transfer object. If no existing template
+        is found, a new template is created.
+      operationId: updateTemplateFromTransfer
+      parameters:
+      - name: templateId
+        in: path
+        description: The ID for the template.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: Template to be imported.
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/templateTransferObject"
+            examples:
+              default:
+                $ref: "#/components/examples/templateAsTransfer"
+        required: true
+      responses:
+        "200":
+          description: The request succeeded. The imported or updated template returned
+            in resource summary format.
+          headers:
+            ETag:
+              description: The entity tag for the template.
+              schema:
+                type: string
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the template was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                default:
+                  $ref: "#/components/examples/templateSummary"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                default:
+                  $ref: "#/components/examples/templateSummary"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorBadRequest"
+      security:
+      - SASLogon:
+        - openid
+      x-codegen-request-body-name: Template in transferable format
+  /languages:
+    get:
+      tags:
+      - Languages
+      summary: Get all available languages
+      description: Returns a list of languages that are supported by language helpers.
+      operationId: getLanguages
+      responses:
+        "200":
+          description: All of the currently supported languages.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/languages"
+              examples:
+                default:
+                  $ref: "#/components/examples/languageResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/languages"
+              examples:
+                default:
+                  $ref: "#/components/examples/languageResponse"
+      security:
+      - SASLogon:
+        - openid
+components:
+  schemas:
+    documentRequest:
+      title: Request to Create a Document Object
+      type: object
+      required:
+      - requestType
+      properties:
+        data:
+          type: object
+          additionalProperties:
+            type: object
+            properties: {}
+          description: This is the JSON data that is passed alongside a template to
+            the template execution endpoint. This data can be accessed from within
+            the template as part of the template logic or as part of the template
+            output.
+        language:
+          $ref: "#/components/schemas/languageCode"
+        timeToLive:
+          type: integer
+          description: The time for the document to live given in seconds. Negative
+            numbers mean never delete. Optional, default provided.
+          format: int32
+        name:
+          maxLength: 250
+          type: string
+          description: The name supplied by the consumer for this document.
+        description:
+          maxLength: 1000
+          type: string
+          description: The description of this document.
+        requestType:
+          type: string
+          description: The type of request being submitted. Especially useful when
+            creating multiple documents at once in a mixture of text and uri types.
+          enum:
+          - uri
+          - text
+        version:
+          type: integer
+          description: The schema version of the document request object.
+      description: The root object to create a document, the sub objects require either
+        text or a uri and are determined based on the type field
+      discriminator:
+        propertyName: requestType
+    documentRequestFromUri:
+      title: Template URI and accompanying data
+      description: |
+        Represents a request to create a document object using a
+        reference to an existing template. The template is supplied via a URI
+        that maps to a pre-existing template. The only required field
+        is `templateUri`. `data` is any valid json structure that will be used
+        by the template provided. `language` is specified by the
+        [ISO-639-1 short code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes).
+        If the `$LangTool` Velocity tool is used in the template, the language specified
+        must be one that is supported by this API.
+        `timeToLive` is given in seconds and if omitted will be replaced by the
+        server default (negative numbers equate to no expiration).
+      allOf:
+      - $ref: "#/components/schemas/documentRequest"
+      - required:
+        - templateUri
+        type: object
+        properties:
+          templateUri:
+            type: string
+            description: The template uri being supplied to generate this document
+          links:
+            type: array
+            items:
+              $ref: "#/components/schemas/link"
+      x-discriminator-value: uri
+      x-sas-media-type:
+        name: application/vnd.sas.cognitive.natural.language.generation.document.request.from.uri
+        version: 2
+    documentRequestFromText:
+      title: Template Text and accompanying data
+      description: |
+        Represents a request to create a document object using
+        template text directly (not referencing any stored template object). The
+        only required field is `templateText`. `data` is any valid json
+        structure that will be used by the template provided. `language` is
+        specified by the
+        [ISO-639-1 short code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes).
+        `timeToLive` is given in seconds and if omitted will be replaced by the
+        server default (negative numbers equate to no expiration).
+      allOf:
+      - $ref: "#/components/schemas/documentRequest"
+      - required:
+        - templateText
+        type: object
+        properties:
+          templateText:
+            type: string
+            description: The template text being supplied to generate this document
+          links:
+            type: array
+            items:
+              $ref: "#/components/schemas/link"
+      x-discriminator-value: text
+      x-sas-media-type:
+        name: application/vnd.sas.cognitive.natural.language.generation.document.request.from.text
+        version: 2
+    documentRequests:
+      title: Set of document requests from raw text
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties:
+            type: object
+            properties: {}
+          description: This is the JSON data that is passed alongside the templates
+            to the template execution endpoint. This data can be accessed from within
+            the template as part of the template logic or as part of the template
+            output.
+        items:
+          type: array
+          description: Array containing documentRequest objects.
+          items:
+            $ref: "#/components/schemas/documentRequest"
+      description: A set of document requests to be generated by the API
+    documentsAsJson:
+      title: Set of documents, json formatted
+      description: A set of documents available within the current type system with
+        json as the output
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: Array containing documents.
+            items:
+              $ref: "#/components/schemas/document"
+      x-sas-media-type:
+        name: application/vnd.sas.cognitive.natural.language.generation.documents.as.json
+        version: 2
+    documents:
+      title: Set of documents
+      description: A set of documents available within the current type system
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: Array containing documents.
+            items:
+              $ref: "#/components/schemas/document"
+    document:
+      title: Document generated by the apply template function
+      description: |
+        Represents a rendered document from a call to the
+        naturalLanguageGeneration API. The field `result` is rendered natural
+        language from the output of the template. If the template was provided
+        by URI then `templateId` will be a reference to that template.
+      required:
+      - result
+      type: object
+      properties:
+        id:
+          type: string
+          description: The server-generated ID that uniquely identifies this document
+        name:
+          maxLength: 250
+          type: string
+          description: The name supplied by the consumer for this document.
+        description:
+          maxLength: 1000
+          type: string
+          description: The description of this document.
+        result:
+          type: string
+          description: The entire string of the result of the template.
+        inputData:
+          type: object
+          properties: {}
+          description: The data that was used with the given template to generate
+            this document.
+        templateId:
+          type: string
+          description: The template that was used with the data to produce this document.
+        createdBy:
+          type: string
+          description: The user who created the document.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the document.
+        creationTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            document was created.
+          format: date-time
+        modifiedTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            document was last modified.
+          format: date-time
+        expirationTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            document will be deleted. If null or missing document will never be deleted.
+          format: date-time
+        links:
+          type: array
+          description: Array containing documents.
+          items:
+            $ref: "#/components/schemas/link"
+      x-sas-etaggable: false
+    documentAsJson:
+      title: A document object with json formatting
+      description: A document with the output json formatted where possible
+      allOf:
+      - $ref: "#/components/schemas/document"
+    languageCode:
+      type: string
+      description: The two letter ISO 639-1 value for selecting a language.
+      enum:
+      - ar
+      - cs
+      - da
+      - de
+      - el
+      - en
+      - es
+      - fa
+      - fi
+      - fr
+      - he
+      - hi
+      - hr
+      - hu
+      - id
+      - it
+      - ja
+      - ko
+      - nb
+      - nl
+      - "no"   # swagger-codegen will change this to 'false' if unquoted
+      - pl
+      - pt
+      - ru
+      - sh
+      - sk
+      - sl
+      - sr
+      - sv
+      - th
+      - tr
+      - vi
+      - zh
+    templates:
+      title: Collection of templates
+      description: A collection of all templates requested using the filtering params
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: Array containing all template objects.
+            items:
+              $ref: "#/components/schemas/template"
+    template:
+      title: Template
+      description: |
+        Represents a stored template to be executed at a later date.
+        Specifically, the field `templateText` contains the actual template code
+        that will be executed on a call to the documents endpoint with the uri
+        of this template object. Templates can also contain property values.
+        These properties are simple name/value pairs represented in an array
+        within a template. The property names need to be unique among and
+        individual template only.
+      required:
+      - name
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: ^$|^[0-9a-zA-Z]{8}-[0-9a-zA-Z]{4}-[0-9a-zA-Z]{4}-[0-9a-zA-Z]{4}-[0-9a-zA-Z]{12}$
+          description: The server-generated ID that uniquely identifies this template
+        templateText:
+          type: string
+          description: The template code that will generate the example sentence given
+            the data provided.
+        name:
+          maxLength: 250
+          type: string
+          description: The name, supplied by the consumer, of this template.
+        description:
+          maxLength: 1000
+          type: string
+          description: The description of this template.
+        createdBy:
+          type: string
+          description: The user who created the template.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the template.
+        creationTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            template was created.
+          format: date-time
+        modifiedTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            template was last modified.
+          format: date-time
+        links:
+          type: array
+          description: Array containing documents.
+          items:
+            $ref: "#/components/schemas/link"
+        properties:
+          type: array
+          description: A property store for this template
+          items:
+            $ref: "#/components/schemas/property"
+    templateTransferObject:
+      title: Template transfer object
+      description: The transfer object for a template.
+      allOf:
+      - $ref: "#/components/schemas/transferObject"
+      - required:
+        - content
+        type: object
+        properties:
+          content:
+            $ref: "#/components/schemas/template"
+    documentTransferObject:
+      title: Document transfer object
+      description: The transfer object for a document.
+      allOf:
+      - $ref: "#/components/schemas/transferObject"
+      - required:
+        - content
+        type: object
+        properties:
+          content:
+            $ref: "#/components/schemas/document"
+    languages:
+      title: Set of languages
+      description: A set of languages currently supported by the natural language
+        generation API.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: Array containing all supportedLanguage objects.
+            items:
+              $ref: "#/components/schemas/language"
+    language:
+      title: Template language object
+      type: object
+      properties:
+        languageCode:
+          $ref: "#/components/schemas/languageCode"
+        name:
+          type: string
+          description: The plain text name of the ISO 639-1 code supplied for this
+            language.
+      description: A language supported in the natural language generation API for
+        processing templates. This dictates what language-specific tools should be
+        loaded when executing a template to produce a document. The language tools
+        always allow access to other languages even when one is chosen by using this
+        parameter. Languages are referenced using the ISO-639-1 short form.
+    api:
+      title: API
+      required:
+      - links
+      - version
+      type: object
+      properties:
+        version:
+          minimum: 1
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+        links:
+          type: array
+          description: The API's top-level links.
+          items:
+            $ref: "#/components/schemas/link"
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+    link:
+      title: Link
+      required:
+      - rel
+      type: object
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+      description: A link to a related operation or resource.
+    error2:
+      title: Error
+      required:
+      - httpStatusCode
+      - version
+      type: object
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+    summary:
+      title: Resource Summary
+      required:
+      - id
+      - links
+      - version
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the resource.
+        name:
+          type: string
+          description: The name of the resource.
+        type:
+          type: string
+          description: The type of the resource.
+        description:
+          type: string
+          description: The description of the resource.
+        createdBy:
+          type: string
+          description: The user who created the resource.
+        creationTimeStamp:
+          type: string
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was created.
+          format: date-time
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the resource.
+        modifiedTimeStamp:
+          type: string
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was last modified.
+          format: date-time
+        links:
+          type: array
+          description: The links that apply to the resource.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the resource. This representation is
+            version 1.
+      description: The summarized representation of a resource. Often used in collection
+        responses when more specific details aren't needed.
+      x-sas-media-type:
+        name: application/vnd.sas.summary
+        version: 1
+    baseCollection2:
+      title: Base Collection
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+    property:
+      title: Property
+      required:
+      - name
+      - value
+      type: object
+      properties:
+        name:
+          type: string
+          description: The property name.
+        value:
+          type: string
+          description: The property value.
+      description: A pair consisting of a string name and a string value. This is
+        an element of `application/vnd.sas.properties`
+    transferObject:
+      title: Transfer Object
+      type: object
+      properties:
+        id:
+          type: string
+          description: unique identifier of the object
+          format: object-id
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+        summary:
+          $ref: "#/components/schemas/summary"
+        content:
+          type: object
+          properties: {}
+          description: optional. Choose this or fileServiceContent. This is the content
+            object that must be serialized in a format that is valid for internet
+            transmission. This includes valid encoding formats like Base64 or data
+            structures like JSON. This is provided by the content provider and the
+            transfer service expects no visibility into or understanding of this value.
+        fileServiceContent:
+          type: string
+          description: optional. Choose this or content. This holds the URI of a file
+            service object that contains the transferrable object.
+        connectors:
+          type: array
+          description: a list of associations or references to other external objects
+            to be recreated on import
+          items:
+            $ref: "#/components/schemas/transferObjectConnector"
+        substitutions:
+          type: object
+          properties: {}
+          description: map with keys of parameter and value. Used to replace the value
+            of parameter with the value of value
+        links:
+          type: array
+          description: Paging links that apply to this object
+          items:
+            $ref: "#/components/schemas/link"
+      description: Content providers implementing the Transfer Object Provider contract
+        use this media type to store information about the content to be transfered.
+      x-sas-internal: true
+      x-sas-media-type:
+        name: application/vnd.sas.transfer.object
+        version: 1
+    transferObjectConnector:
+      title: Transfer Object Connector
+      type: object
+      properties:
+        id:
+          type: string
+          description: unique identifier of the object
+          format: object-id
+        name:
+          type: string
+          description: name of the related object
+        version:
+          type: integer
+          description: transfer object connector version
+        uri:
+          type: string
+          description: the URI of the related object
+        contentType:
+          type: string
+          description: media type of the related object
+        type:
+          type: string
+          description: type of connection. This can be any value the creator of the
+            connection wants but should be used to determine what to do to reconstitute
+            the relationship.
+        hints:
+          type: array
+          description: hints that can be used to help find the object to connect to
+            in the target system
+          items:
+            type: string
+      description: Content providers implementing the Transfer Object Provider contract
+        use this media type to provide connection information for the content to be
+        transfered.
+      x-sas-internal: true
+      x-sas-media-type:
+        name: application/vnd.sas.transfer.object.connector
+        version: 1
+  securitySchemes:
+    SASLogon:
+      type: oauth2
+      description: OAuth authentication is required to access this API.
+      flows:
+        implicit:
+          authorizationUrl: http://localhost:7980/SASLogon/login
+          scopes:
+            openid: The openid scope is required
+  examples:
+    createDocumentFromUriRequest:
+      summary: Create document using template URI request
+      description: Here is an example of using a POST request to create a document
+        object using a reference to an existing template. The template is supplied
+        via a URI that maps to a pre-existing template. The only required field is
+        `templateUri`. `data` is any valid json structure that will be used by the
+        template provided. `language` defaults to "en", but can be specified by the
+        [ISO-639-1 short code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes).
+        `timeToLive` is given in seconds and if omitted will be replaced by the server
+        default (negative numbers equate to no expiration). In this example, the `timeToLive`
+        field specifies that this document can be deleted from the underlying database
+        after 60 seconds.
+      value: {"name": "This name is optional", "description": "This description is\
+          \ optional", "requestType": "uri", "templateUri": "/naturalLanguageGeneration/templates/75e75dc0-4b27-4157-94b7-1e9c725543a8",
+        "data": {"foo": "bar"}, "timeToLive": 60}
+    documentCollection:
+      summary: Document collection
+      description: This is an example representation of a document collection.
+      value: {"links": [{"method": "GET", "rel": "collection", "href": "/naturalLanguageGeneration/documents",
+            "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.document"},
+          {"method": "GET", "rel": "self", "href": "/naturalLanguageGeneration/documents?start=0&limit=10",
+            "uri": "/naturalLanguageGeneration/documents?start=0&limit=10", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.document"},
+          {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/", "uri": "/naturalLanguageGeneration/",
+            "type": "application/vnd.sas.api"}], "name": "items", "accept": "application/vnd.sas.cognitive.natural.language.generation.document",
+        "start": 0, "count": 1, "items": [{"id": "9a4f275a-0b88-4366-a3db-1042177fdff5",
+            "createdBy": "testuser", "creationTimeStamp": "2022-02-24T16:44:20.246Z",
+            "modifiedBy": "testuser", "modifiedTimeStamp": "2022-02-24T16:44:20.246Z",
+            "name": "This name is optional", "description": "This description is optional",
+            "result": "Hello, bar!", "expirationTimeStamp": "2022-02-24T16:45:20.236Z",
+            "links": [{"method": "GET", "rel": "self", "href": "/naturalLanguageGeneration/documents/9a4f275a-0b88-4366-a3db-1042177fdff5",
+                "uri": "/naturalLanguageGeneration/documents/9a4f275a-0b88-4366-a3db-1042177fdff5",
+                "type": "application/vnd.sas.cognitive.natural.language.generation.document"},
+              {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/documents/9a4f275a-0b88-4366-a3db-1042177fdff5",
+                "uri": "/naturalLanguageGeneration/documents/9a4f275a-0b88-4366-a3db-1042177fdff5"},
+              {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/documents",
+                "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.cognitive.natural.language.generation.document"}],
+            "version": 1}], "limit": 10, "version": 2}
+    errorPreconditionFailed:
+      summary: Precondition failed
+      description: Precondition failed
+      value: {"errorCode": 0, "httpStatusCode": 412}
+    errorPreconditionRequired:
+      summary: Precondition required
+      description: Precondition required
+      value: {"errorCode": 0, "httpStatusCode": 428}
+    documentMultiPostRequest:
+      summary: Create multiple documents request
+      description: Here is an example of using a POST request to create multiple documents.
+      value: {"links": [], "name": "documentData", "accept": "application/vnd.sas.collection+json",
+        "count": 2, "items": [{"name": "This name is optional", "requestType": "text",
+            "description": "This description is optional", "templateText": "Hello,\
+              \ $foo!", "data": {"foo": "bar1"}}, {"name": "This other name is optional",
+            "requestType": "text", "description": "This description is optional",
+            "templateText": "Hello, other $foo!", "data": {"foo": "bar2"}}], "version": 2}
+    documentsFromTextAsJsonResponse:
+      summary: Documents from text as JSON response
+      description: Here is an example response from using a POST request to create
+        multiple documents using the `application/vnd.sas.cognitive.natural.language.generation.document.requests+json`
+        Content-Type header and the `application/vnd.sas.cognitive.natural.language.generation.documents.as.json+json`
+        Accept header. This causes any data used in the template to be formatted/escaped
+        as JSON in the `result` field.
+      value: {"id": "c66290d3-2321-4c3c-a07e-27ee4d645549", "createdBy": "testuser",
+        "creationTimeStamp": "2022-02-24T19:17:31.268Z", "modifiedBy": "testuser",
+        "modifiedTimeStamp": "2022-02-24T19:17:31.268Z", "name": "This name is optional",
+        "description": "This description is optional", "result": '{"nested":"bar"}',
+        "expirationTimeStamp": "2022-02-24T19:18:31.263Z", "links": [{"method": "GET",
+            "rel": "self", "href": "/naturalLanguageGeneration/documents/c66290d3-2321-4c3c-a07e-27ee4d645549",
+            "uri": "/naturalLanguageGeneration/documents/c66290d3-2321-4c3c-a07e-27ee4d645549",
+            "type": "application/vnd.sas.cognitive.natural.language.generation.document.as.json"},
+          {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/documents/c66290d3-2321-4c3c-a07e-27ee4d645549",
+            "uri": "/naturalLanguageGeneration/documents/c66290d3-2321-4c3c-a07e-27ee4d645549"},
+          {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/documents",
+            "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.document.as.json"}],
+        "version": 1}
+    template:
+      summary: Template response
+      description: Here is an example response of a template for natural language
+        generation. The field `templateText` contains the template code that will
+        be executed on a call to the `documents` endpoint with the URI of this template
+        object. Templates may also contain properties. These properties are simple
+        name-value pairs represented in an array within a template, and can be used
+        for filtering upon retrieval.
+      value: {"id": "077ff0a4-6c7b-4d57-82c7-ac738672352c", "createdBy": "testuser",
+        "creationTimeStamp": "2022-02-24T16:29:51.528Z", "modifiedBy": "testuser",
+        "modifiedTimeStamp": "2022-02-24T16:29:51.528Z", "templateText": "Hello, $name!",
+        "name": "This name is optional.", "description": "This description is optional.",
+        "properties": [{"name": "optionalProperty2", "value": "propertyValue"}, {
+            "name": "optionalProperty1", "value": "propertyValue"}], "links": [{"method": "GET",
+            "rel": "self", "href": "/naturalLanguageGeneration/templates/077ff0a4-6c7b-4d57-82c7-ac738672352c",
+            "uri": "/naturalLanguageGeneration/templates/077ff0a4-6c7b-4d57-82c7-ac738672352c",
+            "type": "application/vnd.sas.cognitive.natural.language.generation.template"},
+          {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/templates/077ff0a4-6c7b-4d57-82c7-ac738672352c",
+            "uri": "/naturalLanguageGeneration/templates/077ff0a4-6c7b-4d57-82c7-ac738672352c"},
+          {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/templates",
+            "uri": "/naturalLanguageGeneration/templates", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.template"}],
+        "version": 1}
+    apiResponse:
+      summary: Discover top-level links for Natural Language Generation
+      description: This is an example response from using the GET request to retrieve
+        the `application/vnd.sas.api+json` representation of the API\'s top-level
+        links. It reveals two primary endpoints, templates and documents, which both
+        support getting existing objects and creating new objects.
+      value: {"version": 1, "links": [{"method": "GET", "rel": "documents", "href": "/naturalLanguageGeneration/documents",
+            "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.document"},
+          {"method": "GET", "rel": "templates", "href": "/naturalLanguageGeneration/templates",
+            "uri": "/naturalLanguageGeneration/templates", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.template"},
+          {"method": "GET", "rel": "languages", "href": "/naturalLanguageGeneration/languages",
+            "uri": "/naturalLanguageGeneration/languages", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.language"},
+          {"method": "POST", "rel": "createDocumentFromText", "href": "/naturalLanguageGeneration/documents",
+            "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.cognitive.natural.language.generation.document.request.from.text",
+            "responseType": "application/vnd.sas.cognitive.natural.language.generation.document"},
+          {"method": "POST", "rel": "createDocumentFromUri", "href": "/naturalLanguageGeneration/documents",
+            "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.cognitive.natural.language.generation.document.request.from.uri",
+            "responseType": "application/vnd.sas.cognitive.natural.language.generation.document"},
+          {"method": "POST", "rel": "createDocuments", "href": "/naturalLanguageGeneration/documents",
+            "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.cognitive.natural.language.generation.document.requests",
+            "responseType": "application/vnd.sas.collection", "itemType": "application/vnd.sas.cognitive.natural.language.generation.document.request",
+            "responseItemType": "application/vnd.sas.cognitive.natural.language.generation.document"},
+          {"method": "POST", "rel": "createTemplate", "href": "/naturalLanguageGeneration/templates",
+            "uri": "/naturalLanguageGeneration/templates", "type": "application/vnd.sas.cognitive.natural.language.generation.template",
+            "responseType": "application/vnd.sas.cognitive.natural.language.generation.template"}]}
+    templateSummary:
+      summary: Template summary
+      description: Here is an example representation containing a summary of a template.
+      value: {"creationTimeStamp": "2022-03-02T18:59:32.560Z", "modifiedTimeStamp": "2022-03-02T18:59:32.560Z",
+        "createdBy": "testuser", "modifiedBy": "testuser", "id": "f41d8778-bf4d-4a50-bced-74ec1a4ae493",
+        "type": "conversationalTemplate", "name": "First and Last Name Template",
+        "description": "", "links": [{"method": "GET", "rel": "self", "href": "/naturalLanguageGeneration/templates/f41d8778-bf4d-4a50-bced-74ec1a4ae493",
+            "uri": "/naturalLanguageGeneration/templates/f41d8778-bf4d-4a50-bced-74ec1a4ae493",
+            "type": "application/vnd.sas.cognitive.natural.language.generation.template"}],
+        "version": 2}
+    languageResponse:
+      summary: Get supported languages
+      description: Here is an example response from a GET request to retrieve the
+        languages supported by this API.
+      value: {"links": [{"method": "GET", "rel": "collection", "href": "/naturalLanguageGeneration/languages",
+            "uri": "/naturalLanguageGeneration/languages", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.language"},
+          {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/", "uri": "/naturalLanguageGeneration/",
+            "type": "application/vnd.sas.api"}], "name": "items", "accept": "application/vnd.sas.cognitive.natural.language.generation.language",
+        "start": 0, "count": 5, "items": [{"languageCode": "en", "name": "English"},
+          {"languageCode": "es", "name": "Spanish"}, {"languageCode": "fi", "name": "Finnish"},
+          {"languageCode": "fr", "name": "French"}, {"languageCode": "sv", "name": "Swedish"}],
+        "limit": 5, "version": 2}
+    templateCollection:
+      summary: Template collection
+      description: This is an example representation of a template collection.
+      value: {"links": [{"method": "GET", "rel": "collection", "href": "/naturalLanguageGeneration/templates",
+            "uri": "/naturalLanguageGeneration/templates", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.template"},
+          {"method": "GET", "rel": "self", "href": "/naturalLanguageGeneration/templates?start=0&limit=10",
+            "uri": "/naturalLanguageGeneration/templates?start=0&limit=10", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.template"},
+          {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/", "uri": "/naturalLanguageGeneration/",
+            "type": "application/vnd.sas.api"}], "name": "items", "accept": "application/vnd.sas.cognitive.natural.language.generation.template",
+        "start": 0, "count": 2, "items": [{"id": "75e75dc0-4b27-4157-94b7-1e9c725543a8",
+            "createdBy": "testuser", "creationTimeStamp": "2022-03-02T17:31:04.717Z",
+            "modifiedBy": "testuser", "modifiedTimeStamp": "2022-03-02T17:31:04.717Z",
+            "templateText": "Hello, $foo!", "name": "Template name", "properties": [],
+            "links": [{"method": "GET", "rel": "self", "href": "/naturalLanguageGeneration/templates/75e75dc0-4b27-4157-94b7-1e9c725543a8",
+                "uri": "/naturalLanguageGeneration/templates/75e75dc0-4b27-4157-94b7-1e9c725543a8",
+                "type": "application/vnd.sas.cognitive.natural.language.generation.template"},
+              {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/templates/75e75dc0-4b27-4157-94b7-1e9c725543a8",
+                "uri": "/naturalLanguageGeneration/templates/75e75dc0-4b27-4157-94b7-1e9c725543a8"},
+              {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/templates",
+                "uri": "/naturalLanguageGeneration/templates", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.cognitive.natural.language.generation.template"}],
+            "version": 1}, {"id": "876f3a82-8343-41fb-8d6e-99b30b0a5d8c", "createdBy": "testuser",
+            "creationTimeStamp": "2022-03-02T17:48:05.774Z", "modifiedBy": "testuser",
+            "modifiedTimeStamp": "2022-03-02T17:48:05.774Z", "templateText": "$foo",
+            "name": "Another template name", "properties": [], "links": [{"method": "GET",
+                "rel": "self", "href": "/naturalLanguageGeneration/templates/876f3a82-8343-41fb-8d6e-99b30b0a5d8c",
+                "uri": "/naturalLanguageGeneration/templates/876f3a82-8343-41fb-8d6e-99b30b0a5d8c",
+                "type": "application/vnd.sas.cognitive.natural.language.generation.template"},
+              {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/templates/876f3a82-8343-41fb-8d6e-99b30b0a5d8c",
+                "uri": "/naturalLanguageGeneration/templates/876f3a82-8343-41fb-8d6e-99b30b0a5d8c"},
+              {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/templates",
+                "uri": "/naturalLanguageGeneration/templates", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.cognitive.natural.language.generation.template"}],
+            "version": 1}], "limit": 10, "version": 2}
+    templateAsTransfer:
+      summary: Template as a transfer object
+      description: Here is an example of a template as a transfer object.
+      value: {"version": 2, "summary": {"creationTimeStamp": "2022-03-02T18:59:32.560Z",
+          "modifiedTimeStamp": "2022-03-02T18:59:32.560Z", "createdBy": "testuser",
+          "modifiedBy": "testuser", "id": "f41d8778-bf4d-4a50-bced-74ec1a4ae493",
+          "type": "conversationalTemplate", "name": "First and Last Name Template",
+          "description": "", "links": [{"method": "GET", "rel": "self", "href": "/naturalLanguageGeneration/templates/f41d8778-bf4d-4a50-bced-74ec1a4ae493",
+              "uri": "/naturalLanguageGeneration/templates/f41d8778-bf4d-4a50-bced-74ec1a4ae493",
+              "type": "application/vnd.sas.cognitive.natural.language.generation.template"}],
+          "version": 2}, "content": {"id": "f41d8778-bf4d-4a50-bced-74ec1a4ae493",
+          "createdBy": "testuser", "creationTimeStamp": "2022-03-02T18:59:32.560Z",
+          "modifiedBy": "testuser", "modifiedTimeStamp": "2022-03-02T18:59:32.560Z",
+          "templateText": "Hello, $firstName $lastName!", "name": "First and Last\
+            \ Name Template", "description": "", "properties": [], "links": [{"method": "GET",
+              "rel": "self", "href": "/naturalLanguageGeneration/templates/f41d8778-bf4d-4a50-bced-74ec1a4ae493",
+              "uri": "/naturalLanguageGeneration/templates/f41d8778-bf4d-4a50-bced-74ec1a4ae493",
+              "type": "application/vnd.sas.cognitive.natural.language.generation.template"},
+            {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/templates/f41d8778-bf4d-4a50-bced-74ec1a4ae493",
+              "uri": "/naturalLanguageGeneration/templates/f41d8778-bf4d-4a50-bced-74ec1a4ae493"},
+            {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/templates",
+              "uri": "/naturalLanguageGeneration/templates", "type": "application/vnd.sas.collection",
+              "itemType": "application/vnd.sas.cognitive.natural.language.generation.template"}],
+          "version": 1}, "state": "enabled", "connectors": []}
+    createDocumentFromUriAsJsonResponse:
+      summary: Create document using template URI response
+      description: Here is an example response from using a POST request to create
+        a document which uses an existing template referenced by URI. The Accept header
+        specifies that the result field should be formatted as JSON.
+      value: {"id": "dbf55cd4-18ad-49e5-92df-080f0a8004dc", "createdBy": "testuser",
+        "creationTimeStamp": "2022-03-02T17:49:36.967Z", "modifiedBy": "testuser",
+        "modifiedTimeStamp": "2022-03-02T17:49:36.967Z", "name": "This name is optional",
+        "description": "This description is optional", "result": '{"nested":"bar"}',
+        "templateId": "876f3a82-8343-41fb-8d6e-99b30b0a5d8c", "expirationTimeStamp": "2022-03-02T17:50:36.966Z",
+        "links": [{"method": "GET", "rel": "self", "href": "/naturalLanguageGeneration/documents/dbf55cd4-18ad-49e5-92df-080f0a8004dc",
+            "uri": "/naturalLanguageGeneration/documents/dbf55cd4-18ad-49e5-92df-080f0a8004dc",
+            "type": "application/vnd.sas.cognitive.natural.language.generation.document.as.json"},
+          {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/documents/dbf55cd4-18ad-49e5-92df-080f0a8004dc",
+            "uri": "/naturalLanguageGeneration/documents/dbf55cd4-18ad-49e5-92df-080f0a8004dc"},
+          {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/documents",
+            "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.document.as.json"}],
+        "version": 1}
+    documentAsTransfer:
+      summary: Document as a transfer object
+      description: Here is an example of a document as a transfer object.
+      value: {"version": 2, "summary": {"creationTimeStamp": "2022-03-02T18:00:50.900Z",
+          "modifiedTimeStamp": "2022-03-02T18:00:50.900Z", "createdBy": "testuser",
+          "modifiedBy": "testuser", "id": "db806f18-f00f-433a-b360-9e746c7a116g",
+          "type": "application/vnd.sas.cognitive.natural.language.generation.document",
+          "name": "db806f18-f00f-433a-b360-9e746c7a116g", "links": [{"method": "GET",
+              "rel": "self", "href": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g",
+              "uri": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g",
+              "type": "application/vnd.sas.cognitive.natural.language.generation.document"}],
+          "version": 2}, "content": {"id": "db806f18-f00f-433a-b360-9e746c7a116g",
+          "createdBy": "testuser", "creationTimeStamp": "2022-03-02T18:00:50.900Z",
+          "modifiedBy": "testuser", "modifiedTimeStamp": "2022-03-02T18:00:50.900Z",
+          "result": "Hello, world!", "links": [{"method": "GET", "rel": "self", "href": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g",
+              "uri": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g",
+              "type": "application/vnd.sas.cognitive.natural.language.generation.document"},
+            {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g",
+              "uri": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g"},
+            {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/documents",
+              "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.collection",
+              "itemType": "application/vnd.sas.cognitive.natural.language.generation.document"}],
+          "version": 1}, "state": "enabled", "connectors": []}
+    documentMultiPostResponse:
+      summary: Create multiple documents response
+      description: Here is an example response from using a POST request to create
+        multiple documents.
+      value: {"links": [], "name": "items", "items": [{"id": "d2b7518a-9204-4303-aabd-4e52d9a2b21d",
+            "createdBy": "testuser", "creationTimeStamp": "2022-03-02T15:48:57.964Z",
+            "modifiedBy": "testuser", "modifiedTimeStamp": "2022-03-02T15:48:57.964Z",
+            "name": "This name is optional", "description": "This description is optional",
+            "result": "Hello, bar1!", "expirationTimeStamp": "2022-03-02T16:48:57.961Z",
+            "links": [{"method": "GET", "rel": "self", "href": "/naturalLanguageGeneration/documents/d2b7518a-9204-4303-aabd-4e52d9a2b21d",
+                "uri": "/naturalLanguageGeneration/documents/d2b7518a-9204-4303-aabd-4e52d9a2b21d",
+                "type": "application/vnd.sas.cognitive.natural.language.generation.document"},
+              {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/documents/d2b7518a-9204-4303-aabd-4e52d9a2b21d",
+                "uri": "/naturalLanguageGeneration/documents/d2b7518a-9204-4303-aabd-4e52d9a2b21d"},
+              {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/documents",
+                "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.cognitive.natural.language.generation.document"}],
+            "version": 1}, {"id": "d1cc5b4d-2381-4975-9b5b-1fc30e4f25f4", "createdBy": "testuser",
+            "creationTimeStamp": "2022-03-02T15:48:57.973Z", "modifiedBy": "testuser",
+            "modifiedTimeStamp": "2022-03-02T15:48:57.973Z", "name": "This other name\
+              \ is optional", "description": "This description is optional", "result": "Hello,\
+              \ other bar2!", "expirationTimeStamp": "2022-03-02T16:48:57.972Z", "links": [
+              {"method": "GET", "rel": "self", "href": "/naturalLanguageGeneration/documents/d1cc5b4d-2381-4975-9b5b-1fc30e4f25f4",
+                "uri": "/naturalLanguageGeneration/documents/d1cc5b4d-2381-4975-9b5b-1fc30e4f25f4",
+                "type": "application/vnd.sas.cognitive.natural.language.generation.document"},
+              {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/documents/d1cc5b4d-2381-4975-9b5b-1fc30e4f25f4",
+                "uri": "/naturalLanguageGeneration/documents/d1cc5b4d-2381-4975-9b5b-1fc30e4f25f4"},
+              {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/documents",
+                "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.cognitive.natural.language.generation.document"}],
+            "version": 1}], "version": 2}
+    documentFromTextAsJsonRequest:
+      summary: Create document from text as JSON request
+      description: Here is an example of using a POST request to create a document
+        object using template text directly (not referencing any stored template object).
+        The only required field is `templateText`. `data` is any valid json structure
+        that will be used by the template provided. `language` is specified by the
+        [ISO-639-1 short code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes),
+        and is set to a language ("en") which has language helpers supported by this
+        API. `timeToLive` is given in seconds and if omitted will be replaced by the
+        server default (negative numbers equate to no expiration). In this example,
+        the `timeToLive` field specifies that this document can be deleted from the
+        underlying database after 60 seconds.
+      value: {"name": "This name is optional", "requestType": "text", "description": "This\
+          \ description is optional", "language": "en", "templateText": "$foo", "data": {
+          "foo": {"nested": "bar"}}, "timeToLive": 60}
+    createDocumentFromUriResponse:
+      summary: Create document using template URI response
+      description: Here is an example response from using a POST request to create
+        a document which uses an existing template referenced by URI.
+      value: {"id": "a9b8a59c-4b15-4a13-8958-2150d1b6270b", "createdBy": "testuser",
+        "creationTimeStamp": "2022-03-02T17:32:45.297Z", "modifiedBy": "testuser",
+        "modifiedTimeStamp": "2022-03-02T17:32:45.297Z", "name": "This name is optional",
+        "description": "This description is optional", "result": "Hello, bar!", "templateId": "75e75dc0-4b27-4157-94b7-1e9c725543a8",
+        "expirationTimeStamp": "2022-03-02T17:33:45.296Z", "links": [{"method": "GET",
+            "rel": "self", "href": "/naturalLanguageGeneration/documents/a9b8a59c-4b15-4a13-8958-2150d1b6270b",
+            "uri": "/naturalLanguageGeneration/documents/a9b8a59c-4b15-4a13-8958-2150d1b6270b",
+            "type": "application/vnd.sas.cognitive.natural.language.generation.document"},
+          {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/documents/a9b8a59c-4b15-4a13-8958-2150d1b6270b",
+            "uri": "/naturalLanguageGeneration/documents/a9b8a59c-4b15-4a13-8958-2150d1b6270b"},
+          {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/documents",
+            "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.document"}],
+        "version": 1}
+    updateTemplateRequest:
+      summary: Update template request
+      description: Here is an example of using a PUT request to update a template
+        for natural language generation. The `id` field must match the ID in the request
+        URI.
+      value: {"id": "077ff0a4-6c7b-4d57-82c7-ac738672352c", "name": "This name is\
+          \ optional.", "description": "This description is optional.", "templateText": "Hello,\
+          \ $name!", "properties": [{"name": "optionalProperty1", "value": "propertyValue"},
+          {"name": "optionalProperty2", "value": "propertyValue"}]}
+    errorBadRequest:
+      summary: Bad request
+      description: Bad request
+      value: {"errorCode": 0, "httpStatusCode": 400}
+    createDocumentFromUriAsJsonRequest:
+      summary: Create document using template URI as JSON request
+      description: Here is an example of using a POST request to create a document
+        which uses an existing template referenced by URI. The Accept header specifies
+        that the result field should be formatted as JSON.
+      value: {"name": "This name is optional", "description": "This description is\
+          \ optional", "requestType": "uri", "templateUri": "/naturalLanguageGeneration/templates/876f3a82-8343-41fb-8d6e-99b30b0a5d8c",
+        "data": {"foo": {"nested": "bar"}}, "timeToLive": 60}
+    createDocumentFromTransferRequest:
+      summary: Create document from transfer object request
+      description: Here is an example of using a POST request to create a document
+        from a transfer object.
+      value: {"version": 2, "summary": {"creationTimeStamp": "2020-07-15T19:26:17.288Z",
+          "modifiedTimeStamp": "2020-07-15T19:26:17.288Z", "createdBy": "testuser",
+          "modifiedBy": "testuser", "id": "db806f18-f00f-433a-b360-9e746c7a116g",
+          "type": "application/vnd.sas.cognitive.natural.language.generation.document",
+          "name": "db806f18-f00f-433a-b360-9e746c7a116g", "links": [{"method": "GET",
+              "rel": "self", "href": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g",
+              "uri": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g",
+              "type": "application/vnd.sas.cognitive.natural.language.generation.document"}],
+          "version": 2}, "content": {"id": "db806f18-f00f-433a-b360-9e746c7a116g",
+          "createdBy": "testuser", "creationTimeStamp": "2020-07-15T19:26:17.288Z",
+          "modifiedBy": "testuser", "modifiedTimeStamp": "2020-07-15T19:26:17.288Z",
+          "result": "Hello, world!", "links": [{"method": "GET", "rel": "self", "href": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g",
+              "uri": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g",
+              "type": "application/vnd.sas.cognitive.natural.language.generation.document"},
+            {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g",
+              "uri": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g"},
+            {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/documents",
+              "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.collection",
+              "itemType": "application/vnd.sas.cognitive.natural.language.generation.document"}],
+          "version": 1}, "connectors": []}
+    errorNotFound:
+      summary: Not found
+      description: Not found
+      value: {"errorCode": 0, "httpStatusCode": 404}
+    documentsFromTextAsJsonRequest:
+      summary: Documents from text as JSON request
+      description: Here is an example of using a POST request to create multiple documents
+        from raw template text with the result formatted as JSON.
+      value: {"links": [], "name": "documentData", "accept": "application/vnd.sas.collection+json",
+        "count": 2, "items": [{"name": "This name is optional", "requestType": "text",
+            "description": "This description is optional", "templateText": "$foo",
+            "data": {"foo": {"nested": "bar1"}}}, {"name": "This other name is optional",
+            "requestType": "text", "description": "This description is optional",
+            "templateText": "$foo", "data": {"foo": {"nested": "bar2"}}}], "version": 2}
+    createTemplateRequest:
+      summary: Create template request
+      description: Here is an example of using a POST request to create a stored template
+        for natural language generation which can be executed in the future. The field
+        `templateText` contains the template code that will be executed on a call
+        to the `documents` endpoint with the URI of this template object. Templates
+        may also contain properties. These properties are simple name-value pairs
+        represented in an array within a template, and can be used for filtering upon
+        retrieval. The property names need to be unique among individual templates.
+      value: {"name": "This name is optional.", "description": "This description is\
+          \ optional.", "templateText": "Hello, $name!", "properties": [{"name": "optionalProperty1",
+            "value": "propertyValue"}, {"name": "optionalProperty2", "value": "propertyValue"}]}
+    documentFromTextRequest:
+      summary: Create document from text request
+      description: Here is an example of using a POST request to create a document
+        object using template text directly (not referencing any stored template object).
+        The only required field is `templateText`. `data` is any valid json structure
+        that will be used by the template provided. `language` is specified by the
+        [ISO-639-1 short code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes),
+        and is set to a language ("en") which has language helpers supported by this
+        API. `timeToLive` is given in seconds and if omitted will be replaced by the
+        server default (negative numbers equate to no expiration). In this example,
+        the `timeToLive` field specifies that this document can be deleted from the
+        underlying database after 60 seconds.
+      value: {"name": "This name is optional", "requestType": "text", "description": "This\
+          \ description is optional", "language": "en", "templateText": "Hello, $foo!",
+        "data": {"foo": "bar"}, "timeToLive": 60}
+    documentSummary:
+      summary: Document summary
+      description: Here is an example representation containing a summary of a document.
+      value: {"creationTimeStamp": "2022-03-02T18:00:50.900Z", "modifiedTimeStamp": "2022-03-02T18:00:50.900Z",
+        "createdBy": "testuser", "modifiedBy": "testuser", "id": "db806f18-f00f-433a-b360-9e746c7a116g",
+        "type": "application/vnd.sas.cognitive.natural.language.generation.document",
+        "name": "db806f18-f00f-433a-b360-9e746c7a116g", "links": [{"method": "GET",
+            "rel": "self", "href": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g",
+            "uri": "/naturalLanguageGeneration/documents/db806f18-f00f-433a-b360-9e746c7a116g",
+            "type": "application/vnd.sas.cognitive.natural.language.generation.document"}],
+        "version": 2}
+    document:
+      summary: Document response
+      description: Here is an example response containing a document. The field `result`
+        is rendered natural language from the output of the template. If the template
+        was provided by URI then `templateId` will be a reference to that template.
+        This object was created with a `timeToLive` value, so the `expirationTimestamp`
+        field is populated.
+      value: {"id": "9a4f275a-0b88-4366-a3db-1042177fdff5", "createdBy": "testuser",
+        "creationTimeStamp": "2022-02-24T16:44:20.246Z", "modifiedBy": "testuser",
+        "modifiedTimeStamp": "2022-02-24T16:44:20.246Z", "name": "This name is optional",
+        "description": "This description is optional", "result": "Hello, bar!", "expirationTimeStamp": "2022-02-24T16:45:20.236Z",
+        "links": [{"method": "GET", "rel": "self", "href": "/naturalLanguageGeneration/documents/9a4f275a-0b88-4366-a3db-1042177fdff5",
+            "uri": "/naturalLanguageGeneration/documents/9a4f275a-0b88-4366-a3db-1042177fdff5",
+            "type": "application/vnd.sas.cognitive.natural.language.generation.document"},
+          {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/documents/9a4f275a-0b88-4366-a3db-1042177fdff5",
+            "uri": "/naturalLanguageGeneration/documents/9a4f275a-0b88-4366-a3db-1042177fdff5"},
+          {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/documents",
+            "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.document"}],
+        "version": 1}
+    documentFromTextAsJsonResponse:
+      summary: Create document from text as JSON response
+      description: Here is an example response from using a POST request to create
+        a document from raw template text using the `application/vnd.sas.cognitive.natural.language.generation.document.request.from.text+json`
+        Content-Type header and the `application/vnd.sas.cognitive.natural.language.generation.document.as.json+json`
+        Accept header. This causes any data used in the template to be formatted/escaped
+        as JSON in the `result` field.
+      value: {"id": "c66290d3-2321-4c3c-a07e-27ee4d645549", "createdBy": "testuser",
+        "creationTimeStamp": "2022-02-24T19:17:31.268Z", "modifiedBy": "testuser",
+        "modifiedTimeStamp": "2022-02-24T19:17:31.268Z", "name": "This name is optional",
+        "description": "This description is optional", "result": '{"nested":"bar"}',
+        "expirationTimeStamp": "2022-02-24T19:18:31.263Z", "links": [{"method": "GET",
+            "rel": "self", "href": "/naturalLanguageGeneration/documents/c66290d3-2321-4c3c-a07e-27ee4d645549",
+            "uri": "/naturalLanguageGeneration/documents/c66290d3-2321-4c3c-a07e-27ee4d645549",
+            "type": "application/vnd.sas.cognitive.natural.language.generation.document.as.json"},
+          {"method": "DELETE", "rel": "delete", "href": "/naturalLanguageGeneration/documents/c66290d3-2321-4c3c-a07e-27ee4d645549",
+            "uri": "/naturalLanguageGeneration/documents/c66290d3-2321-4c3c-a07e-27ee4d645549"},
+          {"method": "GET", "rel": "up", "href": "/naturalLanguageGeneration/documents",
+            "uri": "/naturalLanguageGeneration/documents", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.cognitive.natural.language.generation.document.as.json"}],
+        "version": 1}

@@ -1,0 +1,3813 @@
+---
+openapi: 3.0.3
+info:
+  version: "5"
+  title: Concept Taxonomy
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: devex@sas.com
+  description: >
+    The Concept Taxonomy REST API enables a user to create a taxonomy
+    and also concepts within a specified taxonomy. <br> <br> A concept taxonomy
+    is the hierarchical representation of concepts. A concept is a property such
+    as a book title, last name, or city. It is defined by rules written in LITI
+    syntax. Concepts can be predefined (by SAS) or user-defined (custom)
+    concepts. This API allows a user to create such taxonomy and
+    concepts.  <br> <br> For example, if we have documents related to news
+    articles, we might want to extract documents that talk about sports. We
+    might have a concept named "sports" with a rule (value) of:
+    `CLASSIFIER:sports`. This concept will match all the documents mentioning
+    "sports". Furthermore, one might be interested in only the sport "tennis".
+    We can write the concept rule to match such documents. An example rule for
+    this "tennis" concept might be: `CONCEPT_RULE:(SENT,"sports","_c{tennis}")`.
+    This rule states that if "sports" is mentioned in a sentence along with
+    "tennis" in a document, then match that document to the concept named
+    "tennis". We support a wide range of operators to develop such rules. More
+    details on the rule syntax can be found in the Visual Text Analytics user
+    guide.   <br> <br> Once the user has created the concepts in a concept
+    taxonomy, he/she can retrieve the configuration of such a taxonomy or a
+    concept belonging to a taxonomy. Concept validation uses the taxonomy
+    configuration to validate all the concepts defined in a taxonomy and concept
+    configuration to validate the rule value of the specified concept.
+    Concept compilation uses the configuration value to generate the binary
+    model which can be used to score the documents using the concepts scoring
+    API. Once the user has scored the documents or piece of text for a
+    concept taxonomy, he/she can also view the documents for matching concept
+    using the documents API. <br><br>Once the user has scored the documents
+    or piece of text for a concept taxonomy, he/she can also view the documents
+    for matching concept using the documents API.
+
+    **Note that HEAD is supported for every GET request documented in the API. Simply
+    change the HTTP verb from GET to HEAD, leaving other parameters the same.**
+tags:
+- name: Root
+  description: The operations for the root resource.
+- name: Jobs
+  description: The operations for the jobs.
+- name: Taxonomies
+  description: The operations for the taxonomies resource.
+- name: Concepts
+  description: The operations for the concepts resource within a taxonomy.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the links for the API
+      operationId: root
+      description: |
+        Returns the links to the top-level resources for the API.
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/getRootResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                api:
+                  $ref: "#/components/examples/getRootResponse"
+          headers:
+            Last-Modified:
+              description: When response was created.
+              schema:
+                type: string
+        "404":
+          description: Service is not available.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+    head:
+      tags:
+      - Root
+      operationId: headersForRoot
+      summary: Get the headers for the API
+      description: Returns the headers for the API. Also used to determine whether
+        the service provided by the API is available.
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Last-Modified:
+              description: When response was created.
+              schema:
+                type: string
+        "404":
+          description: Service is not available.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+  /jobs:
+    post:
+      tags:
+      - Jobs
+      x-sas-attributes:
+        since: "2"
+      summary: Submits a new job
+      description: Perform all tasks necessary for various job types.
+      operationId: createJob
+      requestBody:
+        content:
+          application/vnd.sas.job.execution.job+json:
+            schema:
+              $ref: "#/components/schemas/job"
+            examples:
+              api:
+                $ref: "#/components/examples/postJobRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/job"
+            examples:
+              api:
+                $ref: "#/components/examples/postJobRequest"
+        description: >
+          The job execution job submitted to run various tasks such as importing
+          concepts and/or getting the configuration for the specified
+          taxonomy.<br/>
+
+
+          The job can be one of four types: import-concepts, concept-validate, concept-compile,
+          or concept-configuration-job.
+
+
+          A job submitted to run one of four types of tasks, as specified by the type
+          property of the job definition.
+
+
+          Import concepts. Job type is import-concepts. Job arguments are passed via
+          a file containing the concepts to be imported in json format.
+
+          Once the job status is completed and successful, we return the job results
+          again in different file location.
+
+          This file contains the actual message for each of the imported concepts
+          along with the http status code.  <br/>
+
+
+          Validate concepts. Job type is concept-validate. Job arguments are passed
+          via a file containing the concepts to be validated in json format.
+
+          Once the job status is completed successfully, we return the job results
+          again in a different file location.
+
+          This file contains the actual state of validation and any errors associated
+          with validation for the concepts. <br/>
+
+
+          Compile concepts. Job type is concept-compile. Job arguments are passed
+          via a file containing the concepts to be validated in json format.
+
+          Once the job status is completed successfully, we send an http status code
+          200 and don't return anything. <br/>
+
+
+          Get configuration for taxonomy. Job type is concept-configuration-job. Job
+          arguments are passed via a file containing the ID of the concept taxonomy
+          in json format.
+
+          Once the job status is completed successfully, we return the job results
+          again in different file location.
+
+          This file contains the actual configuration of all the concepts existing
+          in the specified taxonomy.
+        required: true
+      responses:
+        "201":
+          description: The job was accepted.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the job was last modified.
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              description: The entity tag for the job.
+              schema:
+                type: string
+            Location:
+              description: The URL of the job.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.job.execution.job+json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                api:
+                  $ref: "#/components/examples/postJobResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/job"
+              examples:
+                api:
+                  $ref: "#/components/examples/postJobResponse"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.job.execution.job+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+  /taxonomies:
+    get:
+      summary: Get a collection of taxonomies
+      description: Returns a collection of taxonomies based on the specified pagination
+        option. The items in the collection use the `application/vnd.sas.text.concept.taxonomy`
+        media type.
+      operationId: getTaxonomies
+      tags:
+      - Taxonomies
+      parameters:
+      - name: start
+        in: query
+        description: |
+          The index of the first taxonomy to return. The default is 0.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: >
+          The maximum number of taxonomies to return. The actual number of
+          returned taxonomies could be less if the collection has been
+          exhausted. The default is 20.
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      - name: sortBy
+        in: query
+        description: >
+          Sort returned taxonomies. The sort criteria support the following
+          fields in either ascending or descending order (id, name,
+          description, language, createdBy, includePredefined, modifiedBy,
+          modifiedTimeStamp and creationTimeStamp). The default is
+          "creationTimeStamp". See [sorting
+          collections](https://developer.sas.com/apis/rest/Topics/#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+          default: creationTimeStamp
+      - name: filter
+        in: query
+        description: >
+          Returns taxonomies filtered by the given parameters. Objects can be
+          filtered by any fields present on the object itself.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/taxonomyCollection"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomiesResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/taxonomyCollection"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomiesResponse"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+    post:
+      tags:
+      - Taxonomies
+      summary: Create a new taxonomy
+      operationId: createTaxonomy
+      description: >
+        Creates a new taxonomy based on the representation in the request body.
+        The name of the new taxonomy must be set by the user within the request
+        body. The name currently does not need to be unique.
+      requestBody:
+        content:
+          application/vnd.sas.text.concept.taxonomy+json:
+            schema:
+              $ref: "#/components/schemas/createTaxonomy"
+            examples:
+              api:
+                $ref: "#/components/examples/createTaxonomyRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createTaxonomy"
+            examples:
+              api:
+                $ref: "#/components/examples/createTaxonomyRequest"
+        description: The representation of a taxonomy.
+        required: true
+      responses:
+        "201":
+          description: A taxonomy was created.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the taxonomy was last modified.
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              description: The entity tag for the taxonomy.
+              schema:
+                type: string
+            Location:
+              description: The URL of the taxonomy.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/taxonomy"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomyResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/taxonomy"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomyResponse"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+  /taxonomies#duplicateTaxonomy:
+    post:
+      summary: Creates a copy of a taxonomy, including all of the concepts
+      operationId: createDuplicateTaxonomy
+      description: Creates and returns a new taxonomy.  This endpoint also creates
+        copies of all of the concepts.
+      tags:
+      - Taxonomies
+      parameters:
+      - name: from
+        in: query
+        required: true
+        description: The ID of the concept taxonomy to copy.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.text.concept.taxonomy+json:
+            schema:
+              $ref: "#/components/schemas/duplicateTaxonomy"
+            examples:
+              api:
+                $ref: "#/components/examples/duplicateTaxonomyRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/duplicateTaxonomy"
+            examples:
+              api:
+                $ref: "#/components/examples/duplicateTaxonomyRequest"
+        description: The representation of a taxonomy.
+      responses:
+        "201":
+          description: The taxonomy was created.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the taxonomy was last modified.
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              description: The entity tag for the duplicated taxonomy.
+              schema:
+                type: string
+            Location:
+              description: The URL of the duplicated taxonomy.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/taxonomy"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomyResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/taxonomy"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomyResponse"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+        "404":
+          description: A taxonomy with the given ID could not be found.
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+  "/taxonomies/{taxonomyId}":
+    get:
+      summary: Get a taxonomy
+      operationId: getTaxonomy
+      description: Returns the representation of the specified taxonomy.
+      tags:
+      - Taxonomies
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: The unique identifier for the concept taxonomy.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK. Taxonomy was returned.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the taxonomy was last modified.
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              description: The entity tag for the taxonomy.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/taxonomy"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomyResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/taxonomy"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomyResponse"
+        "404":
+          description: No taxonomy exists at the requested path.
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+    patch:
+      tags:
+      - Taxonomies
+      summary: Patch a taxonomy
+      operationId: patchTaxonomy
+      description: Patches the specified taxonomy based on the partial representation
+        in the request body. The requested body is a JSON or taxonomy media type.
+        The language field of taxonomy cannot be updated once it is created (a 422
+        error is thrown).
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: |
+          The unique identifier for the taxonomy.
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: The entity tag obtained from the most recent `ETag` response
+          header. Must match the current entity tag for the taxonomy.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: >
+          The time stamp obtained from the most recent `Last-Modified`
+          response header. Ignored when `If-Match` is specified.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.text.concept.taxonomy+json:
+            schema:
+              $ref: "#/components/schemas/updateTaxonomy"
+            examples:
+              api:
+                $ref: "#/components/examples/createTaxonomyRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/updateTaxonomy"
+            examples:
+              api:
+                $ref: "#/components/examples/createTaxonomyRequest"
+        description: |
+          The partial representation of a taxonomy.
+        required: true
+      responses:
+        "200":
+          description: |
+            The request succeeded.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the taxonomy was last modified.
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              description: The entity tag for the taxonomy.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/taxonomy"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomyResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/taxonomy"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomyResponse"
+        "400":
+          description: |
+            The taxonomy in the body is invalid or does not have a name defined.
+        "404":
+          description: |
+            A taxonomy with the given ID could not be found.
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+        "412":
+          description: >
+            The `If-Match` request header did not match the resource's entity
+            tag, or the `If-Unmodified-Since` request header did not match the
+            resource's last modified timestamp.
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error4"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error4"
+        "422":
+          description: >
+            The language property of a taxonomy cannot be changed once it is
+            created.
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/unProcessError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/unProcessError"
+        "428":
+          description: >
+            The request headers did not include a `If-Match` or
+            `If-Unmodified-Since` precondition.
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error3"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error3"
+    delete:
+      tags:
+      - Taxonomies
+      summary: Delete a taxonomy
+      operationId: deleteTaxonomy
+      description: >
+        Deletes the specified taxonomy and removes it from the system. All the
+        concepts contained in the taxonomy are also deleted.
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: |
+          The unique identifier for the taxonomy.
+        schema:
+          type: string
+      responses:
+        "204":
+          description: |
+            The taxonomy was deleted.
+        "404":
+          description: |
+            A taxonomy with the given taxonomyId could not be found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+  "/taxonomies/{taxonomyId}/configuration":
+    get:
+      tags:
+      - Taxonomies
+      summary: Get the taxonomy configuration in specific format
+      operationId: getTaxonomyConfiguration
+      description: >
+        Gets a configuration for all concepts within a specific taxonomy.
+
+        The taxonomy configuration is the collection of the configuration for all
+        the
+
+        concepts separated by new line which can be used to create a binary model
+
+        to match the text/documents to the defined concepts.
+
+        For individual concept configuration structure, please refer to the end point
+
+        for getting the configuration for the specified concept.
+
+        If all the concepts in a taxonomy have enabled field as false and
+
+        all the concepts are helper/supporting concepts,
+
+        the returned configuration for the taxonomy will be empty.
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: |
+          The unique identifier for the taxonomy.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: |
+            OK. The configuration for a taxonomy was returned.
+          content:
+            application/vnd.sas.text.concept.taxonomy.configuration+json:
+              schema:
+                $ref: "#/components/schemas/taxonomyConfiguration"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomyConfigurationResponse"
+            application/vnd.sas.text.concept.taxonomy.configuration:
+              schema:
+                $ref: "#/components/schemas/taxonomyConfiguration"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomyConfigurationResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/taxonomyConfiguration"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomyConfigurationResponse"
+        "404":
+          description: |
+            A taxonomy with the given ID could not be found.
+          content:
+            application/vnd.sas.text.concept.taxonomy.configuration+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/vnd.sas.text.concept.taxonomy.configuration:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+  "/taxonomies/{taxonomyId}/concepts":
+    get:
+      tags:
+      - Concepts
+      summary: Get a collection of concepts belonging to a taxonomy
+      operationId: getConcepts
+      description: >
+        Returns a collection of concepts within the specified taxonomy based on
+        the specified pagination. The items in the collection use the
+        `application/vnd.sas.text.concept` media type.
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: >
+          The unique identifier for the taxonomy for which the contained
+          concepts will be listed.
+        schema:
+          type: string
+      - name: start
+        in: query
+        description: >
+          The index of the first concept to return belonging to the specified
+          taxonomy.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: >
+          The maximum number of concepts to return. The actual number of
+          returned concepts could be less if the collection has been
+          exhausted. The default is 20.
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      - name: sortBy
+        in: query
+        description: >
+          Sort returned concepts in specified taxonomy. The sort criteria
+          support the following fields in either ascending or descending order
+          (id, name, priority, caseInsensitive, enabled, predefined,
+          validationNeeded, hasInvalidChild, isHelper, parentId, createdBy,
+          value, taxonomyId, modifiedBy, modifiedTimeStamp and
+          creationTimeStamp). The default is "creationTimeStamp". See [sorting
+          collections](https://developer.sas.com/apis/rest/Topics/#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+          default: creationTimeStamp
+      - name: topLevelOnly
+        in: query
+        description: >
+          If set to TRUE, this option returns only top-level concepts
+          (default). If set to FALSE, all concepts in the hierarchy are
+          returned.
+        schema:
+          type: boolean
+          default: true
+      - name: predefinedOnly
+        in: query
+        description: >
+          If set to FALSE, returns all concepts (default). If set to TRUE,
+          only predefined concepts in the hierarchy are returned.
+        schema:
+          type: boolean
+          default: false
+      - name: includeValue
+        in: query
+        description: >
+          If set to FALSE, all concepts returned will have an empty value
+          field. If set to TRUE, all concepts returned will have their correct
+          value field.
+        schema:
+          type: boolean
+          default: false
+      - name: filter
+        in: query
+        description: >
+          Returns taxonomies filtered by the given parameters. Objects can be
+          filtered by any fields present on the object itself.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: |
+            The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/conceptCollection"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptsResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/conceptCollection"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptsResponse"
+        "404":
+          description: |
+            A taxonomy with the given ID could not be found.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+    post:
+      tags:
+      - Concepts
+      summary: Create a new concept
+      operationId: createConcept
+      description: >
+        Creates a new concept within the taxonomy based on the representation in
+        the request body. The name of the concept must be unique for the
+        specified taxonomy.
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: |
+          The unique identifier for the taxonomy.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.text.concept+json:
+            schema:
+              $ref: "#/components/schemas/createConcept"
+            examples:
+              api:
+                $ref: "#/components/examples/createConceptRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createConcept"
+            examples:
+              api:
+                $ref: "#/components/examples/createConceptRequest"
+        description: |
+          The concept to be created.
+        required: true
+      responses:
+        "201":
+          description: |
+            The concept was created.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the concept of the specified taxonomy was last modified.
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              description: The entity tag for the concept of the specified taxonomy.
+              schema:
+                type: string
+            Location:
+              description: The URL of the newly concept.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/concept"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/concept"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptResponse"
+        "400":
+          description: |
+            The concept in the body is invalid or does not have a name defined.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+        "404":
+          description: |
+            A taxonomy with the given ID could not be found.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+        "409":
+          description: |
+            The concept name must be unique within a taxonomy.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/conflictError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/conflictError"
+    patch:
+      tags:
+      - Concepts
+      x-sas-attributes:
+        since: "2"
+      summary: Update multiple concepts
+      operationId: patchConcepts
+      description: |
+        Updates the properties of existing concepts in a specified taxonomy
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: |
+          The unique identifier for the taxonomy.
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: The entity tag obtained from the most recent `ETag` response
+          header. Must match the current entity tag for the taxonomy of the concepts
+          that are being updated.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: >
+          The timestamp obtained from the most recent `Last-Modified` response
+          header. Ignored when `If-Match` is specified, otherwise must match
+          the timestamp that the specified taxonomy was last modified.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.collection+json:
+            schema:
+              $ref: "#/components/schemas/conceptCollection"
+            examples:
+              api:
+                $ref: "#/components/examples/updateMultipleConceptResponse"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/conceptCollection"
+            examples:
+              api:
+                $ref: "#/components/examples/updateMultipleConceptResponse"
+        description: |
+          Collection of concepts that need to be updated
+        required: true
+      responses:
+        "200":
+          description: |
+            OK. One or more concept updates succeeded.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the specified taxonomy was last modified.
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              description: The entity tag for the taxonomy.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/updateResponseCollection"
+              examples:
+                api:
+                  $ref: "#/components/examples/updateMultipleConceptResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/updateResponseCollection"
+              examples:
+                api:
+                  $ref: "#/components/examples/updateMultipleConceptResponse"
+        "400":
+          description: |
+            The request was invalid.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+        "404":
+          description: >
+            None of the specified concepts with their ID's were found, or the
+            taxonomy with the specified ID was not found
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+        "409":
+          description: |
+            The name of every specified concept already excists in the taxonomy
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/conflictError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/conflictError"
+        "412":
+          description: >
+            "The `If-Match` request header did not match the specified
+            taxonomy's entity tag, or the `If-Unmodified-Since` request header
+            did not match the specified taxonomy's last modified timestamp."
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error4"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error4"
+        "422":
+          description: >
+            None of the concept names can be changed because they are all
+            predefined concepts
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/unProcessError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/unProcessError"
+        "428":
+          description: >
+            The request headers did not include a `If-Match` or
+            `If-Unmodified-Since` precondition.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error3"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error3"
+  "/taxonomies/{taxonomyId}/concepts#duplicateConcept":
+    post:
+      summary: Duplicate a concept
+      operationId: createDuplicateConcept
+      description: >
+        Enables a user to duplicate a concept and its children. The target
+        destination can be
+
+        inside or outside of the original taxonomy.
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: The ID of the taxonomy that contains the concept which needs
+          to be duplicated.
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: true
+        description: The ID of the concept to copy.
+        schema:
+          type: string
+      - name: newTaxonomyId
+        in: query
+        description: If duplicating directly under a taxonomy, this is the ID of that
+          taxonomy.  Note that this value should not be set if duplicating to a new
+          parent concept, as the taxonomy of the parent will be inherited.
+        schema:
+          type: string
+      - name: newParentId
+        in: query
+        description: The new parent concept ID.  Note - if this value is set, the
+          newTaxonomyId should not be set, as the taxonomy will be inferred from the
+          new parent.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.text.concept+json:
+            schema:
+              $ref: "#/components/schemas/duplicateConcept"
+            examples:
+              api:
+                $ref: "#/components/examples/duplicateConceptRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/duplicateConcept"
+            examples:
+              api:
+                $ref: "#/components/examples/duplicateConceptRequest"
+        description: Request body containing the name of the duplicated concept. If
+          we don't specify the body, a unique name will be generated for the duplicated
+          concept which will be unique to the parent of the duplicated concept.
+      tags:
+      - Concepts
+      responses:
+        "201":
+          description: The concept was successfully duplicated, returns the concept.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the concept was last modified.
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              description: The entity tag for the duplicated concept.
+              schema:
+                type: string
+            Location:
+              description: The URL of the duplicated concept.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/concept"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/concept"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptResponse"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+  "/taxonomies/{taxonomyId}/concepts/{conceptId}":
+    get:
+      tags:
+      - Concepts
+      summary: Get a concept
+      operationId: getConcept
+      description: >
+        Returns information about a single concept based on its unique conceptId
+        within a specified taxonomy.
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: |
+          The unique identifier for the taxonomy.
+        schema:
+          type: string
+      - name: conceptId
+        in: path
+        required: true
+        description: |
+          The unique identifier for the concept.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: |
+            OK. The concept was returned.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the concept of the specified taxonomy was last modified.
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              description: The entity tag for the concept of the specified taxonomy.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/concept"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/concept"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptResponse"
+        "404":
+          description: The taxonomy does not exist or the concept does not exist in
+            the specified taxonomy.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+    patch:
+      tags:
+      - Concepts
+      summary: Patch a concept
+      operationId: patchConcept
+      description: >
+        Patches an existing concept based on the partial representation in the
+        request body. The value for the concept is required in the body
+        request.  The request body is a JSON or concept media type.
+
+        **Note**: Currently, update function works only for updating the value, enabled,
+        priority, caseInsensitive, parentId, validationNeeded and/or validationResult
+        fields of a concept. The name field of a concept can be updated only if the
+        concept is not a predefined concept (if requested, a 400 bad request error
+        is thrown). Similarly, the parentId field cannot be updated for predefined
+        concepts (if requested, a 400 bad request error is thrown).
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: |
+          The unique identifier for the taxonomy.
+        schema:
+          type: string
+      - name: conceptId
+        in: path
+        required: true
+        description: |
+          The unique identifier for the concept to be updated.
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: The entity tag obtained from the most recent `ETag` response
+          header. Must match the current entity tag for the concept of the specified
+          taxonomy.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: >
+          The timestamp obtained from the most recent `Last-Modified` response
+          header. Ignored when `If-Match` is specified, otherwise must match
+          the timestamp when the concept of the specified taxonomy was last
+          modified.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.text.concept+json:
+            schema:
+              $ref: "#/components/schemas/updateConcept"
+            examples:
+              api:
+                $ref: "#/components/examples/updateConceptRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/updateConcept"
+            examples:
+              api:
+                $ref: "#/components/examples/updateConceptRequest"
+        description: The concept to be updated.
+        required: true
+      responses:
+        "200":
+          description: |
+            The request succeeded.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the concept of the specified taxonomy was last modified.
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              description: The entity tag for the concept of the specified taxonomy.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/concept"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/concept"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptResponse"
+        "400":
+          description: |
+            The request was invalid.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+        "404":
+          description: |
+            A concept with the specified ID does not exist.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+        "409":
+          description: |
+            The name of the concept in the body already exists in the taxonomy.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/conflictError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/conflictError"
+        "412":
+          description: >
+            "The `If-Match` request header did not match the resource's entity
+            tag, or the `If-Unmodified-Since` request header did not match the
+            resource's last modified timestamp."
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error4"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error4"
+        "422":
+          description: >
+            Either the name of the concept cannot be changed because the concept
+            is a predefined concept, or the parentId mentioned in the body for
+            the concept does not exist in the same taxonomy.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/unProcessError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/unProcessError"
+        "428":
+          description: >
+            The request headers did not include a `If-Match` or
+            `If-Unmodified-Since` precondition.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error3"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error3"
+    put:
+      summary: Move a concept under a different concept parent or taxonomy
+      operationId: updateConcept
+      description: >
+        Enables a user to move a concept to a different taxonomy or under a new
+        parent concept. The new parent can be inside or outside of the original
+        taxonomy.
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: The unique identifier of the concept taxonomy that contains the
+          concept.
+        schema:
+          type: string
+      - name: conceptId
+        in: path
+        required: true
+        description: The unique identifier of the concept that needs to be moved.
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: The entity tag obtained from the most recent `ETag` response
+          header. Must match the current entity tag for the concept of the specified
+          taxonomy.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        description: >
+          The timestamp obtained from the most recent `Last-Modified` response
+          header. Ignored when `If-Match` is specified, otherwise must match
+          the timestamp when the concept of the specified taxonomy was last
+          modified.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.text.concept.move+json:
+            schema:
+              $ref: "#/components/schemas/moveConcept"
+            examples:
+              api:
+                $ref: "#/components/examples/moveConceptRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/moveConcept"
+            examples:
+              api:
+                $ref: "#/components/examples/moveConceptRequest"
+        description: The details for the concept that needs to be moved.
+        required: true
+      tags:
+      - Concepts
+      responses:
+        "200":
+          description: The concept was successfully moved, returns the concept.
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the concept was last modified.
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              description: The entity tag for the moved concept.
+              schema:
+                type: string
+            Location:
+              description: The URL of the moved concept.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/concept"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/concept"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptResponse"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+        "404":
+          description: The source concept, destination parent concept, or taxonomy
+            were not found.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+        "412":
+          description: The `If-Match` request header did not match the resource's
+            entity tag, or the `If-Unmodified-Since` request header did not match
+            the resource's last modified timestamp.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error4"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error4"
+        "428":
+          description: >
+            The request headers did not include a `If-Match` or
+            `If-Unmodified-Since` precondition.
+          content:
+            application/vnd.sas.text.concept+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error3"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error3"
+    delete:
+      tags:
+      - Concepts
+      summary: Delete a concept
+      operationId: deleteConcept
+      description: |
+        Removes the specificied concept from the given taxonomy.
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: |
+          The unique identifier of the taxonomy.
+        schema:
+          type: string
+      - name: conceptId
+        in: path
+        required: true
+        description: |
+          The unique identifier of the concept to be deleted.
+        schema:
+          type: string
+      responses:
+        "204":
+          description: |
+            The concept of the specified taxonomy was deleted.
+        "404":
+          description: |
+            A concept with the given ID does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+  "/taxonomies/{taxonomyId}/concepts/{conceptId}/children":
+    get:
+      tags:
+      - Concepts
+      summary: Gets the summary of concept children
+      operationId: getConceptChildren
+      description: >
+        Gets the summary of children for a specific concept.  The included
+        children will not contain their value elements, as this may be a very
+        large attribute.  A get on the child is required to have that attribute
+        included.
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: |
+          The unique identifier of the taxonomy that contains the concept.
+        schema:
+          type: string
+      - name: conceptId
+        in: path
+        required: true
+        description: |
+          The unique identifier of the concept.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: >
+          The maximum number of concept children to return.  The actual number
+          of returned children could be less if the collection has been
+          exhausted. The default is 20.
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      - name: start
+        in: query
+        description: |
+          The index of the first concept child to return.
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: sortBy
+        in: query
+        description: >
+          Sort returned child concepts for specified parent concept in a
+          taxonomy. The sort criteria support the following fields in either
+          ascending or descending order (id, name, priority, caseInsensitive,
+          enabled, predefined, validationNeeded, hasInvalidChild, isHelper,
+          parentId, taxonomyId, value, createdBy, creationTimeStamp,
+          includePredefined, modifiedBy and modifiedTimeStamp). The default is
+          "creationTimeStamp". See [sorting
+          collections](https://developer.sas.com/apis/rest/Topics/#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+          default: creationTimeStamp
+      - name: includeValue
+        in: query
+        description: >
+          If set to FALSE, all concepts returned will have an empty value
+          field. If set to TRUE, all concepts returned will have their correct
+          value field.
+        schema:
+          type: boolean
+          default: false
+      - name: filter
+        in: query
+        description: >
+          Returns taxonomies filtered by the given parameters. Objects can be
+          filtered by any fields present on the object itself.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: |
+            OK. The child concepts were returned.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/conceptsSummaryCollection"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptChildrenResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/conceptsSummaryCollection"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptChildrenResponse"
+        "404":
+          description: |
+            A concept with the given ID does not exist.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+  "/taxonomies/{taxonomyId}/concepts/{conceptId}/configuration":
+    get:
+      tags:
+      - Concepts
+      summary: Get the concept configuration in specific format
+      operationId: getConceptConfiguration
+      description: >
+        Gets a configuration for the concept of the specified taxonomy. The
+        concept-validate service uses this configuration to validate the rule
+        syntax of the concept.
+
+        The concept-compile service uses this configuration to generate the binary
+        model for scoring the documents.
+
+
+        For example, if we have a concept called as `sports` with rule as `CLASSIFIER:sports`,
+        then the configuration returned for this concept will be as follows: <br>
+
+
+        ```plain/text
+          Concept ID:2c909af65ad543f9015ad54607bf0001
+          ENABLE:sports
+          FULLPATH:sports:sports
+          PRIORITY:sports:10
+          CASE_INSENSITIVE_MATCH:sports
+          CLASSIFIER:sports:sports
+        ```
+
+
+        The first line represents the ID of the concept for which the configuration
+        belongs to. <br>
+
+        The second line is populated based on the `enabled` property of the concept.
+        If the value of `enabled` property of the concept is false,
+
+        the configuration won't contain this line. <br>
+
+        The third line represents the full path of the concept.<br>
+
+        The fourth line is populated based on the `priority` property value of the
+        concept.<br>
+
+        The fifth line is populated based on the `caseInsensitive` property of the
+        concept. If the value is false,
+
+        this line will be `CASE_SENSITIVE_MATCH:sports` <br>
+
+        The last line represents the rule value for the concept along with the concept
+        name. <br>
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: |
+          The unique identifier of the taxonomy.
+        schema:
+          type: string
+      - name: conceptId
+        in: path
+        required: true
+        description: |
+          The unique identifier of the concept.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: |
+            OK. The configuration for the concept was returned.
+          content:
+            application/vnd.sas.text.concept.configuration+json:
+              schema:
+                $ref: "#/components/schemas/conceptConfiguration"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptConfiguration"
+            application/vnd.sas.text.concept.configuration:
+              schema:
+                $ref: "#/components/schemas/conceptConfiguration"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptConfiguration"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/conceptConfiguration"
+              examples:
+                api:
+                  $ref: "#/components/examples/getConceptConfiguration"
+        "404":
+          description: >
+            A concept with the specified ID could not be found in the taxonomy
+            with specified taxonomyId.
+          content:
+            application/vnd.sas.text.concept.configuration+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/vnd.sas.text.concept.configuration:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/notFoundError"
+  "/taxonomies/{taxonomyId}/state":
+    put:
+      tags:
+      - Taxonomies
+      summary: Change the taxonomy state
+      operationId: updateTaxonomyState
+      description: >
+        Changes the state for the given taxonomy. The available states are
+        locked and unlocked.
+      parameters:
+      - name: taxonomyId
+        in: path
+        required: true
+        description: |
+          The ID of the taxonomy.
+        schema:
+          type: string
+      - name: state
+        in: query
+        required: true
+        description: |
+          The state that the taxonomy should be changed to.
+        schema:
+          type: string
+      responses:
+        "200":
+          headers:
+            Last-Modified:
+              description: The timestamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the taxonomy was last modified.
+              schema:
+                type: string
+                format: date-time
+            ETag:
+              description: The entity tag for the taxonomy.
+              schema:
+                type: string
+          description: |
+            OK. The state for the taxonomy was changed.
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/taxonomy"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomyResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/taxonomy"
+              examples:
+                api:
+                  $ref: "#/components/examples/getTaxonomyResponse"
+        "400":
+          description: The given state is not an allowed state for a taxonomy.
+          content:
+            application/vnd.sas.text.concept.taxonomy+json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+              examples:
+                api:
+                  $ref: "#/components/examples/error2"
+servers:
+- url: "http://example.com/conceptTaxonomy"
+  description: This is a sample base URL.
+components:
+  schemas:
+    validationError:
+      title: validationError
+      description: Validation error.
+      type: object
+      properties:
+        message:
+          type: string
+          description: The validation error message.
+        lineNumber:
+          type: integer
+          description: The line number where validation error has occurred.
+    validationResult:
+      title: validationResult
+      description: Validation result for the concept.
+      type: object
+      properties:
+        valid:
+          type: boolean
+          description: |
+            Determines whether a concept is valid or not. Default is TRUE.
+        errors:
+          type: array
+          description: |
+            An array of validation errors.
+          items:
+            $ref: "#/components/schemas/validationError"
+    conceptSummary:
+      title: A summary for a concept.
+      description: A summary for a concept.
+      x-sas-media-type: application/vnd.sas.text.concept.summary+json;version=1
+      properties:
+        name:
+          type: string
+          description: |
+            The user defined name of the concept.
+        alternativeName:
+          type: string
+          description: |
+            The user defined alternativeName name of the concept.
+        autoRuleGenState:
+          type: string
+          description: >
+            An enumeration that describes what state the concept is in regarding
+            automatic rule generation. Default is ready.
+          enum:
+          - ready
+          - runFactAutoRules
+          - runConceptAutoRules
+          - factAutoRulesCompleted
+          - conceptAutoRulesCompleted
+        factInput:
+          type: array
+          description: >
+            A list of conceptIds that will be used in fact automatic rule
+            generation.
+          items:
+            type: string
+        enabled:
+          type: boolean
+          description: |
+            The enabled or disabled status of the concept. The default is TRUE.
+        priority:
+          type: integer
+          description: >
+            This value used when scoring uses the Best Match setting. Optional.
+            Default value is 10.
+        caseInsensitive:
+          type: boolean
+          description: >
+            This value is used to determine whether to ignore case differences
+            or not while matching the documents to the concept. Optional. The
+            default is TRUE.
+        parentId:
+          type: string
+          description: >
+            The unique identifier of the parent. If the concept does not have a
+            parent, the value is null or an empty string.
+        taxonomyId:
+          type: string
+          description: |
+            The unique identifier of the taxonomy that the concept belongs to.
+        predefined:
+          type: boolean
+          description: >
+            Determines whether the concept is a predefined concept or not. The
+            default Is FALSE.
+        validationNeeded:
+          type: boolean
+          description: >
+            Determines whether the validation is required or not. The default is
+            FALSE.
+        validationResult:
+          $ref: "#/components/schemas/validationResult"
+      required:
+      - name
+      example:
+        version: 1
+        links:
+        - method: GET
+          rel: self
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          type: application/vnd.sas.text.concept
+        - method: GET
+          rel: up
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept
+        - method: PATCH
+          rel: update
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          type: application/vnd.sas.text.concept
+          responseType: application/vnd.sas.text.concept
+        - method: DELETE
+          rel: delete
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+        - method: GET
+          rel: taxonomy
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/
+          type: application/vnd.sas.text.concept.taxonomy
+        - method: PUT
+          rel: move
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          type: application/vnd.sas.text.concept.move
+          responseType: application/vnd.sas.text.concept
+        - method: POST
+          rel: duplicate
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts?from=8aa893095df7297b015df72dea9b000a
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts?from=8aa893095df7297b015df72dea9b000a
+          type: application/vnd.sas.text.concept
+          responseType: application/vnd.sas.text.concept
+        - method: GET
+          rel: configuration
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a/configuration
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a/configuration
+          type: application/vnd.sas.text.concept.configuration
+        - method: GET
+          rel: documents
+          href: /documents/conceptDocuments/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a/documents
+          uri: /documents/conceptDocuments/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a/documents
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.concept.document
+        createdBy: scatest
+        modifiedBy: scatest
+        name: sports
+        id: 8aa893095df7297b015df72dea9b000a
+        priority: 10
+        caseInsensitive: true
+        enabled: true
+        taxonomyId: 8aa893095df7297b015df72a9d930000
+        predefined: false
+        validationResult:
+          errors: []
+          valid: true
+        validationNeeded: true
+        hasInvalidChild: false
+        creationTimeStamp: 2017-08-18T21:09:27.811000Z
+        modifiedTimeStamp: 2017-08-18T21:09:27.811000Z
+        isHelper: false
+    createConcept:
+      description: Create a concept in a taxonomy.
+      title: A taxonomy concept.
+      x-sas-media-type: application/vnd.sas.text.concept+json;version=1
+      allOf:
+      - $ref: "#/components/schemas/conceptSummary"
+      - type: object
+        properties:
+          value:
+            type: string
+            description: >
+              The rule value of the concept. To include multiple rules
+              separate each one with a newline character.
+    updateConcept:
+      description: Update a concept in a taxonomy.
+      title: A taxonomy concept.
+      x-sas-media-type: application/vnd.sas.text.concept+json;version=1
+      properties:
+        version:
+          type: integer
+          description: |
+            Concept response schema version. This is version 1.
+          minimum: 1
+          maximum: 1
+        id:
+          type: string
+          description: |
+            A unique, system-generated ID for the concept.
+        name:
+          type: string
+          description: |
+            The user defined name of the concept.
+        alternativeName:
+          type: string
+          description: |
+            The user defined alterNate name of the concept.
+        value:
+          type: string
+          description: >
+            The rule value of the concept. To include multiple rules separate
+            each one with a newline character.
+        autoRuleGenState:
+          type: string
+          description: >
+            An enumeration that describes what state the concept is in regarding
+            automatic rule generation. Default is ready.
+          enum:
+          - ready
+          - runFactAutoRules
+          - runConceptAutoRules
+          - factAutoRulesCompleted
+          - conceptAutoRulesCompleted
+        factInput:
+          type: array
+          description: >
+            A list of conceptIds that will be used in fact automatic rule
+            generation.
+          items:
+            type: string
+        enabled:
+          type: boolean
+          description: |
+            The enable/disable status of the concept. The default is true.
+        isHelper:
+          type: boolean
+          description: >
+            Determines if the concept is a helper or supporting concept. When
+            the concept is a helper or supporting concept, the documents for the
+            concept will not be matched. But if another concept is referring to
+            this concept, documents will be matched for the other concept. The
+            default is false, meaning that documents will be matched for the
+            defined concept. NOTE: this property cannot be modified/updated for
+            a predefined concept.
+        priority:
+          type: integer
+          description: >
+            Value used when scoring is using the Best Match setting. Optional.
+            The default is 10.
+        caseInsensitive:
+          type: boolean
+          description: |
+            Optional. The default is true.
+        parentId:
+          type: integer
+          description: >
+            This is the unique identifier of the parent. Otherwise, this value
+            is null or an empty string if it
+
+            does not have a parent.
+        validationNeeded:
+          type: boolean
+          description: >
+            Determines whether the validation is required or not. The default is
+            FALSE.
+        validationResult:
+          $ref: "#/components/schemas/validationResult"
+    concept:
+      description: A concept in a taxonomy.
+      title: A taxonomy concept.
+      x-sas-media-type: application/vnd.sas.text.concept+json;version=1
+      required:
+      - id
+      - version
+      allOf:
+      - $ref: "#/components/schemas/createConcept"
+      - type: object
+        properties:
+          id:
+            type: string
+            description: |
+              A unique, system-generated ID for the concept.
+          hasInvalidChild:
+            type: boolean
+            description: >
+              Determines whether the concept has any invalid child or not. The
+              default is FALSE.
+          creationTimeStamp:
+            type: string
+            description: |
+              The date when the concept was created.
+            format: date-time
+          modifiedTimeStamp:
+            type: string
+            description: |
+              The date when the concept was last updated.
+            format: date-time
+          createdBy:
+            type: string
+            description: |
+              The unique identifier of the user that created the concept.
+          modifiedBy:
+            type: string
+            description: |
+              The unique identifier of the user that last updated the concept
+          autoRuleGenState:
+            type: string
+            description: >
+              An enumeration that describes what state the concept is in
+              regarding automatic rule generation. Default is ready.
+            enum:
+            - ready
+            - runFactAutoRules
+            - runConceptAutoRules
+            - factAutoRulesCompleted
+            - conceptAutoRulesCompleted
+          factInput:
+            type: array
+            description: >
+              A list of conceptIds that will be used in fact automatic rule
+              generation.
+            items:
+              type: string
+          links:
+            type: array
+            description: An array of links to related resources and actions.
+            items:
+              $ref: "#/components/schemas/link"
+          version:
+            type: integer
+            description: |
+              Concept response schema version. This is version 1.
+            minimum: 1
+            maximum: 1
+    conceptSummaryDetails:
+      title: A summary of concept.
+      description: A concept summary.
+      x-sas-media-type: application/vnd.sas.text.concept.summary+json;version=1
+      required:
+      - id
+      - version
+      allOf:
+      - $ref: "#/components/schemas/conceptSummary"
+      - type: object
+        properties:
+          id:
+            type: string
+            description: |
+              A unique, system-generated ID for the concept.
+          hasInvalidChild:
+            type: boolean
+            description: >
+              Determines whether the concept has any invalid child or not. The
+              default is FALSE.
+          creationTimeStamp:
+            type: string
+            description: |
+              The date when the concept was created.
+            format: date-time
+          modifiedTimeStamp:
+            type: string
+            description: |
+              The date when the concept was last updated.
+            format: date-time
+          createdBy:
+            type: string
+            description: |
+              The unique identifier of the user that created the concept.
+          modifiedBy:
+            type: string
+            description: |
+              The unique identifier of the user that last updated the concept.
+          isHelper:
+            type: boolean
+            description: |
+              Determines whether or not a concept is a helper concept.
+          factInput:
+            type: array
+            description: >
+              A list of conceptIds that will be used in fact automatic rule
+              generation.
+            items:
+              type: string
+          autoRuleGenState:
+            type: string
+            description: >
+              An enumeration that describes what state the concept is in
+              regarding automatic rule generation. Default is ready.
+            enum:
+            - ready
+            - runFactAutoRules
+            - runConceptAutoRules
+            - factAutoRulesCompleted
+            - conceptAutoRulesCompleted
+          links:
+            type: array
+            description: An array of links to related resources and actions.
+            items:
+              $ref: "#/components/schemas/link"
+          version:
+            type: integer
+            description: |
+              Concept response schema version. This is version 1.
+            minimum: 1
+            maximum: 1
+    updateResponse:
+      description: Response containing details about multiple updates.
+      title: An object containing information about updating a concept
+      x-sas-media-type: application/vnd.sas.text.concept.update+json;version=1
+      properties:
+        id:
+          type: string
+          description: A unique, system-generated ID for the concept
+        message:
+          type: string
+          description: A string describing whether or not the update for the given
+            concept was successful or contained any errors
+        httpStatus:
+          type: integer
+          description: The http status code that was returned for trying to update
+            this specific oncept
+    updateResponseCollection:
+      description: A collection of update representations
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The array of `application/vnd.sas.text.concept.update` representations.
+            items:
+              $ref: "#/components/schemas/updateResponse"
+    conceptCollection:
+      description: A collection of concept representations.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The array of `application/vnd.sas.text.concept` representations.
+            items:
+              $ref: "#/components/schemas/concept"
+    conceptsSummaryCollection:
+      title: Concepts summmary collection
+      description: A collection of concept summary representations.
+      x-sas-media-type: application/vnd.sas.collection+json;version=1
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The array of `application/vnd.sas.text.concept.summary` representations.
+            items:
+              $ref: "#/components/schemas/conceptSummaryDetails"
+    duplicateTaxonomy:
+      description: Duplicate a taxonomy.
+      title: A concept taxonomy.
+      x-sas-media-type: application/vnd.sas.text.concept.taxonomy+json;version=1
+      properties:
+        name:
+          type: string
+          description: |
+            The user-defined name of the taxonomy
+        description:
+          type: string
+          description: A user-provided description of the taxonomy.
+      example:
+        name: Concept Taxonomy for ee5ffd68-aad0-49bd-8e34-cfe37a0e83b2
+        description: Concept for ee5ffd68-aad0-49bd-8e34-cfe37a0e83b2.
+    createTaxonomy:
+      description: Create a taxonomy.
+      title: A concept taxonomy.
+      x-sas-media-type: application/vnd.sas.text.concept.taxonomy+json;version=1
+      properties:
+        name:
+          type: string
+          description: |
+            The user-defined name of the taxonomy
+        description:
+          type: string
+          description: |
+            A user-provided description of the taxonomy
+        language:
+          type: string
+          description: >
+            Language used for the taxonomy. Currently, the following languages
+            are supported: English, German, Spanish, French, Chinese,
+            Portuguese, Italian, Dutch, Korean, Russian, Finnish, Turkish and
+            Japanese (default language is English).
+        includePredefined:
+          type: boolean
+          description: >
+            This option indicates whether predefined concepts are used for the
+            specified language (default is FALSE). If set to TRUE, predefined
+            concepts for the specified language are added to the taxonomy when
+            the taxonomy is created.
+        allowConceptAutomaticRules:
+          type: boolean
+          description: >
+            This option indicates whether or not automatic concept rules can be
+            generated for the given taxonomy (default is FALSE). If set to TRUE,
+            the user may automatically generate concept rules.
+      required:
+      - name
+      example:
+        name: Concept Taxonomy for ee5ffd68-aad0-49bd-8e34-cfe37a0e83b2
+        description: Concepts for ee5ffd68-aad0-49bd-8e34-cfe37a0e83b2.
+    updateTaxonomy:
+      description: Update a taxonomy.
+      title: A concept taxonomy.
+      x-sas-media-type: application/vnd.sas.text.concept.taxonomy+json;version=1
+      properties:
+        version:
+          type: integer
+          description: |
+            Taxonomy response schema version. This is version 1.
+          minimum: 1
+          maximum: 1
+        id:
+          type: string
+          description: |
+            A unique, system-generated ID for the taxonomy.
+        name:
+          type: string
+          description: |
+            The user-defined name of the taxonomy.
+        description:
+          type: string
+          description: |
+            A user-provided description of the taxonomy.
+        includePredefined:
+          type: boolean
+          description: >
+            This option indicates whether predefined concepts are used for the
+            specified language (default is FALSE). If set to TRUE, predefined
+            concepts for the specified language are added to the taxonomy when
+            the taxonomy is created.
+        allowConceptAutomaticRules:
+          type: boolean
+          description: >
+            This option indicates whether or not automatic concept rules can be
+            generated for the given taxonomy (default is FALSE). If set to TRUE,
+            the user may automatically generate concept rules.
+      example:
+        name: Concept Taxonomy for ee5ffd68-aad0-49bd-8e34-cfe37a0e83b2
+    taxonomy:
+      title: A concept taxonomy.
+      description: A taxonomy for concepts.
+      x-sas-media-type: application/vnd.sas.text.concept.taxonomy+json;version=1
+      required:
+      - name
+      - id
+      - version
+      allOf:
+      - $ref: "#/components/schemas/createTaxonomy"
+      - type: object
+        properties:
+          version:
+            type: integer
+            description: |
+              Taxonomy response schema version. This is version 1.
+            minimum: 1
+            maximum: 1
+          id:
+            type: string
+            description: |
+              A unique, system-generated ID for the taxonomy.
+          creationTimeStamp:
+            type: string
+            description: |
+              The date when the taxonomy was created.
+            format: date-time
+          modifiedTimeStamp:
+            type: string
+            description: |
+              The date when the taxonomy was last updated.
+            format: date-time
+          createdBy:
+            type: string
+            description: |
+              The ID of the user that created the taxonomy.
+          modifiedBy:
+            type: string
+            description: |
+              The ID of the user that last updated the taxonomy.
+          allowConceptAutomaticRules:
+            type: boolean
+            description: >
+              This option indicates whether or not automatic concept rules can
+              be generated for the given taxonomy (default is FALSE). If set
+              to TRUE, the user may automatically generate concept rules.
+          state:
+            type: string
+            description: |
+              The state that the given taxonomy is in.
+            enum:
+            - locked
+            - unlocked
+          links:
+            type: array
+            description: An array of links to related resources and actions.
+            items:
+              $ref: "#/components/schemas/link"
+    taxonomyCollection:
+      title: Taxonomies collection
+      description: A collection of concept taxonomies.
+      x-sas-media-type: application/vnd.sas.collection+json;version=1
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/taxonomy"
+            description: >
+              The array of `application/vnd.sas.text.concept.taxonomy`
+              representations.
+    moveConcept:
+      description: Move a concept.
+      type: object
+      title: Move a concept to another existing parent concept or taxonomy
+      x-sas-media-type: application/vnd.sas.text.concept.move+json;version=1
+      properties:
+        version:
+          type: integer
+          description: |
+            Concept response schema version. This is version 1.
+          minimum: 1
+          maximum: 1
+        newTaxonomyId:
+          type: string
+          description: If moving directly under a taxonomy, this is the ID of that
+            taxonomy.  Note that this value should not be set if moving to a new parent
+            concept, as the taxonomy of the parent will be inherited.
+        newParentId:
+          type: string
+          description: The new parent concept ID.  Note - if this value is set, the
+            newTaxonomyId should not be set, as the taxonomy will be inferred from
+            the new parent.
+    duplicateConcept:
+      description: Duplicate a concept.
+      type: object
+      title: duplicate a concept to another existing parent concept or taxonomy
+      x-sas-media-type: application/vnd.sas.text.concept+json;version=1
+      properties:
+        version:
+          type: integer
+          description: |
+            Concept response schema version. This is version 1.
+          minimum: 1
+          maximum: 1
+        name:
+          type: string
+          description: The user defined name of the duplicated concept. If the name
+            of the duplicated concept is not unique in the new parent or new taxonomy,
+            where it is being copied to, the system will generate the new name for
+            the concept.
+    taxonomyConfiguration:
+      description: Configuration details for a taxonomy.
+      type: object
+      title: taxonomy configuration
+      x-sas-media-type: application/vnd.sas.text.concept.taxonomy.configuration+json;version=1
+      required:
+      - configuration
+      - taxonomyId
+      properties:
+        configuration:
+          type: string
+          description: >
+            The taxonomy configuration which is the collection of the rules for
+            all the concepts in a specific format that can be used to create a
+            binary model to match the text/documents to the defined concepts
+            within the taxonomy.
+        taxonomyId:
+          type: string
+          description: The ID of the taxonomy.
+        links:
+          type: array
+          description: An array of links to related resources and actions.
+          items:
+            $ref: "#/components/schemas/link"
+    conceptConfiguration:
+      description: Configuration details for a concept.
+      type: object
+      title: concept configuration
+      x-sas-media-type: application/vnd.sas.text.concept.configuration+json;version=1
+      required:
+      - configuration
+      - conceptId
+      properties:
+        configuration:
+          type: string
+          description: >
+            The concept configuration contains the name, rule value, enabled,
+            priority, case-insensitive property  of a concept in a specific
+            format that can be used to create a binary model to match the
+            text/documents to the defined concept.
+        conceptId:
+          type: string
+          description: The ID of the concept.
+        links:
+          type: array
+          description: An array of links to related resources and actions.
+          items:
+            $ref: "#/components/schemas/link"
+    error:
+      $ref: "#/components/schemas/error2"
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+      example:
+        version: 1
+        links:
+        - method: GET
+          rel: self
+          href: /conceptTaxonomy
+          uri: /conceptTaxonomy
+          type: application/vnd.sas.api
+        - method: GET
+          rel: taxonomies
+          href: /conceptTaxonomy/taxonomies
+          uri: /conceptTaxonomy/taxonomies
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept.taxonomy
+        - method: POST
+          rel: createTaxonomy
+          href: /conceptTaxonomy/taxonomies
+          uri: /conceptTaxonomy/taxonomies
+          type: application/vnd.sas.text.concept.taxonomy
+          responseType: application/vnd.sas.text.concept.taxonomy
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    job:
+      title: Job
+      description: The execution job.
+      x-sas-media-type:
+        name: application/vnd.sas.job.execution.job
+        version: 1
+      required:
+      - id
+      properties:
+        version:
+          type: number
+          description: The version number of the representation. The current version
+            is 2.
+        id:
+          type: string
+          description: The unique identifier that is generated by the API.
+        state:
+          type: string
+          description: 'The current state of the job. Valid values: pending, running,
+            canceled, completed, failed, timedOut'
+        results:
+          type: object
+          description: The output results of the job execution (map of String, String).
+        error:
+          $ref: "#/components/schemas/error2"
+        jobRequest:
+          $ref: "#/components/schemas/request"
+        heartbeatInterval:
+          type: integer
+          format: int32
+          description: The interval in seconds that the `heartbeatTimeStamp` should
+            be updated by the provider or the job times out. The value for the `heatbeatInterval`
+            is 0 when there is no heartbeat.
+        heartbeatTimeStamp:
+          description: The timestamp for when the last heartbeat was received, in
+            the format of `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        creationTimeStamp:
+          description: The timestamp for when the job was created, in the format of
+            `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        modifiedTimeStamp:
+          description: The timestamp for when the job was last modified, in the format
+            of `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        endTimeStamp:
+          description: The timestamp for when the state of the job changed to completed
+            or failed, in the format of `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        expirationTimeStamp:
+          description: The timestamp for when the job expires and will be deleted
+            by the Job Execution service, in the format of `YYYY-MM-DDThh:mm:ss.sssZ`.
+            This is set by the service after the job has completed based on the value
+            of the `expiresAfter` member of the job request.
+          type: string
+        createdBy:
+          description: The ID of the user that created or submitted the job.
+          type: string
+        modifiedBy:
+          description: The ID of the user that last modified the job.
+          type: string
+        links:
+          type: array
+          description: The links that are associated with the job.
+          items:
+            $ref: "#/components/schemas/link"
+    request:
+      title: Job Request
+      description: The job request.
+      x-sas-media-type:
+        name: application/vnd.sas.job.execution.job.request
+        version: 1
+      required:
+      - id
+      type: object
+      properties:
+        version:
+          type: integer
+          description: The version number of the representation. The current version
+            is 2.
+        id:
+          type: string
+          description: The unique identifier for the job.
+        name:
+          type: string
+          description: The name of the job.
+        description:
+          type: string
+          description: The description of the job.
+        creationTimeStamp:
+          description: The timestamp for when the job was created, in the format of
+            `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        modifiedTimeStamp:
+          description: The timestamp for when the job was last modified, in the format
+            of `YYYY-MM-DDThh:mm:ss.sssZ`.
+          type: string
+        createdBy:
+          description: The ID of the user that created or submitted the job.
+          type: string
+        modifiedBy:
+          description: The ID of the user that last modified the job.
+          type: string
+        jobDefinitionUri:
+          type: string
+          description: The URI of the job definition that is to be executed.
+        jobDefinition:
+          type: object
+          description: The definition of the job that is to be executed.
+        expiresAfter:
+          type: string
+          description: The duration of time (in <a href="https://www.w3.org/TR/xmlschema-2/#duration"
+            target="_blank">W3C XML duration format</a>) after the completion of the
+            job when the job should be deleted by the Job Execution service.
+        arguments:
+          type: object
+          description: The values of the arguments described in the job definition.
+        properties:
+          type: object
+          description: The value of properties in the format of (map<string, string>)
+            that contains name value pairs (map<name, value>). The maximum name value
+            length is 100.
+          additionalProperties:
+            type: string
+        links:
+          type: array
+          description: The links that are associated with the job.
+          items:
+            $ref: "#/components/schemas/link"
+  examples:
+    getRootResponse:
+      description: Returns the list of links to top-level resources and operations
+        available from the root of the API.
+      value:
+        version: 1
+        links:
+        - method: GET
+          rel: self
+          href: /conceptTaxonomy
+          uri: /conceptTaxonomy
+          type: application/vnd.sas.api
+        - method: GET
+          rel: taxonomies
+          href: /conceptTaxonomy/taxonomies
+          uri: /conceptTaxonomy/taxonomies
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept.taxonomy
+        - method: POST
+          rel: createTaxonomy
+          href: /conceptTaxonomy/taxonomies
+          uri: /conceptTaxonomy/taxonomies
+          type: application/vnd.sas.text.concept.taxonomy
+          responseType: application/vnd.sas.text.concept.taxonomy
+    getTaxonomiesResponse:
+      description: Gets the entire collection of taxonomy.
+      value:
+        links:
+        - method: POST
+          rel: create
+          href: /conceptTaxonomy/taxonomies
+          uri: /conceptTaxonomy/taxonomies
+        - method: GET
+          rel: self
+          href: /conceptTaxonomy/taxonomies?limit=20&start=0
+          uri: /conceptTaxonomy/taxonomies?limit=20&start=0
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept.taxonomy
+        - method: GET
+          rel: first
+          href: /conceptTaxonomy/taxonomies?limit=20&start=0
+          uri: /conceptTaxonomy/taxonomies?limit=20&start=0
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept.taxonomy
+        - method: GET
+          rel: last
+          href: /conceptTaxonomy/taxonomies?limit=20&start=0
+          uri: /conceptTaxonomy/taxonomies?limit=20&start=0
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept.taxonomy
+        - method: GET
+          rel: self
+          href: /conceptTaxonomy/taxonomies
+          uri: /conceptTaxonomy/taxonomies
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept.taxonomy
+        name: taxonomies
+        start: 0
+        count: 1
+        items:
+        - version: 1
+          links:
+          - method: GET
+            rel: self
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000
+            type: application/vnd.sas.text.concept.taxonomy
+          - method: PATCH
+            rel: update
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000
+            type: application/vnd.sas.text.concept.taxonomy
+            responseType: application/vnd.sas.text.concept.taxonomy
+          - method: DELETE
+            rel: delete
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000
+          - method: GET
+            rel: up
+            href: /conceptTaxonomy/taxonomies
+            uri: /conceptTaxonomy/taxonomies
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.text.concept.taxonomy
+          - method: GET
+            rel: configuration
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/configuration
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/configuration
+            type: application/vnd.sas.text.concept.taxonomy.configuration
+          - method: GET
+            rel: concepts
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts
+            type: application/vnd.sas.collection
+          - method: POST
+            rel: createConcept
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts
+            responseType: application/vnd.sas.text.concept
+          - method: POST
+            rel: duplicateTaxonomy
+            href: /conceptTaxonomy/taxonomies?from=8aa893095e108773015e10896a330000
+            uri: /conceptTaxonomy/taxonomies?from=8aa893095e108773015e10896a330000
+            responseType: application/vnd.sas.text.concept.taxonomy
+          createdBy: scatest
+          modifiedBy: scatest
+          name: Concept taxonomy A
+          id: 8aa893095e108773015e10896a330000
+          description: Concept taxonomy for concept node A.
+          includePredefined: false
+          language: en
+          creationTimeStamp: 2017-08-23T19:19:54.602000Z
+          modifiedTimeStamp: 2017-08-23T19:19:54.602000Z
+        limit: 20
+        version: 2
+    getTaxonomyResponse:
+      description: Gets a single taxonomy.
+      value:
+        version: 1
+        links:
+        - method: GET
+          rel: self
+          href: /conceptTaxonomy/taxonomies/8aa893095df6d59a015df6d6e2150000
+          uri: /conceptTaxonomy/taxonomies/8aa893095df6d59a015df6d6e2150000
+          type: application/vnd.sas.text.concept.taxonomy
+        - method: PATCH
+          rel: update
+          href: /conceptTaxonomy/taxonomies/8aa893095df6d59a015df6d6e2150000
+          uri: /conceptTaxonomy/taxonomies/8aa893095df6d59a015df6d6e2150000
+          type: application/vnd.sas.text.concept.taxonomy
+          responseType: application/vnd.sas.text.concept.taxonomy
+        - method: DELETE
+          rel: delete
+          href: /conceptTaxonomy/taxonomies/8aa893095df6d59a015df6d6e2150000
+          uri: /conceptTaxonomy/taxonomies/8aa893095df6d59a015df6d6e2150000
+        - method: GET
+          rel: up
+          href: /conceptTaxonomy/taxonomies
+          uri: /conceptTaxonomy/taxonomies
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept.taxonomy
+        - method: GET
+          rel: configuration
+          href: /conceptTaxonomy/taxonomies/8aa893095df6d59a015df6d6e2150000/configuration
+          uri: /conceptTaxonomy/taxonomies/8aa893095df6d59a015df6d6e2150000/configuration
+          type: application/vnd.sas.text.concept.taxonomy.configuration
+        - method: GET
+          rel: concepts
+          href: /conceptTaxonomy/taxonomies/8aa893095df6d59a015df6d6e2150000/concepts
+          uri: /conceptTaxonomy/taxonomies/8aa893095df6d59a015df6d6e2150000/concepts
+          type: application/vnd.sas.collection
+        - method: POST
+          rel: createConcept
+          href: /conceptTaxonomy/taxonomies/8aa893095df6d59a015df6d6e2150000/concepts
+          uri: /conceptTaxonomy/taxonomies/8aa893095df6d59a015df6d6e2150000/concepts
+          responseType: application/vnd.sas.text.concept
+        - method: POST
+          rel: duplicateTaxonomy
+          href: /conceptTaxonomy/taxonomies?from=8aa893095df6d59a015df6d6e2150000
+          uri: /conceptTaxonomy/taxonomies?from=8aa893095df6d59a015df6d6e2150000
+          responseType: application/vnd.sas.text.concept.taxonomy
+        createdBy: scatest
+        modifiedBy: scatest
+        name: test
+        id: 8aa893095df6d59a015df6d6e2150000
+        includePredefined: false
+        language: en
+        creationTimeStamp: 2017-08-18T19:34:23.979000Z
+        modifiedTimeStamp: 2017-08-18T19:34:23.979000Z
+    createTaxonomyRequest:
+      description: Request a taxonomy.
+      value:
+        version: 1
+        createdBy: scatest
+        modifiedBy: scatest
+        name: test
+        id: 8aa893095df6d59a015df6d6e2150000
+        includePredefined: false
+        language: en
+        creationTimeStamp: 2017-08-18T19:34:23.979000Z
+        modifiedTimeStamp: 2017-08-18T19:34:23.979000Z
+    notFoundError:
+      value:
+        message: "not found"
+        httpStatusCode: 404
+        version: 2
+      description: example of an error that might be returned on a 404 response
+    error2:
+      value:
+        version: 2
+        message: "example error message"
+        httpStatusCode: 400
+      description: "this is an example of an error that could be returned for bad\
+        \ requests"
+    error3:
+      value:
+        version: 2
+        message: "example error message"
+        httpStatusCode: 428
+      description: "this is an example of an error that could be returned for precondition\
+        \ required"
+    error4:
+      value:
+        version: 2
+        message: "example error message"
+        httpStatusCode: 412
+      description: "this is an example of an error that could be returned for precondition\
+        \ failed"
+    conflictError:
+      value:
+        version: 2
+        message: "example error message"
+        httpStatusCode: 409
+      description: "this is an example of an error that could be returned for conflict"
+    unProcessError:
+      value:
+        version: 2
+        message: "example error message"
+        httpStatusCode: 422
+      description: "this is an example of an error that could be returned for unprocessable\
+        \ entity"
+    getTaxonomyConfigurationResponse:
+      description: Gets configuration of taxonomy.
+      value:
+        version: 1
+        links:
+        - method: GET
+          rel: self
+          href: /conceptTaxonomy/taxonomies/2c909af65ad543f9015ad54606e80000/configuration
+          uri: /conceptTaxonomy/taxonomies/2c909af65ad543f9015ad54606e80000/configuration
+          type: application/vnd.sas.text.concept.taxonomy.configuration
+        - method: GET
+          rel: up
+          href: /conceptTaxonomy/taxonomies/2c909af65ad543f9015ad54606e80000
+          uri: /conceptTaxonomy/taxonomies/2c909af65ad543f9015ad54606e80000
+          type: application/vnd.sas.text.concept.taxonomy
+        - method: GET
+          rel: taxonomies
+          href: /conceptTaxonomy/taxonomies
+          uri: /conceptTaxonomy/taxonomies
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept.taxonomy
+        - method: GET
+          rel: concepts
+          href: /conceptTaxonomy/taxonomies/2c909af65ad543f9015ad54606e80000/concepts
+          uri: /conceptTaxonomy/taxonomies/2c909af65ad543f9015ad54606e80000/concepts
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept.taxonomy
+        configuration: '"Concept ID:8ae8d90d6022472d0160226a91940001\nENABLE:ADDRESS\nFULLPATH:ADDRESS:ADDRESS\nPRIORITY:ADDRESS:10\nCASE_INSENSITIVE_MATCH:ADDRESS\nConcept
+          ID:8ae8d90d6022472d0160226a91940001\nENABLE:COMPANY\nFULLPATH:COMPANY:COMPANY\nPRIORITY:COMPANY:10\nCASE_INSENSITIVE_MATCH:COMPANY'
+        taxonomyId: 2c909af65ad543f9015ad54606e80000
+    getConceptsResponse:
+      description: Gets entire collection of concept
+      value:
+        links:
+        - method: POST
+          rel: create
+          href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts
+          uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts
+        - method: GET
+          rel: self
+          href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts?limit=20&start=0
+          uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts?limit=20&start=0
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept
+        - method: GET
+          rel: first
+          href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts?limit=20&start=0
+          uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts?limit=20&start=0
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept
+        - method: GET
+          rel: last
+          href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts?limit=20&start=0
+          uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts?limit=20&start=0
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept
+        name: concepts
+        start: 0
+        count: 1
+        items:
+        - version: 1
+          links:
+          - method: GET
+            rel: self
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001
+            type: application/vnd.sas.text.concept
+          - method: GET
+            rel: up
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.text.concept
+          - method: PATCH
+            rel: update
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001
+            type: application/vnd.sas.text.concept
+            responseType: application/vnd.sas.text.concept
+          - method: DELETE
+            rel: delete
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001
+          - method: GET
+            rel: taxonomy
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/
+            type: application/vnd.sas.text.concept.taxonomy
+          - method: PUT
+            rel: move
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001
+            type: application/vnd.sas.text.concept.move
+            responseType: application/vnd.sas.text.concept
+          - method: POST
+            rel: duplicate
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts?from=8aa893095e108773015e109003f80001
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts?from=8aa893095e108773015e109003f80001
+            type: application/vnd.sas.text.concept
+            responseType: application/vnd.sas.text.concept
+          - method: GET
+            rel: configuration
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001/configuration
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001/configuration
+            type: application/vnd.sas.text.concept.configuration
+          - method: GET
+            rel: documents
+            href: /documents/conceptDocuments/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001/documents
+            uri: /documents/conceptDocuments/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001/documents
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.concept.document
+          createdBy: scatest
+          modifiedBy: scatest
+          name: sports
+          id: 8aa893095e108773015e109003f80001
+          priority: 10
+          caseInsensitive: true
+          enabled: true
+          taxonomyId: 8aa893095e108773015e10896a330000
+          predefined: false
+          validationResult:
+            errors: []
+            valid: true
+          validationNeeded: true
+          hasInvalidChild: false
+          creationTimeStamp: 2017-08-23T19:27:07.201000Z
+          modifiedTimeStamp: 2017-08-23T19:27:07.201000Z
+          isHelper: false
+          alternativeName: sports alternate name
+        limit: 20
+        version: 2
+        countWithChildren: 1
+    createConceptRequest:
+      description: Request concept.
+      value:
+        name: sports
+        value: CLASSIFIER:sports\nCLASSIFIER:soccer
+        parentId: 8aa893095df7297b015df72dea9b000a
+        alternativeName: sports alternate name
+    getConceptResponse:
+      description: Get a single concept.
+      value:
+        version: 1
+        links:
+        - method: GET
+          rel: self
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          type: application/vnd.sas.text.concept
+        - method: GET
+          rel: up
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept
+        - method: PATCH
+          rel: update
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          type: application/vnd.sas.text.concept
+          responseType: application/vnd.sas.text.concept
+        - method: DELETE
+          rel: delete
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+        - method: GET
+          rel: taxonomy
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/
+          type: application/vnd.sas.text.concept.taxonomy
+        - method: PUT
+          rel: move
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a
+          type: application/vnd.sas.text.concept.move
+          responseType: application/vnd.sas.text.concept
+        - method: POST
+          rel: duplicate
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts?from=8aa893095df7297b015df72dea9b000a
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts?from=8aa893095df7297b015df72dea9b000a
+          type: application/vnd.sas.text.concept
+          responseType: application/vnd.sas.text.concept
+        - method: GET
+          rel: configuration
+          href: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a/configuration
+          uri: /conceptTaxonomy/taxonomies/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a/configuration
+          type: application/vnd.sas.text.concept.configuration
+        - method: GET
+          rel: documents
+          href: /documents/conceptDocuments/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a/documents
+          uri: /documents/conceptDocuments/8aa893095df7297b015df72a9d930000/concepts/8aa893095df7297b015df72dea9b000a/documents
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.concept.document
+        createdBy: scatest
+        modifiedBy: scatest
+        name: sports
+        id: 8aa893095df7297b015df72dea9b000a
+        value: CLASSIFIER:sports
+        priority: 10
+        caseInsensitive: true
+        enabled: true
+        taxonomyId: 8aa893095df7297b015df72a9d930000
+        predefined: false
+        validationResult:
+          errors: []
+          valid: true
+        validationNeeded: true
+        hasInvalidChild: false
+        creationTimeStamp: 2017-08-18T21:09:27.811000Z
+        modifiedTimeStamp: 2017-08-18T21:09:27.811000Z
+        isHelper: false
+        alternativeName: sports alternate name
+    getConceptConfiguration:
+      description: Gets configuration of concept.
+      value:
+        version: 1
+        links:
+        - method: GET
+          rel: self
+          href: /conceptTaxonomy/taxonomies/2c909af65ad543f9015ad54606e80000/concepts/2c909af65ad543f9015ad54607bf0001/configuration
+          uri: /conceptTaxonomy/taxonomies/2c909af65ad543f9015ad54606e80000/concepts/2c909af65ad543f9015ad54607bf0001/configuration
+          type: application/vnd.sas.text.concept.configuration
+        - method: GET
+          rel: up
+          href: /conceptTaxonomy/taxonomies/2c909af65ad543f9015ad54606e80000/concepts/2c909af65ad543f9015ad54607bf0001
+          uri: /conceptTaxonomy/taxonomies/2c909af65ad543f9015ad54606e80000/concepts/2c909af65ad543f9015ad54607bf0001
+          type: application/vnd.sas.text.concept
+        - method: GET
+          rel: concepts
+          href: /conceptTaxonomy/taxonomies/2c909af65ad543f9015ad54606e80000/concept
+          uri: /conceptTaxonomy/taxonomies/2c909af65ad543f9015ad54606e80000/concept
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept
+        configuration: >
+          "Concept
+          ID:2c909af65ad543f9015ad54607bf0001\nENABLE:ADDRESS\nFULLPATH:ADDRESS:ADDRESS\nPRIORITY:ADDRESS:10\nCASE_INSENSITIVE_MATCH:ADDRESS\n"
+        conceptId: 2c909af65ad543f9015ad54607bf0001
+    getConceptChildrenResponse:
+      description: Gets all children with the given ID.
+      value:
+        links:
+        - method: POST
+          rel: create
+          href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001/children
+          uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001/children
+        - method: GET
+          rel: self
+          href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001/children?limit=20&start=0
+          uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001/children?limit=20&start=0
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept.summary
+        - method: GET
+          rel: first
+          href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001/children?limit=20&start=0
+          uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001/children?limit=20&start=0
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept.summary
+        - method: GET
+          rel: last
+          href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001/children?limit=20&start=1
+          uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e109003f80001/children?limit=20&start=1
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.text.concept.summary
+        name: concepts
+        start: 0
+        count: 2
+        items:
+        - version: 1
+          links:
+          - method: GET
+            rel: self
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e1093d07c0003
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e1093d07c0003
+            type: application/vnd.sas.text.concept
+          - method: GET
+            rel: up
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.text.concept
+          - method: PATCH
+            rel: update
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e1093d07c0003
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e1093d07c0003
+            type: application/vnd.sas.text.concept
+            responseType: application/vnd.sas.text.concept
+          - method: DELETE
+            rel: delete
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e1093d07c0003
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e1093d07c0003
+          - method: GET
+            rel: taxonomy
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/
+            type: application/vnd.sas.text.concept.taxonomy
+          - method: PUT
+            rel: move
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e1093d07c0003
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e1093d07c0003
+            type: application/vnd.sas.text.concept.move
+            responseType: application/vnd.sas.text.concept
+          - method: POST
+            rel: duplicate
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts?from=8aa893095e108773015e1093d07c0003
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts?from=8aa893095e108773015e1093d07c0003
+            type: application/vnd.sas.text.concept
+            responseType: application/vnd.sas.text.concept
+          - method: GET
+            rel: configuration
+            href: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e1093d07c0003/configuration
+            uri: /conceptTaxonomy/taxonomies/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e1093d07c0003/configuration
+            type: application/vnd.sas.text.concept.configuration
+          - method: GET
+            rel: documents
+            href: /documents/conceptDocuments/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e1093d07c0003/documents
+            uri: /documents/conceptDocuments/8aa893095e108773015e10896a330000/concepts/8aa893095e108773015e1093d07c0003/documents
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.concept.document
+          createdBy: scatest
+          modifiedBy: scatest
+          name: basketball
+          id: 8aa893095e108773015e1093d07c0003
+          priority: 10
+          caseInsensitive: true
+          enabled: true
+          parentId: 8aa893095e108773015e109003f80001
+          taxonomyId: 8aa893095e108773015e10896a330000
+          predefined: false
+          validationResult:
+            errors: []
+            valid: true
+          validationNeeded: true
+          hasInvalidChild: false
+          creationTimeStamp: 2017-08-23T19:31:16.204000Z
+          modifiedTimeStamp: 2017-08-23T19:31:16.204000Z
+          isHelper: false
+          alternativeName: basketball alternate name
+        limit: 1
+        version: 2
+    moveConceptRequest:
+      description: Move one concept.
+      value:
+        version: 1
+        newParentId: 8aa893095df7297b015df72dea9b000a
+    updateConceptRequest:
+      description: Request to update concept.
+      value:
+        name: wine
+        value: CLASSIFIER:wine
+        alternativeName: wine alternate name
+    duplicateConceptRequest:
+      description: Request to duplicate concept.
+      value:
+        name: sports
+    updateMultipleConceptResponse:
+      description: Return all concepts.
+      value:
+        links:
+        - method: GET
+          rel: self
+          href: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts
+          uri: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts
+          type: application/vnd.sas.text.concept
+        - method: GET
+          rel: up
+          href: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/
+          uri: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/
+          type: application/vnd.sas.text.concept
+        name: items
+        items:
+        - version: 1
+          name: item1
+          links:
+          - method: GET
+            rel: self
+            href: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts/4028b88160bccb530160bccc37e60001
+            uri: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts/4028b88160bccb530160bccc37e60001
+            type: application/vnd.sas.text.concept
+          - method: GET
+            rel: up
+            href: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts
+            uri: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts
+            type: application/vnd.sas.text.concept
+          id: 4028b88160bccb530160bccc37e60001
+          message: Successfully updated
+          httpStatusCode: 200
+        - version: 1
+          name: item2
+          links:
+          - method: GET
+            rel: self
+            href: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts/4028b88160bccb530160bccc38640002
+            uri: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts/4028b88160bccb530160bccc38640002
+            type: application/vnd.sas.text.concept
+          - method: GET
+            rel: up
+            href: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts
+            uri: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts
+            type: application/vnd.sas.text.concept
+          id: 4028b88160bccb530160bccc38640002
+          message: Successfully updated
+          httpStatusCode: 200
+        - version: 1
+          name: item3
+          links:
+          - method: GET
+            rel: self
+            href: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts/4028b88160bccb530160bccc38b40003
+            uri: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts/4028b88160bccb530160bccc38b40003
+            type: application/vnd.sas.text.concept
+          - method: GET
+            rel: up
+            href: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts
+            uri: /conceptTaxonomy/taxonomies/4028b88160bccb530160bccc34350000/concepts
+            type: application/vnd.sas.text.concept
+          id: 4028b88160bccb530160bccc38b40003
+          message: Successfully updated
+          httpStatusCode: 200
+        version: 2
+    postJobRequest:
+      description: Sample body when submitting a job.
+      value:
+        name: 'Analytics Flow for "SampleProject": "Pipeline 1"'
+        jobDefinitionUri: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+        arguments:
+          taxonomyId: e1cc9be0-663f-478a-931a-d9db9df13fbe
+          casServerId: cas
+          casSessionName: AdvancedAnalyticSession
+          flowId: b1cc9be0-663f-478a-931a-d9db9df13fbe
+          pipelineId: 7efdf4ef-e991-4ab5-8c05-609639e29c34
+    postJobResponse:
+      description: This is example response when using POST to submit a topic execution
+        provider job.
+      value:
+        creationTimeStamp: "2022-02-23T17:30:26.339Z"
+        modifiedTimeStamp: "2022-02-23T17:30:26.339Z"
+        createdBy: scatest
+        modifiedBy: scatest
+        version: 4
+        id: ce980f98-da6f-4dc3-b6d8-480fbba96332
+        jobRequest:
+          version: 3
+          name: 'Analytics Flow for "SampleProject": "Pipeline 1"'
+          jobDefinitionUri: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+          jobDefinition:
+            creationTimeStamp: "2022-02-16T19:25:12.087Z"
+            modifiedTimeStamp: "2022-02-16T19:25:12.088Z"
+            createdBy: sas.analyticsPipelines
+            modifiedBy: sas.analyticsPipelines
+            version: 2
+            id: 801d5009-3b33-41c1-b7e4-b33f77248ede
+            name: Analytics Flow Job Definition
+            type: AnalyticsFlow
+            parameters:
+            - version: 1
+              name: flowId
+              type: CHARACTER
+              label: Flow ID
+              required: true
+            - version: 1
+              name: toNodeUri
+              type: CHARACTER
+              label: ID of final node to run
+              required: false
+            - version: 1
+              name: casServerId
+              defaultValue: cas
+              type: CHARACTER
+              label: ID of CAS Server to use for Component execution
+              required: false
+            - version: 1
+              name: casSessionName
+              defaultValue: AdvancedAnalyticSession
+              type: CHARACTER
+              label: Name of CAS Session to use for Component execution
+              required: false
+            - version: 1
+              name: contextName
+              type: CHARACTER
+              label: Name of Compute Context to use for Component execution
+              required: false
+            code: ""
+            links:
+            - method: GET
+              rel: self
+              href: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+              uri: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+              type: application/vnd.sas.job.definition
+            - method: GET
+              rel: alternate
+              href: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+              uri: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+              type: application/vnd.sas.summary
+            properties: []
+          arguments:
+            casServerId: cas
+            toNodeUri: /analyticsComponents/components/0da55391-3366-4140-8311-b75f04e3bfa6
+            casSessionName: AdvancedAnalyticSession
+            flowId: b1cc9be0-663f-478a-931a-d9db9df13fbe
+            pipelineId: 7efdf4ef-e991-4ab5-8c05-609639e29c34
+          properties: []
+          createdByApplication: text
+          expiresAfter: PT24H
+        state: running
+        submittedByApplication: text
+        heartbeatInterval: 0
+        elapsedTime: 398
+        results: {}
+        links:
+        - method: GET
+          rel: self
+          href: /jobExecution/jobs/ce980f98-da6f-4dc3-b6d8-480fbba96332
+          uri: /jobExecution/jobs/ce980f98-da6f-4dc3-b6d8-480fbba96332
+          type: application/vnd.sas.job.execution.job
+        - method: GET
+          rel: state
+          href: /jobExecution/jobs/ce980f98-da6f-4dc3-b6d8-480fbba96332/state
+          uri: /jobExecution/jobs/ce980f98-da6f-4dc3-b6d8-480fbba96332/state
+          type: text/plain
+        - method: PUT
+          rel: update
+          href: /jobExecution/jobs/ce980f98-da6f-4dc3-b6d8-480fbba96332
+          uri: /jobExecution/jobs/ce980f98-da6f-4dc3-b6d8-480fbba96332
+          type: application/vnd.sas.job.execution.job
+          responseType: application/vnd.sas.job.execution.job
+        - method: DELETE
+          rel: delete
+          href: /jobExecution/jobs/ce980f98-da6f-4dc3-b6d8-480fbba96332
+          uri: /jobExecution/jobs/ce980f98-da6f-4dc3-b6d8-480fbba96332
+        - method: PUT
+          rel: updateState
+          href: /jobExecution/jobs/ce980f98-da6f-4dc3-b6d8-480fbba96332/state
+          uri: /jobExecution/jobs/ce980f98-da6f-4dc3-b6d8-480fbba96332/state
+          type: text/plain
+        - method: POST
+          rel: updateHeartbeatTimeStamp
+          href: /jobExecution/jobs/ce980f98-da6f-4dc3-b6d8-480fbba96332/heartbeatTimeStamp
+          uri: /jobExecution/jobs/ce980f98-da6f-4dc3-b6d8-480fbba96332/heartbeatTimeStamp
+          type: text/plain
+        - method: GET
+          rel: jobDefinition
+          href: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+          uri: /jobDefinitions/definitions/801d5009-3b33-41c1-b7e4-b33f77248ede
+          type: application/vnd.sas.job.definition
+    duplicateTaxonomyRequest:
+      description: Request to duplicate taxonomy
+      value:
+        name: Concept Taxonomy for ee5ffd68-aad0-49bd-8e34-cfe37a0e83b2
+        description: Concept for ee5ffd68-aad0-49bd-8e34-cfe37a0e83b2.

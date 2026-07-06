@@ -1,0 +1,1149 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: SAS Clinical Action Status
+  description: >
+    The SAS Clinical Action Status API provides the necessary endpoints for
+    managing and retrieving status updates for clinical actions.
+  termsOfService: https://www.sas.com/en_us/legal/copyright.html
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+servers:
+- url: https://example.com/clinicalActionStatus
+  description: kubernetes mock server
+tags:
+- name: Action Status
+  description: The operations for getting the status of actions performed by the current
+    user.
+- name: Internal Action Status
+  description: The operations for creating and updating the status of actions performed
+    in clinical applications.
+paths:
+  /actionstatus:
+    get:
+      tags:
+      - Action Status
+      summary: Get the collection of action status summaries
+      description: Returns a collection of action status summaries for the current
+        user.
+      operationId: getActionStatusSummaries
+      parameters:
+      - name: currentOnly
+        in: query
+        description: The type of action status entries to request. Defaults to ALL
+          if no value is specified. When set to true, returns only the action status
+          entries that are currently in progress.
+        required: false
+        schema:
+          type: boolean
+      - name: clientId
+        in: query
+        description: The client ID associated with the action status. Defaults to
+          not specified. When set, returns only the action status entries that match
+          the specified clientId.
+        required: false
+        schema:
+          type: string
+      - name: read
+        in: query
+        description: Determines whether the get request should mark the action status
+          as being read. When set to true, marks all of the returned action status
+          entries as being read.
+        required: false
+        schema:
+          type: boolean
+        example: true
+      responses:
+        "200":
+          description: The request succeeded and matching action status entries are
+            returned.
+          content:
+            application/vnd.sas.collection:
+              schema:
+                description: The schema for a list of audit entries.
+                allOf:
+                - description: This is a base schema used to define paginated collections
+                    of resources. This base schema is extended by other schemas by
+                    adding an 'items' array property. These extensions define the
+                    application/vnd.sas.collection media type (version 2)
+                  properties:
+                    accept:
+                      description: A space-delimited list of media types from which
+                        an `Accept` header can be constructed.
+                      type: string
+                    name:
+                      type: string
+                      description: The name of the collection.
+                    count:
+                      type: integer
+                      description: The total item count.
+                    start:
+                      type: integer
+                      description: The zero-based index of the first item in the collection.
+                    limit:
+                      type: integer
+                      description: The number of items that were requested from the
+                        collection.
+                    links:
+                      description: The links that apply to the collection.
+                      items: {}
+                      type: array
+                    version:
+                      type: integer
+                      description: The version number of the collection representation.
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      description: The array of action status summary representations.
+                      items:
+                        $ref: "#/components/schemas/actionStatus/properties/summary"
+              examples:
+                getActionStatusSummaries:
+                  summary: Get action status summaries
+                  description: Returns a collection of action status summaries
+                  value:
+                    links:
+                    - method: GET
+                      rel: self
+                      href: /clinicalActionStatus/actionstatus?start=0&limit=10
+                      uri: /clinicalActionStatus/actionstatus?start=0&limit=10
+                      type: application/vnd.sas.collection
+                      itemType: application/vnd.sas.clinical.action.status.summary+json
+                    - method: GET
+                      rel: collection
+                      href: /clinicalActionStatus/actionstatus
+                      uri: /clinicalActionStatus/actionstatus
+                      type: application/vnd.sas.collection
+                      itemType: application/vnd.sas.clinical.action.status.summary+json
+                    name: actionStatusSummaries
+                    accept: application/vnd.sas.clinical.action.status.summary+json
+                    start: 0
+                    count: 1
+                    items:
+                    - version: 1
+                      id: 80ab2460-b236-4faa-b2ac-3b31cd7cb161
+                      clientId: b5797837-8b7b-47bf-8e21-9c2ba6172b01
+                      action: Upload File
+                      nodeId: sas-health-clinical-acceleration-d9fb7c645-s7jw2
+                      message: 1 of 1 item processed successfully.
+                      detailMessage: Processed 1 item.  1 successfully, 0 with warnings
+                        and 0 with errors.
+                      startTimeStamp: 2023-08-28T20:28:09.558000Z
+                      endTimeStamp: 2023-08-28T20:28:10.142000Z
+                      lastUpdatedTimeStamp: 2023-08-28T20:28:10.142000Z
+                      percentComplete: 100
+                      stoppable: true
+                      progressStatus: COMPLETED
+                      completionStatus: INFO
+                    limit: 10
+                    version: 2
+            application/json:
+              schema:
+                $ref: "#/paths/~1actionstatus/get/responses/200/content/application~1vnd.sas.collection/schema"
+              examples:
+                getActionStatusSummaries:
+                  $ref: "#/paths/~1actionstatus/get/responses/200/content/application~1vnd.sas.collection/examples/getActionStatusSummaries"
+    delete:
+      tags:
+      - Action Status
+      summary: Delete all action status entries
+      description: Deletes all action status entries for the current user.
+      operationId: deleteAll
+      responses:
+        "204":
+          description: Action status entries were deleted.
+  /actionstatus/deletions:
+    post:
+      tags:
+      - Action Status
+      summary: Perform a batch delete of action status entries of the current user
+        specified by IDs
+      description: >
+        Updates action status entries that are associated with the current user
+        by deleting a subset specified by IDs.   This action removes the entries
+        corresponding to the IDs that are specified on a best-effort basis. When
+        IDs are not specified, all action status entries for the user are
+        deleted. Entries that are in progress are ignored.'
+      operationId: deleteActionStatuses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+            example:
+            - d6eefec9-dcc2-4574-8af8-69897038d9c5
+            - be655ec9-dcc2-4574-8af8-69897038d9c5
+        description: Multiple ID's that are specified as an array of strings.
+        required: true
+      responses:
+        "200":
+          description: Some or all of the items were deleted. If all of the specified
+            items were deleted successfully, an empty list is returned. If any of
+            the specified items were not deleted,  error entries for each of these
+            items are included in the collection response.
+          content:
+            application/vnd.sas.collection:
+              schema:
+                description: The schema for an array of error responses.
+                allOf:
+                - $ref: "#/paths/~1actionstatus/get/responses/200/content/application~1vnd.sas.collection/schema/allOf/0"
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      description: The array of error responses.
+                      items:
+                        title: Error
+                        type: object
+                        description: The representation of an error.
+                        x-sas-media-type:
+                          name: application/vnd.sas.error
+                          version: 2
+                        required:
+                        - httpStatusCode
+                        - version
+                        properties:
+                          message:
+                            type: string
+                            description: The message for the error.
+                          id:
+                            type: string
+                            description: The string ID for the error.
+                          errorCode:
+                            type: integer
+                            description: The numeric ID for the error.
+                          httpStatusCode:
+                            type: integer
+                            description: The HTTP status code for the error.
+                          details:
+                            type: array
+                            description: Messages that provide additional details
+                              about the cause of the error.
+                            items:
+                              type: string
+                          remediation:
+                            type: string
+                            description: A message that describes how to resolve the
+                              error.
+                          errors:
+                            type: array
+                            description: Any additional errors that occurred.
+                            items:
+                              $ref: "#/paths/~1actionstatus~1deletions/post/responses/200/content/application~1vnd.sas.collection/schema/allOf/1/properties/items/items"
+                          links:
+                            type: array
+                            description: The links that apply to the error.
+                            items:
+                              title: Link
+                              type: object
+                              description: A link to a related operation or resource.
+                              required:
+                              - rel
+                              properties:
+                                method:
+                                  type: string
+                                  description: The HTTP method for the link.
+                                rel:
+                                  type: string
+                                  description: The relationship of the link to the
+                                    resource.
+                                uri:
+                                  type: string
+                                  description: The relative URI for the link.
+                                href:
+                                  type: string
+                                  description: The URL for the link.
+                                title:
+                                  type: string
+                                  description: The title for the link.
+                                type:
+                                  type: string
+                                  description: The media type or link type for the
+                                    link.
+                                itemType:
+                                  type: string
+                                  description: If this is a link to a container, `itemType`
+                                    is the media type or link type for the items in
+                                    the container.
+                                responseType:
+                                  type: string
+                                  description: The media type or link type of the
+                                    response body for a `PUT`, `POST`, or `PATCH`
+                                    operation.
+                                responseItemType:
+                                  type: string
+                                  description: The media type or link type of the
+                                    items in the response body for a `PUT`, `POST`,
+                                    or `PATCH` operation.
+                          version:
+                            type: integer
+                            description: The version number of the error representation.
+                              This representation is version 2.
+              examples:
+                actionStatusDeleteSuccessResponse:
+                  summary: Response for successful action status delete
+                  description: Here is a response for a POST request to delete action
+                    status entries. An empty list means that the delete was successful.
+                  value:
+                    name: errors
+                    accept: application/vnd.sas.error
+                    start: 0
+                    count: 0
+                    items: {}
+                    limit: 10
+                    version: 2
+            application/json:
+              schema:
+                $ref: "#/paths/~1actionstatus~1deletions/post/responses/200/content/application~1vnd.sas.collection/schema"
+              examples:
+                actionStatusDeleteSuccessResponse:
+                  $ref: "#/paths/~1actionstatus~1deletions/post/responses/200/content/application~1vnd.sas.collection/examples/actionStatusDeleteSuccessResponse"
+        "400":
+          description: None of the specified action status IDs were deleted by this
+            request.
+  "/actionstatus/{actionStatusId}":
+    get:
+      tags:
+      - Action Status
+      operationId: getActionStatus
+      summary: Get the specified action status
+      description: Returns the specified action status entry.
+      parameters:
+      - name: Accept
+        in: header
+        description: >
+          The requested representation of the action status. Media type
+          'application/vnd.sas.clinical.action.status+json' is the default.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.clinical.action.status+json
+          - application/vnd.sas.clinical.action.status.summary+json
+          - application/json
+      - name: actionStatusId
+        in: path
+        description: The unique identifier for the action status entry.
+        required: true
+        schema:
+          type: string
+        example: 409d83bf-1acc-4e1c-adac-6bca6b7e8996
+      responses:
+        "200":
+          description: The request succeeded and a matching action status with summary
+            and details is returned.
+          content:
+            application/vnd.sas.clinical.action.status:
+              schema:
+                title: Action Status
+                description: Representation for the action status record.
+                properties:
+                  version:
+                    description: The version of the representation. This is version
+                      1.
+                    type: number
+                  summary:
+                    $ref: "#/components/schemas/actionStatus/properties/summary"
+                  details:
+                    description: Additional information about the action status.
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/actionStatus/properties/details/items"
+              examples:
+                actionStatusCompleted:
+                  summary: Get completed action status
+                  description: Returns a representation of a completed action status
+                  value:
+                    version: 1
+                    summary:
+                      version: 1
+                      id: 409d83bf-1acc-4e1c-adac-6bca6b7e8996
+                      action: Enable Versioning
+                      nodeId: sas-health-clinical-acceleration-d9fb7c645-s7jw2
+                      message: 1 of 1 item processed successfully.
+                      detailMessage: Processed 1 item.  1 successfully, 0 with warnings
+                        and 0 with errors.
+                      startTimeStamp: 2023-09-05T17:46:16.101000Z
+                      endTimeStamp: 2023-09-05T17:46:17.383000Z
+                      lastUpdatedTimeStamp: 2023-09-05T17:46:17.383000Z
+                      percentComplete: 100
+                      stoppable: true
+                      progressStatus: COMPLETED
+                      completionStatus: INFO
+                    details:
+                    - version: 1
+                      id: 2bed4715-9c7b-4e28-bf87-72f16b82e27a
+                      actionStatusId: 409d83bf-1acc-4e1c-adac-6bca6b7e8996
+                      itemIdentifier: /RemoteTests2/RemoteActionStatusControllerTest-1693935943520/testGetActionStatusById.txt
+                      itemLocation: /RemoteTests2/RemoteActionStatusControllerTest-1693935943520
+                      itemName: testGetActionStatusById.txt
+                      message: File versioning was successfully enabled.
+                      startTimeStamp: 2023-09-05T17:46:16.300000Z
+                      endTimeStamp: 2023-09-05T17:46:17.295000Z
+                      lastUpdatedTimeStamp: 2023-09-05T17:46:17.295000Z
+                      percentComplete: 100
+                      progressStatus: COMPLETED
+                      completionStatus: INFO
+                actionStatusProcessing:
+                  summary: Get processing action status
+                  description: Returns an action status for an action that is still
+                    processing.
+                  value:
+                    version: 1
+                    summary:
+                      version: 1
+                      id: 409d83bf-1acc-4e1c-adac-6bca6b7e8996
+                      action: Enable Versioning
+                      nodeId: sas-health-clinical-acceleration-d9fb7c645-s7jw2
+                      startTimeStamp: 2023-09-05T17:46:16.101000Z
+                      percentComplete: 0
+                      stoppable: true
+                      progressStatus: PROCESSING
+                      completionStatus: INFO
+                    details:
+                    - version: 1
+                      id: 2bed4715-9c7b-4e28-bf87-72f16b82e27a
+                      actionStatusId: 409d83bf-1acc-4e1c-adac-6bca6b7e8996
+                      itemIdentifier: /RemoteTests2/RemoteActionStatusControllerTest-1693935943520/testGetActionStatusById.txt
+                      itemLocation: /RemoteTests2/RemoteActionStatusControllerTest-1693935943520
+                      itemName: testGetActionStatusById.txt
+                      message: Processing.
+                      startTimeStamp: 2023-09-05T17:46:16.300000Z
+                      percentComplete: 0
+                      progressStatus: PROCESSING
+            application/vnd.sas.clinical.actionstatus.summary:
+              schema:
+                $ref: "#/components/schemas/actionStatus/properties/summary"
+              examples:
+                actionStatusCompleted:
+                  summary: Get completed action status summary
+                  description: Returns a representation of a completed action status
+                    summary
+                  value:
+                    version: 1
+                    id: 409d83bf-1acc-4e1c-adac-6bca6b7e8996
+                    action: Enable Versioning
+                    nodeId: sas-health-clinical-acceleration-d9fb7c645-s7jw2
+                    message: 1 of 1 item processed successfully.
+                    detailMessage: Processed 1 item.  1 successfully, 0 with warnings
+                      and 0 with errors.
+                    startTimeStamp: 2023-09-05T17:46:16.101000Z
+                    endTimeStamp: 2023-09-05T17:46:17.383000Z
+                    lastUpdatedTimeStamp: 2023-09-05T17:46:17.383000Z
+                    percentComplete: 100
+                    stoppable: true
+                    progressStatus: COMPLETED
+                    completionStatus: INFO
+            application/json:
+              schema:
+                $ref: "#/paths/~1actionstatus~1%7BactionStatusId%7D/get/responses/200/content/application~1vnd.sas.clinical.action.status/schema"
+              examples:
+                actionStatusCompleted:
+                  $ref: "#/paths/~1actionstatus~1%7BactionStatusId%7D/get/responses/200/content/application~1vnd.sas.clinical.action.status/examples/actionStatusCompleted"
+                actionStatusProcessing:
+                  $ref: "#/paths/~1actionstatus~1%7BactionStatusId%7D/get/responses/200/content/application~1vnd.sas.clinical.action.status/examples/actionStatusProcessing"
+        "404":
+          description: The request did not find the specified action status.
+    head:
+      tags:
+      - Action Status
+      operationId: headersForActionStatus
+      summary: Determine whether the specified action status exists
+      description: Checks whether the specified action status exists.
+      parameters:
+      - name: Accept
+        in: header
+        description: >
+          The requested representation of the action status. Media type
+          'application/vnd.sas.clinical.action.status+json' is the default.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.clinical.action.status+json
+          - application/vnd.sas.clinical.action.status.summary+json
+          - application/json
+      - name: actionStatusId
+        in: path
+        description: The unique identifier for the action status entry.
+        required: true
+        schema:
+          type: string
+        example: d6eefec9-dcc2-4574-8af8-69897038d9c5
+      responses:
+        "200":
+          description: The request succeeded - the action status exists.
+        "404":
+          description: The request did not find the specified action status.
+    patch:
+      tags:
+      - Action Status
+      summary: Update the action status by performing the specified action
+      description: Updates the action status by performing the specified action.
+      operationId: patchActionStatus
+      parameters:
+      - name: actionStatusId
+        in: path
+        description: The unique identifier for the action status entry.
+        required: true
+        schema:
+          type: string
+        example: 409d83bf-1acc-4e1c-adac-6bca6b7e8996
+      - name: action
+        in: query
+        required: true
+        description: The update action to perform on the action status.
+        example: STOP
+        schema:
+          type: string
+          enum:
+          - STOP
+      responses:
+        "200":
+          description: OK - the action status was updated by performing the specified
+            action.
+          content:
+            application/vnd.sas.clinical.action.status:
+              schema:
+                $ref: "#/paths/~1actionstatus~1%7BactionStatusId%7D/get/responses/200/content/application~1vnd.sas.clinical.action.status/schema"
+              examples:
+                actionStatusCompleted:
+                  $ref: "#/paths/~1actionstatus~1%7BactionStatusId%7D/get/responses/200/content/application~1vnd.sas.clinical.action.status/examples/actionStatusCompleted"
+                actionStatusProcessing:
+                  $ref: "#/paths/~1actionstatus~1%7BactionStatusId%7D/get/responses/200/content/application~1vnd.sas.clinical.action.status/examples/actionStatusProcessing"
+            application/json:
+              schema:
+                $ref: "#/paths/~1actionstatus~1%7BactionStatusId%7D/get/responses/200/content/application~1vnd.sas.clinical.action.status/schema"
+              examples:
+                actionStatusCompleted:
+                  $ref: "#/paths/~1actionstatus~1%7BactionStatusId%7D/get/responses/200/content/application~1vnd.sas.clinical.action.status/examples/actionStatusCompleted"
+                actionStatusProcessing:
+                  $ref: "#/paths/~1actionstatus~1%7BactionStatusId%7D/get/responses/200/content/application~1vnd.sas.clinical.action.status/examples/actionStatusProcessing"
+        "400":
+          description: Bad request - the specified action is not valid.
+        "404":
+          description: Not found - the action status could not be found.
+    delete:
+      tags:
+      - Action Status
+      summary: Delete an action status
+      description: >
+        Deletes an action status.  This action removes the action status item
+        and details.
+      operationId: deleteActionStatus
+      parameters:
+      - name: actionStatusId
+        in: path
+        description: The unique identifier for the action status entry.
+        required: true
+        schema:
+          type: string
+        example: d6eefec9-dcc2-4574-8af8-69897038d9c5
+      responses:
+        "204":
+          description: The action status was deleted.
+  /actionstatus/status:
+    get:
+      tags:
+      - Action Status
+      summary: Get the count of action status entries that are not read by the user
+      description: >
+        Returns a count of action status entries that have been updated since
+        they were last read by the current user. When this is not zero, action
+        status entries can be retrieved to show the updates since they were last
+        read.
+      operationId: getActionStatusPollingStatus
+      responses:
+        "200":
+          description: The request succeeded and the count of unread action status
+            entries is returned.
+          content:
+            application/json:
+              schema:
+                type: integer
+              examples:
+                getActionStatusReadResponse:
+                  summary: Get action status read count.
+                  description: Returns the count of unread action status entries.
+                  value: 1
+  /internal/actionstatus:
+    post:
+      tags:
+      - Internal Action Status
+      operationId: createActionStatus
+      summary: Create an action status
+      description: Creates an action status for tracking the status of clinical actions.
+      requestBody:
+        required: true
+        description: The specification for creating an action status.
+        content:
+          application/vnd.sas.clinical.action.status.create:
+            schema:
+              title: Action Status Create
+              description: Action status creation information.
+              properties:
+                version:
+                  description: The version of the representation. This is version
+                    1.
+                  type: number
+                id:
+                  description: The unique identifier of the action status.
+                  type: string
+                clientId:
+                  description: The client ID that is associated with the action. Represents
+                    the application and session from which the action was initiated.
+                  type: string
+                action:
+                  description: The name of the action.
+                  type: string
+                stoppable:
+                  description: Specifies whether the action can be stopped when it
+                    is being processed.
+                  type: boolean
+                nodeId:
+                  description: The unique identifier of the service pod that initiated
+                    the action.
+                  type: string
+            examples:
+              actionStatusCreate:
+                summary: Action status create representation
+                value:
+                  version: 1
+                  id: 2dff288e-04dc-43c2-a369-fe91418ab6da
+                  clientId: f27fac9b-c950-4dff-83bf-92c89a2fb166
+                  action: Delete workspace item
+                  stoppable: true
+                  nodeId: sas-clinical-workspaces-9555b56d6-rwkmw
+          application/json:
+            schema:
+              $ref: "#/paths/~1internal~1actionstatus/post/requestBody/content/application~1vnd.sas.clinical.action.status.create/schema"
+            examples:
+              actionStatusCreate:
+                $ref: "#/paths/~1internal~1actionstatus/post/requestBody/content/application~1vnd.sas.clinical.action.status.create/examples/actionStatusCreate"
+      responses:
+        "201":
+          description: The request succeeded and the action status was created.
+          content:
+            application/vnd.sas.clinical.actionstatus.summary:
+              schema:
+                $ref: "#/components/schemas/actionStatus/properties/summary"
+              examples:
+                actionStatusCreated:
+                  summary: Created action status summary
+                  description: The summary of a newly created action status.
+                  value:
+                    version: 1
+                    id: 2dff288e-04dc-43c2-a369-fe91418ab6da
+                    clientId: f27fac9b-c950-4dff-83bf-92c89a2fb166
+                    action: Delete workspace item
+                    nodeId: sas-clinical-workspaces-9555b56d6-rwkmw
+                    percentComplete: 0
+                    stoppable: true
+                    progressStatus: QUEUED
+            application/json:
+              schema:
+                $ref: "#/components/schemas/actionStatus/properties/summary"
+              examples:
+                actionStatusCreated:
+                  $ref: "#/paths/~1internal~1actionstatus/post/responses/201/content/application~1vnd.sas.clinical.actionstatus.summary/examples/actionStatusCreated"
+  "/internal/actionstatus/{actionStatusId}":
+    patch:
+      tags:
+      - Internal Action Status
+      operationId: internalUpdateActionStatus
+      summary: Update an action status
+      description: Updates an action status.
+      parameters:
+      - name: actionStatusId
+        in: path
+        description: The unique identifier of the action status.
+        required: true
+        schema:
+          type: string
+        example: d6eefec9-dcc2-4574-8af8-69897038d9c5
+      - name: action
+        in: query
+        required: true
+        description: The update action to perform on the action status.
+        example: UPDATE
+        schema:
+          type: string
+          enum:
+          - UPDATE
+          - RESET_QUEUED
+      requestBody:
+        required: true
+        description: >
+          The action status update specification. This value varies based on the
+          type of update and the 'action' request parameter value.
+        content:
+          application/vnd.sas.clinical.action.status.detail.reset:
+            schema:
+              title: Action Status Detail Reset
+              description: The specification for updating queued action status details.
+              properties:
+                version:
+                  description: The version of the representation. This is version
+                    1.
+                  type: number
+                message:
+                  description: The message to set on all queued action details.
+                  type: string
+                progressStatus:
+                  description: The progress status to set on all queued action status
+                    details.
+                  type: string
+                  enum:
+                  - QUEUED
+                  - PROCESSING
+                  - STOPPED
+                  - STOPPING
+                  - COMPLETED
+                  - TERMINATED
+            examples:
+              detailReset:
+                summary: Action status detail reset representation
+                value:
+                  version: 1
+                  message: Action was stopped.
+                  progressStatus: STOPPED
+          application/json:
+            schema:
+              oneOf:
+              - $ref: "#/paths/~1internal~1actionstatus~1%7BactionStatusId%7D/patch/requestBody/content/application~1vnd.sas.clinical.action.status.detail.reset/schema"
+              - type: object
+                additionalProperties:
+                  type: string
+                examples:
+                  ActionStatusSummary:
+                    value:
+                      message: 1 of 1 item processed successfully.
+                      detailMessage: Processed 1 item.  1 successfully, 0 with warnings
+                        and 0 with errors.
+                      startTimeStamp: 2023-09-05T17:46:16.101000Z
+                      endTimeStamp: 2023-09-05T17:46:17.383000Z
+                      lastUpdatedTimeStamp: 2023-09-05T17:46:17.383000Z
+                      percentComplete: 100
+                      progressStatus: COMPLETED
+                      completionStatus: INFO
+      responses:
+        "200":
+          description: The request succeeded and the action status was updated.
+          content:
+            application/vnd.sas.clinical.actionstatus.summary:
+              schema:
+                $ref: "#/components/schemas/actionStatus/properties/summary"
+              examples:
+                actionStatusCreated:
+                  summary: Action status summary
+                  value:
+                    version: 1
+                    id: 409d83bf-1acc-4e1c-adac-6bca6b7e8996
+                    action: Enable Versioning
+                    nodeId: sas-health-clinical-acceleration-d9fb7c645-s7jw2
+                    message: 1 of 1 item processed successfully.
+                    detailMessage: Processed 1 item.  1 successfully, 0 with warnings
+                      and 0 with errors.
+                    startTimeStamp: 2023-09-05T17:46:16.101000Z
+                    endTimeStamp: 2023-09-05T17:46:17.383000Z
+                    lastUpdatedTimeStamp: 2023-09-05T17:46:17.383000Z
+                    percentComplete: 100
+                    stoppable: true
+                    progressStatus: COMPLETED
+                    completionStatus: INFO
+            application/json:
+              schema:
+                $ref: "#/components/schemas/actionStatus/properties/summary"
+              examples:
+                actionStatusCreated:
+                  $ref: "#/paths/~1internal~1actionstatus~1%7BactionStatusId%7D/patch/responses/200/content/application~1vnd.sas.clinical.actionstatus.summary/examples/actionStatusCreated"
+  "/internal/actionstatus/{actionStatusId}/details/{detailId}":
+    put:
+      tags:
+      - Internal Action Status
+      operationId: createOrUpdateDetail
+      summary: Create or update an action status detail
+      description: Creates or updates an action status detail.
+      parameters:
+      - name: actionStatusId
+        in: path
+        description: The unique identifier of the action status.
+        required: true
+        schema:
+          type: string
+        example: d6eefec9-dcc2-4574-8af8-69897038d9c5
+      - name: detailId
+        in: path
+        description: The unique identifier of the action status detail.
+        required: true
+        schema:
+          type: string
+        example: 2bed4715-9c7b-4e28-bf87-72f16b82e27a
+      requestBody:
+        required: true
+        description: The complete action status detail to create or update.
+        content:
+          application/vnd.sas.clinical.action.status.detail:
+            schema:
+              $ref: "#/components/schemas/actionStatus/properties/details/items"
+            examples:
+              actionStatusDetail:
+                summary: Action status detail representation
+                value:
+                  version: 1
+                  id: 2bed4715-9c7b-4e28-bf87-72f16b82e27a
+                  actionStatusId: d6eefec9-dcc2-4574-8af8-69897038d9c5
+                  itemIdentifier: /RemoteTests2/RemoteActionStatusControllerTest-1693935943520/testGetActionStatusById.txt
+                  itemLocation: /RemoteTests2/RemoteActionStatusControllerTest-1693935943520
+                  itemName: testGetActionStatusById.txt
+                  message: File versioning was successfully enabled.
+                  startTimeStamp: 2023-09-05T17:46:16.300000Z
+                  endTimeStamp: 2023-09-05T17:46:17.295000Z
+                  lastUpdatedTimeStamp: 2023-09-05T17:46:17.295000Z
+                  percentComplete: 100
+                  progressStatus: COMPLETED
+                  completionStatus: INFO
+          application/json:
+            schema:
+              $ref: "#/components/schemas/actionStatus/properties/details/items"
+            examples:
+              actionStatusDetail:
+                $ref: "#/paths/~1internal~1actionstatus~1%7BactionStatusId%7D~1details~1%7BdetailId%7D/put/requestBody/content/application~1vnd.sas.clinical.action.status.detail/examples/actionStatusDetail"
+      responses:
+        "200":
+          description: The request succeeded and the action status detail was updated.
+          content:
+            application/vnd.sas.clinical.action.status.detail:
+              schema:
+                $ref: "#/components/schemas/actionStatus/properties/details/items"
+              examples:
+                actionStatusCreated:
+                  $ref: "#/paths/~1internal~1actionstatus~1%7BactionStatusId%7D~1details~1%7BdetailId%7D/put/requestBody/content/application~1vnd.sas.clinical.action.status.detail/examples/actionStatusDetail"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/actionStatus/properties/details/items"
+              examples:
+                actionStatusCreated:
+                  $ref: "#/paths/~1internal~1actionstatus~1%7BactionStatusId%7D~1details~1%7BdetailId%7D/put/requestBody/content/application~1vnd.sas.clinical.action.status.detail/examples/actionStatusDetail"
+        "201":
+          description: The request succeeded and the action status detail was created.
+          content:
+            application/vnd.sas.clinical.action.status.detail:
+              schema:
+                $ref: "#/components/schemas/actionStatus/properties/details/items"
+              examples:
+                actionStatusCreated:
+                  $ref: "#/paths/~1internal~1actionstatus~1%7BactionStatusId%7D~1details~1%7BdetailId%7D/put/requestBody/content/application~1vnd.sas.clinical.action.status.detail/examples/actionStatusDetail"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/actionStatus/properties/details/items"
+              examples:
+                actionStatusCreated:
+                  $ref: "#/paths/~1internal~1actionstatus~1%7BactionStatusId%7D~1details~1%7BdetailId%7D/put/requestBody/content/application~1vnd.sas.clinical.action.status.detail/examples/actionStatusDetail"
+components:
+  schemas:
+    actionStatus:
+      title: Action Status
+      description: Representation for the action status record.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        summary:
+          title: Action Status Summary
+          description: Action status summary information.
+          properties:
+            version:
+              description: The version of the representation. This is version 1.
+              type: number
+            id:
+              description: The unique identifier of the action status.
+              type: string
+            clientId:
+              description: The client ID that is associated with the action. Represents
+                the application and session from which the action was initiated.
+              type: string
+            action:
+              description: The name of the action.
+              type: string
+            nodeId:
+              description: The unique identifier of the service pod that initiated
+                the action.
+              type: string
+            message:
+              description: Status message
+              type: string
+            detailMessage:
+              description: Detailed status message.
+              type: string
+            startTimeStamp:
+              description: Start time for the action on this item.
+              type: string
+            endTimeStamp:
+              description: End time for the action on this item.
+              type: string
+            lastUpdatedTimeStamp:
+              description: Last updated time for the action on this item.
+              type: string
+            percentComplete:
+              description: Percentage message.
+              type: integer
+            progressStatus:
+              description: Describes the progress of an individual action.
+              type: string
+              enum:
+              - QUEUED
+              - PROCESSING
+              - STOPPING
+              - STOPPED
+              - COMPLETED
+              - TERMINATED
+            completionStatus:
+              description: Describes the completion status of the action.
+              type: string
+              enum:
+              - INFO
+              - WARN
+              - ERROR
+            stoppable:
+              description: Specifies whether the batch action can be stopped when
+                it is being processed.
+              type: boolean
+        details:
+          description: Additional information about the action status.
+          type: array
+          items:
+            title: Action Status Detail
+            description: The action status detail.
+            properties:
+              version:
+                description: The version of the representation. This is version 1.
+                type: number
+              id:
+                description: Unique ID for the action status detail.
+                type: string
+              actionStatusId:
+                description: Unique ID for the action status associated with the detail.
+                type: string
+              itemIdentifier:
+                description: Unique identifier for the item on which status is reported.
+                  Could be a UUID, path, or a uniquely identifying attribute of the
+                  item.
+                type: string
+              itemName:
+                description: The name of the individual item on which the status is
+                  reported.
+                type: string
+              itemLocation:
+                description: >
+                  The location of the individual item on which the status is
+                  reported. This is the parent path of the item IF a path is
+                  being used as the item identifier. This field can be null. In
+                  conjunction with item name that is used to construct the path
+                  of item that is unique for that item type.
+                type: string
+              message:
+                description: Status message
+                type: string
+              startTimeStamp:
+                description: Start time for the action on this item.
+                type: string
+              endTimeStamp:
+                description: End time for the action on this item.
+                type: string
+              lastUpdatedTimeStamp:
+                description: Last updated time for the action on this item.
+                type: string
+              percentComplete:
+                description: Percentage  message
+                type: integer
+              progressStatus:
+                description: Describes the progress of an individual action status
+                  detail.
+                type: string
+                enum:
+                - QUEUED
+                - PROCESSING
+                - STOPPED
+                - STOPPING
+                - COMPLETED
+                - TERMINATED
+              completionStatus:
+                description: Describes the completion status of the action status
+                  detail.
+                type: string
+                enum:
+                - INFO
+                - WARN
+                - ERROR
+    actionStatusSummary:
+      title: Action Status Summary
+      description: Action status summary information.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        id:
+          description: The unique identifier of the action status.
+          type: string
+        clientId:
+          description: The client ID that is associated with the action. Represents
+            the application and session from which the action was initiated.
+          type: string
+        action:
+          description: The name of the action.
+          type: string
+        nodeId:
+          description: The unique identifier of the service pod that initiated the
+            action.
+          type: string
+        message:
+          description: Status message
+          type: string
+        detailMessage:
+          description: Detailed status message.
+          type: string
+        startTimeStamp:
+          description: Start time for the action on this item.
+          type: string
+        endTimeStamp:
+          description: End time for the action on this item.
+          type: string
+        lastUpdatedTimeStamp:
+          description: Last updated time for the action on this item.
+          type: string
+        percentComplete:
+          description: Percentage message.
+          type: integer
+        progressStatus:
+          description: Describes the progress of an individual action.
+          type: string
+          enum:
+          - QUEUED
+          - PROCESSING
+          - STOPPING
+          - STOPPED
+          - COMPLETED
+          - TERMINATED
+        completionStatus:
+          description: Describes the completion status of the action.
+          type: string
+          enum:
+          - INFO
+          - WARN
+          - ERROR
+        stoppable:
+          description: Specifies whether the batch action can be stopped when it is
+            being processed.
+          type: boolean
+    actionStatusDetail:
+      title: Action Status Detail
+      description: The action status detail.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        id:
+          description: Unique ID for the action status detail.
+          type: string
+        actionStatusId:
+          description: Unique ID for the action status associated with the detail.
+          type: string
+        itemIdentifier:
+          description: Unique identifier for the item on which status is reported.
+            Could be a UUID, path, or a uniquely identifying attribute of the item.
+          type: string
+        itemName:
+          description: The name of the individual item on which the status is reported.
+          type: string
+        itemLocation:
+          description: >
+            The location of the individual item on which the status is reported.
+            This is the parent path of the item IF a path is being used as the
+            item identifier. This field can be null. In conjunction with item
+            name that is used to construct the path of item that is unique for
+            that item type.
+          type: string
+        message:
+          description: Status message
+          type: string
+        startTimeStamp:
+          description: Start time for the action on this item.
+          type: string
+        endTimeStamp:
+          description: End time for the action on this item.
+          type: string
+        lastUpdatedTimeStamp:
+          description: Last updated time for the action on this item.
+          type: string
+        percentComplete:
+          description: Percentage  message
+          type: integer
+        progressStatus:
+          description: Describes the progress of an individual action status detail.
+          type: string
+          enum:
+          - QUEUED
+          - PROCESSING
+          - STOPPED
+          - STOPPING
+          - COMPLETED
+          - TERMINATED
+        completionStatus:
+          description: Describes the completion status of the action status detail.
+          type: string
+          enum:
+          - INFO
+          - WARN
+          - ERROR
+    actionStatusDetailReset:
+      title: Action Status Detail Reset
+      description: The specification for updating queued action status details.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        message:
+          description: The message to set on all queued action details.
+          type: string
+        progressStatus:
+          description: The progress status to set on all queued action status details.
+          type: string
+          enum:
+          - QUEUED
+          - PROCESSING
+          - STOPPED
+          - STOPPING
+          - COMPLETED
+          - TERMINATED
+    actionStatusCreate:
+      title: Action Status Create
+      description: Action status creation information.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        id:
+          description: The unique identifier of the action status.
+          type: string
+        clientId:
+          description: The client ID that is associated with the action. Represents
+            the application and session from which the action was initiated.
+          type: string
+        action:
+          description: The name of the action.
+          type: string
+        stoppable:
+          description: Specifies whether the action can be stopped when it is being
+            processed.
+          type: boolean
+        nodeId:
+          description: The unique identifier of the service pod that initiated the
+            action.
+          type: string

@@ -1,0 +1,1545 @@
+---
+openapi: 3.0.3
+info:
+  version: "3"
+  title: Search
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+  description: "Search API works in conjunction with SearchIndex API. SearchIndex\
+    \ API is responsible for indexing the SAS type objects while Search API will be\
+    \ used to search these objects in CAS based deployment.   \nCAS based index server\
+    \ is going to be primary search and indexing engine that Search API and SearchIndex\
+    \ API is going to use.\n"
+tags:
+- name: Root
+  description: The API root.
+- name: Search
+  description: The endpoints for searching SAS type objects.
+- name: SearchOnFacets
+  description: The endpoints managing faceted search.
+- name: SearchOnFacet
+  description: The endpoints managing the type specific faceted search.
+- name: AuthorizeSearch
+  description: The endpoint to display authorized list of objects.
+paths:
+  /:
+    head:
+      tags:
+      - Root
+      operationId: headersForRoot
+      summary: Check if Search Service is available
+      description: This endpoint can be used to check the availability of the Search-Service.
+      responses:
+        "200":
+          description: Success
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        "404":
+          description: Service not available
+          headers:
+            Content-Type:
+              schema:
+                type: string
+    get:
+      tags:
+      - Root
+      operationId: root
+      summary: Get a list of top level links
+      description: Returns the top level URI of all the REST component for Search
+        Service
+      responses:
+        "200":
+          description: Success
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/searchroot"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                json:
+                  $ref: "#/components/examples/searchroot"
+        "404":
+          description: Service not available.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /content:
+    get:
+      tags:
+      - Search
+      operationId: getSearchResults
+      summary: Get a SAS type Objects
+      description: This search-service endpoint is used to search SAS type objects
+        in CAS based indexing server and returns the authorized SAS type objects for
+        current user.
+      parameters:
+      - name: query
+        in: query
+        required: true
+        description: query parameter contains query string and different search protocol
+          functions.
+        schema:
+          type: string
+          default: matchAny("sample")
+      - name: start
+        in: query
+        required: false
+        description: " It is the index count indicating the location of the starting\
+          \ element from where the result needs to be sent. If value is not provided\
+          \ then default value will be '0'."
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        required: false
+        description: " It is the count of the records which needs to be returned to\
+          \ the client. If value is not provided then default value will be '10'"
+        schema:
+          type: integer
+          default: 10
+      - name: fields
+        in: query
+        required: false
+        description: " Indicates the fields which need to be returned in the response,\
+          \ if the client wants a fewer list of fields instead of default response.\
+          \ Default response list is subset of indexed fields."
+        schema:
+          type: string
+          default: title,description,resourceUri,sasType,creationTimeStamp,modifiedTimeStamp,createdBy,modifiedBy,createdByLabel,modifiedByLabel,keywords
+      - name: faceted
+        in: query
+        required: false
+        description: ' Indicates that while searching, facet information is required
+          in the response or not. The default value will be "true".'
+        schema:
+          type: boolean
+          default: true
+      - name: facetFields
+        in: query
+        required: false
+        description: " If a client wants to receive facets on facetable fields other\
+          \ than default, they need to provide the field names explicitly separated\
+          \ by a comma. Default facetable fields are sasType, sasAuthor, sasAuthorLabel "
+        schema:
+          type: string
+          default: sasType,sasAuthor,sasAuthorLabel,modifiedTimeStamp
+      - name: sortBy
+        in: query
+        required: false
+        description: " This parameter will be used for sorting specified field in\
+          \ ascending or descending order .Ex sortBy=title: ascending. If only field\
+          \ is mentioned then default sorting order will be descending. Default behavior\
+          \ will be sort by relevance if sortBy parameter does not mention anything "
+        schema:
+          type: string
+      - name: indexCaslib
+        in: query
+        required: false
+        description: Name of cas library where given indexTableName is saved. If indexCaslib
+          and indexTableName parameter is not provided ,then searching would be performed
+          on default index used for VA.
+        schema:
+          type: string
+      - name: indexTableName
+        in: query
+        required: false
+        description: Name of CAS Index where search needs to be performed.If indexCaslib
+          and indexTableName parameter is not provided ,then searching would be performed
+          on default index used for VA.
+        schema:
+          type: string
+      - name: facetsCount
+        in: query
+        required: false
+        description: This parameter will limit the number of facet values received
+          in response and will be applicable to all facetable fields in response.
+          Default is 100
+        schema:
+          type: integer
+          default: 100
+      - name: maxMinFields
+        in: query
+        required: false
+        description: Name of the comma separated numeric or date fields on which the
+          aggregation Max and Min are required.
+        schema:
+          type: string
+      - name: relaxed
+        in: query
+        required: false
+        description: An indicator, if 'true', would add wild card '*' meaningfully
+          to the words in the query. Defaulted to 'false'.
+        schema:
+          type: boolean
+          default: false
+      responses:
+        "200":
+          description: Success
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.search.response+json:
+              schema:
+                $ref: "#/components/schemas/searchCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/getContent"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/searchCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/getContent"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/searchCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/getContent"
+        "400":
+          description: "The request was not valid. There are multiple error scenario\
+            \ refer error code and message for more detail."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/invalidQuery"
+        "404":
+          description: "Specified index do not exist."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /content#getSearchResultsWithPlainTextQuery:
+    post:
+      tags:
+      - Search
+      operationId: getSearchResultsWithPlainTextQuery
+      summary: Get a SAS type Objects
+      description: POST can be used to overcome the limitation of GET. In case of
+        GET the URL should be of limited size. The common workaround for these problems
+        is to use POST instead of GET and store the parameters in the request body.
+        The length limits of request bodies are typically much higher than those on
+        URL length. This search-service endpoint is used to search SAS type objects
+        in CAS based indexing server and returns the authorized SAS type objects for
+        current user.
+      parameters:
+      - name: start
+        in: query
+        required: false
+        description: " It is the index count indicating the location of the starting\
+          \ element from where the result needs to be sent. If value is not provided\
+          \ then default value will be '0'."
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        required: false
+        description: " It is the count of the records which needs to be returned to\
+          \ the client. If value is not provided then default value will be '10'"
+        schema:
+          type: integer
+          default: 10
+      - name: fields
+        in: query
+        required: false
+        description: " Indicates the fields which need to be returned in the response,\
+          \ if the client wants a fewer list of fields instead of default response.\
+          \ Default response list is subset of indexed fields."
+        schema:
+          type: string
+          default: title,description,resourceUri,sasType,creationTimeStamp,modifiedTimeStamp,createdBy,modifiedBy,createdByLabel,modifiedByLabel,keywords
+      - name: faceted
+        in: query
+        required: false
+        description: ' Indicates that while searching, facet information is required
+          in the response or not. The default value will be "true".'
+        schema:
+          type: boolean
+          default: true
+      - name: facetFields
+        in: query
+        required: false
+        description: " If a client wants to receive facets on facetable fields other\
+          \ than defalult, they need to provide the field names explicitely seperated\
+          \ by a comma. Default facetable fields are sasType, sasAuthor, sasAuthorLabel "
+        schema:
+          type: string
+          default: sasType,sasAuthor,sasAuthorLabel,modifiedTimeStamp
+      - name: sortBy
+        in: query
+        required: false
+        description: " This parameter will be used for sorting specified field in\
+          \ ascending or descending order. Ex sortBy=title:ascending. If only field\
+          \ is mentioned then default sorting order will be descending. Default behavior\
+          \ will be sort by relevance if sortBy parameter does not mention anything "
+        schema:
+          type: string
+      - name: indexCaslib
+        in: query
+        required: false
+        description: Name of cas library where given indexTableName is saved. If indexCaslib
+          and indexTableName parameter is not provided ,then searching would be performed
+          on default index used for VA.
+        schema:
+          type: string
+      - name: indexTableName
+        in: query
+        required: false
+        description: Name of CAS Index where search needs to be performed.If indexCaslib
+          and indexTableName parameter is not provided ,then searching would be performed
+          on default index used for VA.
+        schema:
+          type: string
+      - name: facetsCount
+        in: query
+        required: false
+        description: This parameter will limit the number of facet values received
+          in response and will be applicable to all facetable fields in response.
+          Default is 100
+        schema:
+          type: integer
+          default: 100
+      - name: maxMinFields
+        in: query
+        required: false
+        description: Name of the comma separated numeric or date fields on which the
+          aggregation Max and Min are required.
+        schema:
+          type: string
+      - name: relaxed
+        in: query
+        required: false
+        description: An indicator, if 'true', would add wild card '*' meaningfully
+          to the words in the query. Defaulted to 'false'.
+        schema:
+          type: boolean
+          default: false
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              $ref: "#/components/schemas/query"
+            examples:
+              json:
+                $ref: "#/components/examples/query"
+        description: query parameter contains query string and different search protocol
+          functions.
+        required: true
+      responses:
+        "200":
+          description: Success
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.search.response+json:
+              schema:
+                $ref: "#/components/schemas/searchCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/getContent"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/searchCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/getContent"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/searchCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/getContent"
+        "400":
+          description: "The request was not valid. There are multiple error scenario\
+            \ refer error code and message for more detail."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/invalidQuery"
+        "404":
+          description: "Specified index do not exist."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /content#getSearchResultsWithComplexQuery:
+    post:
+      tags:
+      - Search
+      operationId: getSearchResultsWithComplexQuery
+      summary: Get a SAS type Objects with complex query
+      description: POST can be used to overcome the limitation of GET. In case of
+        GET the URL should be of limited size. The common workaround for these problems
+        is to use POST instead of GET and store the parameters in the request body.
+        The length limits of request bodies are typically much higher than those on
+        URL length. This search-service endpoint is used to search SAS type objects
+        in CAS based indexing server and returns the authorized SAS type objects for
+        current user.
+      parameters:
+      - name: start
+        in: query
+        required: false
+        description: " It is the index count indicating the location of the starting\
+          \ element from where the result needs to be sent. If value is not provided\
+          \ then default value will be '0'."
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        required: false
+        description: " It is the count of the records which needs to be returned to\
+          \ the client. If value is not provided then default value will be '10'"
+        schema:
+          type: integer
+          default: 10
+      requestBody:
+        content:
+          application/vnd.sas.search.request+json:
+            schema:
+              $ref: "#/components/schemas/searchRequest"
+            examples:
+              json:
+                $ref: "#/components/examples/searchRequest"
+        description: search request contains query parameter and other supporting
+          parameters.
+        required: true
+      responses:
+        "200":
+          description: Success
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.search.response+json:
+              schema:
+                $ref: "#/components/schemas/searchCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/getContent"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/searchCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/getContent"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/searchCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/getContent"
+        "400":
+          description: "The request was not valid. There are multiple error scenario\
+            \ refer error code and message for more detail."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/invalidQuery"
+        "404":
+          description: "Specified index do not exist."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /facets#getFacetsResultsWithPlainTextQuery:
+    post:
+      tags:
+      - SearchOnFacets
+      operationId: getFacetsResultsWithPlainTextQuery
+      summary: Faceted search
+      description: "This endpoint provides a default list of facets available in the\
+        \ index at a given point of time. Facets can be visualized as the categories.\
+        \ Endpoint response contains the facet names and different values for that\
+        \ facet with count of each value.  \nThe information about SAS type and author\
+        \ can be pre-fetched using  facets API before making the actual search query.\
+        \ Use-case of the endpoint is to formulate the advanced search like a user\
+        \ wants to search only in '2G Reports' created by 'Sam Andrew' having text\
+        \ 'Quaterly Sales'.\n"
+      parameters:
+      - name: facetFields
+        in: query
+        required: false
+        description: "Name of  the facet fields to be shown in reponse "
+        schema:
+          type: string
+      - name: sortBy
+        in: query
+        description: "An optional parameter to control the sort order of the output.The\
+          \ sort criteria supports the following fields in either ascending or descending\
+          \ order  \n**name**  \n**distinctValueCount**  \nThe format of the parameter\
+          \ is **sortBy=field:order** Defaulting sorting order is descending.\n"
+        required: false
+        schema:
+          type: string
+      - name: start
+        in: query
+        required: false
+        description: "The starting index of the first item in a page. The index is\
+          \ 0-based. Default is 0 "
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        required: false
+        description: "The maximum number of items to return in this page of results.\
+          \ The actual number of returned items may be less if the collection has\
+          \ been exhausted. The default is 100 "
+        schema:
+          type: integer
+          default: 100
+      - name: indexCaslib
+        in: query
+        required: false
+        description: Name of cas library where given indexTableName is saved. If indexCaslib
+          and indexTableName parameter is not provided ,then searching would be performed
+          on default index used for VA.
+        schema:
+          type: string
+      - name: indexTableName
+        in: query
+        required: false
+        description: Name of CAS Index where search needs to be performed.If indexCaslib
+          and indexTableName parameter is not provided ,then searching would be performed
+          on default index used for VA.
+        schema:
+          type: string
+      - name: facetsCount
+        in: query
+        required: false
+        description: This parameter will limit the number of facet values received
+          in response and will be applicable to all facetable fields in response.
+          Default is 100
+        schema:
+          type: integer
+          default: 100
+      - name: maxMinFields
+        in: query
+        required: false
+        description: Name of the comma separated numeric or date fields on which the
+          aggregation Max and Min are required.
+        schema:
+          type: string
+      - name: relaxed
+        in: query
+        required: false
+        description: An indicator, if 'true', would add wild card '*' meaningfully
+          to the words in the query. Defaulted to 'false'.
+        schema:
+          type: boolean
+          default: false
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              $ref: "#/components/schemas/filter"
+            examples:
+              json:
+                $ref: "#/components/examples/filter"
+        description: filter parameter contains query string and different search protocol
+          functions.
+        required: true
+      responses:
+        "200":
+          description: Success
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/facetsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/facetsCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/facetsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/facetsCollection"
+        "400":
+          description: "The request was not valid. There are multiple error scenario\
+            \ refer error code and message for more details."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/invalidQuery"
+        "404":
+          description: "Specified index do not exist."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /facets#getFacetsResultsWithComplexQuery:
+    post:
+      tags:
+      - SearchOnFacets
+      operationId: getFacetsResultsWithComplexQuery
+      summary: Faceted search with complex query
+      description: "This endpoint provides a default list of facets available in the\
+        \ index at a given point of time. Facets can be visualized as the categories.\
+        \ Endpoint response contains the facet names and different values for that\
+        \ facet with count of each value.  \nThe information about SAS type and author\
+        \ can be pre-fetched using  facets API before making the actual search query.\
+        \ Use-case of the endpoint is to formulate the advanced search like a user\
+        \ wants to search only in '2G Reports' created by 'Sam Andrew' having text\
+        \ 'Quaterly Sales'.\n"
+      parameters:
+      - name: start
+        in: query
+        required: false
+        description: "The starting index of the first item in a page. The index is\
+          \ 0-based. Default is 0 "
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        required: false
+        description: "The maximum number of items to return in this page of results.\
+          \ The actual number of returned items may be less if the collection has\
+          \ been exhausted. The default is 100 "
+        schema:
+          type: integer
+          default: 100
+      requestBody:
+        $ref: "#/components/requestBodies/searchRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/facetsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/facetsCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/facetsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/facetsCollection"
+        "400":
+          description: "The request was not valid. There are multiple error scenario\
+            \ refer error code and message for more details."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/invalidQuery"
+        "404":
+          description: "Specified index do not exist."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /facets/{field}#getFacetFieldResultsWithPlainTextQuery:
+    post:
+      tags:
+      - SearchOnFacet
+      operationId: getFacetFieldResultsWithPlainTextQuery
+      summary: Type-Specific faceted search
+      description: "Search Facets Service provides a particular facet available in\
+        \ the index at a given point of time. It must be noted that the response contains\
+        \ requested facet for eligible type that have been indexed.  \nThis API can\
+        \ be used in case of 'Advanced Search' scenario. End user will use this API\
+        \ when they want to see facet information for single field like sasAuthor\
+        \ instead of getting facets for whole index.\n"
+      parameters:
+      - name: field
+        in: path
+        description: 'Name of the facetable field.In case if the facet field has special
+          character ,then field parameter should be provided with default value as
+          "@facetName" and the facet field should be populate in query paramter "facetName".
+
+          If in a schema there is a field with name as "@facetName" in this case if
+          facetName is provided as query parameter,then calculation of facet will
+          be done on the value provided in facetName. Sample uri would look like "/search/facets/@facetName?facetName=location''id.'
+        required: true
+        schema:
+          type: string
+      - name: facetName
+        in: query
+        description: 'Name of the facetable field.This was added since there can be
+          special characters in a facet field like "/" or "?" or any reserved URI
+          character. If field with special character is used as path parameter it
+          would break the URL.
+
+          Hence this parameter was introduced to overcome this limitation.For example
+          the facetName can be "/.*product''^id" , "/%#;location;<>{}()[] id" ,"/open#@date"
+          ,"\?closing#date","location''name" ,"Prod Name Spcl Char''1". These names
+          should be url encoded.
+
+          '
+        required: false
+        schema:
+          type: string
+      - name: sortBy
+        in: query
+        description: "An optional parameter to control the sort order of the output.The\
+          \ sort criteria supports the following fields in either ascending or descending\
+          \ order  \n**value**  \n**count**  \nThe format of the parameter is **sortBy=field:order**\
+          \ Defaulting sorting order is descending. If field and order is not provided\
+          \ then default sorting will be performed on **count:descending**\n"
+        required: false
+        schema:
+          type: string
+      - name: start
+        in: query
+        required: false
+        description: "The starting index of the first item in a page. The index is\
+          \ 0-based. Default is 0 "
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        required: false
+        description: "The maximum number of items to return in this page of results.\
+          \ The actual number of returned items may be less if the collection has\
+          \ been exhausted. The default is 100 "
+        schema:
+          type: integer
+          default: 100
+      - name: indexCaslib
+        in: query
+        required: false
+        description: Name of cas library where given indexTableName is saved. If indexCaslib
+          and indexTableName parameter is not provided ,then searching would be performed
+          on default index used for VA.
+        schema:
+          type: string
+      - name: indexTableName
+        in: query
+        required: false
+        description: Name of CAS Index where search needs to be performed.If indexCaslib
+          and indexTableName parameter is not provided ,then searching would be performed
+          on default index used for VA.
+        schema:
+          type: string
+      - name: facetsCount
+        in: query
+        required: false
+        description: This parameter will limit the number of facet values received
+          in response. Default is 100
+        schema:
+          type: integer
+          default: 100
+      - name: relaxed
+        in: query
+        required: false
+        description: An indicator, if 'true', would add wild card '*' meaningfully
+          to the words in the query. Defaulted to 'false'.
+        schema:
+          type: boolean
+          default: false
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              $ref: "#/components/schemas/filter"
+            examples:
+              json:
+                $ref: "#/components/examples/filter"
+        description: "filter parameter contains query string and different search\
+          \ protocol functions."
+        required: true
+      responses:
+        "200":
+          description: Success
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/facetsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/facetsCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/facetsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/facetsCollection"
+        "400":
+          description: "The request was not valid. There are multiple error scenario\
+            \ refer error code and message for more details."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/invalidQuery"
+        "404":
+          description: "Specified index do not exist."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /facets/@facetName#getFacetFieldResultsWithComplexQuery:
+    post:
+      tags:
+      - SearchOnFacet
+      operationId: getFacetFieldResultsWithComplexQuery
+      summary: Type-Specific faceted search with complex query
+      description: "Search Facets Service provides a particular facet available in\
+        \ the index at a given point of time. It must be noted that the response contains\
+        \ requested facet for eligible type that have been indexed.  \nThis API can\
+        \ be used in case of 'Advanced Search' scenario. End user will use this API\
+        \ when they want to see facet information for single field like sasAuthor\
+        \ instead of getting facets for whole index.\n"
+      parameters:
+      - name: start
+        in: query
+        required: false
+        description: "The starting index of the first item in a page. The index is\
+          \ 0-based. Default is 0 "
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        required: false
+        description: "The maximum number of items to return in this page of results.\
+          \ The actual number of returned items may be less if the collection has\
+          \ been exhausted. The default is 100 "
+        schema:
+          type: integer
+          default: 100
+      requestBody:
+        $ref: "#/components/requestBodies/searchRequest"
+      responses:
+        "200":
+          description: Success
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/facetsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/facetsCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/facetsCollection"
+              examples:
+                json:
+                  $ref: "#/components/examples/facetsCollection"
+        "400":
+          description: "The request was not valid. There are multiple error scenario\
+            \ refer error code and message for more details."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/invalidQuery"
+        "404":
+          description: "Specified index do not exist."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFoundError"
+  /authorize/{correlationId}:
+    post:
+      tags:
+      - AuthorizeSearch
+      operationId: getAuthorizedSearchResults
+      summary: Get a authorized list of objects
+      description: "The Search Service is responsible for returning only those matching\
+        \ SAS Objects for the query string for which the end user has at least READ\
+        \ permission. The main purpose to introduce this endpoint in our service is\
+        \ to use domain specific cache that we build. The cache for authorized records\
+        \ are maintained per user with some context of query expression. The query\
+        \ expression is used to determine if the request for authorization could be\
+        \ processed from the cache or the request must be forwarded to the actual\
+        \ authorization service.\nWe use our domain specific local cache to return\
+        \ results for some scenario as it turns out to be over 10-50 times faster\
+        \ than the authorization service call. If the data does not exist in cache,\
+        \ the request is sent to Authorization Service to get the records authorized\
+        \ for READ access. The response from the service is cached for next calls.\
+        \ This cache is purged in a timely fashion to ensure that no stale content\
+        \ is served.\nCAS-Search will send the search result in the POST body of this\
+        \ API and authorization end point of search service will decide whether search\
+        \ result need to go for authorization against Authorization service or to\
+        \ return the search results from cache.\ncorrelationId is a random string\
+        \ used as key to cache authorization context of the original logged in user\
+        \ who initiated search request and query expression. If the authorization\
+        \ is to be performed against the Authorization Service, then the original\
+        \ user's **Authorization Context** that is cached is passed in the request.\
+        \ It must be observed that this REST API was invoked by search client user\
+        \ sas.search on behalf of the actual client, hence cannot be used. Hence need\
+        \ of the cached authorization context in the flow.\nA brief description of\
+        \ the search use case, and(matchAny(\"sample\"))\n1.The client issues HTTP\
+        \ POST search request /search/content with payload\n2.Search service generates\
+        \ random correlationId, stores Authorization Context of the logged-in user\
+        \ and query string in the distributed Geode locator cache. We will use this\
+        \ cached Authorization Context for actual authorization against Authorization\
+        \ Service. Search Service passes this **correlationId** to CAS Search in request\
+        \ so that CAS Search could use it in call back.\n3.It MUST be noted that search\
+        \ service uses it's service client (sas.search) to invoke CAS API for search\
+        \ as not all users might have access to CAS. Using service client ensures\
+        \ that for each search request we can access CAS.\n4.CAS Search does its search,\
+        \ finds multiple candidates for the query string, and issues HTTP POST /search/authorize/{correlationId}\
+        \ (Search Service's REST API for Authorization of records) with payload having\
+        \ a list of URI for matching records.\n5.Search service will pulls our user\
+        \ & query string from the cache based on the **correlationId** and decide\
+        \ whether search results need to go for authorization to Authorization service\
+        \ or to return the search results from cache.\n6.Finally this API returns\
+        \ only those records which have been authorized for the originally logged-in\
+        \ user to CAS.\n7.CAS Search now calculates facets or the residual records\
+        \ & returns the response to search service.\nNote--By the **callback** nature\
+        \ of this endpoint, we do not expect any other client to call this method."
+      parameters:
+      - name: correlationId
+        in: path
+        required: true
+        description: " It is the key of the cache and the corresponding value of the\
+          \ correlationId is the Authorization context of the logged in user and query\
+          \ string"
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.search.authorize+json:
+            schema:
+              $ref: "#/components/schemas/authorizationBody"
+            examples:
+              json:
+                $ref: "#/components/examples/authorizationBody"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/authorizationBody"
+            examples:
+              json:
+                $ref: "#/components/examples/authorizationBody"
+        required: true
+      responses:
+        "200":
+          description: Success
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.search.authorize+json:
+              schema:
+                $ref: "#/components/schemas/authorizationResponse"
+              examples:
+                json:
+                  $ref: "#/components/examples/authorizationResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authorizationResponse"
+              examples:
+                json:
+                  $ref: "#/components/examples/authorizationResponse"
+        "400":
+          description: " Bad Request."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/invalidQuery"
+servers:
+- url: http://example.com/search
+  description: This is an example server.
+components:
+  requestBodies:
+    searchRequest:
+      content:
+        application/vnd.sas.search.request+json:
+          schema:
+            $ref: "#/components/schemas/searchRequest"
+          examples:
+            json:
+              $ref: "#/components/examples/searchRequest"
+      description: facet request object contains search query parameter and other
+        supporting parameters
+      required: true
+  schemas:
+    searchCollection:
+      title: search result
+      description: A collection of Search results
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/resultsRecords"
+            description: search results fields.
+          limited:
+            type: boolean
+            description: The flag indicating if the authorized obejcts for the query
+              is larger than the pre-defined limit (defaulted to 20,000)
+          facets:
+            type: array
+            description: list of facets available for the query
+            items:
+              $ref: "#/components/schemas/facetsRepresentation"
+    resultsRecords:
+      type: object
+      description: Search result holding searched records
+      properties:
+        title:
+          type: string
+          description: title/name of the actual object
+        description:
+          type: string
+          description: description of the object
+        resourceUri:
+          type: string
+          description: unique object identifier for the object
+        sasType:
+          type: string
+          description: Content type name of the object
+        creationTimeStamp:
+          type: string
+          description: Creation date of the object in the yyyy-mm-ddThh:mm:ss.SSSZ
+            format
+        modifiedTimeStamp:
+          type: string
+          description: Last modified date of the object in the yyyy-mm-ddThh:mm:ss.SSSZ
+            format
+        createdBy:
+          type: string
+          description: User name of the user who created the object
+        modifiedBy:
+          type: string
+          description: User name of the user who modified the object most recently
+        createdByLabel:
+          type: string
+          description: Display name of the user who created the object
+        modifiedByLabel:
+          type: string
+          description: Display name of the user who modified the object most recently
+        keywords:
+          type: string
+          description: Keywords, if any associated with the object
+        matchingText:
+          type: string
+          description: Snippet of the text that matched the string value string of
+            the function matchAny(...) prefixed function in the query string. The
+            matching text would be surrounded by  startTag &  endTag
+        matchingFields:
+          type: string
+          description: It is 'semi-colon' delimited list of fields in which the matching
+            text were found
+        customFields:
+          type: array
+          description: key/value pair name-value
+          items:
+            $ref: "#/components/schemas/keyValuePair"
+    keyValuePair:
+      type: object
+      description: Object holding name and it's value of searchable field apart from
+        standard search record field.
+      properties:
+        name:
+          type: string
+          description: " name of custom field"
+        value:
+          type: string
+          description: " value of custom field"
+    facetsRepresentation:
+      type: object
+      description: Facet Representation Object.
+      properties:
+        version:
+          type: integer
+          description: version number
+        name:
+          type: string
+          description: Name of the facet field
+        totalAvailableCount:
+          type: integer
+          description: " This count is the sum of count of all facets values shown\
+            \ under results."
+        distinctValueCount:
+          type: integer
+          description: Distinct count of values from facetable field.
+        missingValueCount:
+          type: integer
+          description: Number of missing values from facetable field.
+        results:
+          type: array
+          description: array of results
+          items:
+            $ref: "#/components/schemas/facet"
+        maximumValue:
+          type: string
+          description: Max field count of a given facet field.
+        minimumValue:
+          type: string
+          description: Minimum field count of a given facet field.
+    facet:
+      type: object
+      description: Object holding facet name and it's count.
+      properties:
+        value:
+          type: string
+          description: Value of facet field.
+        count:
+          type: integer
+          description: Number of facet.
+    query:
+      type: string
+      default: and(matchAny("sample"),in(sasType, "folder", "file"),in(sasAuthor,
+        "sas.SASDataExplorer", "sas.studio"))
+      description: This string defines content to be searched in combination with
+        the filters and aggregations to be applied.
+    filter:
+      type: string
+      default: and(matchAny("sample"),in(sasType, "folder", "file"),in(sasAuthor,
+        "sas.SASDataExplorer", "sas.studio"))
+      description: This string defines content to be searched in combination with
+        the filters and aggregations to be applied.
+    facetsCollection:
+      title: facets
+      description: A collection of facets
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/facetsRepresentation"
+            description: facets results
+    authorizationResponse:
+      type: object
+      description: Response Object holding object URI's that are authorizied.
+      properties:
+        version:
+          type: integer
+          description: version number
+        links:
+          type: array
+          description: " a list of com.sas.commons.rest.Link objects as per Link representation. "
+          items:
+            $ref: "#/components/schemas/link"
+        objectUriList:
+          type: array
+          description: list of object URI
+          items: {}
+    authorizationBody:
+      type: object
+      description: Request Object holding object URI's that needs to be send for authorization
+      properties:
+        version:
+          type: integer
+          description: version number
+        objectUriList:
+          type: array
+          description: list of object URI
+          items: {}
+    searchRequest:
+      description: A search request object.
+      type: object
+      properties:
+        version:
+          type: integer
+          description: version number
+        query:
+          type: string
+          description: Query string and different search protocol functions.
+        fields:
+          type: array
+          description: Indicates that while searching, facet information is required
+            in the response or not. The default value will be "true"
+          items: {}
+        facetFields:
+          type: array
+          description: If a client wants to receive facets on facetable fields other
+            than default, they need to provide the field names explicitly separated
+            by a comma.
+          items: {}
+        faceted:
+          type: boolean
+          description: Indicates that while searching, facet information is required
+            in the response or not
+          default: true
+        sortBy:
+          type: array
+          description: This parameter will be used for sorting specified field in
+            ascending or descending order
+          items:
+            $ref: "#/components/schemas/keyValuePair"
+        indexCaslib:
+          type: string
+          description: Max field count of a given facet field.
+        indexTableName:
+          type: string
+          description: Minimum field count of a given facet field.
+        facetsCount:
+          type: integer
+          description: This parameter will limit the number of facet values received
+            in response and will be applicable to all facetable fields in response
+          default: 100
+        maxMinFields:
+          type: array
+          description: Name of numeric or date fields on which the aggregation Max
+            and Min are required.
+          items: {}
+        relaxed:
+          type: boolean
+          description: An indicator, if 'true', would add wild card '*' meaningfully
+            to the words in the query. Defaulted to 'false'
+        facetName:
+          type: string
+          description: name of facetable field.
+        filteredAggregation:
+          type: boolean
+          description: "\"Generally, aggregation runs on results of search query but\
+            \ this feature provides additional capability to the client to have one\
+            \ more layer of filtering before \nfinal aggregation takes place on search\
+            \ result. This additional filtering is based on the Query clauses supported\
+            \ by Search-service. These clauses are converted to filter\nstring which\
+            \ are compatible to standard 'WHERE' clause of SAS and which can directly\
+            \ fed to the CAS.\"\n"
+          default: false
+    error2:
+      description: Standard media type for error response.
+      properties:
+        details:
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+          type: array
+        errorCode:
+          description: The numeric ID for the error.
+          type: integer
+        errors:
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+          type: array
+        httpStatusCode:
+          description: The HTTP status code for the error.
+          type: integer
+        id:
+          description: The string ID for the error.
+          type: string
+        links:
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+          type: array
+        message:
+          description: The message for the error.
+          type: string
+        remediation:
+          description: A message that describes how to resolve the error.
+          type: string
+        version:
+          description: The version number of the error representation. This representation
+            is version 2.
+          type: integer
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    baseCollection2:
+      description: Collection representation.
+      properties:
+        accept:
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+          type: string
+        count:
+          description: If populated indicates the number of items in the collection.
+          format: int64
+          type: integer
+        limit:
+          description: The number of items that were requested for the collection.
+          type: integer
+        links:
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+          type: array
+        name:
+          description: The name of the collection.
+          type: string
+        start:
+          description: The zero-based index of the first item in the collection.
+          format: int64
+          type: integer
+        version:
+          description: The version number of the collection representation. This representation
+            is version 2.
+          type: integer
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+  examples:
+    searchroot:
+      summary: Search service endpoints
+      description: List of endpoints for search service.
+      value: {"version": 1, "links": [{"method": "HEAD", "rel": "searchAvailability",
+            "href": "/search", "uri": "/search", "type": "application/vnd.sas.api"},
+          {"method": "GET", "rel": "search", "href": "/search/content?query={query}",
+            "uri": "/search/content?query={query}", "type": "application/vnd.sas.search.response"},
+          {"method": "POST", "rel": "content", "href": "/search/content", "uri": "/search/content",
+            "type": "application/vnd.sas.search.response"}, {"method": "POST", "rel": "facets",
+            "href": "/search/facets", "uri": "/search/facets", "type": "application/vnd.sas.collection"},
+          {"method": "POST", "rel": "typeSpecificFacet", "href": "/search/facets/{field}",
+            "uri": "/search/facets/{field}", "type": "application/vnd.sas.collection"},
+          {"method": "POST", "rel": "authorization", "href": "/search/authorize/{correlationId}",
+            "uri": "/search/authorize/{correlationId}", "type": "application/vnd.sas.search.authorize"},
+          {"method": "POST", "rel": "searchWithRequestObject", "href": "/search/content",
+            "uri": "/search/content", "type": "application/vnd.sas.search.request",
+            "responseType": "application/vnd.sas.search.response"}, {"method": "POST",
+            "rel": "facetsWithRequestObject", "href": "/search/facets", "uri": "/search/facets",
+            "type": "application/vnd.sas.search.request", "responseType": "application/vnd.sas.collection"},
+          {"method": "POST", "rel": "typeSpecificFacetWithRequestObject", "href": "/search/facets/@facetName",
+            "uri": "/search/facets/@facetName", "type": "application/vnd.sas.search.request",
+            "responseType": "application/vnd.sas.collection"}]}
+    notFoundError:
+      summary: Not Found
+      value:
+        version: 2,
+        httpStatusCode: 404,
+        errorCode: 10019,
+        message: "Not Found"
+      description: example of an error that might be returned on a 404 response
+    getContent:
+      summary: Search content response example
+      description: Search content response example
+      value: {"accept": "application/vnd.sas.search.response", "count": 88, "start": 0,
+        "limit": 2, "items": [{"creationTimeStamp": "2022-04-12T10:53:03Z", "createdBy": "stpweb1",
+            "modifiedTimeStamp": "2022-04-12T10:53:03Z", "modifiedBy": "stpweb1",
+            "createdByLabel": "[FBI] STPWEB1 ID", "modifiedByLabel": "[FBI] STPWEB1\
+              \ ID", "title": "Manage Environment", "resourceUri": "/files/files/040e5689-f292-45c9-b18b-6304a06b9504",
+            "sasType": "file"}, {"creationTimeStamp": "2022-04-12T10:53:03Z", "createdBy": "stpweb1",
+            "modifiedTimeStamp": "2022-04-12T10:53:03Z", "modifiedBy": "stpweb1",
+            "createdByLabel": "[FBI] STPWEB1 ID", "modifiedByLabel": "[FBI] STPWEB1\
+              \ ID", "title": "Explore and Visualize", "resourceUri": "/files/files/144ff2e5-cdd0-4cf0-af8f-bba075dcb574",
+            "sasType": "file"}], "limited": false, "facets": [{"name": "sasType",
+            "totalAvailableCount": 88, "distinctValueCount": 4, "results": [{"count": 52,
+                "value": "jobDefinition"}, {"count": 21, "value": "folder"}, {"count": 12,
+                "value": "file"}, {"count": 3, "value": "report"}]}, {"name": "sasAuthor",
+            "totalAvailableCount": 88, "distinctValueCount": 14, "results": [{"count": 46,
+                "value": "sas.SASDataExplorer"}, {"count": 15, "value": "stpweb1"},
+              {"count": 4, "value": "sas.naturalLanguageConversations"}, {"count": 3,
+                "value": "anonymous"}, {"count": 3, "value": "sas.casControl"}, {
+                "count": 3, "value": "sas.reportImages"}, {"count": 3, "value": "sas.SASVisualAnalytics"},
+              {"count": 3, "value": "sas.themes"}, {"count": 2, "value": "sas.dataFlows"},
+              {"count": 2, "value": "sas.SASStudio"}, {"count": 1, "value": "sas.admin-content-loader"},
+              {"count": 1, "value": "sas.audit"}, {"count": 1, "value": "sas.import-data-loader"},
+              {"count": 1, "value": "sas.reportDistribution"}]}, {"name": "sasAuthorLabel",
+            "totalAvailableCount": 88, "distinctValueCount": 14, "results": [{"count": 46,
+                "value": "sas.SASDataExplorer"}, {"count": 15, "value": "[FBI] STPWEB1\
+                  \ ID"}, {"count": 4, "value": "sas.naturalLanguageConversations"},
+              {"count": 3, "value": "anonymous"}, {"count": 3, "value": "sas.casControl"},
+              {"count": 3, "value": "sas.reportImages"}, {"count": 3, "value": "sas.SASVisualAnalytics"},
+              {"count": 3, "value": "sas.themes"}, {"count": 2, "value": "sas.dataFlows"},
+              {"count": 2, "value": "sas.SASStudio"}, {"count": 1, "value": "sas.admin-content-loader"},
+              {"count": 1, "value": "sas.audit"}, {"count": 1, "value": "sas.import-data-loader"},
+              {"count": 1, "value": "sas.reportDistribution"}]}, {"name": "typeDefName",
+            "totalAvailableCount": 88, "distinctValueCount": 4, "missingValueCount": 80,
+            "results": [{"count": 80, "value": "null"}, {"count": 4, "value": "file"},
+              {"count": 2, "value": "file_csv"}, {"count": 2, "value": "file_pdf"}]},
+          {"name": "modifiedTimeStamp", "totalAvailableCount": 88, "distinctValueCount": 47,
+            "maximumValue": "2022-04-12T10:53:44Z", "minimumValue": "2018-06-21T19:06:43Z"}],
+        "links": [{"method": "GET", "rel": "next", "href": '/search/content?start=2&limit=2&query=and(matchAny("*"))',
+            "uri": '/search/content?start=2&limit=2&query=and(matchAny("*"))', "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.search.response"}]}
+    invalidQuery:
+      summary: Bad Request
+      description: "this is an example of an error that could be returned for bad\
+        \ requests"
+      value: {"httpStatusCode": 400, "errorCode": 10002, "message": "An error occurred;\
+          \ the query string cannot be empty.", "details": ["path: /search/content/",
+          "correlator: 5b3f250b-450e-4535-bf30-b18f45323e9b"]}
+    query:
+      summary: string
+      value: and(matchAny("sample"),in(sasType, "folder", "file"),in(sasAuthor, "sas.SASDataExplorer",
+        "sas.studio"))
+      description: This string defines content to be searched in combination with
+        the filters and aggregations to be applied.
+    searchRequest:
+      summary: A search request object.
+      description: A search request object.
+      value: {"version": 1, "query": 'and(matchAny("*"))', "indexCaslib": "PUBLIC",
+        "indexTableName": "TEST_INDEX", "facetFields": ["CITY", "\\STATE"], "filteredAggregation": true,
+        "facetsCount": 50}
+    facetsCollection:
+      summary: A collection of facets.
+      description: An example of collection of facets.
+      value: {"accept": "application/vnd.sas.collection", "count": 5, "start": 0,
+        "limit": 10, "items": [{"name": "sasType", "totalAvailableCount": 83, "distinctValueCount": 3,
+            "results": [{"count": 52, "value": "jobDefinition"}, {"count": 25, "value": "folder"},
+              {"count": 6, "value": "report"}]}, {"name": "sasAuthor", "totalAvailableCount": 83,
+            "distinctValueCount": 16, "results": [{"count": 46, "value": "sas.SASDataExplorer"},
+              {"count": 6, "value": "stpweb1"}, {"count": 4, "value": "sas.naturalLanguageConversations"},
+              {"count": 3, "value": "anonymous"}, {"count": 3, "value": "sas.casControl"},
+              {"count": 3, "value": "sas.modelRepository"}, {"count": 3, "value": "sas.reports"},
+              {"count": 3, "value": "sas.SASVisualAnalytics"}, {"count": 3, "value": "sas.themes"},
+              {"count": 2, "value": "sas.dataFlows"}, {"count": 2, "value": "sas.SASStudio"},
+              {"count": 1, "value": "sas.admin-content-loader"}, {"count": 1, "value": "sas.audit"},
+              {"count": 1, "value": "sas.reportDistribution"}, {"count": 1, "value": "sas.studio"},
+              {"count": 1, "value": "sas.SASDataExplorer"}]}, {"name": "typeDefName",
+            "totalAvailableCount": 83, "distinctValueCount": 1, "missingValueCount": 83,
+            "results": [{"count": 83, "value": "null"}]}]}
+    authorizationBody:
+      description: Request Object holding object URI's that needs to be send for authorization
+      summary: Sample 'application/vnd.sas.search.authorize+json' request body.
+      value: {"version": 1, "objectUriList": ["/reports/report/0", "/reports/report/1",
+          "/reports/report/2", "/reports/report/3", "/reports/report/4"]}
+    authorizationResponse:
+      description: Response containing only those matching SAS Objects for the query
+        string for which the end user has at least READ permission.
+      summary: Sample 'application/vnd.sas.search.authorize+json' response body.
+      value: {"version": 1, "links": [{"method": "POST", "rel": "self", "href": "/search/authorize/29bdc795-6ff8-446e-8244-c4f3c00a3a76",
+            "uri": "/search/authorize/29bdc795-6ff8-446e-8244-c4f3c00a3a76", "type": "application/vnd.sas.search.authorize+json"}],
+        "objectUriList": ["/reports/report/0", "/reports/report/2", "/reports/report/4"]}
+    filter:
+      summary: string
+      value: and(matchAny("*"), in(sasType, "folder"))
+      description: This request body parameter defines the string to be searched in
+        combination with the filters and aggregations to be applied. The text values
+        provided to the functions need to be enclosed in the double-quotes to demarcate
+        the boundaries of the values.

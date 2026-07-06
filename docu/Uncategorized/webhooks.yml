@@ -1,0 +1,1513 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: Webhooks
+  description: The Webhooks API is used for creating and maintaining webhooks.
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+  termsOfService: https://www.sas.com/en_us/legal/copyright.html
+  license:
+    name: SAS Institute
+    url: https://support.sas.com/techsup/license/index.html
+servers:
+- url: https://example.com/webhooks
+  description: Example of base URL
+externalDocs:
+  description: Developer documentation
+  url: https://developer.sas.com
+tags:
+- name: Root
+  description: Contains the operations for the root resource.
+- name: Crud
+  description: Contains operations to create, read, update, and delete webhooks.
+- name: Callbacks
+  description: Contains operations related to webhook callbacks.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the links for the API
+      description: Returns the links to the top-level resources for the API.
+      operationId: root
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                root:
+                  $ref: "#/components/examples/root"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                root:
+                  $ref: "#/components/examples/root"
+  /callbackContentTypes:
+    get:
+      tags:
+      - Callbacks
+      summary: Get a collection of the webhook callback content types
+      description: Returns a list of the webhook callback content types.
+      operationId: getWebhookCallbackContentTypes
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/webhookCallbackContentTypeCollection"
+              examples:
+                all:
+                  $ref: "#/components/examples/webhookCallbackContentTypes"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/webhookCallbackContentTypeCollection"
+              examples:
+                all:
+                  $ref: "#/components/examples/webhookCallbackContentTypes"
+  /webhooks:
+    get:
+      tags:
+      - Crud
+      summary: Get a collection of the webhooks
+      description: Returns a list of the webhooks based on the specified pagination,
+        filtering, and sorting options. The items in the list depend on the `Accept-Item`
+        header.
+      operationId: getWebhooks
+      parameters:
+      - name: Accept-Item
+        description: Used for selecting the desired item representation.
+        in: header
+        schema:
+          type: string
+          format: media-type
+          enum:
+          - application/vnd.sas.webhook+json
+          - application/vnd.sas.summary+json
+          default: application/vnd.sas.summary+json
+        example: application/vnd.sas.webhook+json
+      - name: start
+        description: Returns the index of the first webhook.
+        in: query
+        schema:
+          type: integer
+          format: int64
+          default: 0
+        example: 100
+      - name: limit
+        description: Returns the maximum number of webhooks.
+        in: query
+        schema:
+          type: integer
+          format: int32
+          default: 20
+        example: 500
+      - name: filter
+        in: query
+        description: The criteria used for filtering the webhooks. See [Filtering
+          in REST APIs](https://developer.sas.com/rest-apis/webhooks-v1/docs/getting-started/usage-notes#filtering).
+        schema:
+          type: string
+          format: filter-criteria
+        example: contains(name, 'validate')
+      - name: sortBy
+        in: query
+        description: The criteria used for sorting the webhooks. See [Sorting in REST
+          APIs](https://developer.sas.com/rest-apis/webhooks-v1/docs/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+        example: name:descending
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: "#/components/schemas/webhookCollection"
+                - $ref: "#/components/schemas/resourceSummaryCollection"
+              examples:
+                summary:
+                  $ref: "#/components/examples/webhooksSummary"
+                full:
+                  $ref: "#/components/examples/webhooksFull"
+            application/vnd.sas.collection+json:
+              schema:
+                anyOf:
+                - $ref: "#/components/schemas/webhookCollection"
+                - $ref: "#/components/schemas/resourceSummaryCollection"
+              examples:
+                summary:
+                  $ref: "#/components/examples/webhooksSummary"
+                full:
+                  $ref: "#/components/examples/webhooksFull"
+        "400":
+          description: The request was invalid.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidStart:
+                  $ref: "#/components/examples/webhooksInvalidStart"
+                invalidLimit:
+                  $ref: "#/components/examples/webhooksInvalidLimit"
+                invalidSortBy:
+                  $ref: "#/components/examples/webhooksInvalidSortBy"
+                invalidFilter:
+                  $ref: "#/components/examples/webhooksInvalidFilter"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidStart:
+                  $ref: "#/components/examples/webhooksInvalidStart"
+                invalidLimit:
+                  $ref: "#/components/examples/webhooksInvalidLimit"
+                invalidSortBy:
+                  $ref: "#/components/examples/webhooksInvalidSortBy"
+                invalidFilter:
+                  $ref: "#/components/examples/webhooksInvalidFilter"
+    post:
+      tags:
+      - Crud
+      summary: Create a new webhook
+      description: Creates a new webhook based on the representation in the request
+        body.
+      operationId: createWebhook
+      requestBody:
+        content:
+          application/vnd.sas.webhook+json:
+            schema:
+              $ref: "#/components/schemas/webhook"
+            examples:
+              validate:
+                $ref: "#/components/examples/webhookCreateValidate"
+              publish:
+                $ref: "#/components/examples/webhookCreatePublish"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/webhook"
+            examples:
+              validate:
+                $ref: "#/components/examples/webhookCreateValidate"
+              publish:
+                $ref: "#/components/examples/webhookCreatePublish"
+      responses:
+        "201":
+          description: A webhook was created.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+            Location:
+              description: The URL of the webhook.
+              schema:
+                type: string
+              example: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            ETag:
+              description: The entity tag for the webhook.
+              schema:
+                type: string
+              example: '"kknyjgku"'
+            Last-Modified:
+              description: The timestamp when the webhook was last modified. The timestamp
+                is in the format `EEE, dd MMM yyyy HH:mm:ss GMT`.
+              schema:
+                type: string
+              example: Tue, 02 Feb 2021 12:07:45 GMT
+          content:
+            application/vnd.sas.webhook+json:
+              schema:
+                $ref: "#/components/schemas/webhook"
+              examples:
+                validate:
+                  $ref: "#/components/examples/webhookFullValidate"
+                publish:
+                  $ref: "#/components/examples/webhookFullPublish"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/webhook"
+              examples:
+                validate:
+                  $ref: "#/components/examples/webhookFullValidate"
+                publish:
+                  $ref: "#/components/examples/webhookFullPublish"
+        "400":
+          description: The request was invalid.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidBody:
+                  $ref: "#/components/examples/webhookInvalid"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidBody:
+                  $ref: "#/components/examples/webhookInvalid"
+  /webhooks/{webhookId}:
+    get:
+      tags:
+      - Crud
+      summary: Get a webhook
+      description: Returns the representation of the specified webhook.
+      operationId: getWebhook
+      parameters:
+      - name: webhookId
+        description: The unique identifier for the webhook.
+        in: path
+        required: true
+        schema:
+          type: string
+        example: 3b4998e5-bac3-4a60-af24-61f63912fbf0
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+            ETag:
+              description: The entity tag for the webhook.
+              schema:
+                type: string
+              example: '"kknyjgku"'
+            Last-Modified:
+              description: The timestamp when the webhook was last modified. The timestamp
+                is in the format `EEE, dd MMM yyyy HH:mm:ss GMT`.
+              schema:
+                type: string
+              example: Tue, 02 Feb 2021 12:07:45 GMT
+          content:
+            application/vnd.sas.webhook+json:
+              schema:
+                $ref: "#/components/schemas/webhook"
+              examples:
+                validate:
+                  $ref: "#/components/examples/webhookFullValidate"
+                publish:
+                  $ref: "#/components/examples/webhookFullPublish"
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/summary"
+              examples:
+                validate:
+                  $ref: "#/components/examples/webhookSummaryValidate"
+                publish:
+                  $ref: "#/components/examples/webhookSummaryPublish"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/webhook"
+              examples:
+                validate:
+                  $ref: "#/components/examples/webhookFullValidate"
+                publish:
+                  $ref: "#/components/examples/webhookFullPublish"
+        "404":
+          description: No webhook exists at the requested path.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                notFound:
+                  $ref: "#/components/examples/webhookNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                notFound:
+                  $ref: "#/components/examples/webhookNotFound"
+    put:
+      tags:
+      - Crud
+      summary: Update a webhook
+      description: Updates the specified webhook based on the representation in the
+        request body.
+      operationId: updateWebhook
+      parameters:
+      - name: webhookId
+        description: The unique identifier for the webhook.
+        in: path
+        required: true
+        schema:
+          type: string
+        example: 3b4998e5-bac3-4a60-af24-61f63912fbf0
+      - name: If-Match
+        description: The entity tag obtained from the most recent `ETag` response
+          header. Must match the current entity tag for the webhook.
+        in: header
+        required: true
+        schema:
+          type: string
+        example: '"kknyjgku"'
+      requestBody:
+        content:
+          application/vnd.sas.webhook+json:
+            schema:
+              $ref: "#/components/schemas/webhook"
+            examples:
+              validate:
+                $ref: "#/components/examples/webhookCreateValidate"
+              publish:
+                $ref: "#/components/examples/webhookCreatePublish"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/webhook"
+            examples:
+              validate:
+                $ref: "#/components/examples/webhookCreateValidate"
+              publish:
+                $ref: "#/components/examples/webhookCreatePublish"
+        description: The representation of a webhook.
+        required: true
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+            Etag:
+              description: The entity tag for the webhook.
+              schema:
+                type: string
+              example: '"kknyjgku"'
+            Last-Modified:
+              description: The timestamp when the webhook was last modified. The timestamp
+                is in the format `EEE, dd MMM yyyy HH:mm:ss GMT`.
+              schema:
+                type: string
+              example: Tue, 02 Feb 2021 12:07:45 GMT
+          content:
+            application/vnd.sas.webhook+json:
+              schema:
+                $ref: "#/components/schemas/webhook"
+              examples:
+                validate:
+                  $ref: "#/components/examples/webhookFullValidate"
+                publish:
+                  $ref: "#/components/examples/webhookFullPublish"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/webhook"
+              examples:
+                validate:
+                  $ref: "#/components/examples/webhookFullValidate"
+                publish:
+                  $ref: "#/components/examples/webhookFullPublish"
+        "400":
+          description: The request was invalid.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidBody:
+                  $ref: "#/components/examples/webhookInvalid"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                invalidBody:
+                  $ref: "#/components/examples/webhookInvalid"
+        "404":
+          description: No webhook exists at the requested path.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                notFound:
+                  $ref: "#/components/examples/webhookNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                notFound:
+                  $ref: "#/components/examples/webhookNotFound"
+        "412":
+          description: The `If-Match` request header did not match the resource's
+            entity tag.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                preConditionFailed:
+                  $ref: "#/components/examples/webhookPreConditionFailed"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                preConditionFailed:
+                  $ref: "#/components/examples/webhookPreConditionFailed"
+        "428":
+          description: The request headers did not include a `If-Match` precondition.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                preConditionRequired:
+                  $ref: "#/components/examples/webhookPreConditionRequired"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                preConditionRequired:
+                  $ref: "#/components/examples/webhookPreConditionRequired"
+    delete:
+      tags:
+      - Crud
+      summary: Delete a webhook
+      description: Deletes the specified webhook.
+      operationId: deleteWebhook
+      parameters:
+      - name: webhookId
+        description: The unique identifier for the webhook.
+        in: path
+        required: true
+        schema:
+          type: string
+        example: 3b4998e5-bac3-4a60-af24-61f63912fbf0
+      responses:
+        "204":
+          description: The webhook was deleted.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+        "404":
+          description: No webhook exists at the requested path.
+          headers:
+            Sas-Service-Response-Flag:
+              $ref: "#/components/headers/Sas-Service-Response-Flag"
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                notFound:
+                  $ref: "#/components/examples/webhookNotFound"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                notFound:
+                  $ref: "#/components/examples/webhookNotFound"
+components:
+  headers:
+    Sas-Service-Response-Flag:
+      description: Indicates whether the response is coming from a SAS service.
+      schema:
+        type: boolean
+      example: true
+  examples:
+    root:
+      description: Example for webhooks root content.
+      value:
+        links:
+        - method: GET
+          rel: webhooks
+          href: "/webhooks/webhooks"
+          uri: "/webhooks/webhooks"
+          type: application/vnd.sas.collection
+        - method: POST
+          rel: createWebhook
+          href: "/webhooks/webhooks"
+          uri: "/webhooks/webhooks"
+          type: application/vnd.sas.webhook
+          responseType: application/vnd.sas.webhook
+        - method: GET
+          rel: callbackContentTypes
+          href: "/webhooks/callbackContentTypes"
+          uri: "/webhooks/callbackContentTypes"
+          type: application/vnd.sas.collection
+        version: 1
+    webhookCallbackContentTypes:
+      description: Example for supported webhook callback content types.
+      value:
+        version: 2
+        accept: application/vnd.sas.webhook.callback.content.type
+        count: 2
+        start: 0
+        limit: 2
+        name: webhookCallbackContentTypes
+        links:
+        - method: GET
+          rel: collection
+          href: "/webhooks/callbackContentTypes"
+          uri: "/webhooks/callbackContentTypes"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: self
+          href: "/webhooks/callbackContentTypes"
+          uri: "/webhooks/callbackContentTypes"
+          type: application/vnd.sas.collection
+        items:
+        - version: 1
+          name: application/vnd.sas.webhook.callback.publish
+        - version: 1
+          name: application/vnd.sas.webhook.callback.validate
+    webhooksSummary:
+      description: Example for webhooks with summary details.
+      value:
+        name: webhooks
+        accept: application/vnd.sas.summary
+        start: 0
+        limit: 20
+        items:
+        - id: 3b4998e5-bac3-4a60-af24-61f63912fbf0
+          name: When a resource is validated in a Public folder
+          createdBy: edmdev
+          creationTimeStamp: "2021-02-01T14:10:19.079859Z"
+          modifiedBy: edmdev
+          modifiedTimeStamp: "2021-02-01T14:10:19.079859Z"
+          type: webhook
+          links:
+          - method: GET
+            rel: up
+            href: /webhooks/webhooks
+            uri: /webhooks/webhooks
+            type: application/vnd.sas.collection
+          - method: GET
+            rel: self
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            type: application/vnd.sas.webhook
+          - method: GET
+            rel: alternate
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            type: application/vnd.sas.summary
+          - method: DELETE
+            rel: delete
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          - method: PUT
+            rel: update
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            type: application/vnd.sas.webhook
+            responseType: application/vnd.sas.webhook
+          version: 1
+        - id: 1f34f6c9-af9b-46b7-a492-8b9df8a55f30
+          name: When a resource from Public folder is published
+          createdBy: edmdev
+          creationTimeStamp: "2021-02-01T14:10:19.079859Z"
+          modifiedBy: edmdev
+          modifiedTimeStamp: "2021-02-01T14:10:19.079859Z"
+          type: webhook
+          links:
+          - method: GET
+            rel: up
+            href: /webhooks/webhooks
+            uri: /webhooks/webhooks
+            type: application/vnd.sas.collection
+          - method: GET
+            rel: self
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            type: application/vnd.sas.webhook
+          - method: GET
+            rel: alternate
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            type: application/vnd.sas.summary
+          - method: DELETE
+            rel: delete
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          - method: PUT
+            rel: update
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            type: application/vnd.sas.webhook
+            responseType: application/vnd.sas.webhook
+          version: 1
+        links:
+        - method: GET
+          rel: collection
+          href: /webhooks/webhooks
+          uri: /webhooks/webhooks
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: self
+          href: /webhooks/webhooks?start=0&limit=20
+          uri: /webhooks/webhooks?start=0&limit=20
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: next
+          href: /webhooks/webhooks?start=20&limit=20
+          uri: /webhooks/webhooks?start=20&limit=20
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: create
+          href: /webhooks/webhooks
+          uri: /webhooks/webhooks
+          type: application/vnd.sas.webhook
+          responseType: application/vnd.sas.webhook
+        version: 2
+    webhooksFull:
+      description: Example for webhooks with full details.
+      value:
+        name: webhooks
+        accept: application/vnd.sas.webhook
+        start: 0
+        limit: 20
+        items:
+        - id: 3b4998e5-bac3-4a60-af24-61f63912fbf0
+          name: When a resource is validated in a Public folder
+          createdBy: edmdev
+          creationTimeStamp: "2021-02-01T14:10:19.079859Z"
+          modifiedBy: edmdev
+          modifiedTimeStamp: "2021-02-01T14:10:19.079859Z"
+          active: true
+          conditions:
+          - callbackContentType: application/vnd.sas.webhook.callback.validate
+            callbackContentFilter: and(eq(state, 'success'), startsWith(resourcePath,
+              '/Public'))
+          callbacks:
+          - uri: https://prod-124.westus.logic.azure.com/workflows/6271c6d3d92c417995dba262d705fc78/triggers/When_a_resource_is_validated/versions/08585912100824495991/run?api-version=2016-06-01&sp=%2Ftriggers%2FWhen_a_resource_is_validated%2Fversions%2F08585912100824495991%2Frun%2C%2Ftriggers%2FWhen_a_resource_is_validated%2Fversions%2F08585912100824495991%2Fread&sv=1.0&sig=XXXXXXXX
+          links:
+          - method: GET
+            rel: up
+            href: /webhooks/webhooks
+            uri: /webhooks/webhooks
+            type: application/vnd.sas.collection
+          - method: GET
+            rel: self
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            type: application/vnd.sas.webhook
+          - method: GET
+            rel: alternate
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            type: application/vnd.sas.summary
+          - method: DELETE
+            rel: delete
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          - method: PUT
+            rel: update
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            type: application/vnd.sas.webhook
+            responseType: application/vnd.sas.webhook
+          version: 1
+        - id: 1f34f6c9-af9b-46b7-a492-8b9df8a55f30
+          name: When a resource from Public folder is published
+          createdBy: edmdev
+          creationTimeStamp: "2021-02-01T14:10:19.079859Z"
+          modifiedBy: edmdev
+          modifiedTimeStamp: "2021-02-01T14:10:19.079859Z"
+          active: true
+          conditions:
+          - callbackContentType: application/vnd.sas.webhook.callback.publish
+            callbackContentFilter: startsWith(resourcePath, '/Public')
+          callbacks:
+          - uri: https://prod-124.westus.logic.azure.com/workflows/6271c6d3d92c417995dba262d705fc78/triggers/When_a_resource_is_validated/versions/08585912100824495991/run?api-version=2016-06-01&sp=%2Ftriggers%2FWhen_a_resource_is_validated%2Fversions%2F08585912100824495991%2Frun%2C%2Ftriggers%2FWhen_a_resource_is_validated%2Fversions%2F08585912100824495991%2Fread&sv=1.0&sig=XXXXXXXX
+          links:
+          - method: GET
+            rel: up
+            href: /webhooks/webhooks
+            uri: /webhooks/webhooks
+            type: application/vnd.sas.collection
+          - method: GET
+            rel: self
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            type: application/vnd.sas.webhook
+          - method: GET
+            rel: alternate
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            type: application/vnd.sas.summary
+          - method: DELETE
+            rel: delete
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          - method: PUT
+            rel: update
+            href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+            type: application/vnd.sas.webhook
+            responseType: application/vnd.sas.webhook
+          version: 1
+        links:
+        - method: GET
+          rel: collection
+          href: /webhooks/webhooks
+          uri: /webhooks/webhooks
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: self
+          href: /webhooks/webhooks?start=0&limit=20
+          uri: /webhooks/webhooks?start=0&limit=20
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: next
+          href: /webhooks/webhooks?start=20&limit=20
+          uri: /webhooks/webhooks?start=20&limit=20
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: create
+          href: /webhooks/webhooks
+          uri: /webhooks/webhooks
+          type: application/vnd.sas.webhook
+          responseType: application/vnd.sas.webhook
+        version: 2
+    webhookCreateValidate:
+      description: Example for creating a webhook with callback content type of validate.
+      value:
+        name: When a resource is validated in a Public folder
+        active: true
+        conditions:
+        - callbackContentType: application/vnd.sas.webhook.callback.validate
+          callbackContentFilter: and(eq(state, 'success'), startsWith(resourcePath,
+            '/Public'))
+        callbacks:
+        - uri: https://prod-124.westus.logic.azure.com/workflows/6271c6d3d92c417995dba262d705fc78/triggers/When_a_resource_is_validated/versions/08585912100824495991/run?api-version=2016-06-01&sp=%2Ftriggers%2FWhen_a_resource_is_validated%2Fversions%2F08585912100824495991%2Frun%2C%2Ftriggers%2FWhen_a_resource_is_validated%2Fversions%2F08585912100824495991%2Fread&sv=1.0&sig=XXXXXXXX
+    webhookCreatePublish:
+      description: Example for creating a webhook with callback content type of publish.
+      value:
+        name: When a resource in a Public folder is published
+        active: true
+        conditions:
+        - callbackContentType: application/vnd.sas.webhook.callback.validate
+          callbackContentFilter: startsWith(resourcePath, '/Public')
+        callbacks:
+        - uri: https://prod-124.westus.logic.azure.com/workflows/6271c6d3d92c417995dba262d705fc78/triggers/When_a_resource_is_validated/versions/08585912100824495991/run?api-version=2016-06-01&sp=%2Ftriggers%2FWhen_a_resource_is_validated%2Fversions%2F08585912100824495991%2Frun%2C%2Ftriggers%2FWhen_a_resource_is_validated%2Fversions%2F08585912100824495991%2Fread&sv=1.0&sig=XXXXXXXX
+    webhookFullValidate:
+      description: Example for webhook with callback content type of validate.
+      value:
+        id: 3b4998e5-bac3-4a60-af24-61f63912fbf0
+        name: When a resource is validated in a Public folder
+        createdBy: edmdev
+        creationTimeStamp: "2021-02-01T14:10:19.079859Z"
+        modifiedBy: edmdev
+        modifiedTimeStamp: "2021-02-01T14:10:19.079859Z"
+        active: true
+        conditions:
+        - callbackContentType: application/vnd.sas.webhook.callback.validate
+          callbackContentFilter: and(eq(state, 'success'), startsWith(resourcePath,
+            '/Public'))
+        callbacks:
+        - uri: https://prod-124.westus.logic.azure.com/workflows/6271c6d3d92c417995dba262d705fc78/triggers/When_a_resource_is_validated/versions/08585912100824495991/run?api-version=2016-06-01&sp=%2Ftriggers%2FWhen_a_resource_is_validated%2Fversions%2F08585912100824495991%2Frun%2C%2Ftriggers%2FWhen_a_resource_is_validated%2Fversions%2F08585912100824495991%2Fread&sv=1.0&sig=XXXXXXXX
+        links:
+        - method: GET
+          rel: up
+          href: "/webhooks/webhooks"
+          uri: "/webhooks/webhooks"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: self
+          href: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          uri: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          type: application/vnd.sas.webhook
+        - method: GET
+          rel: alternate
+          href: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          uri: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          type: application/vnd.sas.summary
+        - method: DELETE
+          rel: delete
+          href: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          uri: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+        - method: PUT
+          rel: update
+          href: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          uri: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          type: application/vnd.sas.webhook
+          responseType: application/vnd.sas.webhook
+        version: 1
+    webhookFullPublish:
+      description: Example for webhook with callback content type of publish.
+      value:
+        id: 1f34f6c9-af9b-46b7-a492-8b9df8a55f30
+        name: When a resource from Public folder is published
+        createdBy: edmdev
+        creationTimeStamp: "2021-02-01T14:10:19.079859Z"
+        modifiedBy: edmdev
+        modifiedTimeStamp: "2021-02-01T14:10:19.079859Z"
+        active: true
+        conditions:
+        - callbackContentType: application/vnd.sas.webhook.callback.publish
+          callbackContentFilter: startsWith(resourcePath, '/Public')
+        callbacks:
+        - uri: https://prod-124.westus.logic.azure.com/workflows/6271c6d3d92c417995dba262d705fc78/triggers/When_a_resource_is_validated/versions/08585912100824495991/run?api-version=2016-06-01&sp=%2Ftriggers%2FWhen_a_resource_is_validated%2Fversions%2F08585912100824495991%2Frun%2C%2Ftriggers%2FWhen_a_resource_is_validated%2Fversions%2F08585912100824495991%2Fread&sv=1.0&sig=XXXXXXXX
+        links:
+        - method: GET
+          rel: up
+          href: "/webhooks/webhooks"
+          uri: "/webhooks/webhooks"
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: self
+          href: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          uri: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          type: application/vnd.sas.webhook
+        - method: GET
+          rel: alternate
+          href: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          uri: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          type: application/vnd.sas.summary
+        - method: DELETE
+          rel: delete
+          href: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          uri: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+        - method: PUT
+          rel: update
+          href: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          uri: "/webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+          type: application/vnd.sas.webhook
+          responseType: application/vnd.sas.webhook
+        version: 1
+    webhookSummaryValidate:
+      description: Example for webhook with summary details.
+      value:
+        id: 3b4998e5-bac3-4a60-af24-61f63912fbf0
+        name: When a resource is validated in a Public folder
+        createdBy: edmdev
+        creationTimeStamp: "2021-02-01T14:10:19.079859Z"
+        modifiedBy: edmdev
+        modifiedTimeStamp: "2021-02-01T14:10:19.079859Z"
+        type: webhook
+        links:
+        - method: GET
+          rel: up
+          href: /webhooks/webhooks
+          uri: /webhooks/webhooks
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: self
+          href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          type: application/vnd.sas.webhook
+        - method: GET
+          rel: alternate
+          href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          type: application/vnd.sas.summary
+        - method: DELETE
+          rel: delete
+          href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+        - method: PUT
+          rel: update
+          href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          type: application/vnd.sas.webhook
+          responseType: application/vnd.sas.webhook
+        version: 1
+    webhookSummaryPublish:
+      description: Example for webhook with summary details.
+      value:
+        id: 1f34f6c9-af9b-46b7-a492-8b9df8a55f30
+        name: When a resource from Public folder is published
+        createdBy: edmdev
+        creationTimeStamp: "2021-02-01T14:10:19.079859Z"
+        modifiedBy: edmdev
+        modifiedTimeStamp: "2021-02-01T14:10:19.079859Z"
+        type: webhook
+        links:
+        - method: GET
+          rel: up
+          href: /webhooks/webhooks
+          uri: /webhooks/webhooks
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: self
+          href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          type: application/vnd.sas.webhook
+        - method: GET
+          rel: alternate
+          href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          type: application/vnd.sas.summary
+        - method: DELETE
+          rel: delete
+          href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+        - method: PUT
+          rel: update
+          href: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          uri: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0
+          type: application/vnd.sas.webhook
+          responseType: application/vnd.sas.webhook
+        version: 1
+    webhooksInvalidStart:
+      description: Example for invalid start request parameter.
+      value:
+        details:
+        - "path: /webhooks/webhooks"
+        httpStatusCode: 400
+        message: The start parameter must be greater or equal to zero.
+        version: 2
+    webhooksInvalidLimit:
+      description: Example for invalid limit request parameter.
+      value:
+        details:
+        - "path: /webhooks/webhooks"
+        httpStatusCode: 400
+        message: The limit parameter must be greater or equal to zero.
+        version: 2
+    webhooksInvalidSortBy:
+      description: Example for invalid sortBy request parameter.
+      value:
+        details:
+        - "path: /webhooks/webhooks"
+        httpStatusCode: 400
+        message: "InvalidInputError: Property abc not found Error Code: 1002"
+        version: 2
+    webhooksInvalidFilter:
+      description: Example for invalid filter request parameter.
+      value:
+        details:
+        - "path: /webhooks/webhooks"
+        httpStatusCode: 400
+        message: "InvalidInputError: The filter is not valid. Error Code: 1104"
+        version: 2
+    webhookInvalid:
+      description: Example for invalid webhook content.
+      value:
+        details:
+        - "path: /webhooks/webhooks"
+        errors:
+        - version: 2
+          httpStatusCode: 400
+          errorCode: 1021
+          message: '"" is not a valid value for "name". Reason: Size must be between
+            1 and 100'
+        - version: 2
+          httpStatusCode: 400
+          errorCode: 1021
+          message: '"callbacks" is a required property.'
+        - version: 2
+          httpStatusCode: 400
+          errorCode: 1021
+          message: '"validate" is not a valid value for "conditions[0].callbackContentType".
+            Reason: Must match "[application/vnd.sas.webhook.callback.validate]"'
+        - version: 2
+          httpStatusCode: 400
+          errorCode: 1104
+          message: "InvalidInputError: The filter is not valid. Error Code: 1104"
+        - version: 2
+          httpStatusCode: 400
+          message: 'parse "abc": invalid URI for request'
+        httpStatusCode: 400
+        message: The request is not valid.
+        remediation: Correct the errors and retry the request.
+        version: 2
+    webhookNotFound:
+      description: Example for webhook which cannot be found.
+      value:
+        details:
+        - The webhook with the ID "b3183978-0db0-457d-9578-02da9808ae2e" could not
+          be found.
+        - "path: /webhooks/webhooks/b3183978-0db0-457d-9578-02da9808ae2e"
+        errorCode: 1006
+        httpStatusCode: 404
+        message: Not Found
+        version: 2
+    webhookPreConditionFailed:
+      description: Example for precondition failure.
+      value:
+        details:
+        - "path: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+        httpStatusCode: 412
+        message: Precondition Required
+        version: 2
+    webhookPreConditionRequired:
+      description: Example for required pre condition is missing.
+      value:
+        details:
+        - "path: /webhooks/webhooks/3b4998e5-bac3-4a60-af24-61f63912fbf0"
+        httpStatusCode: 428
+        message: Precondition Required
+        version: 2
+  schemas:
+    webhookCallbackContentType:
+      title: Callback Content Type
+      description: Details about the callback content type. This represents application/vnd.sas.webhook.callback.content.type
+        media type (version 1).
+      x-sas-media-type:
+        name: application/vnd.sas.webhook.callback.content.type
+        version: 1
+      required:
+      - name
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the callback content type.
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+    condition:
+      title: Condition
+      description: Condition that need to be matched for this webhook to callback.
+        This doesn't represent any top-level media type.
+      required:
+      - callbackContentType
+      - callbackContentFilter
+      type: object
+      properties:
+        callbackContentType:
+          type: string
+          enum:
+          - application/vnd.sas.webhook.callback.validate
+          - application/vnd.sas.webhook.callback.publish
+          description: Type of the callback content.
+        callbackContentFilter:
+          type: string
+          description: Filter that should be matched on the webhook callback content.
+            The string follows the same syntax as [Filtering in REST APIs](https://developer.sas.com/rest-apis/webhooks-v1/docs/getting-started/usage-notes#filtering).
+    callback:
+      title: Callback
+      description: Callback to which webhook will be called when a specified event
+        occurs. This doesn't represent any top-level media type.
+      required:
+      - uri
+      type: object
+      properties:
+        uri:
+          type: string
+          format: uri
+          description: Callback uri that will be called when a specified event occurs.
+    webhook:
+      title: Webhook
+      description: Webhooks are "user-defined HTTP callbacks". This represents application/vnd.sas.webhook
+        media type (version 1).
+      x-sas-media-type:
+        name: application/vnd.sas.webhook
+        version: 1
+      required:
+      - name
+      - conditions
+      - callbacks
+      type: object
+      properties:
+        id:
+          type: string
+          description: The system-assigned unique ID for this object
+        name:
+          type: string
+          description: The Webhook name
+        description:
+          type: string
+          description: The Webhook description
+        createdBy:
+          type: string
+          description: The user who created the Webhook.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The date and time that the Webhook was created.
+        modifiedBy:
+          type: string
+          description: The userId of the authenticated user who last updated the Webhook.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The date and time that the Webhook was last modified.
+        active:
+          type: boolean
+          description: Specifies whether or not this webhook is active.
+        condition:
+          $ref: "#/components/schemas/condition"
+        conditions:
+          type: array
+          description: Any condition that should be matched for the webhook to callback.
+          items:
+            $ref: "#/components/schemas/condition"
+        callback:
+          $ref: "#/components/schemas/callback"
+        callbacks:
+          type: array
+          description: Callbacks that are called by webhook when any of the condition
+            is matched.
+          items:
+            $ref: "#/components/schemas/callback"
+        properties:
+          type: object
+          description: A set of properties for this webhook.
+          additionalProperties:
+            type: string
+        links:
+          type: array
+          description: Zero or more links to related resources or operations.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+    webhookCallbackValidate:
+      title: Webhook Callback Validate
+      description: The content of the callback validate. This represents application/vnd.sas.webhook.callback.validate
+        media type (version 1).
+      x-sas-media-type:
+        name: application/vnd.sas.webhook.callback.validate
+        version: 1
+      type: object
+      properties:
+        state:
+          type: string
+          enum:
+          - success
+          - failure
+          description: State whether it is success or failure.
+        resourceUri:
+          type: string
+          description: Uri of the resource on which the validation is performed.
+        resourcePath:
+          type: string
+          description: Path of the resource in the folder.
+        resourceVersion:
+          type: string
+          description: Version of the resource on which the validation is performed.
+        validationType:
+          type: string
+          description: Type of the validation that is performed on the resource.
+          enum:
+          - test
+          - scenario
+          - publishValidation
+        links:
+          type: array
+          description: Zero or more links to related resources or operations.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+    webhookCallbackPublish:
+      title: Webhook Callback Publish
+      description: The content of the callback publish. This represents application/vnd.sas.webhook.callback.publish
+        media type (version 1).
+      x-sas-media-type:
+        name: application/vnd.sas.webhook.callback.publish
+        version: 1
+      type: object
+      properties:
+        resourceUri:
+          type: string
+          description: Uri of the resource which is published.
+        resourcePath:
+          type: string
+          description: Path of the resource in the folder.
+        resourceVersion:
+          type: string
+          description: Version of the resource which is published.
+        destinationType:
+          type: string
+          description: Type of the destinaation where the resource is published.
+          enum:
+          - cas
+          - microAnalyticServer
+          - teradata
+          - hadoop
+          - aws
+          - azure
+          - aml
+          - git
+          - privateDocker
+        replace:
+          type: boolean
+          description: Indicated whether the resource is published for the first time
+            or replaced.
+        links:
+          type: array
+          description: Zero or more links to related resources or operations.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+    webhookCallbackContentTypeCollection:
+      title: Webhook Callback Content Type Collection
+      description: All of supported webhook callback content type representations.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/webhookCallbackContentType"
+            description: Array consisting of one page of the webhook resources.
+    webhookCollection:
+      title: Webhook Collection
+      description: One page of the webhook representations, with optional links to
+        first, prev, next, and last page of the list.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/webhook"
+            description: Array consisting of one page of the webhook resources.
+    resourceSummaryCollection:
+      title: Resource Summary Collection
+      description: One page of the webhook as summary representations, with optional
+        links to first, prev, next, and last page of the list.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/summary"
+            description: Array consisting of one page of the webhook as summary resources.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    summary:
+      title: Resource Summary
+      type: object
+      description: The summarized representation of a resource. Often used in collection
+        responses when more specific details aren't needed.
+      x-sas-media-type:
+        name: application/vnd.sas.summary
+        version: 2
+      required:
+      - id
+      - links
+      - version
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the resource.
+        name:
+          type: string
+          description: The name of the resource.
+        type:
+          type: string
+          description: The type of the resource.
+        description:
+          type: string
+          description: The description of the resource.
+        typeDefName:
+          type: string
+          description: (version 2) The name of the type definition that describes
+            the contents of this resource.
+        iconUri:
+          type: string
+          description: (version 2) The URI of an icon assigned to this resource, overrides
+            default icons for the type.
+        createdBy:
+          type: string
+          description: The user who created the resource.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was created.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the resource.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was last modified.
+        links:
+          type: array
+          description: The links that apply to the resource.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the resource. This representation is
+            version 2.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"

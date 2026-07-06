@@ -1,0 +1,2020 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: Business Orchestration
+  contact:
+    name: SAS Developers
+    email: devex@sas.com
+    url: "https://developer.sas.com"
+  description: >
+    The Business Orchestration API provides functionality to manage project configuration
+    and deployment.
+  termsOfService: "https://www.sas.com/en_us/legal/copyright.html"
+servers:
+- url: "http://example.com/businessOrchestration"
+  description: This is an example URL for the mock server.
+tags:
+- name: Root
+  description: The operations for the root resource.
+- name: Projects
+  description: The operations for projects.
+- name: Deployments
+  description: The operations for deployments.
+- name: Environments
+  description: The operations for environments.
+- name: Capabilities
+  description: The operations for capabilities.
+- name: Schemas
+  description: The schema for projects.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Return a list of top-level links
+      description: >
+        Returns the links to the top-level resources for the API.
+      operationId: root
+      parameters:
+      - name: Accept
+        description: The desired representation for the response.
+        in: header
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.api+json
+          - application/json
+      responses:
+        "200":
+          description: The request was successful.
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentTypeResponseHeader"
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                API:
+                  $ref: "#/components/examples/rootResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                API:
+                  $ref: "#/components/examples/rootResponse"
+        "404":
+          description: The API is unavailable.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                Error - API Unavailable:
+                  $ref: "#/components/examples/404NotAvailable"
+    head:
+      tags:
+      - Root
+      summary: Check if the service is available
+      description: Returns header information and a status of whether the service
+        is available.
+      operationId: headersForRoot
+      parameters:
+      - name: Accept
+        description: The desired representation for the response.
+        in: header
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.api+json
+          - application/json
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentTypeResponseHeader"
+        "404":
+          description: The API is unavailable.
+  /projects:
+    get:
+      summary: Get a list of projects
+      tags:
+      - Projects
+      operationId: getProjects
+      description: |
+        Returns a list of projects.
+      parameters:
+      - name: Accept
+        in: header
+        description: The requested representation of the project collection.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.collection+json
+          - application/vnd.sas.collection+json;version=2
+          - application/json
+      - name: Accept-Item
+        in: header
+        description: The requested representation of the project items in the collection.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.business.orchestration.project+json
+          - application/vnd.sas.business.orchestration.project+json;version=1
+          - application/json
+      - name: start
+        in: query
+        description: The zero-based offset of the first project to be returned.
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: limit
+        in: query
+        description: The maximum number of projects to be returned.
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      - name: sortBy
+        in: query
+        description: >
+          The criteria for sorting projects. See [Sorting in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#sorting).
+          Sorting can use the following fields: **archived**, **contentValid**, **createdBy**,
+          **creationTimeStamp**, **description**, **id**, **modifiedBy**, **modifiedTimeStamp**,
+          **name**, **shortName**.
+        required: false
+        schema:
+          type: string
+          default: name:ascending
+      - name: filter
+        in: query
+        description: >
+          The criteria for filtering projects. See [Filtering in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#filtering).
+          Filters can use the following fields: **archived**, **contentValid**, **createdBy**,
+          **creationTimeStamp**, **description**, **id**, **modifiedBy**, **modifiedTimeStamp**,
+          **name**, **shortName**.
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentTypeResponseHeader"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/projectCollection"
+              examples:
+                getProjects:
+                  $ref: "#/components/examples/getProjectListResponse"
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/projectCollection"
+              examples:
+                getProjects:
+                  $ref: "#/components/examples/getProjectListResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/projectCollection"
+              examples:
+                getProjects:
+                  $ref: "#/components/examples/getProjectListResponse"
+        "404":
+          $ref: "#/components/responses/404serviceUnavailable"
+    post:
+      summary: Create a project
+      tags:
+      - Projects
+      description: Creates a new project.
+      operationId: createProject
+      parameters:
+      - name: Accept
+        description: >
+          The requested representation for the response.
+        in: header
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.business.orchestration.project+json
+          - application/vnd.sas.business.orchestration.project+json;version=1
+          - application/json
+      - name: Content-Type
+        in: header
+        description: >
+          The representation of the project in the request body.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.business.orchestration.project+json
+          - application/vnd.sas.business.orchestration.project+json;version=1
+          - application/json
+      requestBody:
+        content:
+          application/vnd.sas.business.orchestration.project+json:
+            schema:
+              $ref: "#/components/schemas/projectRequest"
+            examples:
+              ProjectWithContent:
+                $ref: "#/components/examples/submitProject"
+              ProjectWithoutContent:
+                $ref: "#/components/examples/submitProjectNoContent"
+          application/vnd.sas.business.orchestration.project+json;version=1:
+            schema:
+              $ref: "#/components/schemas/projectRequest"
+            examples:
+              ProjectWithContent:
+                $ref: "#/components/examples/submitProject"
+              ProjectWithoutContent:
+                $ref: "#/components/examples/submitProjectNoContent"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/projectRequest"
+            examples:
+              ProjectWithContent:
+                $ref: "#/components/examples/submitProject"
+              ProjectWithoutContent:
+                $ref: "#/components/examples/submitProjectNoContent"
+        description: >
+          The representation of a project.
+        required: true
+      responses:
+        "201":
+          description: A project was created.
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentTypeResponseHeader"
+            Location:
+              $ref: "#/components/headers/locationHeader"
+          content:
+            application/vnd.sas.business.orchestration.project+json:
+              schema:
+                $ref: "#/components/schemas/projectResponse"
+              examples:
+                deployment:
+                  $ref: "#/components/examples/createProjectResponse"
+            application/vnd.sas.business.orchestration.project+json;version=1:
+              schema:
+                $ref: "#/components/schemas/projectResponse"
+              examples:
+                deployment:
+                  $ref: "#/components/examples/createProjectResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/projectResponse"
+              examples:
+                deployment:
+                  $ref: "#/components/examples/createProjectResponse"
+        "400":
+          $ref: "#/components/responses/400requestInvalid"
+        "406":
+          $ref: "#/components/responses/406unacceptableResponseType"
+        "409":
+          description: The project could not be created due to a conflict. This usually
+            occurs when the project name or short name already exists.
+          content:
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                Error - Conflict:
+                  $ref: "#/components/examples/409Conflict"
+        "500":
+          $ref: "#/components/responses/500internalServerError"
+  "/projects/{projectId}":
+    get:
+      summary: Get project content
+      tags:
+      - Projects
+      operationId: getProject
+      description: Returns the content of a project by projectId.
+      parameters:
+      - name: Accept
+        in: header
+        description: The requested representation of the project.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.business.orchestration.project+json
+          - application/vnd.sas.business.orchestration.project+json;version=1
+          - application/json
+      - name: projectId
+        in: path
+        description: Specifies the project identifier.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentTypeResponseHeader"
+            Last-Modified:
+              $ref: "#/components/headers/lastModifiedHeader"
+            ETag:
+              $ref: "#/components/headers/eTagHeader"
+          content:
+            application/vnd.sas.business.orchestration.project+json:
+              schema:
+                $ref: "#/components/schemas/projectResponse"
+              examples:
+                Project:
+                  $ref: "#/components/examples/getProjectResponse"
+            application/vnd.sas.business.orchestration.project+json;version=1:
+              schema:
+                $ref: "#/components/schemas/projectResponse"
+              examples:
+                Project:
+                  $ref: "#/components/examples/getProjectResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/projectResponse"
+              examples:
+                Project:
+                  $ref: "#/components/examples/getProjectResponse"
+        "404":
+          $ref: "#/components/responses/404resourceNotFound"
+        "500":
+          $ref: "#/components/responses/500internalServerError"
+    head:
+      summary: Check for the existence of a project
+      tags:
+      - Projects
+      operationId: headersForGetProject
+      description: Checks for the existence of a project.
+      parameters:
+      - name: Accept
+        in: header
+        description: The requested representation of the project.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.business.orchestration.project+json
+          - application/vnd.sas.business.orchestration.project+json;version=1
+          - application/json
+      - name: projectId
+        in: path
+        description: Specifies the project identifier.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentTypeResponseHeader"
+            Last-Modified:
+              $ref: "#/components/headers/lastModifiedHeader"
+        "404":
+          $ref: "#/components/responses/404unimplemented"
+        "500":
+          $ref: "#/components/responses/500internalServerError"
+    put:
+      summary: Update a project
+      description: >
+        Updates the project that is identified using the specified projectId.
+        This operation is a conditional PUT. It must be accompanied by either an `If-Match`
+        header with an ETag or an `If-Unmodified-Since` header with a timestamp.
+      tags:
+      - Projects
+      operationId: updateProject
+      parameters:
+      - name: Accept
+        description: >
+          The requested representation for the response.
+        in: header
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.business.orchestration.project+json
+          - application/vnd.sas.business.orchestration.project+json;version=1
+          - application/json
+      - name: If-Match
+        in: header
+        description: The value of the **ETag** header that was returned from a GET
+          or previous PUT of this context. The request must include either the **If-Unmodified-Since**
+          header or the **If-Match** header.
+        required: false
+        schema:
+          type: string
+          enum:
+          - E-Tag
+      - name: If-Unmodified-Since
+        in: header
+        description: The value of the **Last-Modified** header that was returned from
+          a GET or previous PUT of this context. The request must include either the
+          **If-Unmodified-Since** header or the **If-Match** header.
+        required: false
+        schema:
+          type: string
+          enum:
+          - ddd, dd MMM yyyy HH':'mm':'ss 'GMT'
+      - name: Content-Type
+        in: header
+        description: >
+          The representation of the project in the request body.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.business.orchestration.project+json
+          - application/vnd.sas.business.orchestration.project+json;version=1
+          - application/json
+      - name: projectId
+        in: path
+        description: Specifies the project identifier.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.business.orchestration.project+json:
+            schema:
+              $ref: "#/components/schemas/updateProject"
+            examples:
+              Project:
+                $ref: "#/components/examples/updateProject"
+          application/vnd.sas.business.orchestration.project+json;version=1:
+            schema:
+              $ref: "#/components/schemas/updateProject"
+            examples:
+              Project:
+                $ref: "#/components/examples/updateProject"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/updateProject"
+            examples:
+              Project:
+                $ref: "#/components/examples/updateProject"
+        description: >
+          The request body contains the representation of updated project details.
+          The resource referenced in this request will be
+          updated with the new details. The default media type is application/vnd.sas.business.orchestration.project+json.
+        required: true
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentTypeResponseHeader"
+            Last-Modified:
+              $ref: "#/components/headers/lastModifiedHeader"
+            ETag:
+              $ref: "#/components/headers/eTagHeader"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/projectResponse"
+              examples:
+                getProjects:
+                  $ref: "#/components/examples/getProjectResponse"
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/projectResponse"
+              examples:
+                getProjects:
+                  $ref: "#/components/examples/getProjectResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/projectResponse"
+              examples:
+                getProjects:
+                  $ref: "#/components/examples/getProjectResponse"
+        "400":
+          $ref: "#/components/responses/400requestInvalid"
+        "404":
+          $ref: "#/components/responses/404resourceNotFound"
+        "409":
+          description: The project could not be updated due to a conflict. This usually
+            occurs when the project name or short name already exists.
+          content:
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                Error - Conflict:
+                  $ref: "#/components/examples/409Conflict"
+        "412":
+          $ref: "#/components/responses/412preconditionFailed"
+        "428":
+          $ref: "#/components/responses/428preconditionRequired"
+        "500":
+          $ref: "#/components/responses/500internalServerError"
+    delete:
+      summary: Delete a project
+      description: Deletes the project by the specified projectId.
+      tags:
+      - Projects
+      operationId: deleteProject
+      parameters:
+      - name: projectId
+        in: path
+        description: Specifies the project identifier.
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: The project has been deleted.
+        "400":
+          $ref: "#/components/responses/400requestInvalid"
+        "500":
+          $ref: "#/components/responses/500internalServerError"
+  "/deployments":
+    get:
+      summary: Get a list of deployments
+      tags:
+      - Deployments
+      operationId: getDeployments
+      description: |
+        Returns a list of deployments.
+      parameters:
+      - name: Accept
+        in: header
+        description: The requested representation of the deployments collection.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.collection+json
+          - application/vnd.sas.collection+json;version=2
+          - application/json
+      - name: Accept-Item
+        in: header
+        description: The requested representation of the deployment items in the collection.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.business.orchestration.deployment+json
+          - application/vnd.sas.business.orchestration.deployment+json;version=1
+          - application/json
+      - name: start
+        in: query
+        description: The zero-based offset of the first deployment to be returned.
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: limit
+        in: query
+        description: The maximum number of deployments to be returned.
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      - name: sortBy
+        in: query
+        description: >
+          The criteria for sorting deployments. See [Sorting in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#sorting).
+          Sorting can use the following fields: **createdBy**, **creationTimeStamp**,
+          **environmentId**, **id**, **modifiedBy**, **modifiedTimeStamp**, **projectId**,
+          **projectName**.
+        required: false
+        schema:
+          type: string
+          default: projectName:ascending
+      - name: filter
+        in: query
+        description: >
+          The criteria for filtering deployments. See [Filtering in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#filtering).
+          Filters can use the following fields: **createdBy**, **creationTimeStamp**,
+          **environmentId**, **id**, **modifiedBy**, **modifiedTimeStamp**, **projectId**,
+          **projectName**.
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentTypeResponseHeader"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/deploymentCollection"
+              examples:
+                getDeployments:
+                  $ref: "#/components/examples/getDeployments"
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/deploymentCollection"
+              examples:
+                getDeployments:
+                  $ref: "#/components/examples/getDeployments"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/deploymentCollection"
+              examples:
+                getDeployments:
+                  $ref: "#/components/examples/getDeployments"
+        "404":
+          $ref: "#/components/responses/404serviceUnavailable"
+        "500":
+          $ref: "#/components/responses/500internalServerError"
+    post:
+      summary: Create a deployment
+      tags:
+      - Deployments
+      description: Creates a new deployment.
+      operationId: createDeployment
+      parameters:
+      - name: Accept
+        description: >
+          The requested representation for the response.
+        in: header
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.business.orchestration.deployment+json
+          - application/vnd.sas.business.orchestration.deployment+json;version=1
+          - application/json
+      - name: Content-Type
+        in: header
+        description: >
+          The representation of the deployment in the request body.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.business.orchestration.deployment+json
+          - application/vnd.sas.business.orchestration.deployment+json;version=1
+          - application/json
+      requestBody:
+        content:
+          application/vnd.sas.business.orchestration.deployment+json:
+            schema:
+              $ref: "#/components/schemas/deploymentRequest"
+            examples:
+              Project:
+                $ref: "#/components/examples/submitDeployment"
+          application/vnd.sas.business.orchestration.deployment+json;version=1:
+            schema:
+              $ref: "#/components/schemas/deploymentRequest"
+            examples:
+              Project:
+                $ref: "#/components/examples/submitDeployment"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/deploymentRequest"
+            examples:
+              Project:
+                $ref: "#/components/examples/submitDeployment"
+        description: >
+          The representation of a deployment request.
+        required: true
+      responses:
+        "201":
+          description: A deployment was created.
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentTypeResponseHeader"
+            Location:
+              $ref: "#/components/headers/locationHeader"
+          content:
+            application/vnd.sas.business.orchestration.deployment+json:
+              schema:
+                $ref: "#/components/schemas/deployment"
+              examples:
+                deployment:
+                  $ref: "#/components/examples/createDeploymentResponse"
+            application/vnd.sas.business.orchestration.deployment+json;version=1:
+              schema:
+                $ref: "#/components/schemas/deployment"
+              examples:
+                deployment:
+                  $ref: "#/components/examples/createDeploymentResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/deployment"
+              examples:
+                deployment:
+                  $ref: "#/components/examples/createDeploymentResponse"
+        "400":
+          $ref: "#/components/responses/400requestInvalid"
+        "406":
+          $ref: "#/components/responses/406unacceptableResponseType"
+        "409":
+          description: The deployment could not be created due to a conflict. This
+            usually occurs when the project already exists in the target environment.
+          content:
+            "application/vnd.sas.error+json":
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                Error - Conflict:
+                  $ref: "#/components/examples/409Conflict"
+        "500":
+          $ref: "#/components/responses/500internalServerError"
+  "/deployments/{deploymentId}":
+    delete:
+      summary: Delete a deployment
+      description: Deletes the deployment that is identified by the specified deploymentId.
+      tags:
+      - Deployments
+      operationId: deleteDeployment
+      parameters:
+      - name: deploymentId
+        in: path
+        description: Specifies the deployment identifier.
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: The deployment was successfully deleted.
+        "400":
+          $ref: "#/components/responses/400requestInvalid"
+        "500":
+          $ref: "#/components/responses/500internalServerError"
+  "/deployments/{deploymentId}/redeploy":
+    post:
+      summary: Redeploy a deployment
+      description: Redeploys the deployment that is identified by the specified deploymentId.
+        This operation updates an existing deployment with the latest project content.
+      tags:
+      - Deployments
+      operationId: redeployDeployment
+      parameters:
+      - name: deploymentId
+        in: path
+        description: Specifies the deployment identifier.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The deployment was successfully redeployed.
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentTypeResponseHeader"
+            Location:
+              $ref: "#/components/headers/locationHeader"
+          content:
+            application/vnd.sas.business.orchestration.deployment+json:
+              schema:
+                $ref: "#/components/schemas/deployment"
+              examples:
+                deployment:
+                  $ref: "#/components/examples/createDeploymentResponse"
+            application/vnd.sas.business.orchestration.deployment+json;version=1:
+              schema:
+                $ref: "#/components/schemas/deployment"
+              examples:
+                deployment:
+                  $ref: "#/components/examples/createDeploymentResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/deployment"
+              examples:
+                deployment:
+                  $ref: "#/components/examples/createDeploymentResponse"
+        "400":
+          $ref: "#/components/responses/400requestInvalid"
+        "404":
+          $ref: "#/components/responses/404resourceNotFound"
+        "500":
+          $ref: "#/components/responses/500internalServerError"
+  "/environments":
+    get:
+      summary: Get a list of environments
+      tags:
+      - Environments
+      operationId: getEnvironments
+      description: |
+        Returns a list of environments.
+      parameters:
+      - name: Accept
+        in: header
+        description: The requested representation of the environment collection.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.collection+json
+          - application/vnd.sas.collection+json;version=2
+          - application/json
+      - name: Accept-Item
+        in: header
+        description: The requested representation of the environment items in the
+          collection.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.business.orchestration.environment+json
+          - application/vnd.sas.business.orchestration.environment+json;version=1
+          - application/json
+      responses:
+        "200":
+          description: The request succeeded and a list of environments was returned.
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentTypeResponseHeader"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/environmentCollection"
+              examples:
+                getEnvironments:
+                  $ref: "#/components/examples/getEnvironments"
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/environmentCollection"
+              examples:
+                getEnvironments:
+                  $ref: "#/components/examples/getEnvironments"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/environmentCollection"
+              examples:
+                getEnvironments:
+                  $ref: "#/components/examples/getEnvironments"
+        "404":
+          $ref: "#/components/responses/404serviceUnavailable"
+  "/capabilities":
+    get:
+      summary: Get a list of capabilities
+      tags:
+      - Capabilities
+      operationId: getCapabilities
+      description: |
+        Returns a list of capabilities.
+      parameters:
+      - name: Accept
+        in: header
+        description: The requested representation of the capability collection.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.collection+json
+          - application/vnd.sas.collection+json;version=2
+          - application/json
+      - name: Accept-Item
+        in: header
+        description: The requested representation of the capability items in the collection.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.business.orchestration.capability+json
+          - application/vnd.sas.business.orchestration.capability+json;version=1
+          - application/json
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentTypeResponseHeader"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/capabilityCollection"
+              examples:
+                getCapabilities:
+                  $ref: "#/components/examples/getCapabilityListResponse"
+            application/vnd.sas.collection+json;version=2:
+              schema:
+                $ref: "#/components/schemas/capabilityCollection"
+              examples:
+                getCapabilities:
+                  $ref: "#/components/examples/getCapabilityListResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/capabilityCollection"
+              examples:
+                getCapabilities:
+                  $ref: "#/components/examples/getCapabilityListResponse"
+        "400":
+          $ref: "#/components/responses/400requestInvalid"
+        "404":
+          $ref: "#/components/responses/404serviceUnavailable"
+  "/schema":
+    get:
+      summary: Get schema content
+      tags:
+      - Schemas
+      operationId: getSchema
+      description: Returns the SAS Business Orchestration Services Domain Specific
+        Language (BDSL) JSON schema.
+      parameters:
+      - name: Accept
+        in: header
+        description: The requested representation of the schema.
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.business.orchestration.schema+json
+          - application/vnd.sas.business.orchestration.schema+json;version=1
+          - application/json
+      responses:
+        "200":
+          description: The request succeeded and the schema was returned.
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/contentTypeResponseHeader"
+          content:
+            application/vnd.sas.business.orchestration.schema+json:
+              schema:
+                $ref: "#/components/schemas/bdslSchema"
+              examples:
+                getSchemaResponse:
+                  $ref: "#/components/examples/getSchemaResponse"
+            application/vnd.sas.business.orchestration.schema+json;version=1:
+              schema:
+                $ref: "#/components/schemas/bdslSchema"
+              examples:
+                getSchemaResponse:
+                  $ref: "#/components/examples/getSchemaResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/bdslSchema"
+              examples:
+                getEnvironments:
+                  $ref: "#/components/examples/getSchemaResponse"
+        "404":
+          $ref: "#/components/responses/404serviceUnavailable"
+        "500":
+          $ref: "#/components/responses/500internalServerError"
+components:
+  headers:
+    contentTypeResponseHeader:
+      description: The media type of the response body.
+      schema:
+        type: string
+    eTagHeader:
+      description: A tag that identifies this revision of the resource.
+      schema:
+        type: string
+    locationHeader:
+      description: The location of the URI for the endpoint.
+      schema:
+        type: string
+    lastModifiedHeader:
+      description: The last **modifiedTimeStamp** of the resource.
+      schema:
+        type: string
+    ifUnmodifiedSince:
+      description: >
+        The date and time of the last modification.
+      schema:
+        type: string
+    ifMatch:
+      description: >
+        The ETag for the original version of the object.
+      schema:
+        type: string
+  schemas:
+    updateProject:
+      description: >
+        Contains information about a project.
+      type: object
+      title: Project
+      properties:
+        id:
+          type: string
+          description: >
+            The unique identifier of the project. This field is generated by the service.
+            For PUT requests, the ID must match the URL path parameter.
+        name:
+          type: string
+          description: The unique name of the project.
+          maxLength: 255
+        shortName:
+          type: string
+          description: Specifies an alternate name for the project. The short name
+            can contain up to 30 alphanumeric characters (lowercase letters only).
+            Spaces and special characters, except the hyphen (-), are not allowed.
+            The short name is used when the project is deployed.
+          maxLength: 30
+          pattern: "^[a-z0-9-]+$"
+        description:
+          type: string
+          description: The descriptive text for the project.
+          maxLength: 1000
+        content:
+          type: string
+          description: The project content encoded in Base64.
+        archived:
+          type: boolean
+          description: >
+            Specifies whether the project is archived. Archived projects are read-only
+            and cannot be modified or deployed.
+        editMode:
+          type: string
+          description: >
+            Specifies the mode in which the project should be edited.
+          enum:
+          - "code"
+          - "diagram"
+      required:
+      - "id"
+      - "name"
+      - "shortName"
+      - "editMode"
+    projectResponse:
+      description: >
+        A project is a top-level container that defines the deployable orchestration
+        configuration.
+      type: object
+      title: Project
+      properties:
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp when the project was created.
+        createdBy:
+          type: string
+          description: The user who created the project.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp when the project was last modified.
+        modifiedBy:
+          type: string
+          description: The user who last modified the project.
+        id:
+          type: string
+          description: >
+            The unique identifier of the project. This field is generated by the service.
+            For PUT requests, the ID must match the URL path parameter.
+        name:
+          type: string
+          description: The unique name of the project.
+          maxLength: 255
+        shortName:
+          type: string
+          description: >
+            Specifies an alternate name for the project. The short name can contain
+            up to 30 alphanumeric characters (lowercase letters only). Spaces and
+            special characters, except the hyphen (-), are not allowed. The short
+            name is used when the project is deployed.
+          maxLength: 30
+          pattern: "^[a-z0-9-]+$"
+        description:
+          type: string
+          description: The descriptive text for the project.
+          maxLength: 1000
+        content:
+          type: string
+          description: The project content encoded in Base64.
+        contentValid:
+          type: boolean
+          description: Specifies whether the project content is valid. If false, the
+            project content is not valid and the project cannot be deployed.
+        archived:
+          type: boolean
+          description: >
+            Specifies whether the project is archived. Archived projects are read-only
+            and cannot be modified or deployed.
+      required:
+      - "id"
+      - "name"
+      - "shortName"
+    projectRequest:
+      description: >
+        Contains information about a project.
+      type: object
+      title: Project
+      properties:
+        name:
+          type: string
+          description: The unique name of the project.
+          maxLength: 255
+        shortName:
+          type: string
+          description: >
+            Specifies an alternate name for the project. The short name can contain
+            up to 30 alphanumeric characters (lowercase letters only). Spaces and
+            special characters, except the hyphen (-), are not allowed. The short
+            name is used when the project is deployed. A short name is automatically
+            assigned if not provided.
+          maxLength: 30
+          pattern: "^[a-z0-9-]+$"
+        description:
+          type: string
+          description: The descriptive text for the project.
+          maxLength: 1000
+        content:
+          type: string
+          description: The project content encoded in Base64.
+        editMode:
+          type: string
+          description: >
+            Specifies the mode in which the project should be edited. Defaults to
+            "code" when not specified.
+          enum:
+          - "code"
+          - "diagram"
+      required:
+      - "name"
+    capability:
+      description: >
+        Defines a capability.
+      type: object
+      title: Capability
+      properties:
+        name:
+          type: string
+          description: >
+            The capability name.
+    capabilityCollection:
+      description: >
+        A collection of capabilities.
+      type: object
+      properties:
+        version:
+          type: integer
+        accept:
+          type: string
+        count:
+          type: integer
+        start:
+          type: integer
+        limit:
+          type: integer
+        name:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/capability"
+    deployment:
+      description: >
+        Defines a deployment of a project to an environment. A deployment instantiates
+        the workloads that are defined for a project to a specified target runtime
+        container.
+      type: object
+      title: Deployment
+      properties:
+        deploymentId:
+          type: string
+          description: >
+            The unique identifier of the deployment. This field is generated by the
+            Business Orchestration service.
+        projectId:
+          type: string
+          description: >
+            The unique identifier of the deployed project.
+        environmentId:
+          type: string
+          description: >
+            The unique identifier of the environment.
+        projectName:
+          type: string
+          description: The unique name of the project.
+          maxLength: 255
+        status:
+          type: array
+          items:
+            type: string
+            enum:
+            - HEALTHY
+            - UNHEALTHY
+            - NOT_FOUND
+          description: The status of each workload instance.
+        numWorkloads:
+          type: integer
+          description: The number of workload instances that are deployed.
+    deploymentRequest:
+      description: Contains information about a deployment.
+      type: object
+      title: Deployment
+      properties:
+        projectId:
+          type: string
+          example: 6d7dea89-6f56-48ff-a62b-0fd03284e102
+          description: >
+            Specifies a project identifier.
+        environmentId:
+          type: string
+          example: testenvironment
+          maxLength: 100
+          description: >
+            Specifies an environment identifier.
+    projectCollection:
+      title: Project Collection
+      description: A collection of projects.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The list of projects.
+            items:
+              $ref: "#/components/schemas/projectResponse"
+    deploymentCollection:
+      title: Deployment Collection
+      description: A collection of deployments.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The list of deployments.
+            items:
+              $ref: "#/components/schemas/deployment"
+    environment:
+      description: >
+        Defines an environment where projects are deployed.
+      type: object
+      properties:
+        id:
+          type: string
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    bdslSchema:
+      description: >
+        Defines a SAS Business Orchestration Services domain-specific language schema.
+      type: object
+      properties:
+        content:
+          type: object
+          description: Contains the JSON schema content for use with the SAS Business
+            Orchestration Services domain-specific language.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    environmentCollection:
+      description: >
+        A collection of environments.
+      type: object
+      properties:
+        version:
+          type: integer
+        accept:
+          type: string
+        count:
+          type: integer
+        start:
+          type: integer
+        limit:
+          type: integer
+        name:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/environment"
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+  responses:
+    404unimplemented:
+      description: The resource is not found.
+      content:
+        "application/vnd.sas.error+json":
+          schema:
+            $ref: "#/components/schemas/error2"
+          examples:
+            Error - Service Unavailable:
+              $ref: "#/components/examples/404NotYetImplemented"
+    404serviceUnavailable:
+      description: The service is not available.
+      content:
+        "application/vnd.sas.error+json":
+          schema:
+            $ref: "#/components/schemas/error2"
+          examples:
+            not authorized:
+              $ref: "#/components/examples/404NotAvailable"
+    404resourceNotFound:
+      description: The specified resource was not found.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 404
+            message: No resource was found for the provided path parameter "id". (The
+              specified value is "df05666e-f295-4190-b1a7-0384a836b4c7".)
+            details:
+            - "path: /businessOrchestration/projects/df05666e-f295-4190-b1a7-0384a836b4c7"
+            - "correlator: 58e778d2-f4f9-4249-839f-920cb274284b"
+    400requestInvalid:
+      description: The request was invalid.
+      content:
+        "application/vnd.sas.error+json":
+          schema:
+            $ref: "#/components/schemas/error2"
+          examples:
+            Error - Bad Request:
+              $ref: "#/components/examples/400BadRequest"
+    406unacceptableResponseType:
+      description: The requested response type is not acceptable. See the returned
+        error response for more information and the acceptable response types.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          example:
+            version: 2
+            httpStatusCode: 406
+            message: Not Acceptable
+            details:
+            - application/vnd.sas.business.orchestration.deployment+json
+            - application/json
+    412preconditionFailed:
+      description: The target has changed since it was last fetched.
+      content:
+        "application/vnd.sas.error+json":
+          schema:
+            $ref: "#/components/schemas/error2"
+          examples:
+            Error - Precondition Failed:
+              summary: Error - Precondition Failed
+              description: The object has changed since it was last fetched.
+              value:
+                version: 2
+                httpStatusCode: 412
+                message: |
+                  The header field "If-Match" has a value that is different from
+                  the entity tag for the resource. (The specified values are
+                  "W/"1668615996285000000"" and "W/"1668802105130000000"",
+                  respectively.)
+    428preconditionRequired:
+      description: An If-Match header or If-Unmodified-Since header is required for
+        this request.
+      content:
+        "application/vnd.sas.error+json":
+          schema:
+            $ref: "#/components/schemas/error2"
+          examples:
+            Error - Precondition Required:
+              summary: Error - Precondition Required
+              description: An If-Match header or If-Unmodified-Since header is required
+                for this request.
+              value:
+                version: 2
+                httpStatusCode: 428
+                message: The header requires a value for either the field \"If-Match\"
+                  or the field \"If-Unmodified-Since\", but a value was not specified
+                  for either field.
+                remediation: Specify either the resource's entity tag or the resource's
+                  last-modified timestamp.
+    500internalServerError:
+      description: The service encountered an error.
+      content:
+        "application/vnd.sas.error+json":
+          schema:
+            $ref: "#/components/schemas/error2"
+          examples:
+            Error - Internal Server Error:
+              summary: Error - Internal Server Error
+              description: The service encountered an error.
+              value:
+                version: 2
+                httpStatusCode: 500
+                message: Internal Server Error
+                details: The service encountered an error.
+  examples:
+    400BadRequest:
+      summary: Error - Bad Request
+      description: The request body is invalid.
+      value:
+        version: 2
+        httpStatusCode: 400
+        message: Bad Request
+    409Conflict:
+      summary: Error - Conflict
+      description: A conflict occurred.
+      value:
+        version: 2
+        httpStatusCode: 409
+        message: Conflict
+    404NotYetImplemented:
+      summary: Error - Not found
+      description: The resource is not found.
+      value:
+        version: 1
+        httpStatusCode: 404
+        message: Not Found
+        details: The resource is not found.
+    getSchemaResponse:
+      summary: Schema
+      description: >
+        A project schema structure.
+        **Note:** The content is abbreviated for readability.
+      value:
+        content:
+          $schema: "http://json-schema.org/draft-07/schema#"
+          additionalProperties: false
+          definitions:
+            processors:
+              $schema: "http://json-schema.org/draft-07/schema#"
+              description: The list of processors.
+              items:
+                docSchema:
+                  ignore: true
+                oneOf:
+                - $schema: "http://json-schema.org/draft-07/schema#"
+                  additionalProperties: false
+                  docSchema:
+                    basePath: "processor"
+                    helpID: "p-convertiso8583tojson"
+                  properties:
+                    convertISO8583ToJSON:
+                      type: object
+                      title: Convert ISO8583 to JSON Processor
+                      description: >
+                        This processor converts a message in ISO 8583 format to JSON.
+                        ISO 8583 is a standard for card transaction messaging. (abbreviated)
+                      properties:
+                        label:
+                          type: string
+                          title: Label
+                          description: Specifies a custom label.
+                          examples:
+                          - "My custom label."
+                        details:
+                          type: string
+                          title: Details
+                          description: Specifies custom details.
+                          examples:
+                          - "My custom details."
+                  required:
+                  - convertISO8583ToJSON
+                  type: object
+    rootResponse:
+      summary: Root API Response
+      description: The root response consists of a collection of links that can be
+        used to navigate the API.
+      value:
+        version: 1
+        links:
+        - method: GET
+          rel: capabilities
+          href: /businessOrchestration/capabilities
+          uri: /businessOrchestration/capabilities
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.business.orchestration.capability
+        - method: GET
+          rel: projects
+          href: /businessOrchestration/projects
+          uri: /businessOrchestration/projects
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.business.orchestration.project
+        - method: POST
+          rel: createProject
+          href: /businessOrchestration/projects
+          uri: /businessOrchestration/projects
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.business.orchestration.project
+        - method: GET
+          rel: deployments
+          href: /businessOrchestration/deployments
+          uri: /businessOrchestration/deployments
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.business.orchestration.deployment
+        - method: POST
+          rel: createDeployment
+          href: /businessOrchestration/deployments
+          uri: /businessOrchestration/deployments
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.business.orchestration.deployment
+        - method: GET
+          rel: environments
+          href: /businessOrchestration/environments
+          uri: /businessOrchestration/environments
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.business.orchestration.environment
+    getProjectListResponse:
+      summary: Project Collection
+      description: A collection of projects.
+      value:
+        version: 2
+        accept: application/vnd.sas.business.orchestration.project
+        count: 2
+        start: 0
+        limit: 10
+        name: projects
+        items:
+        - creationTimeStamp: "2024-10-18T17:15:33.406Z"
+          createdBy: sasuser
+          modifiedTimeStamp: "2024-10-18T17:15:33.406Z"
+          modifiedBy: sasuser
+          id: 029e6e12-9421-4cea-96d0-8cae8e1a74aa
+          links:
+          - method: GET
+            rel: self
+            href: /businessOrchestration/projects/029e6e12-9421-4cea-96d0-8cae8e1a74aa
+            uri: /businessOrchestration/projects/029e6e12-9421-4cea-96d0-8cae8e1a74aa
+            type: application/vnd.sas.business.orchestration.project
+          - method: PUT
+            rel: update
+            href: /businessOrchestration/projects/029e6e12-9421-4cea-96d0-8cae8e1a74aa
+            uri: /businessOrchestration/projects/029e6e12-9421-4cea-96d0-8cae8e1a74aa
+            type: application/vnd.sas.business.orchestration.project
+            responseType: application/vnd.sas.business.orchestration.project
+          - method: DELETE
+            rel: delete
+            href: /businessOrchestration/projects/029e6e12-9421-4cea-96d0-8cae8e1a74aa
+            uri: /businessOrchestration/projects/029e6e12-9421-4cea-96d0-8cae8e1a74aa
+          - method: GET
+            rel: up
+            href: /businessOrchestration/projects
+            uri: /businessOrchestration/projects
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.business.orchestration.project
+          name: My Project 1
+          shortName: "my-project"
+          description: My project description.
+          content: aWQ6IGJkc2wwCnZlcnNpb246IHYxCndvcmtsb2FkczoKICAtIHN5bmNocm9ub3VzT25seTogZmFsc2UKICAgIGZsb3dzOgogICAgICAtIGlucHV0c0JhdGNoaW5nUG9saWN5OgogICAgICAgICAgY291bnQ6IDMKICAgICAgICBpbnB1dHM6CiAgICAgICAgICAtIGh0dHBTZXJ2ZXI6CiAgICAgICAgICAgICAgcGF0aDogL3Rlc3QvcGFyYWxsZWxCYXRjaAogICAgICAgICAgICAgIGFsbG93ZWRWZXJiczoKICAgICAgICAgICAgICAgIC0gUE9TVAogICAgICAgICAgICAgIHN5bmNSZXNwb25zZToKICAgICAgICAgICAgICAgIHN0YXR1czogJzIwMCcKICAgICAgICAgICAgICAgIGhlYWRlcnM6CiAgICAgICAgICAgICAgICAtIGtleTogQ29udGVudC1UeXBlCiAgICAgICAgICAgICAgICAgIHZhbHVlOiBhcHBsaWNhdGlvbi9qc29uCiAgICAgICAgICAgICAgdGltZW91dDogNjBzCiAgICAgICAgcHJvY2Vzc29yczoKICAgICAgICAgIC0gcGFyYWxsZWxCYXRjaDoKICAgICAgICAgICAgICBtYXhNZXNzYWdlczogNQogICAgICAgICAgICAgIHByb2Nlc3NvcnM6CiAgICAgICAgICAgICAgICAtIGxvZzoKICAgICAgICAgICAgICAgICAgICBsZXZlbDogSU5GTwogICAgICAgICAgICAgICAgICAgIG1lc3NhZ2U6ICR7ISBqc29uKCJtZXNzYWdlIikgfQogICAgICAgIG91dHB1dHM6CiAgICAgICAgICAtIHJlc3BvbnNlOiB7fQo=
+          contentValid: true
+        - creationTimeStamp: "2024-10-17T09:04:23.009Z"
+          createdBy: sasuser
+          modifiedTimeStamp: "2024-10-17T09:04:33.591Z"
+          modifiedBy: sasuser
+          id: 275c6ea7-94aa-47af-81a0-f199b2ed7f15
+          links:
+          - method: GET
+            rel: self
+            href: /businessOrchestration/projects/275c6ea7-94aa-47af-81a0-f199b2ed7f15
+            uri: /businessOrchestration/projects/275c6ea7-94aa-47af-81a0-f199b2ed7f15
+            type: application/vnd.sas.business.orchestration.project
+          - method: PUT
+            rel: update
+            href: /businessOrchestration/projects/275c6ea7-94aa-47af-81a0-f199b2ed7f15
+            uri: /businessOrchestration/projects/275c6ea7-94aa-47af-81a0-f199b2ed7f15
+            type: application/vnd.sas.business.orchestration.project
+            responseType: application/vnd.sas.business.orchestration.project
+          - method: DELETE
+            rel: delete
+            href: /businessOrchestration/projects/275c6ea7-94aa-47af-81a0-f199b2ed7f15
+            uri: /businessOrchestration/projects/275c6ea7-94aa-47af-81a0-f199b2ed7f15
+          - method: GET
+            rel: up
+            href: /businessOrchestration/projects
+            uri: /businessOrchestration/projects
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.business.orchestration.project
+          name: My Project 2
+          shortName: "second-project"
+          description: Project description.
+        links:
+        - method: POST
+          rel: create
+          href: /businessOrchestration/projects?limit=2&start=0&sortBy=creationTimeStamp:descending
+          uri: /businessOrchestration/projects?limit=2&start=0&sortBy=creationTimeStamp:descending
+          type: application/vnd.sas.business.orchestration.project
+          responseType: application/vnd.sas.business.orchestration.project
+        - method: GET
+          rel: self
+          href: /businessOrchestration/projects?limit=2&start=0&sortBy=creationTimeStamp:descending?start=0&limit=2&sortBy=creationTimeStamp:descending
+          uri: /businessOrchestration/projects?limit=2&start=0&sortBy=creationTimeStamp:descending?start=0&limit=2&sortBy=creationTimeStamp:descending
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.business.orchestration.project
+        - method: GET
+          rel: collection
+          href: /businessOrchestration/projects?limit=2&start=0&sortBy=creationTimeStamp:descending
+          uri: /businessOrchestration/projects?limit=2&start=0&sortBy=creationTimeStamp:descending
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.business.orchestration.project
+        - method: GET
+          rel: next
+          href: /businessOrchestration/projects?limit=2&start=0&sortBy=creationTimeStamp:descending?start=2&limit=2&sortBy=creationTimeStamp:descending
+          uri: /businessOrchestration/projects?limit=2&start=0&sortBy=creationTimeStamp:descending?start=2&limit=2&sortBy=creationTimeStamp:descending
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.business.orchestration.project
+        - method: GET
+          rel: up
+          href: /businessOrchestration
+          uri: /businessOrchestration
+          type: application/vnd.sas.api
+    createDeploymentResponse:
+      summary: Deployment
+      description: A deployment response structure.
+      value:
+        id: "56231205-d995-4805-8660-8303a74844aa"
+        creationTimeStamp: "2024-09-25T19:55:16.926Z"
+        createdBy: "sasuser"
+        modifiedTimeStamp: "2024-09-25T19:55:16.926Z"
+        modifiedBy: "sasuser"
+        links:
+        - method: "GET"
+          rel: "self"
+          href: "/businessOrchestration/deployments/56231205-d995-4805-8660-8303a74844aa"
+          uri: "/businessOrchestration/deployments/56231205-d995-4805-8660-8303a74844aa"
+          type: "application/vnd.sas.business.orchestration.deployment"
+        - method: "DELETE"
+          rel: "delete"
+          href: "/businessOrchestration/deployments/56231205-d995-4805-8660-8303a74844aa"
+          uri: "/businessOrchestration/deployments/56231205-d995-4805-8660-8303a74844aa"
+        - method: "GET"
+          rel: "up"
+          href: "/businessOrchestration/deployments"
+          uri: "/businessOrchestration/deployments"
+          type: "application/vnd.sas.collection"
+          itemType: "application/vnd.sas.business.orchestration.deployment"
+        projectId: "8d9dd2cf-e042-4c9c-99cd-c6b8ca92b3f9"
+        environmentId: "dev"
+        numWorkloads: 2
+    404NotAvailable:
+      summary: Error - API Unavailable
+      description: The API is unavailable.
+      value:
+        version: 1
+        httpStatusCode: 404
+        message: Not Found
+        details: The service is unavailable.
+    submitProject:
+      summary: Project Creation Request Body with Content
+      description: The request body for a project that contains content.
+      value:
+        name: My Project
+        shortName: my-project
+        description: My project that contains content.
+        content: aWQ6IDZmZjRiYzA3LTE3MjctNDZlZC04ZGM5LTRiMjgzMWVjNjA2Mwp2ZXJzaW9uOiB2MQp3b3JrbG9hZHM6CiAgICBmbG93czoKICAgICAgLSBpbnB1dHM6CiAgICAgICAgICAtIGh0dHBTZXJ2ZXI6CiAgICAgICAgICAgICAgcGF0aDogL3Rlc3QKICAgICAgICAgICAgICBhbGxvd2VkVmVyYnM6CiAgICAgICAgICAgICAgICAtIFBPU1QKICAgICAgICBwcm9jZXNzb3JzOgogICAgICAgICAgLSBsb2c6CiAgICAgICAgICAgICAgbGV2ZWw6IElORk8KICAgICAgICAgICAgICBtZXNzYWdlOiAkeyEganNvbigibWVzc2FnZSIpIH0KICAgICAgICBvdXRwdXRzOgogICAgICAgICAgLSByZXNwb25zZToge30=
+        editMode: "diagram"
+    getDeployments:
+      summary: Deployments
+      description: A collection of deployments.
+      value:
+        accept: application/vnd.sas.business.orchestration.deployment
+        count: 2
+        start: 0
+        limit: 10
+        name: deployment
+        items:
+        - creationTimeStamp: "2024-09-06T14:52:50.870183Z"
+          createdBy: "sasuser"
+          modifiedTimeStamp: "2024-09-06T14:52:50.870183Z"
+          modifiedBy: "sasuser"
+          id: "ba02caa7-13f3-4f3a-a5d5-ecf653db15b0"
+          links:
+          - method: "GET"
+            rel: "self"
+            href: "/businessOrchestration/deployments/ba02caa7-13f3-4f3a-a5d5-ecf653db15b0"
+            uri: "/businessOrchestration/deployments/ba02caa7-13f3-4f3a-a5d5-ecf653db15b0"
+            type: "application/vnd.sas.business.orchestration.deployment"
+          - method: "DELETE"
+            rel: "delete"
+            href: "/businessOrchestration/deployments/ba02caa7-13f3-4f3a-a5d5-ecf653db15b0"
+            uri: "/businessOrchestration/deployments/ba02caa7-13f3-4f3a-a5d5-ecf653db15b0"
+          - method: "GET"
+            rel: "up"
+            href: "/businessOrchestration/deployments"
+            uri: "/businessOrchestration/deployments"
+            type: "application/vnd.sas.collection"
+            itemType: "application/vnd.sas.business.orchestration.deployment"
+          projectId: "4541c075-5f38-4b3a-ad1d-b2ca6a87882f"
+          environmentId: "dev"
+          projectName: "My Project 1"
+          status:
+          - "HEALTHY"
+          numWorkloads: 1
+        - creationTimeStamp: "2024-09-20T19:54:46.867Z"
+          createdBy: "sasuser"
+          modifiedTimeStamp: "2024-09-20T19:54:46.867Z"
+          modifiedBy: "sasuser"
+          id: "c4b25960-8e1e-4f09-83e1-4715718745e7"
+          links:
+          - method: "GET"
+            rel: "self"
+            href: "/businessOrchestration/deployments/c4b25960-8e1e-4f09-83e1-4715718745e7"
+            uri: "/businessOrchestration/deployments/c4b25960-8e1e-4f09-83e1-4715718745e7"
+            type: "application/vnd.sas.business.orchestration.deployment"
+          - method: "DELETE"
+            rel: "delete"
+            href: "/businessOrchestration/deployments/c4b25960-8e1e-4f09-83e1-4715718745e7"
+            uri: "/businessOrchestration/deployments/c4b25960-8e1e-4f09-83e1-4715718745e7"
+          - method: "GET"
+            rel: "up"
+            href: "/businessOrchestration/deployments"
+            uri: "/businessOrchestration/deployments"
+            type: "application/vnd.sas.collection"
+            itemType: "application/vnd.sas.business.orchestration.deployment"
+          projectId: "91773d33-c074-46c5-90d6-30ef16fb63ca"
+          environmentId: "test"
+          projectName: "My Project 2"
+          status:
+          - "HEALTHY"
+          - "UNHEALTHY"
+          numWorkloads: 2
+        links:
+        - method: "POST"
+          rel: "create"
+          href: "/businessOrchestration/deployments"
+          uri: "/businessOrchestration/deployments"
+          type: "application/vnd.sas.business.orchestration.deployment"
+          responseType: "application/vnd.sas.business.orchestration.deployment"
+        - method: "GET"
+          rel: "self"
+          href: "/businessOrchestration/deployments"
+          uri: "/businessOrchestration/deployments"
+          type: "application/vnd.sas.collection"
+          itemType: "application/vnd.sas.business.orchestration.deployment"
+    getEnvironments:
+      summary: Environments
+      description: A collection of environments.
+      value:
+        version: 2
+        accept: "application/vnd.sas.business.orchestration.environment"
+        count: 3
+        start: 0
+        limit: 10
+        name: "environments"
+        items:
+        - id: "dev"
+          links:
+          - method: "GET"
+            rel: "self"
+            href: "/businessOrchestration/environments/dev"
+            uri: "/businessOrchestration/environments/dev"
+            type: "application/vnd.sas.business.orchestration.environment"
+        - id: "test"
+          links:
+          - method: "GET"
+            rel: "self"
+            href: "/businessOrchestration/environments/test"
+            uri: "/businessOrchestration/environments/test"
+            type: "application/vnd.sas.business.orchestration.environment"
+        - id: "production"
+          links:
+          - method: "GET"
+            rel: "self"
+            href: "/businessOrchestration/environments/production"
+            uri: "/businessOrchestration/environments/production"
+            type: "application/vnd.sas.business.orchestration.environment"
+        links:
+        - method: "GET"
+          rel: "self"
+          href: "/businessOrchestration/environments"
+          uri: "/businessOrchestration/environments"
+          type: "application/vnd.sas.collection"
+          itemType: "application/vnd.sas.business.orchestration.environment"
+    getProjectResponse:
+      summary: Project
+      description: A project response structure.
+      value:
+        creationTimeStamp: "2024-10-10T19:36:59.226Z"
+        createdBy: "sasuser"
+        modifiedTimeStamp: "2024-10-10T19:36:59.226Z"
+        modifiedBy: "sasuser"
+        id: "ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+        links:
+        - method: "GET"
+          rel: "self"
+          href: "/businessOrchestration/projects/ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+          uri: "/businessOrchestration/projects/ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+          type: "application/vnd.sas.business.orchestration.project"
+        - method: "PUT"
+          rel: "update"
+          href: "/businessOrchestration/projects/ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+          uri: "/businessOrchestration/projects/ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+          type: "application/vnd.sas.business.orchestration.project"
+          responseType: "application/vnd.sas.business.orchestration.project"
+        - method: "DELETE"
+          rel: "delete"
+          href: "/businessOrchestration/projects/ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+          uri: "/businessOrchestration/projects/ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+        - method: "GET"
+          rel: "up"
+          href: "/businessOrchestration/projects"
+          uri: "/businessOrchestration/projects"
+          type: "application/vnd.sas.collection"
+          itemType: "application/vnd.sas.business.orchestration.project"
+        name: "My Project 1"
+        shortName: "my-project"
+        description: "My sample project."
+        content: aWQ6IGJkc2wwCnZlcnNpb246IHYxCndvcmtsb2FkczoKICAtIHN5bmNocm9ub3VzT25seTogZmFsc2UKICAgIGZsb3dzOgogICAgICAtIGlucHV0c0JhdGNoaW5nUG9saWN5OgogICAgICAgICAgY291bnQ6IDMKICAgICAgICBpbnB1dHM6CiAgICAgICAgICAtIGh0dHBTZXJ2ZXI6CiAgICAgICAgICAgICAgcGF0aDogL3Rlc3QvcGFyYWxsZWxCYXRjaAogICAgICAgICAgICAgIGFsbG93ZWRWZXJiczoKICAgICAgICAgICAgICAgIC0gUE9TVAogICAgICAgICAgICAgIHN5bmNSZXNwb25zZToKICAgICAgICAgICAgICAgIHN0YXR1czogJzIwMCcKICAgICAgICAgICAgICAgIGhlYWRlcnM6CiAgICAgICAgICAgICAgICAtIGtleTogQ29udGVudC1UeXBlCiAgICAgICAgICAgICAgICAgIHZhbHVlOiBhcHBsaWNhdGlvbi9qc29uCiAgICAgICAgICAgICAgdGltZW91dDogNjBz
+        contentValid: true
+        editMode: "diagram"
+    submitDeployment:
+      summary: Deployment Creation Request Body
+      description: The request body for a deployment.
+      value:
+        projectId: 7c8c24de-7afd-4fdd-b159-deeb3ab44cfa
+        environmentId: testenvironment
+    getCapabilityListResponse:
+      summary: Capability Collection
+      description: A collection of capabilities.
+      value:
+        version: 2
+        accept: application/vnd.sas.business.orchestration.capability
+        name: capabilities
+        count: 2
+        start: 0
+        limit: 0
+        items:
+        - name: "capability.first"
+        - name: "capability.second"
+    submitProjectNoContent:
+      summary: Project Creation Request Body with No Content
+      description: My project that contains no content.
+      value:
+        name: My Project
+        shortName: my-project
+        description: The description of a project.
+    createProjectResponse:
+      summary: Project
+      description: A project response structure.
+      value:
+        creationTimeStamp: "2024-10-10T19:36:59.226Z"
+        createdBy: "sasuser"
+        modifiedTimeStamp: "2024-10-10T19:36:59.226Z"
+        modifiedBy: "sasuser"
+        id: "ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+        links:
+        - method: "GET"
+          rel: "self"
+          href: "/businessOrchestration/projects/ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+          uri: "/businessOrchestration/projects/ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+          type: "application/vnd.sas.business.orchestration.project"
+        - method: "PUT"
+          rel: "update"
+          href: "/businessOrchestration/projects/ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+          uri: "/businessOrchestration/projects/ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+          type: "application/vnd.sas.business.orchestration.project"
+          responseType: "application/vnd.sas.business.orchestration.project"
+        - method: "DELETE"
+          rel: "delete"
+          href: "/businessOrchestration/projects/ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+          uri: "/businessOrchestration/projects/ec4b50e8-4dbc-49fe-9120-02763274a1f1"
+        - method: "GET"
+          rel: "up"
+          href: "/businessOrchestration/projects"
+          uri: "/businessOrchestration/projects"
+          type: "application/vnd.sas.collection"
+          itemType: "application/vnd.sas.business.orchestration.project"
+        name: "My Project 1"
+        shortName: "my-project"
+        description: "My sample project."
+        content: "aWQ6IDZmZjRiYzA3LTE3MjctNDZlZC04ZGM5LTRiMjgzMWVjNjA2Mwp2ZXJzaW9uOiB2MQp3b3JrbG9hZHM6CiAgIC0gZmxvd3M6CiAgICAgIC0gaW5wdXRzOgogICAgICAgICAgLSBodHRwU2VydmVyOgogICAgICAgICAgICAgIHBhdGg6IC90ZXN0CiAgICAgICAgICAgICAgYWxsb3dlZFZlcmJzOgogICAgICAgICAgICAgICAgLSBQT1NUCiAgICAgICAgcHJvY2Vzc29yczoKICAgICAgICAgIC0gbG9nOgogICAgICAgICAgICAgIGxldmVsOiBJTkZPCiAgICAgICAgICAgICAgbWVzc2FnZTogJHshIGpzb24oIm1lc3NhZ2UiKSB9CiAgICAgICAgb3V0cHV0czoKICAgICAgICAgIC0gcmVzcG9uc2U6IHt9"
+        contentValid: true
+        archived: false
+        editMode: "diagram"
+    updateProject:
+      summary: Project Update Request Body with Content
+      description: The request body for a project that contains content.
+      value:
+        id: projectId
+        name: My Project
+        shortName: my-project
+        description: My project that contains content.
+        content: aWQ6IDZmZjRiYzA3LTE3MjctNDZlZC04ZGM5LTRiMjgzMWVjNjA2Mwp2ZXJzaW9uOiB2MQp3b3JrbG9hZHM6CiAgICBmbG93czoKICAgICAgLSBpbnB1dHM6CiAgICAgICAgICAtIGh0dHBTZXJ2ZXI6CiAgICAgICAgICAgICAgcGF0aDogL3Rlc3QKICAgICAgICAgICAgICBhbGxvd2VkVmVyYnM6CiAgICAgICAgICAgICAgICAtIFBPU1QKICAgICAgICBwcm9jZXNzb3JzOgogICAgICAgICAgLSBsb2c6CiAgICAgICAgICAgICAgbGV2ZWw6IElORk8KICAgICAgICAgICAgICBtZXNzYWdlOiAkeyEganNvbigibWVzc2FnZSIpIH0KICAgICAgICBvdXRwdXRzOgogICAgICAgICAgLSByZXNwb25zZToge30=
+        archived: false
+        editMode: "diagram"

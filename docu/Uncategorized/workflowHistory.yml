@@ -1,0 +1,2506 @@
+---
+openapi: 3.0.3
+info:
+  version: "2"
+  title: Workflow History
+  description: The Workflow History API provides historical tracking of workflows
+    executed using the Workflow Service. The Workflow History tracks process status
+    for all workflows and maintains full change history for processes, tasks, and
+    variables. This API is intended for use by the Workflow Manager administration
+    tool and can be used for report generation
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+servers:
+- description: This is an example of a base URL.
+  url: https://example.com/workflowHistory
+tags:
+- name: Root
+  description: Contains the operations for the root resource.
+- name: Processes
+  description: Contains the operations to read, delete processes.
+- name: Definitions
+  description: Contains the operations to read definitions.
+- name: HistoryEvents
+  description: Contains the operations to read, update, delete history events.
+paths:
+  /:
+    get:
+      operationId: root
+      tags:
+      - Root
+      summary: Get a list of top-level links
+      description: Returns a collection of links to the top-level collections surfaced
+        through this API.
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                root:
+                  $ref: "#/components/examples/root"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                root:
+                  $ref: "#/components/examples/root"
+    head:
+      operationId: headersForRoot
+      tags:
+      - Root
+      summary: Check if the service is available
+      description: Returns whether or not the service is running.
+      responses:
+        "200":
+          description: OK. Service is running and available
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                root:
+                  $ref: "#/components/examples/root"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                root:
+                  $ref: "#/components/examples/root"
+  /definitions:
+    get:
+      operationId: getDefinitions
+      tags:
+      - Definitions
+      summary: Get definitions
+      description: Return a collection of definitions that have been part of active
+        workflows.
+      parameters:
+      - name: start
+        in: query
+        description: The starting index of the first definition in a page. Defaults
+          to 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: Maximum number of definitions to return in this page of results.
+          The actual number of returned definitions may be less if the collection
+          has been exhausted. Defaults to 10.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: The criteria for filtering the ${pluralNames}. See [Filtering
+          in REST APIs](https://developer.sas.com/rest-apis/workflowHistory-v2/docs/getting-started/usage-notes#filtering).
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the ${pluralNames}. See [Sorting in
+          REST APIs](https://developer.sas.com/rest-apis/workflowHistory-v2/docs/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/definitionCollection"
+              examples:
+                application/vnd.sas.workflow.history.definition+json:
+                  $ref: "#/components/examples/historyDefinitionsCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/definitionCollection"
+              examples:
+                application/vnd.sas.workflow.history.definition+json:
+                  $ref: "#/components/examples/historyDefinitionsCollection"
+        "400":
+          description: There was invalid data in the request. May provide an additional
+            error code.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+  /definitions/{definitionId}:
+    get:
+      operationId: getDefinition
+      tags:
+      - Definitions
+      summary: Get definition
+      description: Returns information about the definition and metrics about the
+        processes that have been run with it.
+      parameters:
+      - name: definitionId
+        in: path
+        description: definition id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.workflow.history.definition+json:
+              schema:
+                $ref: "#/components/schemas/definition"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyDefinition"
+        "404":
+          description: Not Found. The definition id could not be found in the workflow
+            history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /definitions/{definitionId}/revisions:
+    get:
+      operationId: getDefinitionReversions
+      tags:
+      - Definitions
+      summary: Get a list of the revisions for a definition that have been instantiated
+        for a process
+      description: Returns a collection of definitions.  Standard paging, filtering,
+        and sorting options are provided.
+      parameters:
+      - name: definitionId
+        in: path
+        description: definition id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: start
+        in: query
+        description: The starting index of the first group in a page. Defaults to
+          0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: Maximum number of definitions to return in this page of results.
+          The actual number of definitions groups may be less if the collection has
+          been exhausted. Defaults to 10.
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/definitionCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyDefinitionsCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/definitionCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyDefinitionsCollection"
+        "400":
+          description: There was invalid data in the request. May provide an additional
+            error code.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+  /definitions/{definitionId}/revisions/{revision}:
+    get:
+      operationId: getDefinitionRevision
+      tags:
+      - Definitions
+      summary: Get history for a specific revision of a definition. Including metrics
+        about the associated processes
+      description: Returns a revision of a definition.
+      parameters:
+      - name: definitionId
+        in: path
+        description: definition id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: revision
+        in: path
+        description: Revision number
+        required: true
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.workflow.history.definition+json:
+              schema:
+                $ref: "#/components/schemas/definition"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyDefinition"
+        "400":
+          description: There was invalid data in the request. May provide an additional
+            error code.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+  /definitions/{definitionId}/revisions/{revision}/model:
+    get:
+      operationId: getDefinitionModel
+      tags:
+      - Definitions
+      summary: Get the definition model
+      description: Returns the definition model.
+      parameters:
+      - name: definitionId
+        in: path
+        description: definition id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: revision
+        in: path
+        description: Revision number
+        required: true
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.workflow.history.definition+json:
+              schema:
+                $ref: "#/components/schemas/definition"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyDefinition"
+        "400":
+          description: There was invalid data in the request. May provide an additional
+            error code.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: Not Found. The definition id and revision id could not be found
+            in the workflow history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /processes:
+    get:
+      operationId: getProcesses
+      tags:
+      - Processes
+      summary: Get processes
+      description: Return a collection of historical processes. Standard paging options
+        are provided.
+      parameters:
+      - name: start
+        in: query
+        description: The starting index of the first process in a page. Defaults to
+          0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: Maximum number of processes to return in this page of results.
+          The actual number of returned processes may be less if the collection has
+          been exhausted. Defaults to 10.
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/processCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processesCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/processCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processesCollection"
+        "400":
+          description: There was invalid data in the request. May provide an additional
+            error code.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+    post:
+      operationId: bulkDeleteProcesses
+      tags:
+      - Processes
+      summary: Bulk delete processes
+      description: Delete multiple processes once.
+      requestBody:
+        content:
+          application/vnd.sas.selection+json:
+            schema:
+              $ref: "#/components/schemas/selection"
+            examples:
+              default:
+                $ref: "#/components/examples/processesIdCollection"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/selection"
+            examples:
+              default:
+                $ref: "#/components/examples/processesIdCollection"
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/deleteSelectionResultCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processesCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/deleteSelectionResultCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processesCollection"
+  /processes/{processId}:
+    get:
+      operationId: getProcess
+      tags:
+      - Processes
+      summary: Get process
+      description: Return information about a single process given its unique process
+        id.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.workflow.history.process+json:
+              schema:
+                $ref: "#/components/schemas/process"
+              examples:
+                default:
+                  $ref: "#/components/examples/process"
+        "404":
+          description: Not Found. The process id could not be found in the workflow
+            history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+    delete:
+      operationId: deleteProcess
+      tags:
+      - Processes
+      summary: Delete process
+      description: Delete process with specified process id.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "204":
+          description: The process was deleted.
+  /processes/{processId}/history:
+    get:
+      operationId: getProcessHistory
+      tags:
+      - Processes
+      summary: Get the process state history
+      description: Return information about a single process given its unique process
+        id.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/processStateCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processStatesCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/processStateCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processStatesCollection"
+        "404":
+          description: Not Found. The process id could not be found in the workflow
+            history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /processes/{processId}/variables:
+    get:
+      operationId: getProcessVariables
+      tags:
+      - Processes
+      summary: Get process variables
+      description: Returns a collection of variables including the change history.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: name
+        in: query
+        description: Names of the variables to return in the collection result.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/variableCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processVariableCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/variableCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processVariableCollection"
+        "404":
+          description: Not Found. The process id could not be found in the workflow
+            history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /processes/{processId}/variables/{variableName}:
+    get:
+      operationId: getProcessVaraible
+      tags:
+      - Processes
+      summary: Get variable by name
+      description: Retrieve variable with specified name.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: variableName
+        in: path
+        description: Variable name
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.workflow.history.variable+json:
+              schema:
+                $ref: "#/components/schemas/variable"
+              examples:
+                default:
+                  $ref: "#/components/examples/processVariable"
+        "404":
+          description: Not Found. The process id could not be found in the workflow
+            history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /processes/{processId}/variables/{variableName}/history:
+    get:
+      operationId: getProcessVariableHistory
+      tags:
+      - Processes
+      summary: Get variable history by name
+      description: Retrieve variable history for the specified variable name.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: variableName
+        in: path
+        description: Variable name
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/variableCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processVariableCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/variableCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processVariableCollection"
+        "404":
+          description: Not Found. The process id could not be found in the workflow
+            history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /processes/{processId}/subprocesses:
+    get:
+      operationId: getSubprocesses
+      tags:
+      - Processes
+      summary: Get subprocesses of a process
+      description: Returns a collection of subprocesses.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/subprocessCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processSubprocessesCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subprocessCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processSubprocessesCollection"
+        "404":
+          description: Not Found. The process id could not be found in the workflow
+            history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /processes/{processId}/subprocesses/{subprocessId}:
+    get:
+      operationId: getSubprocess
+      tags:
+      - Processes
+      summary: Get subprocess of a process
+      description: Returns information about a single subprocess.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: subprocessId
+        in: path
+        description: Subprocess id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.workflow.history.subprocess+json:
+              schema:
+                $ref: "#/components/schemas/subprocess"
+              examples:
+                default:
+                  $ref: "#/components/examples/subprocess"
+        "404":
+          description: Not Found. The process id and subprocess id could not be found
+            in the workflow history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /processes/{processId}/subprocesses/{subprocessId}/variables:
+    get:
+      operationId: getSubprocessVariables
+      tags:
+      - Processes
+      summary: Get variables from the subprocess
+      description: Returns a collection of variables.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: subprocessId
+        in: path
+        description: Subprocess id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: scope
+        in: query
+        description: Scope of the variables to be retrieved. Valid values [local,inherited,null].
+          Defaults to null.
+        schema:
+          type: string
+      - name: name
+        in: query
+        description: Names of the variables to return in the collection result.
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/variableCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processVariableCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/variableCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processVariableCollection"
+        "404":
+          description: Not Found. The process id and subprocess id could not be found
+            in the workflow history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /processes/{processId}/subprocesses/{subprocessId}/variables/{variableName}:
+    get:
+      operationId: getSubprocessVariable
+      tags:
+      - Processes
+      summary: Get variable by name from the subprocess
+      description: Retrieve variable with specified name.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: subprocessId
+        in: path
+        description: Subprocess id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: variableName
+        in: path
+        description: Variable name
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.workflow.history.variable+json:
+              schema:
+                $ref: "#/components/schemas/variable"
+              examples:
+                default:
+                  $ref: "#/components/examples/processVariable"
+        "404":
+          description: Not Found. The process id and subprocess id could not be found
+            in the workflow history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /processes/{processId}/subprocesses/{subprocessId}/variables/{variableName}/history:
+    get:
+      operationId: getSubprocessVariableHistory
+      tags:
+      - Processes
+      summary: Get variable by name from the subprocess
+      description: Retrieve modification history of the variable with specified name.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: subprocessId
+        in: path
+        description: Subprocess id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: variableName
+        in: path
+        description: Variable name
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/variableCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processVariableCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/variableCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processVariableCollection"
+        "404":
+          description: Not Found. The process id and subprocess id could not be found
+            in the workflow history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /processes/{processId}/tasks:
+    get:
+      operationId: getProcessTasks
+      tags:
+      - Processes
+      summary: Get tasks for a process
+      description: Returns a collection of tasks.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/taskCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processTasksCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/taskCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processTasksCollection"
+        "404":
+          description: Not Found. The process id could not be found in the workflow
+            history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /processes/{processId}/tasks/{taskId}:
+    get:
+      operationId: getProcessTask
+      tags:
+      - Processes
+      summary: Get task
+      description: Returns information about a single task based on its unique id.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: taskId
+        in: path
+        description: Task id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.workflow.history.task+json:
+              schema:
+                $ref: "#/components/schemas/task"
+              examples:
+                default:
+                  $ref: "#/components/examples/processTask"
+        "404":
+          description: Not Found. The process id could not be found in the workflow
+            history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /processes/{processId}/tasks/{taskId}/history:
+    get:
+      operationId: getProcessTaskHistory
+      tags:
+      - Processes
+      summary: Get task history
+      description: Returns historical information about a single task based on its
+        unique id.
+      parameters:
+      - name: processId
+        in: path
+        description: Process id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: taskId
+        in: path
+        description: Task id
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/taskCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processTaskStatesCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/taskCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/processTaskStatesCollection"
+        "404":
+          description: Not Found. The process id and task id could not be found in
+            the workflow history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  /historyEvents:
+    get:
+      operationId: getEventLogs
+      tags:
+      - HistoryEvents
+      summary: Get history event logs
+      description: Get history event logs.
+      parameters:
+      - name: start
+        in: query
+        description: The starting index of the first history event log in a page.
+          Defaults to 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: Maximum number of history event logs to return in this page of
+          results. The actual number of returned history event logs may be less if
+          the collection has been exhausted. Defaults to 50.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: The criteria for filtering the history event logs. See [Filtering
+          in REST APIs](https://developer.sas.com/rest-apis/workflowHistory-v2/docs/getting-started/usage-notes#filtering).
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the history event logs. See [Sorting
+          in REST APIs](https://developer.sas.com/rest-apis/workflowHistory-v2/docs/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/historyEventCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyEventsCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/historyEventCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyEventsCollection"
+        "400":
+          description: There was invalid data in the request. May provide an additional
+            error code.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+    patch:
+      operationId: patchEventsByPeriod
+      tags:
+      - HistoryEvents
+      summary: Update history events by period
+      description: Update history events by period.
+      parameters:
+      - name: startDate
+        in: query
+        description: The start created date of history event log.
+        schema:
+          type: string
+          format: date-time
+      - name: endDate
+        in: query
+        description: The end created date of history event log.
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/historyEventCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyEventsCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/historyEventCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyEventsCollection"
+        "400":
+          description: There was invalid data in the request. May provide an additional
+            error code.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+    delete:
+      operationId: deleteEventsByPeriod
+      tags:
+      - HistoryEvents
+      summary: Delete history events by period
+      description: Delete history events by period.
+      parameters:
+      - name: startDate
+        in: query
+        description: The start created date of history event log.
+        required: true
+        schema:
+          type: string
+          format: date-time
+      - name: endDate
+        in: query
+        description: The end created date of history event log.
+        required: true
+        schema:
+          type: string
+          format: date-time
+      - name: scope
+        in: query
+        description: The state scope of history event log deleted.
+        schema:
+          type: string
+          enum: ["received", "in process", "error", "completed", "failed"]
+      responses:
+        "204":
+          description: History event logs were deleted. No response body is returned.
+        "400":
+          description: There was invalid data in the request. May provide an additional
+            error code.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+  /historyEvents/{eventId}:
+    get:
+      operationId: getEventLog
+      tags:
+      - HistoryEvents
+      summary: Get history event log
+      description: Get history event log.
+      parameters:
+      - name: eventId
+        in: path
+        description: The event id.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.workflow.history.event.log+json:
+              schema:
+                $ref: "#/components/schemas/historyEvent"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyEvent"
+        "404":
+          description: Not Found. The history event id could not be found in the workflow
+            history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+    patch:
+      operationId: patchEventLog
+      tags:
+      - HistoryEvents
+      summary: Update history event log
+      description: Update history event log.
+      parameters:
+      - name: If-Match
+        in: header
+        description: The etag that was returned from a GET or PATCH.
+        schema:
+          type: string
+      - name: eventId
+        in: path
+        description: The event id.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      requestBody:
+        content:
+          application/vnd.sas.workflow.history.event.log+json:
+            schema:
+              $ref: "#/components/schemas/historyEvent"
+            examples:
+              default:
+                $ref: "#/components/examples/historyEvent"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/historyEvent"
+            examples:
+              default:
+                $ref: "#/components/examples/historyEvent"
+        description: The history event to be updated.
+        required: true
+      responses:
+        "200":
+          description: The history event updated.
+          headers:
+            ETag:
+              description: The entity tag for the history event updated.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.workflow.history.event.log+json:
+              schema:
+                $ref: "#/components/schemas/historyEvent"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyEvent"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/historyEvent"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyEvent"
+        "400":
+          description: There was invalid data in the request. May provide an additional
+            error code.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+        "412":
+          description: Precondition Failed. The ETag provided does not match the current
+            state of the object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/preConditionFailed"
+    delete:
+      operationId: deleteEventLog
+      tags:
+      - HistoryEvents
+      summary: Delete history event log
+      description: Delete history event log.
+      parameters:
+      - name: eventId
+        in: path
+        description: The event id.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "204":
+          description: History event log was deleted. No response body is returned.
+  /historyEvents/{eventId}/eventDetail/{eventDetailId}:
+    get:
+      operationId: getEventLogDetail
+      tags:
+      - HistoryEvents
+      summary: Get history event log detail info
+      description: Get history event log detail info.
+      parameters:
+      - name: eventId
+        in: path
+        description: The event id.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      - name: eventDetailId
+        in: path
+        description: The event log detail info id.
+        required: true
+        schema:
+          type: string
+          format: object-id
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              $ref: "#/components/headers/ContentType"
+          content:
+            application/vnd.sas.workflow.history.event.detail+json:
+              schema:
+                $ref: "#/components/schemas/historyEventDetail"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyEventDetail"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/historyEventDetail"
+              examples:
+                default:
+                  $ref: "#/components/examples/historyEventDetail"
+        "404":
+          description: Not Found. The history event id could not be found in the workflow
+            history service.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+components:
+  headers:
+    ContentType:
+      description: the response Content-Type header from service.
+      schema:
+        type: string
+  schemas:
+    definition:
+      type: object
+      description: The definition summary.
+      properties:
+        id:
+          type: string
+          description: Definition id
+        name:
+          type: string
+          description: The name of definition
+        revision:
+          type: integer
+          description: The revision of this definition
+        enabled:
+          type: boolean
+          description: true if this definition revision is enabled in the workflow
+            engine.
+        createdBy:
+          type: string
+          description: The id of the user who created this definition revision.
+        createdTimeStamp:
+          type: string
+          description: Timestamp of when this definition revision was created.
+          format: date-time
+        enabledTimeStamp:
+          type: string
+          description: Timestamp of when this definition revision was enabled.
+          format: date-time
+        replacedTimeStamp:
+          type: string
+          description: Timestamp of when this definition revision was replaced as
+            the enabled revision.
+          format: date-time
+        links:
+          type: array
+          description: Links that apply to this definition.
+          items:
+            $ref: "#/components/schemas/link"
+    process:
+      type: object
+      description: The process instance summary.
+      properties:
+        id:
+          type: string
+          description: Process id
+        parentId:
+          type: string
+          description: For a subprocess the parent Process id (this can be either
+            the main process id or a parent subprocess id)
+        name:
+          type: string
+          description: Process name
+        definitionId:
+          type: string
+          description: Definition id
+        definitionRevision:
+          type: string
+          description: Definition revision
+        createdTimeStamp:
+          type: string
+          description: Timestamp of when this process was instantiated
+          format: date-time
+        createdBy:
+          type: string
+          description: The id of the user that instantiated the process
+        state:
+          type: string
+          description: The current runtime state of this process (In Progress | Completed
+            | Terminated)
+        stateTimeStamp:
+          type: string
+          description: Timestamp of when this state was set
+          format: date-time
+        links:
+          type: array
+          description: Links that apply to this definition.
+          items:
+            $ref: "#/components/schemas/link"
+    processState:
+      type: object
+      description: The process instance state.
+      properties:
+        processId:
+          type: string
+          description: Process id
+        processName:
+          type: string
+          description: Process name
+        state:
+          type: string
+          description: State associated with this process (In Progress | Completed
+            | Terminated)
+        messageText:
+          type: string
+          description: Message assigned by the setter of the state
+        active:
+          type: boolean
+          description: Is this the currently active state for this process
+          format: boolean
+        created:
+          type: string
+          description: Timestamp for when this state was assigned
+          format: date-time
+        createdBy:
+          type: string
+          description: User id for the user that assigned the state
+    definitionCollection:
+      type: object
+      description: The definition summary collection.
+      properties:
+        name:
+          type: string
+          description: The name of the collection "definitions" in the context of
+            the request
+        start:
+          type: integer
+          description: The 0-based index of the result candidates to start returning.
+        limit:
+          type: integer
+          description: The maximum number of results requested.
+        accept:
+          type: string
+          description: The accept header value that was used in the initial request
+        version:
+          type: integer
+          description: Definition collection schema version
+        items:
+          type: array
+          description: The results of the query
+          items:
+            $ref: "#/components/schemas/definition"
+        links:
+          type: array
+          description: Paging links that apply to this object
+          items:
+            $ref: "#/components/schemas/collectionLink"
+    processCollection:
+      type: object
+      description: The process instance summary collection.
+      properties:
+        name:
+          type: string
+          description: The name of the collection "processes" in the context of the
+            request
+        start:
+          type: integer
+          description: The 0-based index of the result candidates to start returning.
+        limit:
+          type: integer
+          description: The maximum number of results requested.
+        accept:
+          type: string
+          description: The accept header value that was used in the initial request
+        version:
+          type: integer
+          description: Process collection schema version
+        items:
+          type: array
+          description: The results of the query
+          items:
+            $ref: "#/components/schemas/process"
+        links:
+          type: array
+          description: Paging links that apply to this object
+          items:
+            $ref: "#/components/schemas/collectionLink"
+    processStateCollection:
+      type: object
+      description: The process instance state summary collection.
+      properties:
+        name:
+          type: string
+          description: The name of the collection "processes" in the context of the
+            request
+        start:
+          type: integer
+          description: The 0-based index of the result candidates to start returning.
+        limit:
+          type: integer
+          description: The maximum number of results requested.
+        accept:
+          type: string
+          description: The accept header value that was used in the initial request
+        version:
+          type: integer
+          description: Process collection schema version
+        items:
+          type: array
+          description: The results of the query
+          items:
+            $ref: "#/components/schemas/processState"
+        links:
+          type: array
+          description: Paging links that apply to this object
+          items:
+            $ref: "#/components/schemas/collectionLink"
+    variable:
+      type: object
+      description: The process variable.
+      properties:
+        processId:
+          type: string
+          description: Process id
+        parentId:
+          type: string
+          description: Parent process id
+        name:
+          type: string
+          description: Variable name
+        value:
+          type: string
+          description: Variable value
+        scope:
+          type: string
+          description: Variable scope. Valid values [local,inherited]
+        type:
+          type: string
+          description: Variable type
+        active:
+          type: boolean
+          description: Is this the currently active state for this variable
+        version:
+          type: integer
+          description: The version of the resource. This version is 1
+        links:
+          type: array
+          description: The links that apply to this attribute.
+          items:
+            $ref: "#/components/schemas/link"
+    variableCollection:
+      description: The variable summary collection.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/variable"
+    subprocess:
+      type: object
+      description: The subprocess.
+      properties:
+        id:
+          type: string
+          description: Subprocess id
+        parentId:
+          type: string
+          description: Parent process id
+        processId:
+          type: string
+          description: Process id
+        definitionSubprocessId:
+          type: string
+          description: Subprocess definition id
+        name:
+          type: string
+          description: Subprocess name
+        state:
+          type: string
+          description: The current runtime state of this subprocess (In Progress |
+            Completed | Terminated)
+        version:
+          type: integer
+          description: The version of the resource. This version is 1
+        links:
+          type: array
+          description: The links that apply to this attribute.
+          items:
+            $ref: "#/components/schemas/link"
+    subprocessCollection:
+      description: The subprocess summary collection.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/subprocess"
+    task:
+      type: object
+      description: The process task.
+      properties:
+        id:
+          type: string
+          description: Task id
+        parentId:
+          type: string
+          description: Parent process id
+        processId:
+          type: string
+          description: Process id
+        definitionTaskId:
+          type: string
+          description: Task definition id
+        name:
+          type: string
+          description: Task name
+        type:
+          type: string
+          description: Task type
+        actualOwner:
+          type: string
+          description: Task actual owner
+        state:
+          type: string
+          description: The current runtime state of this task (In Progress | Completed
+            | Terminated)
+        messageReference:
+          type: string
+          description: Task message reference
+        dueTimeStamp:
+          type: string
+          description: Task due time
+        version:
+          type: integer
+          description: The version of the resource. This version is 1
+        links:
+          type: array
+          description: The links that apply to this attribute.
+          items:
+            $ref: "#/components/schemas/link"
+    taskCollection:
+      description: The task summary collection.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/task"
+    collectionLink:
+      type: object
+      description: Links that apply to this object.
+      properties:
+        method:
+          type: string
+          description: The HTTP method to invoke this endpoint.
+        rel:
+          type: string
+          description: The relationship of this URL to the object.
+        uri:
+          type: string
+          description: The relative URI of the REST endpoint.
+        href:
+          type: string
+          description: The full URL of the REST endpoint.
+    deleteSelectionResultCollection:
+      description: The deleted selection result summary collection.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              anyOf:
+              - $ref: "#/components/schemas/error2"
+              - type: object
+                nullable: true
+    historyEvent:
+      type: object
+      description: The history event log.
+      properties:
+        version:
+          type: integer
+          description: The version of the resource.
+        links:
+          type: array
+          description: The links that apply to this resouce.
+          items:
+            $ref: "#/components/schemas/link"
+        state:
+          type: string
+          enum: ["received", "in process", "error", "completed", "failed"]
+          description: The processing status.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The time createing history event log.
+        stateUpdatedTimeStamp:
+          type: string
+          format: date-time
+          description: The time updating history event log recently.
+        retryCount:
+          type: integer
+          description: The number of times of processing history event log.
+        lastRetryTimeStamp:
+          type: string
+          format: date-time
+          description: The time processing history event log recently.
+        eventDetailList:
+          type: array
+          description: The history event log detail info.
+          items:
+            $ref: "#/components/schemas/historyEventDetail"
+    historyEventDetail:
+      type: object
+      description: The history event log detail info.
+      properties:
+        version:
+          type: integer
+          description: The version of the resource.
+        links:
+          type: array
+          description: The links that apply to this resouce.
+          items:
+            $ref: "#/components/schemas/link"
+        type:
+          type: string
+          description: The item type, such as processStarted, processCompleted, ...
+        state:
+          type: string
+          enum: ["received", "in process", "error", "completed", "failed"]
+          description: The processing status.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The time createing history event log detail info.
+        stateUpdatedTimeStamp:
+          type: string
+          format: date-time
+          description: The time updating history event log detail info recently.
+        itemDetail:
+          type: string
+          description: The item type detail info.
+    historyEventCollection:
+      description: The history event collection.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/historyEvent"
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    selection:
+      title: Selection
+      description: Identifies a set of resources.
+      x-sas-media-type:
+        name: application/vnd.sas.selection
+        version: 1
+      required:
+      - version
+      - resources
+      properties:
+        version:
+          description: The schema version number of this media type. This representation
+            is version 1.
+          type: integer
+        template:
+          description: 'A URI template in which the {id} parameter can be replaced
+            with a value from the "resources" array in order to yield the URI of the
+            identified resource. '
+          type: string
+        type:
+          description: "Specifies whether the resources array contains IDs, URIs,\
+            \ or both. \n<dl>\n<dt>\"id\"</dt><dd>the array contains resource identifiers\
+            \ only. This is the default if \"type\" is omitted.</dd>\n<dt>\"uri\"\
+            </dt><dd>the array contains resource URIs</dd>\n<dt>\"mixed\"</dt><dd>the\
+            \ array contains a mixture of identifiers and URIs.</dd>\n</dl>"
+          type: string
+          enum:
+          - id
+          - uri
+          - mixed
+        resources:
+          description: An array of resource IDs or URIs
+          type: array
+          items:
+            type: string
+        links:
+          type: array
+          description: An array of links to related resources and actions.
+          items:
+            $ref: "#/components/schemas/link"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+  examples:
+    processTasksCollection:
+      description: A collection of process tasks for workflow history service.
+      value: {"links": [], "name": "tasks", "accept": "application/vnd.sas.workflow.history.task+json",
+        "count": 6, "items": [{"id": "WF644c7475-3834-4fd9-813a-d586854da630", "processId": "WF60a75a10-d0e2-479e-a590-9215c49eefb5",
+            "definitionTaskId": "WF55E224D6-8D82-43A1-A73A-A329CA39BA7C", "name": "User\
+              \ Task 1", "type": "User Task", "actualOwner": "edmdev", "createdTimeStamp": "2022-12-26T06:51:16.097Z",
+            "createdBy": "edmdev", "state": "Completed", "messageText": "Task completed",
+            "stateTimeStamp": "2022-12-26T06:53:00.985Z", "durationTime": "1 min",
+            "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF644c7475-3834-4fd9-813a-d586854da630",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF644c7475-3834-4fd9-813a-d586854da630"},
+              {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF644c7475-3834-4fd9-813a-d586854da630/history",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF644c7475-3834-4fd9-813a-d586854da630/history"}]},
+          {"id": "WF3f9cd50e-431b-4e22-8a74-e200a80e34d5", "processId": "WF60a75a10-d0e2-479e-a590-9215c49eefb5",
+            "definitionTaskId": "WF73957DE9-22AD-4D11-9346-6A85DB865236", "name": "Intermediate\
+              \ Timer", "type": "Timer", "createdTimeStamp": "2022-12-26T06:53:00.985Z",
+            "createdBy": "edmdev", "state": "Completed", "messageText": "Timer fired",
+            "stateTimeStamp": "2022-12-26T06:56:02.501Z", "durationTime": "3 min",
+            "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF3f9cd50e-431b-4e22-8a74-e200a80e34d5",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF3f9cd50e-431b-4e22-8a74-e200a80e34d5"},
+              {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF3f9cd50e-431b-4e22-8a74-e200a80e34d5/history",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF3f9cd50e-431b-4e22-8a74-e200a80e34d5/history"}]},
+          {"id": "WF1ef01f92-6045-42ef-aa4f-bd769aa29036", "processId": "WF60a75a10-d0e2-479e-a590-9215c49eefb5",
+            "definitionTaskId": "WF7A78A9C2-991A-45DA-A59F-D137B236DFAE", "name": "Parallel\
+              \ Gateway", "type": "Parallel", "createdTimeStamp": "2022-12-26T06:56:02.501Z",
+            "createdBy": "sas.workflow", "state": "Completed", "messageText": "Gateway\
+              \ completed", "stateTimeStamp": "2022-12-26T06:56:02.501Z", "durationTime": "0\
+              \ sec", "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF1ef01f92-6045-42ef-aa4f-bd769aa29036",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF1ef01f92-6045-42ef-aa4f-bd769aa29036"},
+              {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF1ef01f92-6045-42ef-aa4f-bd769aa29036/history",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF1ef01f92-6045-42ef-aa4f-bd769aa29036/history"}]},
+          {"id": "WF12469b05-0dc4-4252-b608-ef6dc2c2fe93", "processId": "WF60a75a10-d0e2-479e-a590-9215c49eefb5",
+            "definitionTaskId": "WF11EF9A1C-6665-4B7C-8749-E7B775441AB7", "name": "User\
+              \ Task 3", "type": "User Task", "createdTimeStamp": "2022-12-26T06:56:02.501Z",
+            "createdBy": "sas.workflow", "state": "Started", "messageText": "Task\
+              \ started", "stateTimeStamp": "2022-12-26T06:56:02.501Z", "durationTime": "0\
+              \ sec", "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF12469b05-0dc4-4252-b608-ef6dc2c2fe93",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF12469b05-0dc4-4252-b608-ef6dc2c2fe93"},
+              {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF12469b05-0dc4-4252-b608-ef6dc2c2fe93/history",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF12469b05-0dc4-4252-b608-ef6dc2c2fe93/history"}]},
+          {"id": "WFf256acb3-c50e-4224-96da-e928c2a52e87", "processId": "WF60a75a10-d0e2-479e-a590-9215c49eefb5",
+            "definitionTaskId": "WFC2514A78-935E-4D26-A84B-CE99D136D764", "name": "User\
+              \ Task 2", "type": "User Task", "actualOwner": "edmdev", "createdTimeStamp": "2022-12-26T06:56:02.501Z",
+            "createdBy": "sas.workflow", "state": "Completed", "messageText": "Task\
+              \ completed", "stateTimeStamp": "2022-12-26T07:01:54.681Z", "durationTime": "5\
+              \ min", "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WFf256acb3-c50e-4224-96da-e928c2a52e87",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WFf256acb3-c50e-4224-96da-e928c2a52e87"},
+              {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WFf256acb3-c50e-4224-96da-e928c2a52e87/history",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WFf256acb3-c50e-4224-96da-e928c2a52e87/history"}]},
+          {"id": "WF95935b26-23b2-45d1-833c-0b56e079a0cd", "processId": "WF60a75a10-d0e2-479e-a590-9215c49eefb5",
+            "parentId": "WFa074962d-67f3-4b03-9782-d6f8a19a5698", "definitionTaskId": "WF3EF3D5E7-E1C7-4538-BCDF-BC6F2F4F33B3",
+            "name": "User Task sub 1", "type": "User Task", "createdTimeStamp": "2022-12-26T07:01:54.681Z",
+            "createdBy": "edmdev", "state": "Started", "messageText": "Task started",
+            "stateTimeStamp": "2022-12-26T07:01:54.681Z", "durationTime": "0 sec",
+            "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF95935b26-23b2-45d1-833c-0b56e079a0cd",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF95935b26-23b2-45d1-833c-0b56e079a0cd"},
+              {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF95935b26-23b2-45d1-833c-0b56e079a0cd/history",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF95935b26-23b2-45d1-833c-0b56e079a0cd/history"}]}],
+        "version": 2}
+    processTaskStatesCollection:
+      description: A collection of process task states for workflow history service.
+      value: {"links": [], "name": "history", "accept": "application/vnd.sas.workflow.history.task.state+json",
+        "count": 3, "items": [{"taskId": "WF644c7475-3834-4fd9-813a-d586854da630",
+            "taskName": "User Task 1", "state": "Completed", "messageText": "Task\
+              \ completed", "active": true, "createdTimeStamp": "2022-12-26T06:53:00.985Z",
+            "createdBy": "edmdev"}, {"taskId": "WF644c7475-3834-4fd9-813a-d586854da630",
+            "taskName": "User Task 1", "state": "Started", "messageText": "Task started",
+            "active": false, "createdTimeStamp": "2022-12-26T06:51:16.097Z", "createdBy": "edmdev"},
+          {"taskId": "WF644c7475-3834-4fd9-813a-d586854da630", "taskName": "User Task\
+              \ 1", "state": "Claimed", "messageText": "Task claimed", "active": false,
+            "createdTimeStamp": "2022-12-26T06:52:55.969Z", "createdBy": "edmdev"}],
+        "version": 2}
+    subprocess:
+      description: The subprocess for workflow history service.
+      value: {"id": "WFa074962d-67f3-4b03-9782-d6f8a19a5698", "parentId": "WF60a75a10-d0e2-479e-a590-9215c49eefb5",
+        "processId": "WF60a75a10-d0e2-479e-a590-9215c49eefb5", "definitionSubprocessId": "WFBEC58B73-4D59-46E7-88CD-722A11BF4398",
+        "name": "Subprocess", "createdTimeStamp": "2022-12-26T07:01:54.681Z", "createdBy": "edmdev",
+        "state": "In Progress", "stateTimeStamp": "2022-12-26T07:01:54.681Z", "links": [
+          {"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/subprocesses/WFa074962d-67f3-4b03-9782-d6f8a19a5698",
+            "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/subprocesses/WFa074962d-67f3-4b03-9782-d6f8a19a5698"},
+          {"method": "GET", "rel": "variables", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/subprocesses/WFa074962d-67f3-4b03-9782-d6f8a19a5698/variables",
+            "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/subprocesses/WFa074962d-67f3-4b03-9782-d6f8a19a5698/variables"},
+          {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/subprocesses/WFa074962d-67f3-4b03-9782-d6f8a19a5698/history",
+            "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/subprocesses/WFa074962d-67f3-4b03-9782-d6f8a19a5698/history"},
+          {"method": "GET", "rel": "up", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5",
+            "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5"}]}
+    historyEventsCollection:
+      description: A collection of event logs for the workflow history service.
+      value: {"links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/historyEvents?sortBy=eventCreatedDate&start=0&limit=50",
+            "uri": "/workflowHistory/historyEvents?sortBy=eventCreatedDate&start=0&limit=50",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.workflow.history.event.log"},
+          {"method": "GET", "rel": "next", "href": "/workflowHistory/historyEvents?sortBy=eventCreatedDate&start=50&limit=50",
+            "uri": "/workflowHistory/historyEvents?sortBy=eventCreatedDate&start=50&limit=50",
+            "type": "application/vnd.sas.collection"}, {"method": "GET", "rel": "last",
+            "href": "/workflowHistory/historyEvents?sortBy=eventCreatedDate&start=250&limit=50",
+            "uri": "/workflowHistory/historyEvents?sortBy=eventCreatedDate&start=250&limit=50",
+            "type": "application/vnd.sas.collection"}, {"method": "GET", "rel": "collection",
+            "href": "/workflowHistory/historyEvents", "uri": "/workflowHistory/historyEvents",
+            "type": "application/vnd.sas.collection"}, {"method": "PATCH", "rel": "retryAll",
+            "href": "/workflowHistory/historyEvents/", "uri": "/workflowHistory/historyEvents/"}],
+        "name": "historyEvents", "accept": "application/vnd.sas.workflow.history.event.log",
+        "start": 0, "count": 4, "items": [{"id": "4e952894-2805-41e7-a3ff-13f239351bc9",
+            "state": "completed", "creationTimeStamp": "2022-12-24T11:14:36.042Z",
+            "stateUpdatedTimeStamp": "2022-12-24T11:15:42.550Z", "retryCount": 0,
+            "lastRetryTimeStamp": "2022-12-24T11:14:47.123Z", "links": [{"method": "GET",
+                "rel": "self", "href": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9",
+                "uri": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9"},
+              {"method": "GET", "rel": "detail", "href": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9",
+                "uri": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9"},
+              {"method": "PATCH", "rel": "retry", "href": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9",
+                "uri": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9"},
+              {"method": "DELETE", "rel": "delete", "href": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9",
+                "uri": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9"}]},
+          {"id": "c7a294e5-d56e-4490-ad9f-b8b85f6b8cbc", "state": "completed", "creationTimeStamp": "2022-12-24T11:15:50.107Z",
+            "stateUpdatedTimeStamp": "2022-12-24T11:16:49.986Z", "retryCount": 0,
+            "lastRetryTimeStamp": "2022-12-24T11:16:32.862Z", "links": [{"method": "GET",
+                "rel": "self", "href": "/workflowHistory/historyEvents/c7a294e5-d56e-4490-ad9f-b8b85f6b8cbc",
+                "uri": "/workflowHistory/historyEvents/c7a294e5-d56e-4490-ad9f-b8b85f6b8cbc"},
+              {"method": "GET", "rel": "detail", "href": "/workflowHistory/historyEvents/c7a294e5-d56e-4490-ad9f-b8b85f6b8cbc",
+                "uri": "/workflowHistory/historyEvents/c7a294e5-d56e-4490-ad9f-b8b85f6b8cbc"},
+              {"method": "PATCH", "rel": "retry", "href": "/workflowHistory/historyEvents/c7a294e5-d56e-4490-ad9f-b8b85f6b8cbc",
+                "uri": "/workflowHistory/historyEvents/c7a294e5-d56e-4490-ad9f-b8b85f6b8cbc"},
+              {"method": "DELETE", "rel": "delete", "href": "/workflowHistory/historyEvents/c7a294e5-d56e-4490-ad9f-b8b85f6b8cbc",
+                "uri": "/workflowHistory/historyEvents/c7a294e5-d56e-4490-ad9f-b8b85f6b8cbc"}]},
+          {"id": "eb05ed80-8af4-4e89-b410-eaeb8e92b097", "state": "completed", "creationTimeStamp": "2022-12-26T01:44:21.831Z",
+            "stateUpdatedTimeStamp": "2022-12-26T01:44:38.876Z", "retryCount": 0,
+            "lastRetryTimeStamp": "2022-12-26T01:44:33.312Z", "links": [{"method": "GET",
+                "rel": "self", "href": "/workflowHistory/historyEvents/eb05ed80-8af4-4e89-b410-eaeb8e92b097",
+                "uri": "/workflowHistory/historyEvents/eb05ed80-8af4-4e89-b410-eaeb8e92b097"},
+              {"method": "GET", "rel": "detail", "href": "/workflowHistory/historyEvents/eb05ed80-8af4-4e89-b410-eaeb8e92b097",
+                "uri": "/workflowHistory/historyEvents/eb05ed80-8af4-4e89-b410-eaeb8e92b097"},
+              {"method": "PATCH", "rel": "retry", "href": "/workflowHistory/historyEvents/eb05ed80-8af4-4e89-b410-eaeb8e92b097",
+                "uri": "/workflowHistory/historyEvents/eb05ed80-8af4-4e89-b410-eaeb8e92b097"},
+              {"method": "DELETE", "rel": "delete", "href": "/workflowHistory/historyEvents/eb05ed80-8af4-4e89-b410-eaeb8e92b097",
+                "uri": "/workflowHistory/historyEvents/eb05ed80-8af4-4e89-b410-eaeb8e92b097"}]},
+          {"id": "bf60d409-e257-4462-892a-eb80589de5f8", "state": "completed", "creationTimeStamp": "2022-12-26T01:52:13.196Z",
+            "stateUpdatedTimeStamp": "2022-12-26T01:53:22.599Z", "retryCount": 0,
+            "lastRetryTimeStamp": "2022-12-26T01:52:26.325Z", "links": [{"method": "GET",
+                "rel": "self", "href": "/workflowHistory/historyEvents/bf60d409-e257-4462-892a-eb80589de5f8",
+                "uri": "/workflowHistory/historyEvents/bf60d409-e257-4462-892a-eb80589de5f8"},
+              {"method": "GET", "rel": "detail", "href": "/workflowHistory/historyEvents/bf60d409-e257-4462-892a-eb80589de5f8",
+                "uri": "/workflowHistory/historyEvents/bf60d409-e257-4462-892a-eb80589de5f8"},
+              {"method": "PATCH", "rel": "retry", "href": "/workflowHistory/historyEvents/bf60d409-e257-4462-892a-eb80589de5f8",
+                "uri": "/workflowHistory/historyEvents/bf60d409-e257-4462-892a-eb80589de5f8"},
+              {"method": "DELETE", "rel": "delete", "href": "/workflowHistory/historyEvents/bf60d409-e257-4462-892a-eb80589de5f8",
+                "uri": "/workflowHistory/historyEvents/bf60d409-e257-4462-892a-eb80589de5f8"}]}],
+        "limit": 50, "version": 2}
+    historyDefinitionsCollection:
+      description: A collection of workflow definition content.
+      value: {"links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/definitions?start=0&limit=10",
+            "uri": "/workflowHistory/definitions?start=0&limit=10", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.workflow.history.definition"}, {"method": "GET",
+            "rel": "next", "href": "/workflowHistory/definitions?start=10&limit=10",
+            "uri": "/workflowHistory/definitions?start=10&limit=10", "type": "application/vnd.sas.collection"},
+          {"method": "GET", "rel": "last", "href": "/workflowHistory/definitions?start=20&limit=10",
+            "uri": "/workflowHistory/definitions?start=20&limit=10", "type": "application/vnd.sas.collection"},
+          {"method": "GET", "rel": "collection", "href": "/workflowHistory/definitions",
+            "uri": "/workflowHistory/definitions", "type": "application/vnd.sas.collection"}],
+        "name": "definitions", "accept": "application/vnd.sas.workflow.history.definition+json",
+        "start": 0, "count": 4, "items": [{"id": "WFFB2B5478-C135-4C80-952B-B5F8F2F1B9B7",
+            "name": "SID Asset Approval", "revision": 1, "enabled": true, "createdTimeStamp": "2022-12-24T11:14:36.042Z",
+            "createdBy": "sas.decisions", "enabledTimeStamp": "2022-12-24T11:14:36.042Z",
+            "enabledBy": "sas.decisions", "clientRegistrationId": "ffff7869-7aa2-49b2-a15d-08e791fc89b1",
+            "deleted": false, "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/definitions/WFFB2B5478-C135-4C80-952B-B5F8F2F1B9B7",
+                "uri": "/workflowHistory/definitions/WFFB2B5478-C135-4C80-952B-B5F8F2F1B9B7"},
+              {"method": "GET", "rel": "usage", "href": "/workflowHistory/definitions/WFFB2B5478-C135-4C80-952B-B5F8F2F1B9B7/usage",
+                "uri": "/workflowHistory/definitions/WFFB2B5478-C135-4C80-952B-B5F8F2F1B9B7/usage"},
+              {"method": "GET", "rel": "model", "href": "/workflowHistory/definitions/WFFB2B5478-C135-4C80-952B-B5F8F2F1B9B7/revisions/1/model",
+                "uri": "/workflowHistory/definitions/WFFB2B5478-C135-4C80-952B-B5F8F2F1B9B7/revisions/1/model"},
+              {"method": "GET", "rel": "revisions", "href": "/workflowHistory/definitions/WFFB2B5478-C135-4C80-952B-B5F8F2F1B9B7/revisions",
+                "uri": "/workflowHistory/definitions/WFFB2B5478-C135-4C80-952B-B5F8F2F1B9B7/revisions"}]},
+          {"id": "WF836A88EF-0FF5-4780-85AB-8E31B34C5CEC", "name": "SimpleModelMonitor",
+            "revision": 1, "enabled": true, "createdTimeStamp": "2022-12-24T11:15:50.107Z",
+            "createdBy": "sas.modelManagement", "enabledTimeStamp": "2022-12-24T11:15:50.107Z",
+            "enabledBy": "sas.modelManagement", "clientRegistrationId": "79bf7869-7aa2-49b2-a15d-08e791fc89b1",
+            "deleted": false, "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/definitions/WF836A88EF-0FF5-4780-85AB-8E31B34C5CEC",
+                "uri": "/workflowHistory/definitions/WF836A88EF-0FF5-4780-85AB-8E31B34C5CEC"},
+              {"method": "GET", "rel": "usage", "href": "/workflowHistory/definitions/WF836A88EF-0FF5-4780-85AB-8E31B34C5CEC/usage",
+                "uri": "/workflowHistory/definitions/WF836A88EF-0FF5-4780-85AB-8E31B34C5CEC/usage"},
+              {"method": "GET", "rel": "model", "href": "/workflowHistory/definitions/WF836A88EF-0FF5-4780-85AB-8E31B34C5CEC/revisions/1/model",
+                "uri": "/workflowHistory/definitions/WF836A88EF-0FF5-4780-85AB-8E31B34C5CEC/revisions/1/model"},
+              {"method": "GET", "rel": "revisions", "href": "/workflowHistory/definitions/WF836A88EF-0FF5-4780-85AB-8E31B34C5CEC/revisions",
+                "uri": "/workflowHistory/definitions/WF836A88EF-0FF5-4780-85AB-8E31B34C5CEC/revisions"}]},
+          {"id": "WF481d7ca8-b165-4ede-b2f4-b1b230bfad4f", "name": "AutoTest_CaseManagementGeneric",
+            "revision": 1, "enabled": false, "createdTimeStamp": "2022-12-26T01:53:34.133Z",
+            "createdBy": "edmdev", "enabledTimeStamp": "2022-12-26T01:53:34.133Z",
+            "enabledBy": "edmdev", "clientRegistrationId": "79bf7869-7aa2-49b2-a15d-08e791fc89b1",
+            "deletedTimeStamp": "2022-12-26T01:53:59.079Z", "deletedBy": "edmdev",
+            "deleted": true, "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/definitions/WF481d7ca8-b165-4ede-b2f4-b1b230bfad4f",
+                "uri": "/workflowHistory/definitions/WF481d7ca8-b165-4ede-b2f4-b1b230bfad4f"},
+              {"method": "GET", "rel": "usage", "href": "/workflowHistory/definitions/WF481d7ca8-b165-4ede-b2f4-b1b230bfad4f/usage",
+                "uri": "/workflowHistory/definitions/WF481d7ca8-b165-4ede-b2f4-b1b230bfad4f/usage"},
+              {"method": "GET", "rel": "model", "href": "/workflowHistory/definitions/WF481d7ca8-b165-4ede-b2f4-b1b230bfad4f/revisions/1/model",
+                "uri": "/workflowHistory/definitions/WF481d7ca8-b165-4ede-b2f4-b1b230bfad4f/revisions/1/model"},
+              {"method": "GET", "rel": "revisions", "href": "/workflowHistory/definitions/WF481d7ca8-b165-4ede-b2f4-b1b230bfad4f/revisions",
+                "uri": "/workflowHistory/definitions/WF481d7ca8-b165-4ede-b2f4-b1b230bfad4f/revisions"}]},
+          {"id": "WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E", "name": "wilsonWorkflow_2630",
+            "revision": 1, "enabled": true, "createdTimeStamp": "2022-12-26T01:55:13.560Z",
+            "createdBy": "edmdev", "enabledTimeStamp": "2022-12-26T01:55:13.560Z",
+            "enabledBy": "edmdev", "clientRegistrationId": "79bf7869-7aa2-49b2-a15d-08e791fc89b1",
+            "deleted": false, "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E",
+                "uri": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E"},
+              {"method": "GET", "rel": "usage", "href": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/usage",
+                "uri": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/usage"},
+              {"method": "GET", "rel": "model", "href": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/revisions/1/model",
+                "uri": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/revisions/1/model"},
+              {"method": "GET", "rel": "revisions", "href": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/revisions",
+                "uri": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/revisions"}]}],
+        "limit": 10, "version": 2}
+    processVariableCollection:
+      description: A collection of process variables for workflow history service.
+      value: {"links": [], "name": "variables", "accept": "application/vnd.sas.workflow.history.variable+json",
+        "count": 2, "items": [{"processId": "WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4",
+            "name": "projectId", "value": "", "scope": "local", "type": "string",
+            "createdTimeStamp": "2022-12-26T01:56:35.522Z", "createdBy": "edmdev",
+            "modifiedTimeStamp": "2022-12-26T01:56:35.522Z", "modifiedBy": "edmdev",
+            "active": true, "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables/projectId",
+                "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables/projectId"},
+              {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables/projectId/history",
+                "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables/projectId/history"}]},
+          {"processId": "WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4", "name": "modelProjectId",
+            "value": "746edfcb-df0d-4cf1-8ea5-a20a2d5f468b", "scope": "local", "type": "string",
+            "createdTimeStamp": "2022-12-26T01:56:37.211Z", "createdBy": "sas.modelManagement",
+            "modifiedTimeStamp": "2022-12-26T01:56:37.211Z", "modifiedBy": "sas.modelManagement",
+            "active": true, "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables/modelProjectId",
+                "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables/modelProjectId"},
+              {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables/modelProjectId/history",
+                "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables/modelProjectId/history"}]}],
+        "version": 2}
+    root:
+      description: The root content for workflow definition.
+      value:
+        version: 1
+        links:
+        - method: GET
+          rel: definitions
+          href: "/workflowHistory/definitions"
+          uri: "/workflowHistory/definitions"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.workflow.history.definition
+        - method: GET
+          rel: processes
+          href: "/workflowHistory/processes"
+          uri: "/workflowHistory/processes"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.workflow.history.process
+        - method: GET
+          rel: historyEvents
+          href: "/workflowHistory/historyEvents"
+          uri: "/workflowHistory/historyEvents"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.workflow.history.event.log
+    process:
+      description: The process for workflow history service.
+      value: {"id": "WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4", "parentId": "", "name": "wilsonWorkflow_2630",
+        "definitionId": "WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E", "definitionRevision": "1",
+        "clientRegistrationId": "79bf7869-7aa2-49b2-a15d-08e791fc89b1", "createdTimeStamp": "2022-12-26T01:56:35.522Z",
+        "createdBy": "edmdev", "state": "In Progress", "stateTimeStamp": "2022-12-26T01:56:35.522Z",
+        "durationTime": "9 min", "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4",
+            "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4"},
+          {"method": "GET", "rel": "definition", "href": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/revisions/1",
+            "uri": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/revisions/1"},
+          {"method": "GET", "rel": "variables", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables",
+            "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables"},
+          {"method": "GET", "rel": "subprocesses", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/subprocesses",
+            "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/subprocesses"},
+          {"method": "GET", "rel": "tasks", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/tasks",
+            "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/tasks"},
+          {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/history",
+            "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/history"},
+          {"method": "DELETE", "rel": "delete", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4",
+            "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4"}]}
+    processSubprocessesCollection:
+      description: A collection of sub process for workflow history service.
+      value: {"links": [], "name": "subprocesses", "accept": "application/vnd.sas.workflow.history.subprocess+json",
+        "count": 1, "items": [{"id": "WFa074962d-67f3-4b03-9782-d6f8a19a5698", "parentId": "WF60a75a10-d0e2-479e-a590-9215c49eefb5",
+            "processId": "WF60a75a10-d0e2-479e-a590-9215c49eefb5", "definitionSubprocessId": "WFBEC58B73-4D59-46E7-88CD-722A11BF4398",
+            "name": "Subprocess", "createdTimeStamp": "2022-12-26T07:01:54.681Z",
+            "createdBy": "edmdev", "state": "In Progress", "stateTimeStamp": "2022-12-26T07:01:54.681Z",
+            "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/subprocesses/WFa074962d-67f3-4b03-9782-d6f8a19a5698",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/subprocesses/WFa074962d-67f3-4b03-9782-d6f8a19a5698"},
+              {"method": "GET", "rel": "variables", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/subprocesses/WFa074962d-67f3-4b03-9782-d6f8a19a5698/variables",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/subprocesses/WFa074962d-67f3-4b03-9782-d6f8a19a5698/variables"},
+              {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/subprocesses/WFa074962d-67f3-4b03-9782-d6f8a19a5698/history",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/subprocesses/WFa074962d-67f3-4b03-9782-d6f8a19a5698/history"},
+              {"method": "GET", "rel": "up", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5",
+                "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5"}]}],
+        "version": 2}
+    badRequest:
+      description: Bad request.
+      value:
+        httpStatusCode: 400
+        version: 2
+    historyEventDetail:
+      description: The event detail for workflow history service.
+      value: {"id": "WF3790c87b-e507-4c93-b805-f65d2e440305", "type": "definitionEnabled",
+        "state": "completed", "creationTimeStamp": "2022-12-24T11:14:36.042Z", "stateUpdatedTimeStamp": "2022-12-24T11:15:42.537Z",
+        "itemDetail": "type = definitionEnabled, messageCancelling = false, definitionRevision\
+          \ = 1, id = WF3790c87b-e507-4c93-b805-f65d2e440305, definitionId = WFFB2B5478-C135-4C80-952B-B5F8F2F1B9B7,\
+          \ definitionName = SID Asset Approval, eventSubject = sas.decisions.workflow",
+        "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9/eventDetail/WF3790c87b-e507-4c93-b805-f65d2e440305",
+            "uri": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9/eventDetail/WF3790c87b-e507-4c93-b805-f65d2e440305"},
+          {"method": "GET", "rel": "detailText", "href": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9/eventDetail/WF3790c87b-e507-4c93-b805-f65d2e440305",
+            "uri": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9/eventDetail/WF3790c87b-e507-4c93-b805-f65d2e440305"}]}
+    processTask:
+      description: The process tasks for workflow history service.
+      value: {"id": "WF644c7475-3834-4fd9-813a-d586854da630", "processId": "WF60a75a10-d0e2-479e-a590-9215c49eefb5",
+        "definitionTaskId": "WF55E224D6-8D82-43A1-A73A-A329CA39BA7C", "name": "User\
+          \ Task 1", "type": "User Task", "actualOwner": "edmdev", "createdTimeStamp": "2022-12-26T06:51:16.097Z",
+        "createdBy": "edmdev", "state": "Completed", "messageText": "Task completed",
+        "stateTimeStamp": "2022-12-26T06:53:00.985Z", "durationTime": "1 min", "links": [
+          {"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF644c7475-3834-4fd9-813a-d586854da630",
+            "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF644c7475-3834-4fd9-813a-d586854da630"},
+          {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF644c7475-3834-4fd9-813a-d586854da630/history",
+            "uri": "/workflowHistory/processes/WF60a75a10-d0e2-479e-a590-9215c49eefb5/tasks/WF644c7475-3834-4fd9-813a-d586854da630/history"}]}
+    preConditionFailed:
+      description: Pre-condition failed.
+      value:
+        httpStatusCode: 412
+        version: 2
+    processesIdCollection:
+      description: A collection of processes id for workflow history service.
+      value:
+        type: id
+        resources:
+        - WFbb19142f-fffc-4dbf-bf39-cb22cf088a27
+        - WF375073f5-5c80-4726-97e2-39974732d7fc
+        version: 2
+    processStatesCollection:
+      description: A collection of process status for workflow history service.
+      value: {"links": [], "name": "history", "accept": "application/vnd.sas.workflow.history.process.state+json",
+        "count": 2, "items": [{"processId": "WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4",
+            "processName": "wilsonWorkflow_2630", "state": "In Progress", "messageText": "Process\
+              \ started", "active": true, "createdTimeStamp": "2022-12-26T01:56:35.522Z",
+            "createdBy": "edmdev"}, {"processId": "WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4",
+            "processName": "wilsonWorkflow_2630", "state": "Variable Updated", "messageText": 'The
+              value of variable "modelProjectId" changed from "" to "746edfcb-df0d-4cf1-8ea5-a20a2d5f468b".',
+            "active": false, "createdTimeStamp": "2022-12-26T01:56:37.211Z", "createdBy": "sas.modelManagement"}],
+        "version": 2}
+    historyDefinition:
+      description: A history definition for the workflow history service.
+      value: {"id": "WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E", "name": "wilsonWorkflow_2630",
+        "revision": 1, "enabled": true, "createdTimeStamp": "2022-12-26T01:55:13.560Z",
+        "createdBy": "edmdev", "enabledTimeStamp": "2022-12-26T01:55:13.560Z", "enabledBy": "edmdev",
+        "clientRegistrationId": "79bf7869-7aa2-49b2-a15d-08e791fc89b1", "deleted": false,
+        "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E",
+            "uri": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E"},
+          {"method": "GET", "rel": "usage", "href": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/usage",
+            "uri": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/usage"},
+          {"method": "GET", "rel": "model", "href": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/revisions/1/model",
+            "uri": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/revisions/1/model"},
+          {"method": "GET", "rel": "revisions", "href": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/revisions",
+            "uri": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/revisions"}]}
+    processesCollection:
+      description: A collection of processes for workflow history service.
+      value: {"links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes?filter=eq(parentProcessId,'')&start=0&limit=50",
+            "uri": "/workflowHistory/processes?filter=eq(parentProcessId,'')&start=0&limit=50",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.workflow.history.process"},
+          {"method": "GET", "rel": "collection", "href": "/workflowHistory/processes",
+            "uri": "/workflowHistory/processes", "type": "application/vnd.sas.collection"}],
+        "name": "processes", "accept": "application/vnd.sas.workflow.history.process+json",
+        "start": 0, "count": 4, "items": [{"id": "WFbb19142f-fffc-4dbf-bf39-cb22cf088a27",
+            "parentId": "", "name": "AutoTest_BDMSG_CancelActivity", "definitionId": "WF5C1DD8CA-B607-449A-89F1-559A16A8738F",
+            "definitionRevision": "1", "clientRegistrationId": "79bf7869-7aa2-49b2-a15d-08e791fc89b1",
+            "createdTimeStamp": "2022-12-26T01:44:22.150Z", "createdBy": "edmdev",
+            "state": "Terminated", "stateTimeStamp": "2022-12-26T01:45:21.922Z", "durationTime": "14\
+              \ min", "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WFbb19142f-fffc-4dbf-bf39-cb22cf088a27",
+                "uri": "/workflowHistory/processes/WFbb19142f-fffc-4dbf-bf39-cb22cf088a27"},
+              {"method": "GET", "rel": "definition", "href": "/workflowHistory/definitions/WF5C1DD8CA-B607-449A-89F1-559A16A8738F/revisions/1",
+                "uri": "/workflowHistory/definitions/WF5C1DD8CA-B607-449A-89F1-559A16A8738F/revisions/1"},
+              {"method": "GET", "rel": "variables", "href": "/workflowHistory/processes/WFbb19142f-fffc-4dbf-bf39-cb22cf088a27/variables",
+                "uri": "/workflowHistory/processes/WFbb19142f-fffc-4dbf-bf39-cb22cf088a27/variables"},
+              {"method": "GET", "rel": "subprocesses", "href": "/workflowHistory/processes/WFbb19142f-fffc-4dbf-bf39-cb22cf088a27/subprocesses",
+                "uri": "/workflowHistory/processes/WFbb19142f-fffc-4dbf-bf39-cb22cf088a27/subprocesses"},
+              {"method": "GET", "rel": "tasks", "href": "/workflowHistory/processes/WFbb19142f-fffc-4dbf-bf39-cb22cf088a27/tasks",
+                "uri": "/workflowHistory/processes/WFbb19142f-fffc-4dbf-bf39-cb22cf088a27/tasks"},
+              {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WFbb19142f-fffc-4dbf-bf39-cb22cf088a27/history",
+                "uri": "/workflowHistory/processes/WFbb19142f-fffc-4dbf-bf39-cb22cf088a27/history"},
+              {"method": "DELETE", "rel": "delete", "href": "/workflowHistory/processes/WFbb19142f-fffc-4dbf-bf39-cb22cf088a27",
+                "uri": "/workflowHistory/processes/WFbb19142f-fffc-4dbf-bf39-cb22cf088a27"}]},
+          {"id": "WFf3c7d6b1-d8fa-486b-8f82-8d4dd4b92ba1", "parentId": "", "name": "AutoTest_CaseManagementGeneric",
+            "definitionId": "WF481d7ca8-b165-4ede-b2f4-b1b230bfad4f", "definitionRevision": "1",
+            "clientRegistrationId": "79bf7869-7aa2-49b2-a15d-08e791fc89b1", "createdTimeStamp": "2022-12-26T01:53:34.221Z",
+            "createdBy": "edmdev", "state": "Completed", "stateTimeStamp": "2022-12-26T01:53:58.080Z",
+            "durationTime": "5 min", "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WFf3c7d6b1-d8fa-486b-8f82-8d4dd4b92ba1",
+                "uri": "/workflowHistory/processes/WFf3c7d6b1-d8fa-486b-8f82-8d4dd4b92ba1"},
+              {"method": "GET", "rel": "definition", "href": "/workflowHistory/definitions/WF481d7ca8-b165-4ede-b2f4-b1b230bfad4f/revisions/1",
+                "uri": "/workflowHistory/definitions/WF481d7ca8-b165-4ede-b2f4-b1b230bfad4f/revisions/1"},
+              {"method": "GET", "rel": "variables", "href": "/workflowHistory/processes/WFf3c7d6b1-d8fa-486b-8f82-8d4dd4b92ba1/variables",
+                "uri": "/workflowHistory/processes/WFf3c7d6b1-d8fa-486b-8f82-8d4dd4b92ba1/variables"},
+              {"method": "GET", "rel": "subprocesses", "href": "/workflowHistory/processes/WFf3c7d6b1-d8fa-486b-8f82-8d4dd4b92ba1/subprocesses",
+                "uri": "/workflowHistory/processes/WFf3c7d6b1-d8fa-486b-8f82-8d4dd4b92ba1/subprocesses"},
+              {"method": "GET", "rel": "tasks", "href": "/workflowHistory/processes/WFf3c7d6b1-d8fa-486b-8f82-8d4dd4b92ba1/tasks",
+                "uri": "/workflowHistory/processes/WFf3c7d6b1-d8fa-486b-8f82-8d4dd4b92ba1/tasks"},
+              {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WFf3c7d6b1-d8fa-486b-8f82-8d4dd4b92ba1/history",
+                "uri": "/workflowHistory/processes/WFf3c7d6b1-d8fa-486b-8f82-8d4dd4b92ba1/history"},
+              {"method": "DELETE", "rel": "delete", "href": "/workflowHistory/processes/WFf3c7d6b1-d8fa-486b-8f82-8d4dd4b92ba1",
+                "uri": "/workflowHistory/processes/WFf3c7d6b1-d8fa-486b-8f82-8d4dd4b92ba1"}]},
+          {"id": "WF30e27a6b-3e73-49df-be79-3f29c45e3ab4", "parentId": "", "name": "AutoTest_TwoUserTasks",
+            "definitionId": "WFAABA22EC-BB3E-42B5-8DF3-5F657FAD6915", "definitionRevision": "1",
+            "clientRegistrationId": "79bf7869-7aa2-49b2-a15d-08e791fc89b1", "createdTimeStamp": "2022-12-26T01:53:59.628Z",
+            "createdBy": "edmdev", "state": "Completed", "stateTimeStamp": "2022-12-26T01:55:02.445Z",
+            "durationTime": "5 min", "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WF30e27a6b-3e73-49df-be79-3f29c45e3ab4",
+                "uri": "/workflowHistory/processes/WF30e27a6b-3e73-49df-be79-3f29c45e3ab4"},
+              {"method": "GET", "rel": "definition", "href": "/workflowHistory/definitions/WFAABA22EC-BB3E-42B5-8DF3-5F657FAD6915/revisions/1",
+                "uri": "/workflowHistory/definitions/WFAABA22EC-BB3E-42B5-8DF3-5F657FAD6915/revisions/1"},
+              {"method": "GET", "rel": "variables", "href": "/workflowHistory/processes/WF30e27a6b-3e73-49df-be79-3f29c45e3ab4/variables",
+                "uri": "/workflowHistory/processes/WF30e27a6b-3e73-49df-be79-3f29c45e3ab4/variables"},
+              {"method": "GET", "rel": "subprocesses", "href": "/workflowHistory/processes/WF30e27a6b-3e73-49df-be79-3f29c45e3ab4/subprocesses",
+                "uri": "/workflowHistory/processes/WF30e27a6b-3e73-49df-be79-3f29c45e3ab4/subprocesses"},
+              {"method": "GET", "rel": "tasks", "href": "/workflowHistory/processes/WF30e27a6b-3e73-49df-be79-3f29c45e3ab4/tasks",
+                "uri": "/workflowHistory/processes/WF30e27a6b-3e73-49df-be79-3f29c45e3ab4/tasks"},
+              {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WF30e27a6b-3e73-49df-be79-3f29c45e3ab4/history",
+                "uri": "/workflowHistory/processes/WF30e27a6b-3e73-49df-be79-3f29c45e3ab4/history"},
+              {"method": "DELETE", "rel": "delete", "href": "/workflowHistory/processes/WF30e27a6b-3e73-49df-be79-3f29c45e3ab4",
+                "uri": "/workflowHistory/processes/WF30e27a6b-3e73-49df-be79-3f29c45e3ab4"}]},
+          {"id": "WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4", "parentId": "", "name": "wilsonWorkflow_2630",
+            "definitionId": "WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E", "definitionRevision": "1",
+            "clientRegistrationId": "79bf7869-7aa2-49b2-a15d-08e791fc89b1", "createdTimeStamp": "2022-12-26T01:56:35.522Z",
+            "createdBy": "edmdev", "state": "In Progress", "stateTimeStamp": "2022-12-26T01:56:35.522Z",
+            "durationTime": "2 min", "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4",
+                "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4"},
+              {"method": "GET", "rel": "definition", "href": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/revisions/1",
+                "uri": "/workflowHistory/definitions/WFADA4DEF7-C2A4-489E-A17F-D9D93D43B23E/revisions/1"},
+              {"method": "GET", "rel": "variables", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables",
+                "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables"},
+              {"method": "GET", "rel": "subprocesses", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/subprocesses",
+                "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/subprocesses"},
+              {"method": "GET", "rel": "tasks", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/tasks",
+                "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/tasks"},
+              {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/history",
+                "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/history"},
+              {"method": "DELETE", "rel": "delete", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4",
+                "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4"}]}],
+        "limit": 50, "version": 2}
+    historyEvent:
+      description: The event log for workflow history service.
+      value: {"id": "4e952894-2805-41e7-a3ff-13f239351bc9", "state": "completed",
+        "creationTimeStamp": "2022-12-24T11:14:36.042Z", "stateUpdatedTimeStamp": "2022-12-24T11:15:42.550Z",
+        "retryCount": 0, "lastRetryTimeStamp": "2022-12-24T11:14:47.123Z", "eventDetailList": [
+          {"id": "WF3790c87b-e507-4c93-b805-f65d2e440305", "type": "definitionEnabled",
+            "state": "completed", "creationTimeStamp": "2022-12-24T11:14:36.042Z",
+            "stateUpdatedTimeStamp": "2022-12-24T11:15:42.537Z", "links": [{"method": "GET",
+                "rel": "self", "href": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9/eventDetail/WF3790c87b-e507-4c93-b805-f65d2e440305",
+                "uri": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9/eventDetail/WF3790c87b-e507-4c93-b805-f65d2e440305"},
+              {"method": "GET", "rel": "detailText", "href": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9/eventDetail/WF3790c87b-e507-4c93-b805-f65d2e440305",
+                "uri": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9/eventDetail/WF3790c87b-e507-4c93-b805-f65d2e440305"}]}],
+        "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9",
+            "uri": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9"},
+          {"method": "PATCH", "rel": "retry", "href": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9",
+            "uri": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9"},
+          {"method": "DELETE", "rel": "delete", "href": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9",
+            "uri": "/workflowHistory/historyEvents/4e952894-2805-41e7-a3ff-13f239351bc9"}]}
+    notFound:
+      description: Not found.
+      value:
+        httpStatusCode: 404
+        version: 2
+    processVariable:
+      description: The process variable for workflow history service.
+      value: {"processId": "WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4", "name": "projectId",
+        "value": "", "scope": "local", "type": "string", "createdTimeStamp": "2022-12-26T01:56:35.522Z",
+        "createdBy": "edmdev", "modifiedTimeStamp": "2022-12-26T01:56:35.522Z", "modifiedBy": "edmdev",
+        "active": true, "links": [{"method": "GET", "rel": "self", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables/projectId",
+            "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables/projectId"},
+          {"method": "GET", "rel": "history", "href": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables/projectId/history",
+            "uri": "/workflowHistory/processes/WFedf2215b-b6fe-437d-ada7-ae1245eeaaa4/variables/projectId/history"}]}

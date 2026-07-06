@@ -1,0 +1,410 @@
+---
+openapi: 3.0.3
+info:
+  version: "3"
+  title: Web Data Access
+  description: >
+    The Web Data Access REST API is used to retieve tokens to access Esri geographic
+    data.
+
+
+    Tokens can be obtained from various Esri deployments including:
+
+    1. ArcGis premium services
+
+    2. On-premises Self-service Esri Server
+
+    3. Hosted Esri Enterprise Server
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: devex@sas.com
+tags:
+- name: Root
+  description: The root of the Web Data Access API.
+- name: Esri
+  description: Esri services integration.
+paths:
+  /:
+    get:
+      summary: API Root Resource
+      description: API information. Produces application/json and application/vnd.sas.api+json.
+      operationId: root
+      tags:
+      - Root
+      responses:
+        "200":
+          description: Version information about the API, as well as top level API
+            entry points.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+  "/webDataAccess/esri/user/token":
+    get:
+      summary: The user's Esri ArcGIS Online token
+      description: >
+        Returns user token used to access Esri ArcGIS Online functionality.  If
+        the service doesn't have credentials or is unable to retrieve a token, a 400
+        ERROR
+        is returned with a specific code of 13601 (No token available).
+      operationId: getUserEsriPremiumToken
+      tags:
+      - Esri
+      responses:
+        "200":
+          description: Authentication token for the current user.
+          content:
+            application/vnd.sas.web.data.esriToken+json:
+              schema:
+                $ref: "#/components/schemas/esriToken"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/esriToken"
+        "400":
+          description: One of the following errors occurred while attempting to retrieve
+            a token (parameter - errorCode)- <ul><li>service doesn't have what is
+            necessary to retrieve a token from Esri - 13601</ul>
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/error2"
+  "/webDataAccess/esri/local/user/token":
+    get:
+      summary: The user's Esri Enterprise Server token
+      description: >
+        Returns user token used for accessing Esri Enterprise Server functionality.  If
+        the service doesn't have credentials or is unable to retrieve a token, a 400
+        ERROR
+        is returned with a specific code of 13601 (No token available).
+      operationId: getUserEsriPortalToken
+      tags:
+      - Esri
+      responses:
+        "200":
+          description: User token returned
+          content:
+            application/vnd.sas.web.data.esriToken+json:
+              schema:
+                $ref: "#/components/schemas/esriToken"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/esriToken"
+        "400":
+          description: One of the following errors occurred while attempting to retrieve
+            a token (parameter - errorCode)- <ul><li>service doesn't have what is
+            necessary to retrieve a token from Esri. - 13601</ul>
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/error2"
+  "/webDataAccess/esri/user/allTokens":
+    get:
+      summary: All available Esri tokens
+      description: >
+        Returns user security tokens used to access all Esri functionality.  If
+        the service doesn't have credentials or is unable to retrieve a token, a 400
+        ERROR
+        is returned with a specific code of 13601 (No token available).
+      operationId: getAllUserEsriTokens
+      tags:
+      - Esri
+      responses:
+        "200":
+          description: map of user tokens are returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/esriTokens"
+        "400":
+          description: One of the following errors occurred while attempting to retrieve
+            a token (parameter - errorCode)- <ul><li>service doesn't have what is
+            necessary to retrieve a token from Esri - 13601</ul>
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/error2"
+  "/webDataAccess/esri/user/authenticationTypes":
+    get:
+      summary: A collection of Esri Authentication Types
+      description: >
+        Returns a collection of Esri authentication types indicating whether credentials
+        (ie, username and password) or OAuth2 is used for that domain.  Each authentication
+        type
+        includes a list of Esri domains, such as Esri ArcGIS Online and Esri Enterprise
+        Server.
+      operationId: getAuthenticationTypes
+      tags:
+      - Esri
+      responses:
+        "200":
+          description: collection of authentication types returned
+          content:
+            application/vnd.sas.collection:
+              schema:
+                $ref: "#/components/schemas/esriAuthenticationTypeCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/esriAuthenticationTypeCollection"
+        "400":
+          description: One of the following errors occurred while attempting to retrieve
+            a token (parameter - errorCode)- <ul><li>service doesn't have what is
+            necessary to retrieve a token from Esri - 13601</ul>
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/error2"
+  "/webDataAccess/esri/local/user/credential":
+    get:
+      summary: Used by the SSO login request flow
+      description: >
+        retrieves a token and redirects back to the client
+      operationId: getLocalUserCredential
+      tags:
+      - Esri
+      responses:
+        "302":
+          description: returns the token in the header of a Redirect
+        "400":
+          description: Bad Request.
+servers:
+- url: http://example.com/webDataAccess
+  description: swagger server
+- url: https://example.com/webDataAccess
+  description: swagger server
+components:
+  schemas:
+    esriTokens:
+      x-sas-media-type:
+        name: application/json
+        version: 1
+      title: Esri Token Type Collection
+      description: >-
+        The collection of application/vnd.sas.web.data.access.esri.token+json
+        representations.
+      type: object
+      properties:
+        esriAuth:
+          $ref: "#/components/schemas/esriToken"
+        esriPortalAuth:
+          $ref: "#/components/schemas/esriToken"
+    esriToken:
+      type: object
+      description: User access token
+      required:
+      - version
+      - token
+      - expires
+      - ssl
+      - type
+      x-sas-media-type:
+        name: application/vnd.sas.web.data.esriToken
+        version: 2
+      properties:
+        version:
+          type: integer
+          description: Version of the schema.  This is version 1.
+        token:
+          type: string
+          description: User token
+        expires:
+          type: string
+          description: integer - number of seconds until expiry
+        ssl:
+          type: string
+          description: whether or not SSL is enabled.
+        type:
+          type: string
+          description: premium or local
+        error:
+          type: string
+          description: error
+    esriAuthenticationType:
+      type: object
+      title: Esri Authentication Type
+      x-sas-internal: true
+      description: An authentication type with list of domains.
+      required:
+      - domain
+      - type
+      x-sas-media-type:
+        name: application/vnd.sas.web.data.access.esri.authentication.type
+        version: 1
+      properties:
+        version:
+          type: integer
+          description: Version of the schema.  This is version 1.
+        domains:
+          type: array
+          description: >
+            Domains of authentication type.  One or more of "EsriAuth" for Esri ArchGIS
+            Online services
+            or "EsriPortalAuth" for Esri Enterprise Server (ie, Esri Portal services).
+          items:
+            type: string
+        type:
+          type: string
+          description: Type of authentication for domain.  One of "OAuth2" or "Credentials".
+        links:
+          type: array
+          description: Links that apply to this object.  Includes "self", "put", and
+            "delete"
+          items:
+            $ref: "#/components/schemas/link"
+    esriAuthenticationTypeCollection:
+      x-sas-internal: true
+      x-sas-media-type:
+        name: application/vnd.sas.web.data.access.esri.authorization.type
+        version: 1
+      title: Esri Authorization Type Collection
+      type: object
+      description: >-
+        The collection of application/vnd.sas.web.data.access.esri.authorization.type+json
+        representations.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+      - properties:
+          items:
+            type: array
+            description: The list of EsriAuthenticationTypes
+            items:
+              $ref: "#/components/schemas/esriAuthenticationType"
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.

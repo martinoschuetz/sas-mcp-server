@@ -1,0 +1,1996 @@
+---
+openapi: 3.0.3
+info:
+  version: '1'
+  title: Risk Cirrus ALM
+  description: >
+    SAS Risk Cirrus ALM handles the execution of Asset and Liability Management analysis
+    runs
+    via the KRM backend.
+  termsOfService: 'https://www.sas.com/en_us/legal/copyright.html'
+  contact:
+    name: 'SAS Developers'
+    email: 'devex@sas.com'
+    url: 'https://developer.sas.com'
+servers:
+- url: http://example.com/riskCirrusAlm
+  description: Sample server URL.
+tags:
+- name: Root Links
+  description: Root Links.
+- name: Output Table Metadata
+  description: Metadata about all output tables within KRM.
+- name: Runs
+  description: An object that ties together a Cirrus Analysis Run and its associated
+    KRM job and run.
+- name: Distinct Values
+  description: Distinct values and their descriptions from selected KRM tables.
+- name: Codes
+  description: Global codes within the KRM system.
+- name: User Codes
+  description: User defined codes within the KRM system.
+- name: Reporting Period Sets
+  description: A reporting period set is an object that defines a set of contiguous
+    reporting periods (in time).
+- name: Reports
+  description: A runnable report (script) associated with an analysis run for providing
+    report data.
+paths:
+  /:
+    get:
+      tags:
+      - Root Links
+      summary: Get a list of top-level links
+      operationId: root
+      description: Returns a list of links to the top-level collections surfaced through
+        this API.
+      responses:
+        '200':
+          description: OK
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                example:
+                  $ref: '#/components/examples/getALMRootResponse'
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                example:
+                  $ref: '#/components/examples/getALMRootResponse'
+  /runs:
+    post:
+      tags:
+      - Runs
+      summary: Create a KRM run (called from scripts within our product)
+      operationId: createRun
+      description: |
+        Create a KRM run in the system (from an Analysis Run that the user started).
+        This endpoint is considered a private endpoint as users are expected to call the endpoint for creating
+        AnalysisRun objects and not use this endpoint.  This endpoint exists mainly so that one part of our product
+        (code in SAS scripts) can call into our mid-tier to kick off an KRM run.
+      requestBody:
+        content:
+          application/vnd.sas.risk.alm.run+json:
+            schema:
+              $ref: '#/components/schemas/run'
+            examples:
+              example:
+                $ref: '#/components/examples/createRunBody'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/run'
+            examples:
+              example:
+                $ref: '#/components/examples/createRunBody'
+        description: The run definition to be created.
+        required: true
+      responses:
+        '201':
+          description: Run created successfully.
+          headers:
+            Location:
+              description: The URI of the newly created run.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+            Content-Type:
+              schema:
+                type: string
+              description: The response content type.
+          content:
+            application/vnd.sas.risk.alm.run+json:
+              schema:
+                $ref: '#/components/schemas/run'
+              examples:
+                example:
+                  $ref: '#/components/examples/runBodyResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/run'
+              examples:
+                example:
+                  $ref: '#/components/examples/runBodyResponse'
+        '400':
+          description: |
+            Bad Request.
+
+            The request is not properly formed.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                example:
+                  $ref: '#/components/examples/badCreateRunErrorResponse'
+  /getOutputTableMetas:
+    get:
+      tags:
+      - Output Table Metadata
+      summary: Get metadata for output tables
+      operationId: getOutputTableMetas
+      description: |
+        Get a list of metadata objects for the KRM output tables
+
+        Returned items will be of media type application/vnd.sas.risk.alm.output.table.meta+json
+      responses:
+        '200':
+          description: The request succeeded and matching output table metas are returned.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/outputTableMeta'
+              examples:
+                example:
+                  $ref: '#/components/examples/outputMetasResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/outputTableMeta'
+              examples:
+                example:
+                  $ref: '#/components/examples/outputMetasResponse'
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: The response content type.
+  /distinct:
+    get:
+      tags:
+      - Distinct Values
+      summary: Get distinct values
+      operationId: getDistinct
+      description: |
+        Get distinct values for a KRM table/column combination
+      parameters:
+      - name: start
+        in: query
+        description: (Currently not supported but in-plan).  0-based Offset of first
+          to return.  Defaults to 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: (Currently not supported but in-plan).  Maximum number to return.  Defaults
+          to 20.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: '(Currently not supported but in-plan).  Filter criteria for
+          returned types. See [Filtering in REST APIs](https://developer.sas.com/apis/rest/Topics/#filters).'
+        schema:
+          type: string
+          format: filter-criteria
+      - name: column
+        in: query
+        description: The column name to be used to query in the table given in the
+          URL
+        example: /riskCirrusAlm/distinct/TABLE_PORT?column=PORT_TABLE
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The request succeeded and matching values are returned.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/codes'
+              examples:
+                example:
+                  $ref: '#/components/examples/distinctResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/codes'
+              examples:
+                example:
+                  $ref: '#/components/examples/distinctResponse'
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: The response content type.
+        '500':
+          description: |
+            Internal Server Error.
+
+            This can happen when the KRM server is not accessible, or when the table or the selected column does not exist.
+          content:
+            'application/vnd.sas.error+json':
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                example:
+                  $ref: '#/components/examples/distinctErrorResponse'
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                example:
+                  $ref: '#/components/examples/distinctErrorResponse'
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: The response content type.
+  /krmCodes:
+    get:
+      tags:
+      - Codes
+      summary: Global Codes
+      operationId: getGlobalCodes
+      description: |
+        Get codes from KRM's CODE_GLB table
+      parameters:
+      - name: start
+        in: query
+        description: (Currently not supported but in-plan).  0-based Offset of first
+          to return.  Defaults to 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: (Currently not supported but in-plan).  Maximum number to return.  Defaults
+          to 20.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: '(Currently not supported but in-plan).  Filter criteria for
+          returned types. See [Filtering in REST APIs](https://developer.sas.com/apis/rest/Topics/#filters).'
+        schema:
+          type: string
+          format: filter-criteria
+      responses:
+        '200':
+          description: The request succeeded and matching values are returned.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/codes'
+              examples:
+                example:
+                  $ref: '#/components/examples/globalCodesResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/codes'
+              examples:
+                example:
+                  $ref: '#/components/examples/globalCodesResponse'
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: The response content type.
+  /krmUserCodes:
+    get:
+      tags:
+      - User Codes
+      summary: Get user codes
+      operationId: getUserCodes
+      description: |
+        Get codes from KRM's CODE_USER table
+      responses:
+        '200':
+          description: The request succeeded and matching values are returned.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/codes'
+              examples:
+                example:
+                  $ref: '#/components/examples/userCodesResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/codes'
+              examples:
+                example:
+                  $ref: '#/components/examples/userCodesResponse'
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: The response content type.
+  /reportingPeriodSets:
+    post:
+      tags:
+      - Reporting Period Sets
+      summary: Create reporting period set
+      operationId: createReportingPeriodSet
+      description: |
+        Creates a Reporting Period Set object in KRM's tables
+      requestBody:
+        content:
+          application/vnd.sas.risk.alm.reporting.period.set+json:
+            schema:
+              $ref: '#/components/schemas/reportingPeriodSet'
+            examples:
+              example:
+                $ref: '#/components/examples/reportingPeriodSetBody'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/reportingPeriodSet'
+            examples:
+              example:
+                $ref: '#/components/examples/reportingPeriodSetBody'
+      responses:
+        '201':
+          description: The request succeeded and matching values are returned.
+          content:
+            application/vnd.sas.risk.alm.reporting.period.set+json:
+              schema:
+                $ref: '#/components/schemas/reportingPeriodSet'
+              examples:
+                example:
+                  $ref: '#/components/examples/reportingPeriodSetBody'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/reportingPeriodSet'
+              examples:
+                example:
+                  $ref: '#/components/examples/reportingPeriodSetBody'
+          headers:
+            Location:
+              description: The URI of the newly created reporting period set.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+            Content-Type:
+              schema:
+                type: string
+              description: The response content type.
+        '400':
+          description: Reporting period set not valid.
+    get:
+      tags:
+      - Reporting Period Sets
+      summary: Get reporting period sets
+      operationId: getReportingPeriodSets
+      description: |
+        Get a list of Reporting Period Sets defined in KRM's tables
+      parameters:
+      - name: start
+        in: query
+        description: 0-based Offset of first to return.  Defaults to 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: Maximum number to return.  Defaults to 20.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: Filter criteria for returned types. See [Filtering in REST APIs](https://developer.sas.com/apis/rest/Topics/#filters).
+        schema:
+          type: string
+          format: filter-criteria
+      responses:
+        '200':
+          description: The request succeeded and matching values are returned.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/reportingPeriodSet'
+              examples:
+                example:
+                  $ref: '#/components/examples/reportingPeriodSetsCollectionResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/reportingPeriodSet'
+              examples:
+                example:
+                  $ref: '#/components/examples/reportingPeriodSetsCollectionResponse'
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: The response content type.
+  /reportingPeriodSets/{name}:
+    head:
+      tags:
+      - Reporting Period Sets
+      summary: Check existence of reporting period set
+      operationId: headersForReportingPeriodSet
+      parameters:
+      - name: name
+        required: true
+        in: path
+        schema:
+          type: string
+        description: The name of the reporting period set
+        example: /riskCirrusAlm/reportingPeriodSets/May2025
+      description: |
+        Returns an HTTP response code indicating the existence of the given reporting period set.
+      responses:
+        '200':
+          description: Exists.
+          headers:
+            ETag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+        '404':
+          description: Reporting period set not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                json:
+                  $ref: '#/components/examples/reportingPeriodSetNotFound'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                json:
+                  $ref: '#/components/examples/reportingPeriodSetNotFound'
+    get:
+      tags:
+      - Reporting Period Sets
+      summary: Get single reporting period set
+      operationId: getReportingPeriodSet
+      parameters:
+      - name: name
+        required: true
+        in: path
+        schema:
+          type: string
+        description: The name of the reporting period set
+        example: /riskCirrusAlm/reportingPeriodSets/May2025
+      description: |
+        Get a single Reporting Period Set
+      responses:
+        '200':
+          description: The request succeeded and matching value is returned.
+          content:
+            application/vnd.sas.risk.alm.reporting.period.set+json:
+              schema:
+                $ref: '#/components/schemas/reportingPeriodSet'
+              examples:
+                example:
+                  $ref: '#/components/examples/reportingPeriodSetBody'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/reportingPeriodSet'
+              examples:
+                example:
+                  $ref: '#/components/examples/reportingPeriodSetBody'
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: The response content type.
+        '404':
+          description: Reporting period set not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                json:
+                  $ref: '#/components/examples/reportingPeriodSetNotFound'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                json:
+                  $ref: '#/components/examples/reportingPeriodSetNotFound'
+    put:
+      tags:
+      - Reporting Period Sets
+      summary: Update reporting period set
+      operationId: updateReportingPeriodSet
+      description: |
+        Update a Reporting Period Set object in KRM's tables
+      requestBody:
+        content:
+          application/vnd.sas.risk.alm.reporting.period.set+json:
+            schema:
+              $ref: '#/components/schemas/reportingPeriodSet'
+            examples:
+              example:
+                $ref: '#/components/examples/reportingPeriodSetBody'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/reportingPeriodSet'
+            examples:
+              example:
+                $ref: '#/components/examples/reportingPeriodSetBody'
+      parameters:
+      - name: name
+        required: true
+        in: path
+        schema:
+          type: string
+        description: The name of the reporting period set
+        example: /riskCirrusAlm/reportingPeriodSets/May2025
+      - in: header
+        name: If-Match
+        description: |
+          The value of the ETag that was returned from a GET or previous PUT of this object.
+
+          This MUST match exactly the current value of the etag of the object.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The request succeeded and matching values are returned.
+          content:
+            application/vnd.sas.risk.alm.reporting.period.set+json:
+              schema:
+                $ref: '#/components/schemas/reportingPeriodSet'
+              examples:
+                example:
+                  $ref: '#/components/examples/reportingPeriodSetBody'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/reportingPeriodSet'
+              examples:
+                example:
+                  $ref: '#/components/examples/reportingPeriodSetBody'
+          headers:
+            ETag:
+              description: A tag that identifies this revision of this code repository.
+              schema:
+                type: string
+            Content-Type:
+              schema:
+                type: string
+              description: The response content type.
+        '400':
+          description: Reporting period set not valid.
+          content:
+            application/vnd.sas.risk.alm.reporting.period.set+json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                example:
+                  $ref: '#/components/examples/badReportingPeriodSetBody'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                example:
+                  $ref: '#/components/examples/reportingPeriodSetBody'
+        '404':
+          description: Reporting period set not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                json:
+                  $ref: '#/components/examples/reportingPeriodSetNotFound'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                json:
+                  $ref: '#/components/examples/reportingPeriodSetNotFound'
+        '412':
+          description: The If-Match condition check did not pass.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                json:
+                  $ref: '#/components/examples/preConditionFailedResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                json:
+                  $ref: '#/components/examples/preConditionFailedResponse'
+        '428':
+          description: Pre-Condition failed. If-Match header was not provided.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                json:
+                  $ref: '#/components/examples/IfMatchHeaderNotProvidedResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                json:
+                  $ref: '#/components/examples/IfMatchHeaderNotProvidedResponse'
+    delete:
+      tags:
+      - Reporting Period Sets
+      summary: Delete reporting period set
+      operationId: deleteReportingPeriodSet
+      parameters:
+      - name: name
+        required: true
+        in: path
+        schema:
+          type: string
+        description: The name of the reporting period set
+        example: /riskCirrusAlm/reportingPeriodSets/May2025
+      description: |
+        Deletes the reporting period set with the given name in the url.
+      responses:
+        '204':
+          description: Successful deletion of the reporting period set.
+        '404':
+          description: Reporting period set not found.
+  /reports:
+    get:
+      tags:
+      - Reports
+      summary: Get selectable reports
+      operationId: getSelectableReports
+      parameters:
+      - name: calcType
+        in: query
+        description: The calculation type of the analysis that you want the selectable
+          reports for.
+        example: /riskCirrusAlm/reports?calcType=3&riskMethod=2
+        schema:
+          type: string
+      - name: riskMethod
+        in: query
+        description: The risk method of the analysis that you want the selectable
+          reports for.
+        example: /riskCirrusAlm/reports?calcType=3&riskMethod=2
+        schema:
+          type: string
+      - name: start
+        in: query
+        description: (Currently not supported but in-plan).  0-based Offset of first
+          to return.  Defaults to 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: (Currently not supported but in-plan).  Maximum number to return.  Defaults
+          to 20.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: '(Currently not supported but in-plan).  Filter criteria for
+          returned types. See [Filtering in REST APIs](https://developer.sas.com/apis/rest/Topics/#filters).'
+        schema:
+          type: string
+          format: filter-criteria
+      description: |
+        Get a list of reports that are selectable for the given calcType and riskMethod values
+      responses:
+        '200':
+          description: The request succeeded and matching values are returned.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/selectableReport'
+              examples:
+                json:
+                  $ref: '#/components/examples/selectableReportsResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/selectableReport'
+              examples:
+                json:
+                  $ref: '#/components/examples/selectableReportsResponse'
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: The response content type.
+components:
+  schemas:
+    run:
+      title: Run
+      description: The ALM Run definition.  This object exists to tie together the
+        Cirrus analysis run object and the KRM job & KRM run objects that are run
+        on the behalf of the analysis run.
+      type: object
+      properties:
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+          example: 1
+        analysisId:
+          type: string
+          title: Run identifier.
+          description: |
+            The identifier of the analysis run object that this run wraps.
+
+            This is a system assigned identifier of the analysis run object.
+          example: 16372757e-011d-454d-905b-eb10b4a9e5a9
+          readOnly: true
+        krmJobStatusCode:
+          type: string
+          title: The status code from running the KRM job for the analysis run.
+          description: |
+            A single character status code that represents the current status of the KRM job that was run for the analysis run.
+
+            Valid values are:
+             - S: Submitted
+             - A: Accepted
+             - R: Rejected
+             - P: Processing
+             - C: Completed
+             - T: Terminate
+             - ?: Unknown
+
+            .
+          example: C
+          readOnly: true
+        keepKrmRun:
+          type: boolean
+          title: Keep KRM Run and Outputs
+          description: |
+            Flag to indicate if the KRM Run and its outputs should be kept after is finishes executing.
+
+            When not specified, defaults to false.
+          example: true
+        portTable:
+          type: string
+          title: The portfolio table name to use in the KRM job
+          description: This name must be one that is returned by /distinct/TABLE_PORT?column=PORT_TABLE.
+          example: PORT_BOND_FIXED
+          readOnly: false
+        calculationType:
+          type: integer
+          title: Calculation Type
+          description: See KRM doc.
+          example: 1
+        currentDate:
+          type: string
+          title: Current Date
+          description: See KRM doc.
+          example: "2021-11-08T00:00:00Z"
+        marketDate:
+          type: string
+          title: Market Date
+          description: See KRM doc.
+          example: "2021-11-08T00:00:00Z"
+        valuationDate:
+          type: string
+          title: Valuation Date
+          description: See KRM doc.
+          example: "2021-11-08T00:00:00Z"
+        riskMethod:
+          type: integer
+          title: Risk Method
+          description: See KRM doc.
+          example: 1
+        simMethod:
+          type: integer
+          title: Sim Method
+          description: See KRM doc.
+          example: 1
+        productSet:
+          type: string
+          title: Product Set
+          description: See KRM doc.
+          example: x
+        baseCurrency:
+          type: string
+          title: Base Currency
+          description: See KRM doc.
+          example: USD
+        runStatus:
+          type: integer
+          title: Run Status
+          description: See KRM doc, defaults to 0 when not specified.
+          example: 0
+        outputId:
+          type: string
+          title: Output ID
+          description: See KRM doc.
+          example: x
+        curDt2:
+          type: string
+          description: See KRM doc.
+          example: "2021-11-08T00:00:00Z"
+        compVarMethod:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        regCalcId:
+          type: string
+          description: See KRM doc.
+          example: x
+        dfltIssuerFlag:
+          type: integer
+          description: See KRM doc.
+          example: 1
+        riskShiftTermU:
+          type: string
+          description: See KRM doc.
+          example: "Y"
+        histSkip:
+          type: integer
+          description: See KRM doc.
+          example: 1
+        distRunFlag:
+          type: integer
+          description: See KRM doc.
+          example: 1
+        riskMeasure:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        riskShiftTerm:
+          type: integer
+          description: See KRM doc.
+          example: 1
+        fcstPhFlag:
+          type: integer
+          description: See KRM doc.
+          example: 1
+        cutSetId:
+          type: string
+          description: See KRM doc.
+          example: x
+        dfltRefFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        negRtFlag:
+          type: integer
+          description: See KRM doc.
+          example: 1
+        rptSetId:
+          type: string
+          description: See KRM doc.
+          example: x
+        srcRunId:
+          type: string
+          description: See KRM doc.
+          example: x
+        fcstMastId:
+          type: string
+          description: See KRM doc.
+          example: x
+        histDataTermU:
+          type: string
+          description: See KRM doc.
+          example: "Y"
+        collatId:
+          type: string
+          description: See KRM doc.
+          example: x
+        divId:
+          type: string
+          description: See KRM doc.
+          example: x
+        ycFlag:
+          type: integer
+          description: See KRM doc.
+          example: 1
+        rebalSetId:
+          type: string
+          description: See KRM doc.
+          example: x
+        crHorizonTermU:
+          type: string
+          description: See KRM doc.
+          example: x
+        fcstTypeId:
+          type: string
+          description: See KRM doc.
+          example: x
+        baseCalcFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        ycSetId:
+          type: string
+          description: See KRM doc.
+          example: x
+        tpMastId:
+          type: string
+          description: See KRM doc.
+          example: x
+        varMvFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        crFlag:
+          type: integer
+          description: See KRM doc.
+          example: 1
+        valDt2:
+          type: string
+          description: See KRM doc.
+          example: "2021-03-30T00:00:00Z"
+        nonIntId:
+          type: string
+          description: See KRM doc.
+          example: x
+        crHorizonTerm:
+          type: integer
+          description: See KRM doc.
+          example: 2
+        sectorCorrId:
+          type: string
+          description: See KRM doc.
+          example: x
+        varConfLevelL:
+          type: number
+          description: See KRM doc.
+          example: 95.0
+        durationShift:
+          type: number
+          description: See KRM doc.
+          example: 0.1
+        mcSetId:
+          type: string
+          description: See KRM doc.
+          example: x
+        riskSetId:
+          type: string
+          description: See KRM doc.
+          example: x
+        varCalcSrc:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        scenarioStep:
+          type: integer
+          description: See KRM doc.
+          example: 1
+        tpRunId:
+          type: string
+          description: See KRM doc.
+          example: x
+        undPortFlag:
+          type: integer
+          description: See KRM doc.
+          example: 1
+        mcStyle:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        histDataTerm:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        fcstLimitId:
+          type: string
+          description: See KRM doc.
+          example: x
+        varConfLevelU:
+          type: number
+          description: See KRM doc.
+          example: 95.0
+        cutFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        numScenario:
+          type: integer
+          description: See KRM doc.
+          example: 10
+        crModelId:
+          type: string
+          description: See KRM doc.
+          example: x
+        histEndDt:
+          type: string
+          description: See KRM doc.
+          example: "2021-03-30T00:00:00Z"
+        varConfLevel:
+          type: number
+          description: See KRM doc.
+          example: 95.0
+        dfltCpFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        durationFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        fcstParamId:
+          type: string
+          description: See KRM doc.
+          example: x
+        riskConfLevel:
+          type: number
+          description: See KRM doc.
+          example: 95.0
+        fcstNbFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        hdgSetId:
+          type: string
+          description: See KRM doc.
+          example: x
+        fcstCpnId:
+          type: string
+          description: See KRM doc.
+          example: x
+        riskThreshold:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        fcstRlFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        histStartDt:
+          type: string
+          description: See KRM doc.
+          example: "2021-03-30T00:00:00Z"
+        numTrials:
+          type: integer
+          description: See KRM doc.
+          example: 1
+        riskConstFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        fltrId:
+          type: string
+          description: See KRM doc.
+          example: x
+        shiftSetId:
+          type: string
+          description: See KRM doc.
+          example: x
+        stSetId:
+          type: string
+          description: See KRM doc.
+          example: x
+        hierId:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        dfltSelfFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        tpHistDt:
+          type: string
+          description: See KRM doc.
+          example: "2021-03-30T00:00:00Z"
+        grpMastId:
+          type: string
+          description: See KRM doc.
+          example: x
+        fcstBuffer:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        bufferId:
+          type: string
+          description: See KRM doc.
+          example: x
+        ycFltrId:
+          type: string
+          description: See KRM doc.
+          example: x
+        riskGrpFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        numThreads:
+          type: integer
+          description: See KRM doc.
+          example: 1
+        numDbIns:
+          type: integer
+          description: See KRM doc.
+          example: 1
+        msgErrorFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        msgWarnFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        msgInfoFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        msgDiagFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        msgSqlFlag:
+          type: integer
+          description: See KRM doc.
+          example: 0
+        regId:
+          type: string
+          description: See KRM doc.
+          example: x
+        creationTimeStamp:
+          type: string
+          description: Date and time stamp of when this run was created.
+          format: date-time
+          example: '2021-11-08T18:40:21.674894Z'
+          readOnly: true
+        createdBy:
+          type: string
+          description: Username of the entity that created this run.
+          example: testuser
+          readOnly: true
+        modifiedTimeStamp:
+          type: string
+          description: Date and time stamp of when this run was last modified.
+          format: date-time
+          example: '2021-11-08T18:40:21.674894Z'
+          readOnly: true
+        modifiedBy:
+          type: string
+          description: Username of the entity that last modified this run.
+          example: testuser
+          readOnly: true
+      required:
+      - analysisId
+    code:
+      title: Code
+      description: A descriptive code (i.e. a code value and a description).
+      type: object
+      properties:
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+          example: 1
+        code:
+          type: string
+          description: The value of the code.
+          example: USD
+        description:
+          type: string
+          description: The description of the code.
+          example: US Dollars
+    codes:
+      title: Codes
+      description: This is a collection of code objects.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        readOnly: true
+        properties:
+          items:
+            type: array
+            description: The actual results of a query.
+            items:
+              $ref: '#/components/schemas/code'
+    selectableReport:
+      title: Report
+      description: A selectable report referring to a script that can be run that
+        acts as a report.
+      type: object
+      properties:
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+          example: 1
+        key:
+          type: string
+          description: The key value of the script object that can be run as a report
+            for the given calcType and riskMethod values.
+          example: 91480245-ec66-47ca-bb2e-d8f36d4c10ef
+        name:
+          type: string
+          description: The name of the script.
+          example: Forecast report
+    outputTableMeta:
+      title: KRM Output Table Metadata
+      description: Some metadata about a KRM output table
+      type: object
+      properties:
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+          example: 1
+        tableName:
+          type: string
+          description: The name of the output table.
+          example: CF_OUT
+        tableType:
+          type: string
+          description: A type or category that this output table.
+          example: Multi-Period Output
+        detailLevelValues:
+          type: array
+          items:
+            type: integer
+          description: The ordered values associated with the detail descriptions
+          example: [1, 2]
+        detailLevelDescriptions:
+          type: array
+          items:
+            type: string
+          description: The ordered detailed descriptions associated with the detail
+            values
+          example: ["Base case only", "Base case + scenarios"]
+    reportingPeriodSet:
+      title: Reporting Period Set
+      description: An ordered, contiguous set of reporting periods
+      type: object
+      properties:
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 1.
+          example: 1
+        key:
+          type: string
+          description: The unique (amongst objects of this type in this deployment),
+            user-managed ID for this reporting set
+          example: month_30_yr
+        description:
+          type: string
+          description: A description of this reporting period set object
+          example: The monthly periods for 30 years
+        reportSetFlag:
+          type: integer
+          description: Gives how the periods are defined.  Valid values are 1, 2,
+            3.   1=date-based, 2=term-based, 3=irrbb.
+          example: 1
+        dateBasedReportingPeriods:
+          type: array
+          items:
+            $ref: '#/components/schemas/dateBasedReportingPeriod'
+          description: An ordered set of date-based reporting periods that make up
+            the core of this object.  reportSetFlag must be 1 if these are included.
+        termBasedReportingPeriods:
+          type: array
+          items:
+            $ref: '#/components/schemas/termBasedReportingPeriod'
+          description: An ordered set of term-based reporting periods that make up
+            the core of this object.  reportSetFlag must be 2 if these are included.
+    dateBasedReportingPeriod:
+      title: Date-Based Reporting Period
+      description: A reporting period that is date-based
+      type: object
+      properties:
+        label:
+          type: string
+          description: The label for the period.  This will typically be shown in
+            reports that use this reporting period.
+        startDate:
+          type: string
+          description: The date which starts this reporting period (inclusive).
+        endDate:
+          type: string
+          description: The date which ends this reporting period (inclusive).
+    termBasedReportingPeriod:
+      title: Term-Based Reporting Period
+      description: A reporting period that is term-based
+      type: object
+      properties:
+        label:
+          type: string
+          description: The label for the period.  This will typically be shown in
+            reports that use this reporting period.
+        endTerm:
+          type: integer
+          description: A value indicating how many endTermUnits this period is for
+            (must be >= 1).
+        endTermUnit:
+          type: string
+          description: A value indicating the unit of days this period is for (one
+            of D W M Q S Y - for day, week, month, quarter, semiannual, and year).
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    errorResponse:
+      title: Error
+      description: The representation of an error.
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The error message.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred
+          items:
+            $ref: '#/components/schemas/errorResponse'
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: '#/components/schemas/link'
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+  examples:
+    getALMRootResponse:
+      summary: ALM service endpoints
+      description: List of endpoints for riskCirrusAlm service.
+      value:
+        version: 1
+        links:
+        - method: GET
+          rel: getAlm
+          href: "/riskCirrusAlm"
+          uri: "/riskCirrusAlm"
+          type: application/vnd.sas.collection
+          itemType: application/json
+        - method: POST
+          rel: createAlmRun
+          href: "/riskCirrusAlm/runs"
+          uri: "/riskCirrusAlm/runs"
+          type: application/vnd.sas.risk.alm.run
+        - method: GET
+          rel: getKrmCodes
+          href: "/riskCirrusAlm/krmCodes"
+          uri: "/riskCirrusAlm/krmCodes"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.alm.descriptive.code
+        - method: GET
+          rel: getKrmUserCodes
+          href: "/riskCirrusAlm/krmUserCodes"
+          uri: "/riskCirrusAlm/krmUserCodes"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.alm.descriptive.code
+        - method: GET
+          rel: getDistinct
+          href: "/riskCirrusAlm/distinct"
+          uri: "/riskCirrusAlm/distinct"
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.risk.alm.descriptive.code
+        - method: POST
+          rel: loadKRMPortTable
+          href: "/riskCirrusAlm/krmPortTable"
+          uri: "/riskCirrusAlm/krmPortTable"
+          type: application/json
+    forbiddenErrorResponse:
+      summary: Create or delete alm run error response
+      description: Authorization error preventing creation or access to run
+      value:
+        version: 2
+        httpStatusCode: 403
+        message: TBD
+        details:
+        - Unauthorized
+        - 'path: /riskCirrusAlm/runs/2017b850-151e-4315-91f2-57c9f633f344'
+        - 'correlator: 49b49e4c-1786-4457-8e49-7faf719ee4ff'
+    badCreateRunErrorResponse:
+      summary: Bad POST request error response
+      description: Here is an example of a bad request error response on a POST request
+        to create or update a run.  In this example, the "analysisId" field is not
+        provided in the request body.
+      value:
+        errorCode: 117026
+        message: TBD
+        details:
+        - 'path: /riskCirrusAlm/runs'
+        - 'correlator: c6ff01a9-9ab8-4ca2-b05f-29edd9a247f6'
+        version: 2
+        httpStatusCode: 400
+    reportingPeriodSetBody:
+      summary: Body to create a reporting period set
+      description: Sample body used to create a reporting period set via POST or PUT.
+      value:
+        key: Term_based_rps
+        version: 1
+        reportSetFlag: 2
+        description: A term based set of reporting periods
+        termBasedReportingPeriods:
+        - label: Period1
+          endTerm: 3
+          endTermUnit: M
+          periodNum: 1
+        - label: Period2
+          endTerm: 5
+          endTermUnit: Y
+          periodNum: 2
+    badReportingPeriodSetBody:
+      summary: Bad reporting period set response
+      description: An example of a bad reporting period set
+      value:
+        message: The body member "termBasedReportingPeriods.0.label" is missing or
+          does not have a value.
+        details:
+        - 'path: /riskCirrusAlm/reportingPeriodSets/rps1'
+        - 'correlator: c6ff01a9-9ab8-4ca2-b05f-29edd9a247f6'
+        version: 2
+        httpStatusCode: 400
+    reportingPeriodSetNotFound:
+      summary: Reporting period set was not found
+      description: Reporting period set was not found
+      value:
+        details:
+        - 'path: /riskCirrusAlm/reportingPeriodSets/rps1'
+        - 'correlator: c6ff01a9-9ab8-4ca2-b05f-29edd9a247f6'
+        version: 2
+        httpStatusCode: 404
+    preConditionFailedResponse:
+      summary: Precondition failed error response
+      description: Here is an example of an error response when PUT request precondition
+        fails.
+      value:
+        message: The header field "If-Match" has a value that is different from the
+          entity tag for the resource. (The specified values are W/"9999999999999999999"
+          and W/"1649103025796792000", respectively.)
+        details:
+        - 'path: /riskCirrusAlm/reportingPeriodSets/rps1'
+        - 'correlator: c6ff01a9-9ab8-4ca2-b05f-29edd9a247f6'
+        version: 2
+        httpStatusCode: 412
+    IfMatchHeaderNotProvidedResponse:
+      summary: If-Match header not provided error response
+      description: Here is an example of an error response when PUT request precondition
+        fails due to an If-Match header not being provided
+      value:
+        message: The header field "If-Match" is missing or does not have a value.
+        details:
+        - 'path: /riskCirrusAlm/reportingPeriodSets/rps1'
+        - 'correlator: c6ff01a9-9ab8-4ca2-b05f-29edd9a247f6'
+        version: 2
+        httpStatusCode: 428
+    createRunBody:
+      summary: Body to create a run
+      description: Sample body used to create a run
+      value:
+        analysisId: 0209ce7e-bb78-4e32-98c5-534e1a007787
+        portTable: PORT_FRA
+        calculationType: 2
+        currentDate: 2019-04-30Z
+        marketDate: 2019-04-30Z
+        valuationDate: 2019-04-30Z
+        riskMethod: 3
+        productSet: "01"
+        baseCurrency: USD
+        runStatus: 0
+        rptSetId: "10"
+        stSetId: "02"
+        reports:
+        - label: report1
+          value: 850cb033-bdfa-4a0e-b615-9f9a2d5a48c5
+    runBodyResponse:
+      summary: Response containing a run body
+      description: Sample response containing a run body
+      value:
+        analysisId: c3089ac6-7628-4828-91b2-8e9012bb531b
+        krmJobStatusCode: S
+        portTable: PORT_FRA
+        calculationType: 2
+        currentDate: 2019-04-30T00:00:00Z
+        marketDate: 2019-04-30T00:00:00Z
+        valuationDate: 2019-04-30T00:00:00Z
+        riskMethod: 3
+        productSet: "01"
+        baseCurrency: USD
+        runStatus: 0
+        runId: run78
+        outputId: run78
+        rptSetId: "10"
+        stSetId: "02"
+        reports:
+        - label: forecast
+          value: b3303ac2-d2b6-47f6-b1bc-b445c4c21c95
+        creationTimeStamp: 2023-04-12T14:36:25.626445Z
+        createdBy: myuser
+        modifiedTimeStamp: 2023-04-12T14:36:25.626445Z
+        modifiedBy: myuser
+    outputMetasResponse:
+      summary: Response to an outputMetas GET call
+      description: Sample, abbreviated response to an endpoint call of GET /riskCirrusAlm/outputTableMetas
+      value:
+        version: 2
+        accept: application/vnd.sas.risk.alm.output.table.meta+json
+        count: 4
+        start: 1
+        limit: 4
+        name: outputTables
+        items:
+        - version: 1
+          tableName: ACCR_INT
+          tableType: Single Period Output
+        - version: 1
+          tableName: CF_DETL
+          tableType: Common Output
+          detailLevelValues:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          detailLevelDescriptions:
+          - "(1) Standard cash flow output for all products, Tranche only for securitized\
+            \ assets"
+          - "(2) Include output for both (1) and detailed cash flow output for all\
+            \ products, Tranche and Pools for securitized assets"
+          - "(3) Cash flow output for valuation scenarios and Pools in forecasts"
+          - "(4) Report the rating probabilities in forecasts"
+          - "(5) Include output for (1) and (4)"
+          - "(6) Include output for (2) and (4)"
+        - version: 1
+          tableName: CF_OUT
+          tableType: Common Output
+          detailLevelValues:
+          - 1
+          - 2
+          detailLevelDescriptions:
+          - Include results for base case only
+          - Include results for base case and scenarios
+        - version: 1
+          tableName: CMO_BLOCK
+          tableType: Common Output
+    globalCodesResponse:
+      description: Sample response to an endpoint call of GET /riskCirrusAlm/krmCodes/001
+      value:
+        version: 2
+        accept: application/vnd.sas.risk.alm.descriptive.code+json
+        count: 8
+        start: 0
+        limit: 8
+        name: krmGlobalCodes
+        items:
+        - description: Independent Yield Curve
+          code: '1'
+          typeId: '001'
+        - description: Credit Spread Curve from Yield Curves
+          code: '2'
+          typeId: '001'
+        - description: Independent Yield Curve from Bond Prices
+          code: '3'
+          typeId: '001'
+        - description: Spread by Bond from Prices
+          code: '4'
+          typeId: '001'
+        - description: Credit Spread Curve from Bond Prices
+          code: '5'
+          typeId: '001'
+        - description: Time-based Lambda from Bond Prices
+          code: '6'
+          typeId: '001'
+        - description: Credit Spread from Bond Futures
+          code: '7'
+          typeId: '001'
+        - description: Credit Spread from Money Market Futures
+          code: '8'
+          typeId: '001'
+    userCodesResponse:
+      description: Sample response to an endpoint call of GET /riskCirrusAlm/krmUserCodes/RBL
+      value:
+        version: 2
+        accept: application/vnd.sas.risk.alm.descriptive.code+json
+        count: 5
+        start: 0
+        limit: 5
+        name: krmUserCodes
+        items:
+        - description: 01_20USD001
+          code: 1_20_USD_001
+          typeId: RBL
+        - description: 01_20USD002
+          code: 1_20_USD_002
+          typeId: RBL
+        - description: 01_20USD003
+          code: 1_20_USD_003
+          typeId: RBL
+        - description: 01_20USD004
+          code: 1_20_USD_004
+          typeId: RBL
+        - description: 01_20USD005
+          code: 1_20_USD_005
+          typeId: RBL
+    distinctResponse:
+      description: Sample, abbreviated response to an endpoint call of GET /riskCirrusAlm/distinct/CODE_USER?column=type_id
+      value:
+        version: 2
+        accept: application/vnd.sas.risk.alm.descriptive.code+json
+        count: 145
+        start: 0
+        limit: 145
+        name: krmDistinctCodes
+        items:
+        - description: '076'
+          code: '076'
+        - description: '1'
+          code: '1'
+        - description: '100'
+          code: '100'
+        - description: '101'
+          code: '101'
+        - description: '102'
+          code: '102'
+        - description: '105'
+          code: '105'
+        - description: '110'
+          code: '110'
+        - description: '111'
+          code: '111'
+        - description: '113'
+          code: '113'
+    distinctErrorResponse:
+      description: Sample response to an endpoint call of GET /riskCirrusAlm/distinct/CODE_USER?column=unknown
+      value:
+        version: 2
+        httpStatusCode: 500
+        message: Internal Server Error
+        details:
+        - 'mssql: Invalid column name ''unknown''.'
+        - 'path: /riskCirrusAlm/distinct/CODE_USER'
+        - 'correlator: 973d58e0-2547-4a5e-b7ce-5bf8b74f19ad'
+    selectableReportsResponse:
+      description: Sample response to an endpoint call of GET /riskCirrusAlm/reports?calcType=2&riskMethod=3
+      value:
+        version: 2
+        accept: application/vnd.sas.risk.alm.selectable.report+json
+        count: 2
+        start: 0
+        limit: 2
+        name: selectableReports
+        items:
+        - version: '1'
+          key: b3303ac2-d2b6-47f6-b1bc-b445c4c21c95
+          name: Forecast report
+        - version: '1'
+          key: __ALL_OUTPUT_TABLES__
+          name: All Output Tables
+    reportingPeriodSetsCollectionResponse:
+      description: Sample, abbreviated response to an endpoint call of GET /riskCirrusAlm/reportingPeriodSets
+      value:
+        version: 2
+        count: 2
+        start: 0
+        limit: 2
+        name: reportingPeriodSets
+        items:
+        - version: 1
+          key: '01'
+          description: Mixed-2017
+          reportSetFlag: 1
+          dateBasedReportingPeriods:
+          - label: '001'
+            periodNum: 1
+            startDate: 2017-05-01Z
+            endDate: 2017-05-01Z
+          - label: '002'
+            periodNum: 2
+            startDate: 2017-05-02Z
+            endDate: 2017-05-02Z
+          - label: '003'
+            periodNum: 3
+            startDate: 2017-05-03Z
+            endDate: 2017-05-03Z
+          - label: '004'
+            periodNum: 4
+            startDate: 2017-05-04Z
+            endDate: 2017-05-04Z
+          - label: '005'
+            periodNum: 5
+            startDate: 2017-05-05Z
+            endDate: 2017-05-05Z
+          - label: '006'
+            periodNum: 6
+            startDate: 2017-05-06Z
+            endDate: 2017-05-31Z
+          - label: '007'
+            periodNum: 7
+            startDate: 2017-06-01Z
+            endDate: 2017-06-30Z
+          - label: '008'
+            periodNum: 8
+            startDate: 2017-07-01Z
+            endDate: 2017-07-31Z
+          - label: '009'
+            periodNum: 9
+            startDate: 2017-08-01Z
+            endDate: 2017-08-31Z
+          - label: '010'
+            periodNum: 10
+            startDate: 2017-09-01Z
+            endDate: 2017-09-30Z
+          - label: '011'
+            periodNum: 11
+            startDate: 2017-10-01Z
+            endDate: 2017-10-31Z
+          - label: '012'
+            periodNum: 12
+            startDate: 2017-11-01Z
+            endDate: 2017-11-30Z
+          - label: '013'
+            periodNum: 13
+            startDate: 2017-12-01Z
+            endDate: 2017-12-31Z
+          - label: '014'
+            periodNum: 14
+            startDate: 2018-01-01Z
+            endDate: 2018-01-31Z
+          - label: '015'
+            periodNum: 15
+            startDate: 2018-02-01Z
+            endDate: 2018-02-28Z
+          - label: '016'
+            periodNum: 16
+            startDate: 2018-03-01Z
+            endDate: 2018-03-31Z
+          - label: '017'
+            periodNum: 17
+            startDate: 2018-04-01Z
+            endDate: 2018-04-30Z
+          - label: '018'
+            periodNum: 18
+            startDate: 2018-05-01Z
+            endDate: 2018-07-31Z
+          - label: '019'
+            periodNum: 19
+            startDate: 2018-08-01Z
+            endDate: 2018-10-30Z
+          - label: '020'
+            periodNum: 20
+            startDate: 2018-10-31Z
+            endDate: 2019-01-31Z
+          - label: '021'
+            periodNum: 21
+            startDate: 2019-02-01Z
+            endDate: 2019-04-30Z
+          - label: '022'
+            periodNum: 22
+            startDate: 2019-05-01Z
+            endDate: 2019-10-30Z
+          - label: '023'
+            periodNum: 23
+            startDate: 2019-10-31Z
+            endDate: 2020-04-30Z
+          - label: '024'
+            periodNum: 24
+            startDate: 2020-05-01Z
+            endDate: 2021-04-30Z
+          - label: '025'
+            periodNum: 25
+            startDate: 2021-05-01Z
+            endDate: 2022-04-30Z
+          - label: '026'
+            periodNum: 26
+            startDate: 2022-05-01Z
+            endDate: 2047-04-30Z
+        - version: 1
+          key: '02'
+          description: Quarterly-2015
+          reportSetFlag: 1
+          dateBasedReportingPeriods:
+          - label: '001'
+            periodNum: 1
+            startDate: 2015-07-01Z
+            endDate: 2015-09-30Z
+          - label: '002'
+            periodNum: 2
+            startDate: 2015-10-01Z
+            endDate: 2015-12-31Z
+          - label: '003'
+            periodNum: 3
+            startDate: 2016-01-01Z
+            endDate: 2016-03-31Z
+          - label: '004'
+            periodNum: 4
+            startDate: 2016-04-01Z
+            endDate: 2016-06-30Z
+          - label: '005'
+            periodNum: 5
+            startDate: 2016-07-01Z
+            endDate: 2016-09-30Z
+          - label: '006'
+            periodNum: 6
+            startDate: 2016-10-01Z
+            endDate: 2016-12-31Z
+          - label: '007'
+            periodNum: 7
+            startDate: 2017-01-01Z
+            endDate: 2017-03-31Z
+          - label: '008'
+            periodNum: 8
+            startDate: 2017-04-01Z
+            endDate: 2017-06-30Z
+          - label: '009'
+            periodNum: 9
+            startDate: 2017-07-01Z
+            endDate: 2017-09-30Z
+          - label: '010'
+            periodNum: 10
+            startDate: 2017-10-01Z
+            endDate: 2017-12-31Z
+          - label: '011'
+            periodNum: 11
+            startDate: 2018-01-01Z
+            endDate: 2018-03-31Z
+          - label: '012'
+            periodNum: 12
+            startDate: 2018-04-01Z
+            endDate: 2018-06-30Z
+          - label: '013'
+            periodNum: 13
+            startDate: 2018-07-01Z
+            endDate: 2018-09-30Z
+          - label: '014'
+            periodNum: 14
+            startDate: 2018-10-01Z
+            endDate: 2018-12-31Z
+          - label: '015'
+            periodNum: 15
+            startDate: 2019-01-01Z
+            endDate: 2019-03-31Z
+          - label: '016'
+            periodNum: 16
+            startDate: 2019-04-01Z
+            endDate: 2019-06-30Z
+          - label: '017'
+            periodNum: 17
+            startDate: 2019-07-01Z
+            endDate: 2019-09-30Z
+          - label: '018'
+            periodNum: 18
+            startDate: 2019-10-01Z
+            endDate: 2019-12-31Z
+          - label: '019'
+            periodNum: 19
+            startDate: 2020-01-01Z
+            endDate: 2020-03-31Z
+          - label: '020'
+            periodNum: 20
+            startDate: 2020-04-01Z
+            endDate: 2020-06-30Z
+          - label: '021'
+            periodNum: 21
+            startDate: 2020-07-01Z
+            endDate: 2020-09-30Z
+          - label: '022'
+            periodNum: 22
+            startDate: 2020-10-01Z
+            endDate: 2020-12-31Z
+          - label: '023'
+            periodNum: 23
+            startDate: 2021-01-01Z
+            endDate: 2021-03-31Z
+          - label: '024'
+            periodNum: 24
+            startDate: 2021-04-01Z
+            endDate: 2027-06-30Z

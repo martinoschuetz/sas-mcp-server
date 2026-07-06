@@ -1,0 +1,2191 @@
+---
+openapi: 3.0.3
+info:
+  version: '1'
+  title: Process Orchestration
+  description: |
+    Process orchestration is a tool that coordinates the various moving parts of a business process, including people, systems, and devices. It enables end-to-end automation by tying together different business processes, both automated and manual.
+  termsOfService: 'https://www.sas.com/en_us/legal/copyright.html'
+  contact:
+    name: SAS Developers
+    email: devex@sas.com
+    url: 'https://developer.sas.com'
+tags:
+- name: Root
+  description: The operations for the root resource.
+- name: Flows
+  description: The operations for the flows resource.
+- name: Flow Runs
+  description: The operations for the flow runs resource.
+- name: Tasks
+  description: The operations for the tasks resource.
+- name: Namespace Callback Registration
+  description: The operations for the namespace callback registration resource.
+paths:
+  /flows:
+    get:
+      tags:
+      - Flows
+      summary: Get a collection of flow summaries
+      operationId: getFlows
+      description: |
+        Gets a collection of flow summaries.  The return can be filtered, sorted, and paged according to the 
+        specifications in the SAS REST API Standards document.  The default sort order is `name` in ascending and 
+        `namespace` in ascending.  Alternative sort orders can be by `id`, `createdBy`, `modifiedBy`, `createdAt`, or 
+        `modifiedAt`. It is also possible to filter on any of these fields using the functions `eq`, `gt`, `ge`, `lt`, 
+        `le` or `contains`.
+      parameters:
+      - name: start
+        in: query
+        description: The zero-based offset of the first type to return.  The default
+          is zero.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: The maximum number of types to return.  The default is 100.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: |
+          The filter criteria for the returned flow summaries. Here are the supported fields: `id`, `name`, `namespace`, 
+          `createdBy`, `modifiedBy`, `createdAt` and `modifiedAt`. See 
+          [Filtering in REST APIs](https://developer.sas.com/rest-apis/processOrchestration-v1/docs/getting-started/usage-notes#filtering).
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: 'The sort returned types. See [Sorting in REST APIs](https://developer.sas.com/rest-apis/processOrchestration-v1/docs/getting-started/usage-notes#sorting).'
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        '200':
+          description: Succeeded in returning a collection of flow summaries.
+          headers: {}
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/flowSummaryCollection'
+              examples:
+                json:
+                  $ref: "#/components/examples/getFlowSummaryResponse"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/flowSummaryCollection'
+              examples:
+                json:
+                  $ref: "#/components/examples/getFlowSummaryResponse"
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorBadRequestResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+    post:
+      tags:
+      - Flows
+      summary: Create a Flow
+      operationId: createFlow
+      parameters:
+      - name: parentFolderUri
+        schema:
+          type: string
+        in: query
+        required: false
+        description: |
+          If the query parameter parentFolderUri is set, PO will add the flow resource as a member in 
+          the specified SAS folder. The SAS folder must already exist. The value of parentFolderUri is the identifier 
+          of a specific folder or one of the delegate strings @myFolder, @appDataFolder, @myHistory, @myFavorites, 
+          or @public. The value should start with the prefix `/folders/folders/`.
+      responses:
+        '201':
+          description: Succeeded in creating a flow.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.process.orchestration.flow+json:
+              schema:
+                $ref: '#/components/schemas/flowResponse'
+              examples:
+                json:
+                  $ref: "#/components/examples/getFlowResponse"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/flowResponse'
+              examples:
+                json:
+                  $ref: "#/components/examples/getFlowResponse"
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInvalidFlowRequestResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+      description: |
+        The request body is a process orchestration flow JSON.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/flowRequest'
+            examples:
+              json:
+                $ref: "#/components/examples/createFlowRequest"
+          application/vnd.sas.process.orchestration.flow+json:
+            schema:
+              $ref: '#/components/schemas/flowRequest'
+            examples:
+              json:
+                $ref: "#/components/examples/createFlowRequest"
+        description: A process orchestration flow JSON request body.
+    put:
+      tags:
+      - Flows
+      summary: Update a Flow
+      operationId: updateFlow
+      responses:
+        '201':
+          description: Succeeded in updating a flow.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.process.orchestration.flow+json:
+              schema:
+                $ref: '#/components/schemas/versionlessFlowResponse'
+              examples:
+                json:
+                  $ref: "#/components/examples/updateVersionlessFlowResponse"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/versionlessFlowResponse'
+              examples:
+                json:
+                  $ref: "#/components/examples/updateVersionlessFlowResponse"
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/updateErrorInvalidFlowRequestResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+      description: |
+        The request body is a versionless flow JSON.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/versionlessFlowRequest'
+            examples:
+              json:
+                $ref: "#/components/examples/updateVersionlessFlowRequest"
+          application/vnd.sas.process.orchestration.flow+json:
+            schema:
+              $ref: '#/components/schemas/versionlessFlowRequest'
+            examples:
+              json:
+                $ref: "#/components/examples/updateVersionlessFlowRequest"
+        description: A process orchestration flow JSON request body.
+  '/flows/{flowID}':
+    parameters:
+    - schema:
+        type: string
+      name: flowID
+      in: path
+      required: true
+      description: A flow ID with a 36-character UUID v4 string.
+    get:
+      summary: Get a flow by ID
+      tags:
+      - Flows
+      responses:
+        '200':
+          description: Succeeded in returning a flow.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.process.orchestration.flow+json:
+              schema:
+                $ref: '#/components/schemas/flowResponse'
+              examples:
+                json:
+                  $ref: "#/components/examples/getFlowResponse"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/flowResponse'
+              examples:
+                json:
+                  $ref: "#/components/examples/getFlowResponse"
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInvalidFlowIDResponse"
+        '404':
+          description: Not Found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorFlowNotFoundResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+      operationId: getFlow
+      description: 'Get details for a specific flow identified by the provided {flowID}.'
+    delete:
+      summary: Delete a flow by ID
+      operationId: deleteFlow
+      description: Delete a specific flow identified by the provided {flowID}.
+      tags:
+      - Flows
+      responses:
+        '204':
+          description: No content
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInvalidFlowIDResponse"
+        '409':
+          description: A flow run is still running.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/deleteErrorRunningFlowResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+  '/flows/{flowID}/runs':
+    parameters:
+    - schema:
+        type: string
+      name: flowID
+      in: path
+      required: true
+      description: A flow ID with a 36-character UUID v4 string.
+    post:
+      summary: Trigger a flow run
+      tags:
+      - Flow Runs
+      operationId: createFlowRun
+      description: >
+        Triggers a flow run. The request body can be empty. In this case, the Process
+        Orchestration API server automatically generates the name of the flow  run
+        and uses the default parameters. The request body can be a Process Orchestration
+        flow run JSON structure as well. Users can  override the flow run's name and
+        the flow run's parameters.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/flowRunRequest'
+            examples:
+              json:
+                $ref: "#/components/examples/triggerFlowRunRequest"
+          application/vnd.sas.process.orchestration.flow.run+json:
+            schema:
+              $ref: '#/components/schemas/flowRunRequest'
+            examples:
+              json:
+                $ref: "#/components/examples/triggerFlowRunRequest"
+      responses:
+        '200':
+          description: Succeeded in triggering a flow run.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.process.orchestration.flow.run+json:
+              schema:
+                $ref: '#/components/schemas/flowRunDetailResponse'
+              examples:
+                json:
+                  $ref: "#/components/examples/returnFlowRunDetailResponse"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/flowRunDetailResponse'
+              examples:
+                json:
+                  $ref: "#/components/examples/returnFlowRunDetailResponse"
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/triggerErrorInvalidFlowRunRequestResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+        '503':
+          description: Service Unavailable
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorDAGFileNotReadyResponse"
+  /flowRuns:
+    get:
+      tags:
+      - Flow Runs
+      summary: Get a collection of flow run summaries
+      operationId: getFlowRuns
+      description: |
+        Gets a collection of flow run summaries.  The return can be filtered, sorted, and paged according to the 
+        specifications in the SAS REST API Standards document.  The default sort order is `flowID` in ascending and
+        `createdAt` in descending. Alternative sort orders can be by `id`, `name`, `createdBy`, `modifiedAt` or 
+        `modifiedBy`.  It is also possible to filter on any of these fields using the functions `eq`, `gt`, `ge`, 
+        `lt`, `le` or `contains`.
+      parameters:
+      - name: start
+        in: query
+        description: The zero-based offset of the first type to return.  The default
+          is 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        description: The maximum number of types to return.  The default is 100.
+        schema:
+          type: integer
+      - name: filter
+        in: query
+        description: |
+          The filter criteria for the returned flow run summaries. Here are the supported fields: `id`, `name`, `flowID`, 
+          `createdAt`, `createdBy`, `modifiedAt` and `modifiedBy`. See [Filtering in REST APIs](https://developer.sas.com/rest-apis/processOrchestration-v1/docs/getting-started/usage-notes#filtering).'
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: 'The sort returned types. See [Sorting in REST APIs](https://developer.sas.com/rest-apis/processOrchestration-v1/docs/getting-started/usage-notes#sorting).'
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        '200':
+          description: Succeeded in returning a collection of flow run summaries.
+          headers: {}
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/flowRunSummaryCollection'
+              examples:
+                json:
+                  $ref: "#/components/examples/getFlowRunSummaryResponse"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/flowRunSummaryCollection'
+              examples:
+                json:
+                  $ref: "#/components/examples/getFlowRunSummaryResponse"
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorBadRequestResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+  /flowRuns/{runID}:
+    parameters:
+    - schema:
+        type: string
+      name: runID
+      in: path
+      required: true
+      description: A flow run ID with a 36-character UUID v4 string.
+    get:
+      tags:
+      - Flow Runs
+      summary: Get a flow run by ID
+      description: Gets details for a specific flow run identified by the provided
+        {runID}.
+      operationId: getFlowRun
+      responses:
+        '200':
+          description: Succeeded in returning a flow run detail.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.process.orchestration.flow.run+json:
+              schema:
+                $ref: '#/components/schemas/flowRunDetailResponse'
+              examples:
+                json:
+                  $ref: "#/components/examples/returnFlowRunDetailResponse"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/flowRunDetailResponse'
+              examples:
+                json:
+                  $ref: "#/components/examples/returnFlowRunDetailResponse"
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInvalidFlowRunIDResponse"
+        '403':
+          description: Unauthorized access to a flow run.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorUnauthorizedAccessToFlowRunResponse"
+        '404':
+          description: Not Found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorFlowRunNotFoundResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+    delete:
+      tags:
+      - Flow Runs
+      summary: Delete a flow run by ID
+      description: Deletes a specific flow run identified by the provided {runID}.
+      operationId: deleteFlowRun
+      responses:
+        '204':
+          description: No content
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInvalidFlowIDResponse"
+        '409':
+          description: A flow run is still running.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/deleteErrorRunningFlowRunResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+  /flowRuns/{runID}/tasks/{taskID}/logs:
+    parameters:
+    - name: runID
+      schema:
+        type: string
+      in: path
+      required: true
+      description: A flow run ID with a 36-character UUID v4 string.
+    - name: taskID
+      schema:
+        type: string
+      in: path
+      required: true
+      description: A task ID with a 36-character UUID v4 string.
+    get:
+      tags:
+      - Tasks
+      summary: Get task logs
+      description: Gets the task log for a specific flow run identified by the provided
+        {runID} and a specific task identified by the provided {taskID}.
+      operationId: getTaskLog
+      parameters:
+      - name: rank
+        in: query
+        description: The partitioned rank. The valid value must be greater than zero.
+          The starting value is 1.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Succeeded in returning the task log.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            text/plain:
+              schema:
+                type: string
+              examples:
+                json:
+                  $ref: "#/components/examples/getTaskLogResponse"
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInvalidFlowRunIDResponse"
+        '403':
+          description: Unauthorized access to a flow run.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorUnauthorizedAccessToFlowRunResponse"
+        '404':
+          description: Not Found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorTaskLogNotFoundResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+  /flowRuns/{runID}/tasks/{taskID}/inputs/{inputName}:
+    parameters:
+    - name: runID
+      schema:
+        type: string
+      in: path
+      required: true
+      description: A flow run ID with a 36-character UUID v4 string.
+    - name: taskID
+      schema:
+        type: string
+      in: path
+      required: true
+      description: A task ID with a 36-character UUID v4 string.
+    - name: inputName
+      schema:
+        type: string
+      in: path
+      required: true
+      description: the task input name
+    get:
+      tags:
+      - Inputs and Outputs
+      summary: Get task inputs
+      description: |
+        Gets the task inputs for a specific flow run identified by the provided {runID}, a specific task identified by the provided {taskID}, 
+        and a specified input identified by the provided {inputName}.
+      operationId: getInput
+      parameters:
+      - name: rank
+        in: query
+        description: The partitioned rank. The valid value must be greater than zero.
+          The default is 1.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Succeeded in returning the task inputs.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.process.orchestration.io+json:
+              schema:
+                $ref: '#/components/schemas/taskInputParameter'
+              examples:
+                json:
+                  $ref: "#/components/examples/getTaskIOResponse"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/taskInputParameter'
+              examples:
+                json:
+                  $ref: "#/components/examples/getTaskIOResponse"
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInvalidIONameResponse"
+        '403':
+          description: Unauthorized access to a task input/output.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorUnauthorizedAccessToIOResponse"
+        '404':
+          description: Not Found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorTaskIONotFoundResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+  /flowRuns/{runID}/tasks/{taskID}/outputs/{outputName}:
+    parameters:
+    - name: runID
+      schema:
+        type: string
+      in: path
+      required: true
+      description: A flow run ID with a 36-character UUID v4 string.
+    - name: taskID
+      schema:
+        type: string
+      in: path
+      required: true
+      description: A task ID with a 36-character UUID v4 string.
+    - name: outputName
+      schema:
+        type: string
+      in: path
+      required: true
+      description: the task output name
+    get:
+      tags:
+      - Inputs and Outputs
+      summary: Get task outputs
+      description: |
+        Gets the task outputs for a specific flow run identified by the provided {runID}, a specific task identified by the provided {taskID}, 
+        and a specified output identified by the provided {outputName}.
+      operationId: getOutput
+      parameters:
+      - name: rank
+        in: query
+        description: The partitioned rank. The valid value must be greater than zero.
+          The default is 1.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Succeeded in returning the task outputs.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.process.orchestration.io+json:
+              schema:
+                $ref: '#/components/schemas/taskOutputParameter'
+              examples:
+                json:
+                  $ref: "#/components/examples/getTaskIOResponse"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/taskOutputParameter'
+              examples:
+                json:
+                  $ref: "#/components/examples/getTaskIOResponse"
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInvalidIONameResponse"
+        '403':
+          description: Unauthorized access to a task input/output.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorUnauthorizedAccessToIOResponse"
+        '404':
+          description: Not Found
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorTaskIONotFoundResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+  '/namespaces':
+    post:
+      summary: Create namespace callback registration
+      tags:
+      - Namespace Callback Registration
+      operationId: createNamespace
+      description: >
+        This REST endpoint requires a SAS administrator account.
+
+        It is an idempotent call. If the `ID` is provided in the request body and
+        the `ID` already exists in Process Orchestration database,  it returns a `201`
+        status code and the callback entry from the database. The `ID` serves as an
+        idempotency key.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/namespaceRequest'
+            examples:
+              json:
+                $ref: "#/components/examples/createNamespaceRequest"
+          application/vnd.sas.process.orchestration.namespace+json:
+            schema:
+              $ref: '#/components/schemas/namespaceRequest'
+            examples:
+              json:
+                $ref: "#/components/examples/createNamespaceRequest"
+      responses:
+        '201':
+          description: Succeeded in creating the namespace callback registration.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.process.orchestration.namespace+json:
+              schema:
+                $ref: '#/components/schemas/namespaceResponse'
+              examples:
+                json:
+                  $ref: "#/components/examples/returnNamespaceResponse"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/namespaceResponse'
+              examples:
+                json:
+                  $ref: "#/components/examples/returnNamespaceResponse"
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/createErrorInvalidNamespaceResponse"
+        '403':
+          description: Unauthorized Access
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/createErrorUnauthorizedAccessToCreateNamespaceResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+  '/namespaces/{namespaceID}':
+    parameters:
+    - schema:
+        type: string
+      name: namespaceID
+      in: path
+      required: true
+      description: An ID with a 36-character UUID v4 string.
+    delete:
+      summary: Delete the namespace callback registration by ID
+      tags:
+      - Namespace Callback Registration
+      operationId: deleteNamespace
+      description: >
+        Deletes the namespace callback registration by ID. This REST endpoint requires
+        a SAS administrator account.
+      responses:
+        '204':
+          description: No Content
+        '403':
+          description: Unauthorized Access
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/deleteErrorUnauthorizedAccessToDeleteNamespaceResponse"
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                json:
+                  $ref: "#/components/examples/getErrorInternalServerResponse"
+servers:
+- url: 'http://mock-types.apifirst.unx.sas.com/processOrchestration'
+  description: A Kubernetes mock server.
+components:
+  schemas:
+    namespaceRequest:
+      type: object
+      required:
+      - namespace
+      - url
+      description: The namespace callback registration request.
+      properties:
+        id:
+          type: string
+          description: ID of the namespace callback registration. It is a 36-character
+            UUID v4 string.
+        namespace:
+          type: string
+          pattern: '^[\w.-]+$'
+          description: Namespace of the flows for callback registration.
+        url:
+          type: string
+          description: |
+            The URL of the callback. If it starts with `http://` or `https://`, you must provide the full URL.
+            Otherwise, it assumes that this is from a SAS Viya platform microservice and provides a SAS Viya platform microservice name as a 
+            relative path.
+    namespaceResponse:
+      description: The namespace callback registration response.
+      properties:
+        id:
+          type: string
+          description: The ID of the namespace callback registration. It is a 36-character
+            UUID v4 string.
+        namespace:
+          type: string
+          pattern: '^[\w.-]+$'
+          description: The namespace of flows for the callback registration.
+        url:
+          type: string
+          description: |
+            The URL of the callback. If it starts with `http://` or `https://`, you must provide the full URL.
+            Otherwise, it assumes that this is from a SAS Viya platform microservice and provides a SAS Viya platform microservice name as a 
+            relative path.
+        createdBy:
+          type: string
+          description: The user or entity that created the registration.
+        createdAt:
+          type: string
+          description: The timestamp when the registration was created.
+        modifiedBy:
+          type: string
+          description: The user or entity that modified the registration.
+        modifiedAt:
+          type: string
+          description: The timestamp when the registration was modified.
+    link:
+      description: A link in a REST API response.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method to invoke this endpoint.
+        rel:
+          type: string
+          description: The relationship of this URL to the object.
+        uri:
+          type: string
+          description: The relative URI of the REST endpoint.
+        href:
+          type: string
+          description: The full URL of the REST endpoint.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type to specify in the accept/content-type header
+            for this request.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    api:
+      title: API
+      description: The list of links to the top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: '#/components/schemas/link'
+    flowRunSummaryCollection:
+      type: object
+      description: A collection of flow run summaries.
+      properties:
+        start:
+          type: integer
+          description: The zero-based offset of first type to return.
+        limit:
+          type: integer
+          description: The maximum number of types to return.
+        items:
+          type: array
+          description: A flow run summary item.
+          items:
+            $ref: '#/components/schemas/flowRunSummary'
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+    flowRunSummary:
+      type: object
+      description: A flow run summary.
+      properties:
+        id:
+          type: string
+          description: The flow run ID with a 36-character UUID v4 string.
+        name:
+          type: string
+          description: The flow run name.
+        flowId:
+          type: string
+          description: The flow ID with a 36-character UUID v4 string.
+        parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter'
+        createdBy:
+          type: string
+          description: The user or entity that created the flow run.
+        createdAt:
+          type: string
+          description: The timestamp when the flow run was created.
+        modifiedBy:
+          type: string
+          description: The user or entity that modified the flow run.
+        modifiedAt:
+          type: string
+          description: The timestamp when the flow run was modified.
+        state:
+          type: string
+          description: The flow state.
+          enum:
+          - pending
+          - queued
+          - running
+          - success
+          - failed
+          - undefined
+        links:
+          type: array
+          description: The links that apply to the item.
+          items:
+            $ref: "#/components/schemas/link"
+    flowSummaryCollection:
+      type: object
+      properties:
+        start:
+          type: integer
+        limit:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/flowSummary'
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+      description: A collection of flow summaries.
+    flowSummary:
+      type: object
+      description: A flow summary.
+      properties:
+        id:
+          type: string
+          description: A 36-character UUID v4 string.
+        name:
+          type: string
+          description: The flow name.
+        namespace:
+          type: string
+          description: The flow namespace.
+        globalName:
+          type: string
+          description: The global name of the flow.
+        createdBy:
+          type: string
+          description: The user or entity that created the flow.
+        createdAt:
+          type: string
+          description: The timestamp when the flow was created.
+        modifiedBy:
+          type: string
+          description: The user or entity that modified the flow.
+        modifiedAt:
+          type: string
+          description: The timestamp when the flow was modified.
+        links:
+          type: array
+          description: The links that apply to the item.
+          items:
+            $ref: "#/components/schemas/link"
+    error:
+      type: object
+      properties:
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code.
+        errorCode:
+          type: integer
+          description: The error code.
+        message:
+          type: string
+          description: The message.
+      description: An error response.
+    versionlessFlowRequest:
+      type: object
+      required:
+      - name
+      - id
+      - tasks
+      properties:
+        id:
+          description: The ID of the SAS process orchestration flow.
+          type: string
+        name:
+          description: The name of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        namespace:
+          description: The namespace of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        tasks:
+          description: The task array.
+          type: array
+          items:
+            $ref: '#/components/schemas/task'
+          uniqueItems: true
+          minItems: 1
+        edges:
+          description: The dependencies among the tasks.
+          type: array
+          items:
+            $ref: '#/components/schemas/edge'
+          uniqueItems: true
+        repos:
+          description: The task source repository array.
+          type: array
+          items:
+            $ref: '#/components/schemas/repo'
+          uniqueItems: true
+        parameters:
+          description: The flow parameters array.
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter'
+          uniqueItems: true
+        preTasks:
+          description: The pre-task array.
+          type: array
+          items:
+            $ref: '#/components/schemas/auxiliaryTask'
+          uniqueItems: true
+        postTasks:
+          description: The post-task array.
+          type: array
+          items:
+            $ref: '#/components/schemas/auxiliaryTask'
+          uniqueItems: true
+      description: A versionless flow request.
+    flowRequest:
+      type: object
+      required:
+      - name
+      - tasks
+      properties:
+        id:
+          description: The ID of the SAS process orchestration flow.
+          type: string
+        name:
+          description: The name of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        namespace:
+          description: The namespace of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        version:
+          description: The version of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        tasks:
+          description: The task array.
+          type: array
+          items:
+            $ref: '#/components/schemas/task'
+          uniqueItems: true
+          minItems: 1
+        edges:
+          description: The dependencies among the tasks.
+          type: array
+          items:
+            $ref: '#/components/schemas/edge'
+          uniqueItems: true
+        repos:
+          description: The task source repository array.
+          type: array
+          items:
+            $ref: '#/components/schemas/repo'
+          uniqueItems: true
+        parameters:
+          description: The flow parameters array.
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter'
+          uniqueItems: true
+        preTasks:
+          description: The pre-task array.
+          type: array
+          items:
+            $ref: '#/components/schemas/auxiliaryTask'
+          uniqueItems: true
+        postTasks:
+          description: The post-task array.
+          type: array
+          items:
+            $ref: '#/components/schemas/auxiliaryTask'
+          uniqueItems: true
+      description: A flow request.
+    versionlessFlowResponse:
+      type: object
+      required:
+      - name
+      properties:
+        id:
+          description: The ID of the SAS process orchestration flow.
+          type: string
+        name:
+          description: The name of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        namespace:
+          description: The namespace of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        tasks:
+          description: The task array.
+          type: array
+          items:
+            $ref: '#/components/schemas/task'
+          uniqueItems: true
+        edges:
+          description: The dependencies among the tasks.
+          type: array
+          items:
+            $ref: '#/components/schemas/edge'
+          uniqueItems: true
+        repos:
+          description: The task source repository array.
+          type: array
+          items:
+            $ref: '#/components/schemas/repo'
+          uniqueItems: true
+        parameters:
+          description: The flow parameters array.
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter'
+          uniqueItems: true
+        preTasks:
+          description: The pre-task array.
+          type: array
+          items:
+            $ref: '#/components/schemas/auxiliaryTask'
+          uniqueItems: true
+        postTasks:
+          description: The post-task array.
+          type: array
+          items:
+            $ref: '#/components/schemas/auxiliaryTask'
+          uniqueItems: true
+        createdBy:
+          type: string
+          description: The user or entity that created the flow.
+        createdAt:
+          type: string
+          description: The timestamp when the flow was created.
+        modifiedBy:
+          type: string
+          description: The user or entity that modified the flow.
+        modifiedAt:
+          type: string
+          description: The timestamp when the flow was modified.
+      description: A versionless flow response.
+    flowResponse:
+      type: object
+      properties:
+        id:
+          description: The ID of the SAS process orchestration flow.
+          type: string
+        name:
+          description: The name of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        namespace:
+          description: The namespace of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        version:
+          description: The version of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        tasks:
+          description: The task array.
+          type: array
+          items:
+            $ref: '#/components/schemas/task'
+          uniqueItems: true
+        edges:
+          description: The dependencies among the tasks.
+          type: array
+          items:
+            $ref: '#/components/schemas/edge'
+          uniqueItems: true
+        repos:
+          description: The task source repository array.
+          type: array
+          items:
+            $ref: '#/components/schemas/repo'
+          uniqueItems: true
+        parameters:
+          description: The flow parameters array.
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter'
+          uniqueItems: true
+        preTasks:
+          description: The pre-task array.
+          type: array
+          items:
+            $ref: '#/components/schemas/auxiliaryTask'
+          uniqueItems: true
+        postTasks:
+          description: Post-task array
+          type: array
+          items:
+            $ref: '#/components/schemas/auxiliaryTask'
+          uniqueItems: true
+        createdBy:
+          type: string
+          description: The user or entity that created the flow.
+        createdAt:
+          type: string
+          description: The timestamp when the flow was created.
+        modifiedBy:
+          type: string
+          description: The user or entity that modified the flow.
+        modifiedAt:
+          type: string
+          description: The timestamp when the flow was modified.
+      description: A flow response.
+    task:
+      type: object
+      required:
+      - name
+      - type
+      properties:
+        name:
+          description: The name of the task.
+          type: string
+          pattern: '^[\w.-]+$'
+          maxLength: 250
+        type:
+          description: The type of the task.
+          type: string
+        source:
+          $ref: '#/components/schemas/taskSource'
+        inputs:
+          description: An array of inputs.
+          type: array
+          items:
+            $ref: '#/components/schemas/taskInputParameter'
+          uniqueItems: true
+        outputs:
+          description: An array of outputs.
+          type: array
+          items:
+            $ref: '#/components/schemas/taskOutputParameter'
+          uniqueItems: true
+        cardinality:
+          description: The cardinality or the parallelization level.
+          type: string
+      description: A process orchestration task.
+    dataObject:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          description: The name of the data object.
+          type: string
+      description: A data object.
+    edge:
+      type: object
+      required:
+      - from
+      - to
+      properties:
+        from:
+          description: The source nodes in the directed edge.
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+          minItems: 1
+        to:
+          description: The target nodes in the directed edge.
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+          minItems: 1
+      description: An edge between a set of source vertexes and a set of target vertexes.
+    repo:
+      type: object
+      required:
+      - name
+      - url
+      - type
+      properties:
+        name:
+          description: The name of the repository.
+          type: string
+        url:
+          description: The URL of the repository.
+          type: string
+        type:
+          description: The type of the repository.
+          type: string
+          enum:
+          - git
+          - s3
+          - blob
+        hash:
+          description: The hash value of the Git repository commit.
+          type: string
+        tag:
+          description: The tag of the Git repository.
+          type: string
+        branch:
+          description: The branch of the Git repository.
+          type: string
+        credentialsDomainId:
+          description: The domain ID of the SAS Viya platform credential service.
+          type: string
+        sshPrivateKeyName:
+          description: The secret key name of SSH private key.
+          type: string
+        userKeyName:
+          description: The secret key name of HTTPS authentication user name.
+          type: string
+        passwordKeyName:
+          description: The secret key name of HTTPS authentication password.
+          type: string
+      description: A task source code repository.
+    parameter:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          description: The name of the parameter.
+          type: string
+        value:
+          description: The value of the parameter.
+          type: string
+        description:
+          description: The description of the parameter.
+          type: string
+      description: A name-value pair parameter.
+    taskSource:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          description: The task source file name or the subflow name.
+          type: string
+        namespace:
+          description: The namespace of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        version:
+          description: The version of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        repoName:
+          description: The repository name referencing the predefined repository.
+          type: string
+      description: The task source.
+    auxiliaryTask:
+      type: object
+      required:
+      - type
+      - source
+      properties:
+        type:
+          description: The type of the task.
+          type: string
+        source:
+          $ref: '#/components/schemas/taskSource'
+        includeTasks:
+          description: An array of task names that are explicitly required for the
+            auxiliary task.
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+        excludeTasks:
+          description: An array of task names that are explicitly not required for
+            the auxiliary task.
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+        condition:
+          description: Executes the auxiliary task only if the condition is true.
+          type: string
+      description: An auxiliary task.
+    flowRunRequest:
+      type: object
+      properties:
+        name:
+          description: The name of the SAS process orchestration flow run.
+          type: string
+        parameters:
+          description: The flow parameters array.
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter'
+          uniqueItems: true
+      description: A flow run request.
+    flowRunDetailResponse:
+      type: object
+      properties:
+        id:
+          description: The ID of the SAS process orchestration flow run.
+          type: string
+        name:
+          description: The name of the SAS process orchestration flow run.
+          type: string
+        flowId:
+          description: The ID of the SAS process orchestration flow.
+          type: string
+        flowName:
+          description: The name of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        flowNamespace:
+          description: The namespace of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        flowVersion:
+          description: The version of the SAS process orchestration flow.
+          type: string
+          pattern: '^[\w.-]+$'
+        state:
+          description: The state of the SAS process orchestration flow run.
+          type: string
+          enum:
+          - pending
+          - queued
+          - running
+          - failed
+          - undefined
+        subFlowTaskName:
+          description: The task name of the triggered subflow.
+          type: string
+        tasks:
+          description: The task array.
+          type: array
+          items:
+            $ref: '#/components/schemas/taskInstanceDetail'
+          uniqueItems: true
+        subFlows:
+          description: The subflow runs array.
+          type: array
+          items:
+            $ref: '#/components/schemas/flowRunDetailResponse'
+          uniqueItems: true
+        edges:
+          description: The dependencies among the tasks.
+          type: array
+          items:
+            $ref: '#/components/schemas/edge'
+          uniqueItems: true
+        repos:
+          description: The task source repository array.
+          type: array
+          items:
+            $ref: '#/components/schemas/repo'
+          uniqueItems: true
+        parameters:
+          description: The flow parameters array.
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter'
+          uniqueItems: true
+        createdBy:
+          type: string
+          description: The user or entity that created the flow run.
+        createdAt:
+          type: string
+          description: The timestamp when the flow run was created.
+        modifiedBy:
+          type: string
+          description: The user or entity that modified the flow run.
+        modifiedAt:
+          type: string
+          description: The timestamp when the flow run was modified.
+      description: A flow run detail response.
+    location:
+      description: "Parameter location"
+      type: "object"
+      properties:
+        path:
+          description: "libname path"
+          type: "string"
+    reference:
+      description: "Output parameter reference"
+      type: "object"
+      required:
+      - "scope"
+      - "output"
+      properties:
+        scope:
+          description: "Scope of output parameter reference"
+          type: "string"
+        output:
+          description: "Name of output parameter"
+          type: "string"
+    taskInputParameter:
+      description: "Input parameter of a task or a sub flow"
+      type: object
+      required:
+      - name
+      oneOf:
+      - required:
+        - value
+      - required:
+        - reference
+      properties:
+        name:
+          description: "Name of parameter"
+          type: "string"
+          pattern: "^[a-zA-Z_]\\w{0,31}$"
+        value:
+          description: "Value of parameter"
+          type: "string"
+        reference:
+          $ref: "#/components/schemas/reference"
+        type:
+          description: "type of value"
+          type: "string"
+          enum:
+          - "string"
+          - "number"
+          - "boolean"
+          - "sas7bdat"
+          default: "string"
+        location:
+          $ref: "#/components/schemas/location"
+    taskOutputParameter:
+      description: "Output parameter of a task or a sub flow"
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          description: "Name of parameter"
+          type: "string"
+          pattern: "^[a-zA-Z_]\\w{0,31}$"
+        value:
+          description: "Value of parameter"
+          type: "string"
+        type:
+          description: "type of value"
+          type: "string"
+          enum:
+          - "string"
+          - "number"
+          - "boolean"
+          - "sas7bdat"
+          default: "string"
+        location:
+          $ref: "#/components/schemas/location"
+    taskInstanceDetail:
+      type: object
+      required:
+      - name
+      - type
+      properties:
+        name:
+          description: The name of the task.
+          type: string
+          pattern: '^[\w.-]+$'
+          maxLength: 250
+        type:
+          description: The type of the task.
+          type: string
+        source:
+          $ref: '#/components/schemas/taskSource'
+        inputs:
+          description: An array of input values.
+          type: array
+          items:
+            $ref: '#/components/schemas/dataObject'
+          uniqueItems: true
+        outputs:
+          description: An array of output values.
+          type: array
+          items:
+            $ref: '#/components/schemas/dataObject'
+          uniqueItems: true
+        cardinality:
+          description: The cardinality or the parallelization level.
+          type: string
+        states:
+          description: The states of the task.
+          type: object
+          items:
+            type: string
+            enum:
+            - pending
+            - undefined
+            - removed
+            - scheduled
+            - queued
+            - running
+            - success
+            - shutdown
+            - restarting
+            - failed
+            - up_for_retry
+            - up_for_reschedule
+            - upstream_failed
+            - skipped
+            - deferred
+      description: A SAS process orchestration task instance detail.
+  examples:
+    deleteErrorUnauthorizedAccessToDeleteNamespaceResponse:
+      summary: Unauthorized access to delete a namespace callback registration error
+      description: Returns an error that indicates an unauthorized access to delete
+        a namespace callback registration.
+      value: {"version": 2, "httpStatusCode": 403, "message": "Forbidden", "details": [
+          "Unauthorized", "path: /processOrchestration/namespaces/f03de494-5261-4a16-b9d4-d5f4accacb74",
+          "correlator: 13bc1fc8-b761-4c89-9ac2-fb88857ce4a9"]}
+    createErrorUnauthorizedAccessToCreateNamespaceResponse:
+      summary: Unauthorized access to create a namespace callback registration error
+      description: Returns an error that indicates an unauthorized access to create
+        a namespace callback registration.
+      value: {"version": 2, "httpStatusCode": 403, "message": "Forbidden", "details": [
+          "Unauthorized", "path: /processOrchestration/namespaces", "correlator: 93a3745a-9b4c-43a2-86f9-213dcc926404"]}
+    createErrorInvalidNamespaceResponse:
+      summary: Created an invalid namespace callback registration error
+      description: Returns an error that indicates the creation of an invalid namespace
+        callback registration.
+      value: {"httpStatusCode": 400, "errorCode": 101833, "message": "Error in saving\
+          \ the namespace callback to database: Postgres SQL error: duplicate key\
+          \ value violates unique constraint \"constraint_unique_namespace\""}
+    createNamespaceRequest:
+      summary: Create a namespace callback registration
+      description: Creates a namespace callback registration.
+      value: {"namespace": "foobar", "url": "https://foobar"}
+    getTaskLogResponse:
+      summary: Get task log
+      description: Returns the task log.
+      value: |
+        sas-airflow-spre-worker-no-dyn-mounts-vvvj8
+        *** Found local files:
+        ***   * /opt/airflow/logs/dag_id=sample.sas_po_hello_world_poc_flow/run_id=74d35e0e-bd0b-4b5e-989e-17830e515324/task_id=hello_world_en/attempt=1.log
+        [2023-12-13T18:42:11.365+0000] {taskinstance.py:1159} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: sample.sas_po_hello_world_poc_flow.hello_world_en 74d35e0e-bd0b-4b5e-989e-17830e515324 [queued]>
+        [2023-12-13T18:42:11.408+0000] {taskinstance.py:1159} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: sample.sas_po_hello_world_poc_flow.hello_world_en 74d35e0e-bd0b-4b5e-989e-17830e515324 [queued]>
+        [2023-12-13T18:42:11.409+0000] {taskinstance.py:1361} INFO - Starting attempt 1 of 1
+        [2023-12-13T18:42:11.451+0000] {taskinstance.py:1382} INFO - Executing <Task(SasOperator): hello_world_en> on 2023-12-13 18:39:21.817919+00:00
+        [2023-12-13T18:42:11.461+0000] {standard_task_runner.py:57} INFO - Started process 144 to run task
+        [2023-12-13T18:42:11.469+0000] {standard_task_runner.py:84} INFO - Running: ['airflow', 'tasks', 'run', 'sample.sas_po_hello_world_poc_flow', 'hello_world_en', '74d35e0e-bd0b-4b5e-989e-17830e515324', '--job-id', '3', '--raw', '--subdir', 'DAGS_FOLDER/sample.sas_po_hello_world_poc_flow.py', '--cfg-path', '/tmp/tmprvdbc07d']
+        [2023-12-13T18:42:11.472+0000] {standard_task_runner.py:85} INFO - Job 3: Subtask hello_world_en
+        [2023-12-13T18:42:11.690+0000] {task_command.py:416} INFO - Running <TaskInstance: sample.sas_po_hello_world_poc_flow.hello_world_en 74d35e0e-bd0b-4b5e-989e-17830e515324 [running]> on host sas-airflow-spre-worker-no-dyn-mounts-vvvj8
+        [2023-12-13T18:42:12.145+0000] {taskinstance.py:1662} INFO - Exporting env vars: AIRFLOW_CTX_DAG_ID='sample.sas_po_hello_world_poc_flow' AIRFLOW_CTX_TASK_ID='hello_world_en' AIRFLOW_CTX_EXECUTION_DATE='2023-12-13T18:39:21.817919+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='74d35e0e-bd0b-4b5e-989e-17830e515324'
+        [2023-12-13T18:42:12.161+0000] {sas_operator.py:210} INFO - SasOperator: sas_cmd: $SASVIYAHOME/bin/sas /opt/airflow/work/_sas_po_work_/hello-world-en_hello_world_en_74d35e0e-bd0b-4b5e-989e-17830e515324.sas -nodms -log /tmp/hello_world_en_74d35e0e-bd0b-4b5e-989e-17830e515324.log
+        [2023-12-13T18:42:12.164+0000] {subprocess.py:63} INFO - Tmp dir root location: /tmp
+        [2023-12-13T18:42:12.165+0000] {subprocess.py:75} INFO - Running command: ['/usr/bin/bash', '-c', '$SASVIYAHOME/bin/sas /opt/airflow/work/_sas_po_work_/hello-world-en_hello_world_en_74d35e0e-bd0b-4b5e-989e-17830e515324.sas -nodms -log /tmp/hello_world_en_74d35e0e-bd0b-4b5e-989e-17830e515324.log ']
+        [2023-12-13T18:42:12.193+0000] {subprocess.py:86} INFO - Output:
+        [2023-12-13T18:42:12.581+0000] {subprocess.py:97} INFO - Command exited with return code 0
+        [2023-12-13T18:42:12.583+0000] {sas_operator.py:259} INFO -
+        *** Beginning of the SAS log (/tmp/hello_world_en_74d35e0e-bd0b-4b5e-989e-17830e515324.log) ***
+        1                                                          The SAS System                   Wednesday, December 13, 2023 06:42:00 PM
+        NOTE: Copyright (c) 2016-2023 by SAS Institute Inc., Cary, NC, USA.
+        NOTE: SAS (r) Proprietary Software V.04.00 (TS M0 MBCS3170)
+        Licensed to SCI-D1-VIYA4CD-LAX-RELEASE-TESTREADY, Site 70180938.
+        NOTE: This session is executing on the Linux 4.18.0-425.3.1.el8.x86_64 (LIN X64) platform.
+        NOTE: Additional host information:
+        Linux LIN X64 4.18.0-425.3.1.el8.x86_64 #1 SMP Wed Nov 9 20:13:27 UTC 2022 x86_64 Red Hat Enterprise Linux release 8.9 (Ootpa)
+        NOTE: SAS initialization used:
+              real time           0.05 seconds
+              cpu time            0.04 seconds
+
+        1          options ERRORCHECK= STRICT;
+        2
+        3          /* define the flow parameters as macro variables */
+        4
+        5          %let _sas_po_dag_id=sample.sas_po_hello_world_poc_flow ;
+        6          %let _sas_po_task_id=hello_world_en ;
+        7          %let _sas_po_run_id=74d35e0e-bd0b-4b5e-989e-17830e515324 ;
+        8
+        9          %include '/opt/airflow/work/sas-po/hello-world-en.sas';
+        Hello World
+        NOTE: SAS Institute Inc., SAS Campus Drive, Cary, NC USA 27513-2414
+        NOTE: The SAS System used:
+              real time           0.07 seconds
+              cpu time            0.04 seconds
+
+        *** End of the SAS log (/tmp/hello_world_en_74d35e0e-bd0b-4b5e-989e-17830e515324.log) ***
+        [2023-12-13T18:42:12.686+0000] {taskinstance.py:1400} INFO - Marking task as SUCCESS. dag_id=sample.sas_po_hello_world_poc_flow, task_id=hello_world_en, execution_date=20231213T183921, start_date=20231213T184211, end_date=20231213T184212
+        [2023-12-13T18:42:12.736+0000] {local_task_job_runner.py:228} INFO - Task exited with return code 0
+        [2023-12-13T18:42:12.806+0000] {taskinstance.py:2778} INFO - 0 downstream tasks scheduled from follow-on schedule check
+    getFlowSummaryResponse:
+      summary: Get a collection of flow summaries
+      description: Returns a collection of flow summaries.
+      value: {"items": [{"createdAt": "2024-05-22T19:47:29.320202Z", "createdBy": "stpweb2",
+            "globalName": "user2_flow0", "id": "ecdc4fc9-941d-435c-87ec-77f572e73c64",
+            "links": [{"method": "GET", "rel": "self", "href": "/processOrchestration/flows/ecdc4fc9-941d-435c-87ec-77f572e73c64",
+                "uri": "/processOrchestration/flows/ecdc4fc9-941d-435c-87ec-77f572e73c64"}],
+            "modifiedAt": "2024-05-22T19:47:29.320202Z", "modifiedBy": "stpweb2",
+            "name": "user2_flow0"}, {"createdAt": "2024-05-22T19:47:29.360038Z", "createdBy": "stpweb2",
+            "globalName": "user2_flow1", "id": "8da4bfae-9bb6-4c2d-8424-0d07d763d9bc",
+            "links": [{"method": "GET", "rel": "self", "href": "/processOrchestration/flows/8da4bfae-9bb6-4c2d-8424-0d07d763d9bc",
+                "uri": "/processOrchestration/flows/8da4bfae-9bb6-4c2d-8424-0d07d763d9bc"}],
+            "modifiedAt": "2024-05-22T19:47:29.360038Z", "modifiedBy": "stpweb2",
+            "name": "user2_flow1"}], "limit": 2, "links": [{"method": "GET", "rel": "self",
+            "href": "/processOrchestration/flows?start=10&limit=2&sortBy=name:ascending,namespace:ascending",
+            "uri": "/processOrchestration/flows?start=10&limit=2&sortBy=name:ascending,namespace:ascending",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.process.orchestration.flow"},
+          {"method": "GET", "rel": "first", "href": "/processOrchestration/flows?start=0&limit=2&sortBy=name:ascending,namespace:ascending",
+            "uri": "/processOrchestration/flows?start=0&limit=2&sortBy=name:ascending,namespace:ascending",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.process.orchestration.flow"},
+          {"method": "GET", "rel": "next", "href": "/processOrchestration/flows?start=22&limit=2&sortBy=name:ascending,namespace:ascending",
+            "uri": "/processOrchestration/flows?start=22&limit=2&sortBy=name:ascending,namespace:ascending",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.process.orchestration.flow"}],
+        "start": 10}
+    getFlowRunSummaryResponse:
+      summary: Get a collection of flow run summaries
+      description: Returns a collection of flow run summaries.
+      value: {"items": [{"createdAt": "2024-05-22T19:03:19.205334Z", "createdBy": "miadmin",
+            "flowId": "9df91519-10af-4e2a-a796-b98dadc3bd7f", "id": "10bea1d1-7ed4-4390-9748-a64f40e44cce",
+            "links": [{"method": "GET", "rel": "self", "href": "/processOrchestration/flowRuns/10bea1d1-7ed4-4390-9748-a64f40e44cce",
+                "uri": "/processOrchestration/flowRuns/10bea1d1-7ed4-4390-9748-a64f40e44cce"}],
+            "modifiedAt": "2024-05-22T19:03:19.205334Z", "modifiedBy": "miadmin",
+            "name": "A flow run of \"flow_run_pagination_user1\" occurred at \"2024-05-22\
+              \ 19:03:19.205334 +0000 UTC\".", "state": "success"}, {"createdAt": "2024-05-22T19:03:17.86294Z",
+            "createdBy": "miadmin", "flowId": "9df91519-10af-4e2a-a796-b98dadc3bd7f",
+            "id": "06846e62-7cd8-47b9-957d-940dbc155b10", "links": [{"method": "GET",
+                "rel": "self", "href": "/processOrchestration/flowRuns/06846e62-7cd8-47b9-957d-940dbc155b10",
+                "uri": "/processOrchestration/flowRuns/06846e62-7cd8-47b9-957d-940dbc155b10"}],
+            "modifiedAt": "2024-05-22T19:03:17.86294Z", "modifiedBy": "miadmin", "name": "A\
+              \ flow run of \"flow_run_pagination_user1\" occurred at \"2024-05-22\
+              \ 19:03:17.86294 +0000 UTC\".", "state": "success"}], "limit": 2, "links": [
+          {"method": "GET", "rel": "self", "href": "/processOrchestration/flowRuns?start=1&limit=2&sortBy=flowID:ascending,createdAt:descending",
+            "uri": "/processOrchestration/flowRuns?start=1&limit=2&sortBy=flowID:ascending,createdAt:descending",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.process.orchestration.flow.run"},
+          {"method": "GET", "rel": "first", "href": "/processOrchestration/flowRuns?start=0&limit=2&sortBy=flowID:ascending,createdAt:descending",
+            "uri": "/processOrchestration/flowRuns?start=0&limit=2&sortBy=flowID:ascending,createdAt:descending",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.process.orchestration.flow.run"},
+          {"method": "GET", "rel": "next", "href": "/processOrchestration/flowRuns?start=22&limit=2&sortBy=flowID:ascending,createdAt:descending",
+            "uri": "/processOrchestration/flowRuns?start=22&limit=2&sortBy=flowID:ascending,createdAt:descending",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.process.orchestration.flow.run"}],
+        "start": 1}
+    getErrorBadRequestResponse:
+      summary: Get a bad request error
+      description: Returns a bad request error.
+      value: {"httpStatusCode": 400, "errorCode": 101803, "message": "Error in parsing\
+          \ parameter."}
+    getErrorDAGFileNotReadyResponse:
+      summary: Get a service unavailable error
+      description: Returns a service unavailable error.
+      value: {"httpStatusCode": 503, "errorCode": 101809, "message": "Error in the\
+          \ trigger flow run: The flow run is not ready: The Airflow DAG file processor\
+          \ has not yet parsed the DAG \"callback4it.hello_world_flow_with_callback\"\
+          . Try again later."}
+    getErrorInternalServerResponse:
+      summary: Get a internal server error
+      description: Returns an internal server error.
+      value: {"httpStatusCode": 500, "errorCode": 101804, "message": "Error in accessing\
+          \ to database."}
+    createFlowRequest:
+      summary: Create a flow
+      description: Creates a flow.
+      value: {"name": "sas_po_hello_world_poc_flow", "namespace": "sample", "tasks": [
+          {"type": "tasks.empty", "name": "begin"}, {"type": "tasks.sas", "name": "hello_world_en",
+            "source": {"name": "/opt/airflow/work/sas-po/hello-world-en.sas"}}, {
+            "type": "tasks.sas", "name": "hello_world_cn", "source": {"name": "/opt/airflow/work/sas-po/hello-world-cn.sas"}},
+          {"type": "tasks.sas", "name": "hello_world_fr", "source": {"name": "/opt/airflow/work/sas-po/hello-world-fr.sas"}},
+          {"type": "tasks.sas", "name": "hello_world_ru", "source": {"name": "/opt/airflow/work/sas-po/hello-world-ru.sas"}},
+          {"type": "tasks.empty", "name": "end"}], "edges": [{"from": ["begin"], "to": [
+              "hello_world_en", "hello_world_cn", "hello_world_fr", "hello_world_ru"]},
+          {"from": ["hello_world_en", "hello_world_cn", "hello_world_fr", "hello_world_ru"],
+            "to": ["end"]}]}
+    getFlowResponse:
+      summary: Get a flow
+      description: Returns a flow.
+      value: {"id": "5a334312-518a-4bdc-a090-b857837e790d", "name": "sas_po_hello_world_poc_flow",
+        "namespace": "sample", "createdBy": "miadmin", "createdAt": "2023-12-04T18:18:20.847708Z",
+        "modifiedBy": "miadmin", "modifiedAt": "2023-12-04T18:18:20.847708Z", "tasks": [
+          {"id": "320bb148-5a6a-4946-9806-fde1d686df8d", "type": "tasks.empty", "name": "begin",
+            "source": {"name": ""}}, {"id": "2d9a0949-627f-423d-ad5b-00357de3efa9",
+            "type": "tasks.sas", "name": "hello_world_en", "source": {"name": "/opt/airflow/work/sas-po/hello-world-en.sas"}},
+          {"id": "4279bb25-31e0-4758-8d02-93710efcc476", "type": "tasks.sas", "name": "hello_world_cn",
+            "source": {"name": "/opt/airflow/work/sas-po/hello-world-cn.sas"}}, {
+            "id": "ca867f79-b6e0-4813-b054-3b79478af7f8", "type": "tasks.sas", "name": "hello_world_fr",
+            "source": {"name": "/opt/airflow/work/sas-po/hello-world-fr.sas"}}, {
+            "id": "5be21130-89e8-4bbe-8971-5ae5e830b0fa", "type": "tasks.sas", "name": "hello_world_ru",
+            "source": {"name": "/opt/airflow/work/sas-po/hello-world-ru.sas"}}, {
+            "id": "39434a08-b8d5-4713-9b37-62492f5c329d", "type": "tasks.empty", "name": "end",
+            "source": {"name": ""}}], "edges": [{"from": ["begin"], "to": ["hello_world_en",
+              "hello_world_cn", "hello_world_fr", "hello_world_ru"]}, {"from": ["hello_world_en",
+              "hello_world_cn", "hello_world_fr", "hello_world_ru"], "to": ["end"]}]}
+    getErrorTaskLogNotFoundResponse:
+      summary: Get a task log not found error
+      description: Returns an error indicating the task log is not found.
+      value: {"httpStatusCode": 404, "errorCode": 101828, "message": "Error in getting\
+          \ the task run information: The task has not finished and the current task\
+          \ state is queued."}
+    getErrorTaskIONotFoundResponse:
+      summary: Get a task I/O not found error
+      description: Returns an error indicating the task I/O is not found.
+      value: {"httpStatusCode": 404, "errorCode": 101845, "message": "Failed to get\
+          \ input or output of the task: the task is not in the successful state"}
+    getErrorUnauthorizedAccessToFlowRunResponse:
+      summary: Get an unauthorized access to flow run error
+      description: Returns an error indicating unauthorized access to flow run.
+      value: {"httpStatusCode": 403, "errorCode": 101825, "message": "Forbidden: Unauthorized\
+          \ access"}
+    getErrorUnauthorizedAccessToIOResponse:
+      summary: Get an unauthorized access to task I/O error
+      description: Returns an error indicating unauthorized access to task I/O.
+      value: {"httpStatusCode": 403, "errorCode": 101825, "message": "Forbidden: Unauthorized\
+          \ access"}
+    getErrorFlowRunNotFoundResponse:
+      summary: Get a flow run not found error
+      description: Returns an error indicating the flow run is not found.
+      value: {"httpStatusCode": 404, "errorCode": 101821, "message": "Error in getting\
+          \ a flow run detail with ID \"779347c9-50f8-4a76-8cd5-e7b440ec4a35\": The\
+          \ record was not found."}
+    getTaskIOResponse:
+      summary: Get a task I/O
+      description: Returns a task I/O response
+      value: {"name": "out_num", "value": "6", "type": "number"}
+    getErrorInvalidIONameResponse:
+      summary: Get an invalid input/output name error
+      description: Return an error indicating an invalid I/O name.
+      value: {"httpStatusCode": 400, "errorCode": 101844, "message": "Invalid task\
+          \ input/output name: task input/output name \"non_existent_name\" is not\
+          \ found"}
+    getErrorInvalidFlowRunIDResponse:
+      summary: Get an invalid flow run ID error
+      description: Returns an error indicating an invalid flow run ID.
+      value: {"httpStatusCode": 400, "errorCode": 101812, "message": "Error in parsing\
+          \ the flow run ID parameter: Invalid UUID length: 24"}
+    getErrorInvalidFlowRequestResponse:
+      summary: Get an invalid flow request error
+      description: Returns an error indicating an invalid flow request.
+      value: {"httpStatusCode": 400, "errorCode": 101802, "message": "Error in saving\
+          \ the flow to the database: Postgres SQL error: The duplicate key value\
+          \ violates the unique constraint \"constraint_unique_name_dot_namespace_dot_version\"\
+          ."}
+    getErrorInvalidFlowIDResponse:
+      summary: Get an invalid flow ID error
+      description: Returns an error indicating an invalid flow ID.
+      value: {"httpStatusCode": 400, "errorCode": 101806, "message": "Error in parsing\
+          \ the flow definition ID parameter: Invalid UUID length: 25"}
+    getErrorFlowNotFoundResponse:
+      summary: Get a flow not found error
+      description: Returns an error indicating a flow was not found.
+      value: {"httpStatusCode": 404, "errorCode": 101807, "message": "Error in getting\
+          \ a flow: Record was not found."}
+    deleteErrorRunningFlowRunResponse:
+      summary: Delete a running flow run error
+      description: Returns an error when attempting to delete a flow run that is still
+        running.
+      value: {"httpStatusCode": 409, "errorCode": 101839, "message": "Error while\
+          \ deleting a flow run: The root flow run or its subflow run are still running\
+          \ and not in the terminal state."}
+    deleteErrorRunningFlowResponse:
+      summary: Delete a running flow error
+      description: Returns an error for attempting to delete a running flow.
+      value: {"httpStatusCode": 409, "errorCode": 101811, "message": "Error while\
+          \ deleting a flow: Conflict: Task instances of DAG with the following ID\
+          \ are still running: 'sample.long_running_flow'."}
+    updateErrorInvalidFlowRequestResponse:
+      summary: Update an invalid flow request error
+      description: Returns an error when attempting to update an invalid flow request.
+      value: {"httpStatusCode": 400, "errorCode": 101801, "message": "Without a valid\
+          \ flow ID, an update cannot proceed: Error in the request body, the flow\
+          \ ID must be specified in the flow structure.: The flow ID is not specified."}
+    updateVersionlessFlowRequest:
+      summary: Update a versionless flow
+      description: Updates a versionless flow.
+      value: {"name": "sas_po_hello_world_poc_flow", "id": "7b4a21fe-b77c-46de-a597-e37d611383be",
+        "namespace": "version", "parameters": [{"name": "locale", "value": "cn", "description": "The\
+              \ locale for this flow."}], "tasks": [{"type": "tasks.empty", "name": "begin"},
+          {"type": "tasks.sas", "name": "hello_world_en", "source": {"name": "/opt/airflow/work/sas-po/hello-world-en.sas"}},
+          {"type": "tasks.sas", "name": "hello_world_cn", "source": {"name": "/opt/airflow/work/sas-po/hello-world-cn.sas"}},
+          {"type": "tasks.sas", "name": "hello_world_fr", "source": {"name": "/opt/airflow/work/sas-po/hello-world-fr.sas"}},
+          {"type": "tasks.sas", "name": "hello_world_ru", "source": {"name": "/opt/airflow/work/sas-po/hello-world-ru.sas"}},
+          {"type": "tasks.empty", "name": "end"}], "edges": [{"from": ["begin"], "to": [
+              "hello_world_en", "hello_world_cn", "hello_world_fr", "hello_world_ru"]},
+          {"from": ["hello_world_en", "hello_world_cn", "hello_world_fr", "hello_world_ru"],
+            "to": ["end"]}]}
+    updateVersionlessFlowResponse:
+      summary: Update a versionless flow
+      description: Updates a versionless flow.
+      value: {"id": "7b4a21fe-b77c-46de-a597-e37d611383be", "name": "sas_po_hello_world_poc_flow",
+        "namespace": "version", "createdBy": "miadmin", "createdAt": "2023-12-05T20:25:57.806838Z",
+        "modifiedBy": "miadmin", "modifiedAt": "2023-12-05T20:25:57.806838Z", "tasks": [
+          {"id": "82d6d255-d3c2-435c-bc8e-decef08f9c42", "type": "tasks.empty", "name": "begin",
+            "source": {"name": ""}}, {"id": "c86c05e6-eeca-41de-862c-b4f26d61a407",
+            "type": "tasks.sas", "name": "hello_world_en", "source": {"name": "/opt/airflow/work/sas-po/hello-world-en.sas"}},
+          {"id": "596c36d2-58f2-4006-a3c5-3d03237fb590", "type": "tasks.sas", "name": "hello_world_cn",
+            "source": {"name": "/opt/airflow/work/sas-po/hello-world-cn.sas"}}, {
+            "id": "8954fa9f-0e3c-4406-9aef-e11b1c8e85c5", "type": "tasks.sas", "name": "hello_world_fr",
+            "source": {"name": "/opt/airflow/work/sas-po/hello-world-fr.sas"}}, {
+            "id": "9ef60867-b334-4acf-b0d9-9a009c0c6be4", "type": "tasks.sas", "name": "hello_world_ru",
+            "source": {"name": "/opt/airflow/work/sas-po/hello-world-ru.sas"}}, {
+            "id": "61f58d39-17bd-4109-a924-115c46203712", "type": "tasks.empty", "name": "end",
+            "source": {"name": ""}}], "edges": [{"from": ["begin"], "to": ["hello_world_en",
+              "hello_world_cn", "hello_world_fr", "hello_world_ru"]}, {"from": ["hello_world_en",
+              "hello_world_cn", "hello_world_fr", "hello_world_ru"], "to": ["end"]}],
+        "parameters": [{"name": "locale", "value": "cn", "description": "The locale\
+              \ for this flow"}]}
+    triggerFlowRunRequest:
+      summary: Trigger a flow run
+      description: Triggers a flow run.
+      value: {"name": "Main flow with Russian locale parameter", "parameters": [{
+            "name": "locale", "value": "ru"}]}
+    returnNamespaceResponse:
+      summary: Return a namespace callback registration
+      description: Returns a namespace callback registration.
+      value: {"id": "606c5ad4-e341-4645-9600-d75bf5ff399c", "namespace": "rcm", "url": "https://rcm",
+        "createdBy": "sasboot", "createdAt": "2023-12-13T20:36:46.565937Z", "modifiedBy": "sasboot",
+        "modifiedAt": "2023-12-13T20:36:46.565937Z"}
+    returnFlowRunDetailResponse:
+      summary: Return a flow run detail
+      description: Returns a flow run detail.
+      value: {"id": "570504fa-7470-41ef-a27d-e9b47cead9fc", "name": "Main Flow with\
+          \ Three Subflows Run Triggered at Wed Dec 06 2023 13:50:49 GMT-0500 (Eastern\
+          \ Standard Time)", "createdBy": "miadmin", "createdAt": "2023-12-06T18:50:49.477346Z",
+        "modifiedBy": "miadmin", "modifiedAt": "2023-12-06T18:50:49.477346Z", "state": "pending",
+        "flowName": "main_flow_with_three_subflows", "flowId": "2cee2c3a-bd33-4d3c-9618-18414e4bf105",
+        "edges": [{"from": ["begin"], "to": ["subflow_en_task", "subflow_cn_task",
+              "subflow_ru_task", "hello_world_fr"]}, {"from": ["subflow_en_task",
+              "subflow_cn_task", "subflow_ru_task", "hello_world_fr"], "to": ["end"]}],
+        "tasks": [{"id": "04abf298-e4be-4295-8366-90b924270a4b", "type": "tasks.empty",
+            "name": "begin", "source": {"name": ""}, "states": ["pending"]}, {"id": "1d1d43dc-3aa7-4f85-aefc-6cbcac70d58a",
+            "type": "tasks.empty", "name": "end", "source": {"name": ""}, "states": [
+              "pending"]}, {"id": "af8a50ae-c860-499f-9f53-aac19f6aad30", "type": "tasks.subflow",
+            "name": "subflow_en_task", "source": {"name": "subflow_en"}, "states": [
+              "pending"]}, {"id": "f3de8020-0d6c-4407-b4b1-de45b80bef73", "type": "tasks.subflow",
+            "name": "subflow_cn_task", "source": {"name": "subflow_cn"}, "states": [
+              "pending"]}, {"id": "284d0292-8aeb-4bde-b1d8-cdb515199ee4", "type": "tasks.subflow",
+            "name": "subflow_ru_task", "source": {"name": "subflow_ru"}, "states": [
+              "pending"]}, {"id": "d59200da-c304-413b-b6a2-9446bde09e11", "type": "tasks.sas",
+            "name": "hello_world_fr", "source": {"name": "/opt/airflow/work/sas-po/hello-world-fr.sas"},
+            "states": ["pending"]}], "subFlows": [{"id": "175793a1-49b3-40ce-8384-07f4a228779a",
+            "state": "pending", "flowName": "subflow_en", "flowId": "ca92d320-acd2-452f-8bb6-f8a79896346d",
+            "subFlowTaskName": "subflow_en_task", "edges": [{"from": ["begin"], "to": [
+                  "hello_world_en"]}, {"from": ["hello_world_en"], "to": ["end"]}],
+            "tasks": [{"id": "e4255349-e669-4c20-bc32-2e033d5d9bcc", "type": "tasks.empty",
+                "name": "begin", "source": {"name": ""}, "states": ["pending"]}, {
+                "id": "2b3004bd-cbeb-4ff2-9e07-549c6cb3ad7f", "type": "tasks.sas",
+                "name": "hello_world_en", "source": {"name": "/opt/airflow/work/sas-po/hello-world-en.sas"},
+                "states": ["pending"]}, {"id": "c79004db-bcfd-4832-8150-7a78aa1e8fea",
+                "type": "tasks.empty", "name": "end", "source": {"name": ""}, "states": [
+                  "pending"]}]}, {"id": "a1ec293c-02fc-4428-9586-decda4253a79", "state": "pending",
+            "flowName": "subflow_cn", "flowId": "3603780f-ea6b-4fdf-847b-73319d065520",
+            "subFlowTaskName": "subflow_cn_task", "edges": [{"from": ["begin"], "to": [
+                  "hello_world_cn"]}, {"from": ["hello_world_cn"], "to": ["end"]}],
+            "tasks": [{"id": "175debb9-d27d-42e6-acca-9e1a786367d0", "type": "tasks.empty",
+                "name": "begin", "source": {"name": ""}, "states": ["pending"]}, {
+                "id": "565a6ab3-a741-4a8d-893f-3d342cb976fa", "type": "tasks.sas",
+                "name": "hello_world_cn", "source": {"name": "/opt/airflow/work/sas-po/hello-world-cn.sas"},
+                "states": ["pending"]}, {"id": "90a763df-67f3-4214-92a2-f69bb7b7b94a",
+                "type": "tasks.empty", "name": "end", "source": {"name": ""}, "states": [
+                  "pending"]}]}, {"id": "f447b4bd-5895-4f2d-963f-4687db9782e5", "state": "pending",
+            "flowName": "subflow_ru", "flowId": "1e1a5816-2ef3-4ec6-bf7c-1f7bba5068ed",
+            "subFlowTaskName": "subflow_ru_task", "edges": [{"from": ["begin"], "to": [
+                  "hello_world_ru"]}, {"from": ["hello_world_ru"], "to": ["end"]}],
+            "tasks": [{"id": "da1d8647-a89a-41be-b179-5c1565edf46b", "type": "tasks.empty",
+                "name": "begin", "source": {"name": ""}, "states": ["pending"]}, {
+                "id": "6ebae7f7-65c8-4936-8c0c-a384e3c235e7", "type": "tasks.sas",
+                "name": "hello_world_ru", "source": {"name": "/opt/airflow/work/sas-po/hello-world-ru.sas"},
+                "states": ["pending"]}, {"id": "936b58af-a807-4cf2-a72f-9d0b3dbc83ad",
+                "type": "tasks.empty", "name": "end", "source": {"name": ""}, "states": [
+                  "pending"]}]}]}
+    triggerErrorInvalidFlowRunRequestResponse:
+      summary: Get an invalid flow run request error
+      description: Returns an error for an invalid flow run request.
+      value: {"httpStatusCode": 400, "errorCode": 101808, "message": "Error in the\
+          \ request body: The length of the name exceeds the maximum limit of 250."}

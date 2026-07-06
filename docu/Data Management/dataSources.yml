@@ -1,0 +1,3033 @@
+---
+openapi: 3.0.3
+info:
+  version: "3"
+  title: Data Sources
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+  description: "The Data Sources API works in concert with the Data Tables and Row\
+    \ Sets APIs to navigate, reference, and retrieve data in the SAS Viya ecosystem.\
+    \ The Data Sources API enables retrieval of metadata for data sources and linking\
+    \ to their respective tables."
+tags:
+- name: Providers
+  description: Contains data source operations for the providers resource.
+- name: Sources
+  description: Contains operations for data sources resource.
+- name: Source Definitions
+  description: Contains operations for the data source definitions resource.
+- name: Sessions
+  description: Contains operations to access data sources using the sessions resource.
+- name: Root
+  description: Contains operations for the root resource of the Data Sources API.
+- name: Engines
+  description: Contains operations for engines of the Data Sources API.
+- name: Transfer
+  description: Contains operations to transfer object resources.
+paths:
+  /:
+    get:
+      operationId: root
+      summary: Get a collection of top-level links
+      description: Returns a list of links to the top-level collections surfaced through
+        this API.
+      tags:
+      - Root
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/rootLinks"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/rootLinks"
+  /providers:
+    get:
+      operationId: getProviders
+      summary: Get a list of providers
+      description: >-
+        Returns a collection of application/vnd.sas.data.provider.summary
+        resources. Standard paging, filtering, and sorting options are specified
+        in the Parameters section below.
+      tags:
+      - Providers
+      parameters:
+      - name: Accept-Item
+        in: header
+        required: false
+        description: |
+          The desired provider representation.
+          The Accept-Item options are:
+          - application/vnd.sas.data.provider.summary+json
+          - application/vnd.sas.data.provider+json
+          If the application/vnd.sas.data.provider.summary type is
+          specified or no Accept-Item header is present, the providers are
+          returned as the summary representation provider objects. In this
+          case, the provider contains the following properties: id, version, and links.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.data.provider.summary+json
+          - application/vnd.sas.data.provider+json
+      - $ref: "#/components/parameters/StartQueryParam"
+      - $ref: "#/components/parameters/LimitQueryParam"
+      - name: filter
+        in: query
+        description: |
+          Filter criteria for returned providers. The only valid filter field
+          is id. The supported functions are and, or, not, eq, lt, le, gt, ge,
+          contains, startsWith, endsWith, and isNull. Some sample queries:
+          - Search by id starting with: /dataSources/providers?filter=startsWith(id, 'prov')
+          - Search by id: /dataSources/providers?filter=eq(id, 'provider1')
+          - Search for multiple providers: /dataSources/providers?filter=in(id, 'provider1', 'provider2', 'provider3')
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: |
+          Sort returned providers. The only valid sorting option is the
+          id field. The default sort order is ascending on the id field. Some
+          sample sorts include the following:
+          - Sort ascending by id: /dataSources/providers?sortBy=id:ascending
+          - Sort descending by id: /dataSources/providers?sortBy=id:descending
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: The request succeeded. Any providers are returned in a resource
+            collection.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/providerSummaryCollection"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/providerSummaryCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/providerSummaryCollection"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/providerSummaryCollection"
+        "400":
+          description: |
+            The request was invalid. Invalid requests occur in the following scenarios:
+            - A negative start value is provided.
+            - A negative limit value is provided.
+            - An unsupported field is specified in the sortBy parameter.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+  "/providers/{providerId}":
+    get:
+      operationId: getProvider
+      summary: Gets the provider
+      description: Returns information about a single provider based on its unique
+        ID.
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      tags:
+      - Providers
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.data.provider+json:
+              schema:
+                $ref: "#/components/schemas/provider"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/provider"
+                preferenceLink:
+                  $ref: "#/components/examples/sessionHandlingExample"
+            application/vnd.sas.data.provider.summary+json:
+              schema:
+                $ref: "#/components/schemas/provider"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/provider"
+                preferenceLink:
+                  $ref: "#/components/examples/sessionHandlingExample"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/provider"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/provider"
+                preferenceLink:
+                  $ref: "#/components/examples/sessionHandlingExample"
+        "404":
+          description: No provider exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+  "/providers/{providerId}/sourceDefinitions":
+    get:
+      x-sas-since: "2"
+      operationId: getSourceDefinitions
+      summary: Get a list of data source definitions
+      description: >-
+        Returns a collection of application/vnd.sas.source.definition resources.
+        Standard paging, filtering, and sorting options are specified in the
+        Parameters section below.
+      tags:
+      - Source Definitions
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/StartQueryParam"
+      - $ref: "#/components/parameters/LimitQueryParam"
+      - name: filter
+        in: query
+        description: |
+          Filter criteria for returned data source definitions. The supported
+          functions are and, or, not, eq, lt, le, gt, ge, contains,
+          startsWith, endsWith, and isNull. Some sample queries include the following:
+          - Search by name starting with: /dataSources/providers/{providerId}/sourceDefinitions?filter=startsWith(name, 'sour')
+          - Search by name: /dataSources/providers/{providerId}/sourceDefinitions?filter=eq(name, 'source1')
+          - Search for multiple source definitions: /dataSources/providers/{providerId}/sourceDefinitions?filter=in(name, 'source1', 'source2', 'source3')
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: |
+          Sort returned data source definitions. The sort criteria supports
+          the following fields in either ascending or descending order (name,
+          type, createdBy, modifiedBy, creationTimeStamp, and
+          modifiedTimeStamp). Some sample sorts include the following:
+          - Sort ascending by name: /dataSources/providers/{providerId}/sourceDefinitions?sortBy=name:ascending
+          - Sort descending by name: /dataSources/providers/{providerId}/sourceDefinitions?sortBy=name:descending
+          The default sort is by name in ascending order.
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: The request succeeded. Any data source definitions are returned
+            in a resource collection.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/sourceDefinitionCollection"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/sourceDefinitionCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sourceDefinitionCollection"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/sourceDefinitionCollection"
+        "400":
+          description: |
+            The request was invalid. Invalid requests occur in the following scenarios:
+            - A negative start value is provided.
+            - A negative limit value is provided.
+            - An unsupported field is specified in the sortBy parameter.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: No provider exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+    post:
+      x-sas-since: "2"
+      operationId: createSourceDefinition
+      summary: Create a data source definition
+      description: Creates a date source definition from the provided request.
+      tags:
+      - Source Definitions
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      requestBody:
+        content:
+          application/vnd.sas.data.source.definition+json:
+            schema:
+              $ref: "#/components/schemas/createSourceDefinition"
+            examples:
+              createSourceDefinitionSASRequest:
+                $ref: "#/components/examples/createSourceDefinitionSASRequest"
+              createSourceDefinitionPostgreSQLRequest:
+                $ref: "#/components/examples/createSourceDefinitionPostgreSQLRequest"
+              createSourceDefinitionOracleRequest:
+                $ref: "#/components/examples/createSourceDefinitionOracleRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createSourceDefinition"
+            examples:
+              createSourceDefinitionSASRequest:
+                $ref: "#/components/examples/createSourceDefinitionSASRequest"
+              createSourceDefinitionPostgreSQLRequest:
+                $ref: "#/components/examples/createSourceDefinitionPostgreSQLRequest"
+              createSourceDefinitionOracleRequest:
+                $ref: "#/components/examples/createSourceDefinitionOracleRequest"
+        description: Source definition to create. The only fields validated are providerId
+          and defaultLibref. Other fields are not validated. The attributes are not
+          required for the source definition but they are needed to actually use the
+          source definition to access tables.
+        required: true
+      responses:
+        "201":
+          description: A source definition was created.
+          headers:
+            Location:
+              description: The URI of the newly created source definition.
+              schema:
+                type: string
+            Last-Modified:
+              description: The ISO8601 date string representing the timestamp of the
+                last update to this object.
+              schema:
+                type: string
+            ETag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.source.definition+json:
+              schema:
+                $ref: "#/components/schemas/sourceDefinition"
+              examples:
+                sourceDefinitionSAS:
+                  $ref: "#/components/examples/sourceDefinitionSAS"
+                sourceDefinitionPostgresSQL:
+                  $ref: "#/components/examples/sourceDefinitionPostgresSQL"
+                sourceDefinitionOracle:
+                  $ref: "#/components/examples/sourceDefinitionOracle"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sourceDefinition"
+              examples:
+                sourceDefinitionSAS:
+                  $ref: "#/components/examples/sourceDefinitionSAS"
+                sourceDefinitionPostgresSQL:
+                  $ref: "#/components/examples/sourceDefinitionPostgresSQL"
+                sourceDefinitionOracle:
+                  $ref: "#/components/examples/sourceDefinitionOracle"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: No provider exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+  "/providers/{providerId}/sourceDefinitions#transfer":
+    post:
+      summary: Create source definition from transfer object
+      description: Create a new source definition from transfer object. Other than
+        the old source definition ID, all other source definition properties are preserved.
+      operationId: createSourceDefinitionFromTransfer
+      tags:
+      - Transfer
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      requestBody:
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              schemaval:
+                $ref: "#/components/examples/transferObject"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              schemaval:
+                $ref: "#/components/examples/transferObject"
+        description: The source definition to be imported.
+        required: true
+      responses:
+        "201":
+          description: A source definition was imported successfully.
+          headers:
+            Location:
+              description: The URI of the newly created source definition.
+              schema:
+                type: string
+            ETag:
+              description: The entity tag for the newly created source definition.
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the source definition was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/transferObjectSummary"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/transferObjectSummary"
+            application/vnd.sas.summary+json;version=1:
+              schema:
+                $ref: "#/components/schemas/transferObjectSummary"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/transferObjectSummary"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transferObjectSummary"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/transferObjectSummary"
+        "400":
+          description: The request was invalid. There was a provider mismatch between
+            the transfer object content and requested provider.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: No provider exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+  "/providers/{providerId}/sourceDefinitions/{sourceDefinitionId}":
+    get:
+      x-sas-since: "2"
+      operationId: getSourceDefinition
+      summary: Get a data source definition
+      description: Returns information about a single source based on its unique ID.
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/SourceDefinitionIDPathParam"
+      tags:
+      - Source Definitions
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Location:
+              description: The URI of the newly created source definition.
+              schema:
+                type: string
+            ETag:
+              description: The entity tag for the source definition.
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the source definition was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.source.definition+json:
+              schema:
+                $ref: "#/components/schemas/sourceDefinition"
+              examples:
+                example-1:
+                  $ref: "#/components/examples/sourceDefinitionSAS"
+                example-2:
+                  $ref: "#/components/examples/sourceDefinitionPostgresSQL"
+                example-3:
+                  $ref: "#/components/examples/sourceDefinitionOracle"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sourceDefinition"
+              examples:
+                example-1:
+                  $ref: "#/components/examples/sourceDefinitionSAS"
+                example-2:
+                  $ref: "#/components/examples/sourceDefinitionPostgresSQL"
+                example-3:
+                  $ref: "#/components/examples/sourceDefinitionOracle"
+        "404":
+          description: |
+            No provider or data source definition exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+    put:
+      x-sas-since: "2"
+      operationId: updateSourceDefinition
+      summary: Update a data source definition
+      description: Updates an existing data source definition through a full replacement
+        of the resource. The ID field might not be modified by this operation.
+      tags:
+      - Source Definitions
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/SourceDefinitionIDPathParam"
+      - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        content:
+          application/vnd.sas.data.source.definition+json:
+            schema:
+              $ref: "#/components/schemas/updateSourceDefinition"
+            examples:
+              schemaval:
+                $ref: "#/components/examples/updateSourceDefinitionRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/updateSourceDefinition"
+            examples:
+              schemaval:
+                $ref: "#/components/examples/updateSourceDefinitionRequest"
+        description: The source definition to update.
+        required: true
+      responses:
+        "200":
+          description: The request succeeded. Data source definition updated successfully.
+          headers:
+            Location:
+              description: The URI of the newly created source definition.
+              schema:
+                type: string
+            Last-Modified:
+              description: The ISO8601 date string representing the timestamp of the
+                last update to this data source definition.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.source.definition+json:
+              schema:
+                $ref: "#/components/schemas/sourceDefinition"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/updateSourceDefinitionResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sourceDefinition"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/updateSourceDefinitionResponse"
+        "400":
+          description: The request was invalid. This occurs when the user provides
+            an ID in the request that does not match the ID in the path of the URL.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: No data source definition exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+        "406":
+          description: This is an example of an error that could be returned for unsupported
+            requested media type.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error406"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error406"
+        "412":
+          description: The ETag provided does not match the current version of the
+            object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error412"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error412"
+        "428":
+          description: The If-Match header was not provided when updating an existing
+            type.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error428"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error428"
+    delete:
+      x-sas-since: "2"
+      operationId: deleteSourceDefinition
+      summary: Delete a data source definition
+      description: Deletes the specified data source definition.
+      tags:
+      - Source Definitions
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/SourceDefinitionIDPathParam"
+      responses:
+        "204":
+          description: The data source definition was deleted.
+        "400":
+          description: Bad Request
+          content:
+            application/vnd.sas.error:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: |
+            No provider or data source definition exists at the requested path.
+          content:
+            application/vnd.sas.error:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+  "/providers/{providerId}/sourceDefinitions/{sourceDefinitionId}#transfer":
+    get:
+      summary: Check transfer object availability
+      description: Return the transfer object of the specified source definition.
+      operationId: getSourceDefinitionAsTransfer
+      tags:
+      - Transfer
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/SourceDefinitionIDPathParam"
+      responses:
+        "200":
+          description: The request succeeded. The source definition returned as a
+            transfer object.
+          headers:
+            Location:
+              description: The URI of the newly created source definition.
+              schema:
+                type: string
+            ETag:
+              description: The entity tag for the source definition.
+              schema:
+                type: string
+            Last-Modified:
+              description: The time stamp in `EEE, dd MMM yyyy HH:mm:ss GMT` format
+                when the source definition was last modified.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/transferObject"
+        "404":
+          description: |
+            No provider or data source definition exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+    put:
+      summary: Update source definition with transfer object
+      description: Updates a source definition using the transfer object. If no existing
+        source definition is found, a new source definition is created. Either way,
+        all other source definition properties are preserved.
+      operationId: updateSourceDefinitionFromTransfer
+      tags:
+      - Transfer
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/SourceDefinitionIDPathParam"
+      - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              schemaval:
+                $ref: "#/components/examples/transferObject"
+        description: Source definition to be imported.
+        required: true
+      responses:
+        "200":
+          description: The request succeeded. The imported or updated source definition
+            returned in resource summary format.
+          content:
+            application/vnd.sas.summary:
+              schema:
+                $ref: "#/components/schemas/transferObjectSummary"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/transferObjectSummary"
+        "400":
+          description: |
+            The request was invalid. There is a mismatch in the transfer object
+            content and one of the following requested resources:
+            - The provider.
+            - The data source definition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: No provider exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+        "406":
+          description: This is an example of an error that could be returned for unsupported
+            requested media type.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error406"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error406"
+        "412":
+          description: The ETag provided does not match the current version of the
+            object.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error412"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error412"
+        "428":
+          description: Required If-Match header is missing.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error428"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error428"
+  "/providers/{providerId}/sources":
+    get:
+      operationId: getSources
+      summary: Get a list of data sources
+      description: >-
+        Returns a collection of sources. Standard paging, filtering, and sorting
+        options are provided. The members of this collection use
+        application/vnd.sas.data.source media type representation.
+      tags:
+      - Sources
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/DataSourceAcceptItemHeader"
+      - $ref: "#/components/parameters/StartQueryParam"
+      - $ref: "#/components/parameters/LimitQueryParam"
+      - name: filter
+        in: query
+        description: |
+          Filter criteria for returned sources. The valid filter fields are
+          name and type if supported by the provider. The supported functions
+          are and, or, not, eq, lt, le, gt, ge, contains, startsWith, endsWith
+          and isNull. Sample queries include the following:
+          - Search by name starting with: /dataSources/providers/{providerId}/sources?filter=startsWith(name, 'source')
+          - Search by name: /dataSources/providers/{providerId}/sources?filter=eq(name, 'source1')
+          - Search for multiple sources: /dataSources/providers/{providerId}/sources?filter=in(name, 'source1', 'source2', 'source3')
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: |
+          Sort returned sources. The sort criteria supports the following
+          fields in either ascending or descending order (name, type,
+          createdBy, modifiedBy, creationTimeStamp, and modifiedTimeStamp).
+          Sample sorts include the following:
+          - Sort ascending by source name: /dataSources/providers/{providerId}/sources?sortBy=name:ascending
+          - Sort descending by source name: /dataSources/providers/{providerId}/sources?sortBy=name:descending
+          The default sort is by name in ascending order.
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/sourceCollection"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/sourceCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sourceCollection"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/sourceCollection"
+        "400":
+          description: |
+            The request was invalid. Invalid requests occur in the following scenarios:
+            - A negative start value is provided.
+            - A negative limit value is provided.
+            - An unsupported field is specified in the sortBy parameter.
+            - An unsupported field is specified in the filter parameter.
+            - An invalid filter parameter is provided.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: No provider exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+  "/providers/{providerId}/sources/{sourceId}":
+    get:
+      operationId: getSource
+      summary: Get a data source
+      description: Returns information about a single source based on its unique ID.
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/SourceIDPathParam"
+      - $ref: "#/components/parameters/SessionIDQueryParam"
+      - $ref: "#/components/parameters/PreserveSessionQueryParam"
+      tags:
+      - Sources
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.data.source+json:
+              schema:
+                $ref: "#/components/schemas/source"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/source"
+            application/vnd.sas.data.source.summary+json:
+              schema:
+                $ref: "#/components/schemas/source"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/source"
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/source"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/source"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/source"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/source"
+        "404":
+          description: |
+            No provider or data source definition exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+  "/providers/{providerId}/sources/{sourceId}/children":
+    get:
+      operationId: getChildren
+      summary: Get a list of child data sources
+      description: >-
+        Returns a collection of sources that are children of the specified
+        source. Standard paging, filtering, and sorting options are provided.
+        The members of this collection use application/vnd.sas.data.source media
+        type representation.
+      tags:
+      - Sources
+      parameters:
+      - $ref: "#/components/parameters/DataSourceAcceptItemHeader"
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/SourceIDPathParam"
+      - $ref: "#/components/parameters/StartQueryParam"
+      - $ref: "#/components/parameters/LimitQueryParam"
+      - name: filter
+        in: query
+        description: |
+          Filter criteria for returned sources. <br> The valid filter fields
+          are name and type if supported by the provider. The supported
+          functions are and, or, not, eq, lt, le, gt, ge, contains,
+          startsWith, endsWith, and isNull. Sample queries include the following:
+          - Search by name starting with: /dataSources/providers/{providerId}/sources/{sourceId}/children?filter=startsWith(name, 'source')
+          - Search by name: /dataSources/providers/{providerId}/sources/{sourceId}/children?filter=eq(name, 'source1')
+          - Search for multiple sources: /dataSources/providers/{providerId}/sources/{sourceId}/children?filter=in(name, 'source1', 'source2', 'source3')
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: |
+          Sort returned sources. The sort criteria supports the following
+          fields in either ascending or descending order (name, type,
+          createdBy, modifiedBy, creationTimeStamp, and modifiedTimeStamp).
+          Sample sorts include the following:
+          - Sort ascending by source name: /dataSources/providers/{providerId}/sources/{sourceId}/children?sortBy=name:ascending
+          - Sort descending by source name: /dataSources/providers/{providerId}/sources/{sourceId}/children?sortBy=name:descending
+          The default sort is by name in ascending order.
+        schema:
+          type: string
+          format: sort-criteria
+      - $ref: "#/components/parameters/SessionIDQueryParam"
+      - $ref: "#/components/parameters/PreserveSessionQueryParam"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/sourceChildrenCollection"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/sourceChildrenCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sourceChildrenCollection"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/sourceChildrenCollection"
+        "400":
+          description: The request was invalid. An invalid filter or combination of
+            request parameters was provided.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: |
+            No provider or data source exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+  "/providers/{providerId}/sources/{sourceId}/sessions/{sessionId}":
+    get:
+      operationId: getSession
+      summary: Get a session
+      description: Returns information about a single session based on its unique
+        ID.
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/SourceIDPathParam"
+      - $ref: "#/components/parameters/SessionIDPathParam"
+      tags:
+      - Sessions
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.data.session+json:
+              schema:
+                $ref: "#/components/schemas/session"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/session"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/session"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/session"
+        "404":
+          description: |
+            No provider, data source, or session exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+    delete:
+      operationId: deleteSession
+      summary: Terminate a session
+      description: >-
+        Terminates a session if the user has permissions to terminate the
+        sessions, as determined by the provider service.
+      tags:
+      - Sessions
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/SourceIDPathParam"
+      - $ref: "#/components/parameters/SessionIDPathParam"
+      responses:
+        "204":
+          description: The session was terminated.
+        "400":
+          description: Bad Request
+          content:
+            application/vnd.sas.error:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: |
+            No provider, data source, or session exists at the requested path.
+          content:
+            application/vnd.sas.error:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+  "/providers/{providerId}/sources/{sourceId}/engines":
+    get:
+      x-sas-since: "2"
+      operationId: getEngines
+      summary: Get a list of engines for a data source
+      description: >-
+        Returns a collection of engines for the respective data source. Standard
+        paging, filtering, and sorting options are provided. The members of this
+        collection use application/vnd.sas.data.engine media type
+        representation.
+      tags:
+      - Engines
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/SourceIDPathParam"
+      - $ref: "#/components/parameters/StartQueryParam"
+      - $ref: "#/components/parameters/LimitQueryParam"
+      - name: filter
+        in: query
+        description: |
+          Filter criteria for returned engines. <br> The valid filter fields
+          are name, label, description, and licensed. The supported functions
+          are and, or, not, eq, lt, le, gt, ge, contains, startsWith, endsWith
+          and isNull. Sample queries include the following:
+          - Search by name starting with: /dataSources/providers/{providerId}/sources/{sourceId}/engines?filter=startsWith(name, 'SASI')
+          - Search by name: /dataSources/providers/{providerId}/sources/{sourceId}/engines?filter=eq(name, 'SASIONZA')
+          - Search for multiple engines: /dataSources/providers/{providerId}/sources/{sourceId}/engines?filter=in(name, 'SASIONZA', 'SASORA')
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: |
+          Sort returned sources. The sort criteria supports the following
+          fields in either ascending or descending order: name, label,
+          description, and licensed. Sample sorts include the following:
+          - Sort ascending by engine name: /dataSources/providers/{providerId}/sources/{sourceId}/engines?sortBy=name:ascending
+          - Sort descending by engine name: /dataSources/providers/{providerId}/sources/{sourceId}/engines?sortBy=name:descending
+          The default sort is by name in ascending order.
+        schema:
+          type: string
+          format: sort-criteria
+      - $ref: "#/components/parameters/SessionIDQueryParam"
+      - $ref: "#/components/parameters/PreserveSessionQueryParam"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/engineCollection"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/engineCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/engineCollection"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/engineCollection"
+        "400":
+          description: The request was invalid. An invalid filter or combination of
+            request parameters was provided.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error400"
+        "404":
+          description: |
+            No provider or data source exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+  "/providers/{providerId}/sources/{sourceId}/engines/{engineName}":
+    get:
+      x-sas-since: "2"
+      operationId: getEngine
+      summary: Get an engine name
+      description: Returns information about a single engine based on its unique name.
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/SourceIDPathParam"
+      - $ref: "#/components/parameters/EngineNamePathParam"
+      - $ref: "#/components/parameters/SessionIDQueryParam"
+      - $ref: "#/components/parameters/PreserveSessionQueryParam"
+      tags:
+      - Engines
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.data.engine+json:
+              schema:
+                $ref: "#/components/schemas/engine"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/engine"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/engine"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/engine"
+        "404":
+          description: |
+            No provider, data source, or engine exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+  "/providers/{providerId}/sources/{sourceId}/engines/{engineName}/definition":
+    get:
+      x-sas-since: "2"
+      operationId: getEngineDefinition
+      summary: Get an engine definition
+      description: Returns the definition of the engine as application or schema+json.
+        This definition includes all available engine options.
+      parameters:
+      - $ref: "#/components/parameters/ProviderIDPathParam"
+      - $ref: "#/components/parameters/SourceIDPathParam"
+      - $ref: "#/components/parameters/EngineNamePathParam"
+      - $ref: "#/components/parameters/SessionIDQueryParam"
+      - $ref: "#/components/parameters/PreserveSessionQueryParam"
+      tags:
+      - Engines
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/schema:
+              schema:
+                $ref: "#/components/schemas/engineDefinition"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/engineDefinition"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/engineDefinition"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/engineDefinition"
+        "404":
+          description: |
+            No provider, data source, or engine exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                schemaval:
+                  $ref: "#/components/examples/error404"
+servers:
+- url: http://example.com/dataSources
+  description: The data sources server.
+components:
+  examples:
+    rootLinks:
+      summary: Root Links
+      description: Root Hateoas links.
+      value: {"version": 1, "links": [{"method": "GET", "rel": "providers", "href": "/dataSources/providers",
+            "uri": "/dataSources/providers", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.provider.summary"}]}
+    provider:
+      summary: The provider data
+      description: GET /providers/{providerId}
+      value: {"id": "cas", "apiVersion": 2, "usesSessions": true, "sourceDefinitionsSupport": "none",
+        "version": 2, "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/cas",
+            "uri": "/dataSources/providers/cas", "type": "application/vnd.sas.data.provider"},
+          {"method": "GET", "rel": "alternate", "href": "/dataSources/providers/cas",
+            "uri": "/dataSources/providers/cas", "type": "application/vnd.sas.data.provider.summary"},
+          {"method": "GET", "rel": "up", "href": "/dataSources/providers", "uri": "/dataSources/providers",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.provider.summary"},
+          {"method": "GET", "rel": "dataSources", "href": "/dataSources/providers/cas/sources",
+            "uri": "/dataSources/providers/cas/sources", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.source"}]}
+    providerSummary:
+      summary: The provider summary
+      description: GET /providers/{providerId}
+      value: {"id": "cas", "version": 1, "links": [{"method": "GET", "rel": "self",
+            "href": "/dataSources/providers/cas", "uri": "/dataSources/providers/cas",
+            "type": "application/vnd.sas.data.provider"}, {"method": "GET", "rel": "alternate",
+            "href": "/dataSources/providers/cas", "uri": "/dataSources/providers/cas",
+            "type": "application/vnd.sas.data.provider.summary"}, {"method": "GET",
+            "rel": "up", "href": "/dataSources/providers", "uri": "/dataSources/providers",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.provider.summary"},
+          {"method": "GET", "rel": "dataSources", "href": "/dataSources/providers/cas/sources",
+            "uri": "/dataSources/providers/cas/sources", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.source"}]}
+    providerSummaryCollection:
+      summary: The provider summaries
+      description: GET /providers
+      value: {"name": "providers", "accept": "application/vnd.sas.data.provider.summary\
+          \ application/vnd.sas.data.provider", "start": 0, "count": 1, "limit": 10,
+        "version": 2, "items": [{"id": "cas", "links": [{"method": "GET", "rel": "self",
+                "href": "/dataSources/providers/cas", "uri": "/dataSources/providers/cas",
+                "type": "application/vnd.sas.data.provider"}, {"method": "GET", "rel": "alternate",
+                "href": "/dataSources/providers/cas", "uri": "/dataSources/providers/cas",
+                "type": "application/vnd.sas.data.provider.summary"}, {"method": "GET",
+                "rel": "up", "href": "/dataSources/providers", "uri": "/dataSources/providers",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.provider"},
+              {"method": "GET", "rel": "dataSources", "href": "/dataSources/providers/cas/sources",
+                "uri": "/dataSources/providers/cas/sources", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.data.source"}], "version": 2}], "links": [
+          {"method": "GET", "rel": "collection", "href": "/dataSources/providers",
+            "uri": "/dataSources/providers", "type": "application/vnd.sas.collection"},
+          {"method": "GET", "rel": "self", "href": "/dataSources/providers?start=0&limit=10",
+            "uri": "/dataSources/providers?start=0&limit=10", "type": "application/vnd.sas.collection"}]}
+    sourceDefinitionCollection:
+      summary: Source definition collection
+      description: An example of source definition collection.
+      value: {"name": "sourceDefinitions", "accept": "application/vnd.sas.data.source.definition",
+        "start": 0, "count": 3, "limit": 10, "version": 2, "items": [{"creationTimeStamp": "0001-01-01T00:00:00Z",
+            "modifiedTimeStamp": "0001-01-01T00:00:00Z", "createdBy": "sasjoe", "modifiedBy": "sasjoe",
+            "id": "84df1ec8-8f06-46c9-bcd7-e38e3d96aef3", "name": "pathdnfs", "providerId": "Compute",
+            "description": "description for source definition for base pathdnfs",
+            "dataSourceId": "SAS Studio compute context", "defaultLibref": "pathdnfs",
+            "attributes": {"engineName": "sase7", "options": {"ENABLEDIRECTION": "NO",
+                "NOSETPERM": "NO", "USEDIRECTIO": "NO"}, "physicalName": "/dmtesting/custom_steps/Loqate/sample_data"},
+            "version": 2, "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/Compute/sourceDefinitions/84df1ec8-8f06-46c9-bcd7-e38e3d96aef3",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/84df1ec8-8f06-46c9-bcd7-e38e3d96aef3",
+                "type": "application/vnd.sas.data.source.definition"}, {"method": "PUT",
+                "rel": "update", "href": "/dataSources/providers/Compute/sourceDefinitions/84df1ec8-8f06-46c9-bcd7-e38e3d96aef3",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/84df1ec8-8f06-46c9-bcd7-e38e3d96aef3",
+                "type": "application/vnd.sas.data.source.definition"}, {"method": "DELETE",
+                "rel": "delete", "href": "/dataSources/providers/Compute/sourceDefinitions/84df1ec8-8f06-46c9-bcd7-e38e3d96aef3",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/84df1ec8-8f06-46c9-bcd7-e38e3d96aef3"},
+              {"method": "PUT", "rel": "export", "href": "/dataSources/providers/Compute/sourceDefinitions/84df1ec8-8f06-46c9-bcd7-e38e3d96aef3",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/84df1ec8-8f06-46c9-bcd7-e38e3d96aef3",
+                "type": "application/vnd.sas.transfer.object"}, {"method": "PUT",
+                "rel": "import", "href": "/dataSources/providers/Compute/sourceDefinitions/84df1ec8-8f06-46c9-bcd7-e38e3d96aef3",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/84df1ec8-8f06-46c9-bcd7-e38e3d96aef3",
+                "type": "application/vnd.sas.transfer.object", "responseType": "application/vnd.sas.summary"},
+              {"method": "GET", "rel": "up", "href": "/dataSources/providers/Compute/sourceDefinitions",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.data.source.definition"}, {"method": "GET",
+                "rel": "provider", "href": "/dataSources/providers/Compute", "uri": "/dataSources/providers/Compute",
+                "type": "application/vnd.sas.data.provider"}]}, {"creationTimeStamp": "0001-01-01T00:00:00Z",
+            "modifiedTimeStamp": "0001-01-01T00:00:00Z", "createdBy": "sasjoe", "modifiedBy": "sasjoe",
+            "id": "e7042058-2849-4c38-b068-10d10af6c6c0", "name": "mypgdb", "providerId": "Compute",
+            "description": "description for source definition for PostgreSQL database",
+            "dataSourceId": "SAS Studio compute context", "defaultLibref": "mypgdb",
+            "attributes": {"engineName": "sasioptg", "options": {"SERVER": "example.sas.com",
+                "DATABASE": "everest", "PORT": 5432, "UID": "james", "PWD": "bond"}},
+            "version": 2, "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/Compute/sourceDefinitions/e7042058-2849-4c38-b068-10d10af6c6c0",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/e7042058-2849-4c38-b068-10d10af6c6c0",
+                "type": "application/vnd.sas.data.source.definition"}, {"method": "PUT",
+                "rel": "update", "href": "/dataSources/providers/Compute/sourceDefinitions/e7042058-2849-4c38-b068-10d10af6c6c0",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/e7042058-2849-4c38-b068-10d10af6c6c0",
+                "type": "application/vnd.sas.data.source.definition"}, {"method": "DELETE",
+                "rel": "delete", "href": "/dataSources/providers/Compute/sourceDefinitions/e7042058-2849-4c38-b068-10d10af6c6c0",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/e7042058-2849-4c38-b068-10d10af6c6c0"},
+              {"method": "PUT", "rel": "export", "href": "/dataSources/providers/Compute/sourceDefinitions/e7042058-2849-4c38-b068-10d10af6c6c0",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/e7042058-2849-4c38-b068-10d10af6c6c0",
+                "type": "application/vnd.sas.transfer.object"}, {"method": "PUT",
+                "rel": "import", "href": "/dataSources/providers/Compute/sourceDefinitions/e7042058-2849-4c38-b068-10d10af6c6c0",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/e7042058-2849-4c38-b068-10d10af6c6c0",
+                "type": "application/vnd.sas.transfer.object", "responseType": "application/vnd.sas.summary"},
+              {"method": "GET", "rel": "up", "href": "/dataSources/providers/Compute/sourceDefinitions",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.data.source.definition"}, {"method": "GET",
+                "rel": "provider", "href": "/dataSources/providers/Compute", "uri": "/dataSources/providers/Compute",
+                "type": "application/vnd.sas.data.provider"}]}, {"creationTimeStamp": "0001-01-01T00:00:00Z",
+            "modifiedTimeStamp": "0001-01-01T00:00:00Z", "createdBy": "sasjoe", "modifiedBy": "sasjoe",
+            "id": "3dec2f57-4ad8-498a-a29d-deaa4d211ed3", "name": "oradb", "providerId": "Compute",
+            "description": "description for source definition for Oracle database",
+            "dataSourceId": "SAS Studio compute context", "defaultLibref": "oradb",
+            "attributes": {"engineName": "sasioora", "options": {"DBCLIENT_ENCODING_FIXED": false,
+                "DBSERVER_ENCODING_FIXED": false, "PRESERVE_COL_NAMES": true, "PRESERVE_TAB_NAMES": true,
+                "PATH": "dsn", "SCHEMA": "DMTEST", "UID": "DMTEST", "PWD": "dmtest"}},
+            "version": 2, "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+                "type": "application/vnd.sas.data.source.definition"}, {"method": "PUT",
+                "rel": "update", "href": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+                "type": "application/vnd.sas.data.source.definition"}, {"method": "DELETE",
+                "rel": "delete", "href": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3"},
+              {"method": "PUT", "rel": "export", "href": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+                "type": "application/vnd.sas.transfer.object"}, {"method": "PUT",
+                "rel": "import", "href": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+                "type": "application/vnd.sas.transfer.object", "responseType": "application/vnd.sas.summary"},
+              {"method": "GET", "rel": "up", "href": "/dataSources/providers/Compute/sourceDefinitions",
+                "uri": "/dataSources/providers/Compute/sourceDefinitions", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.data.source.definition"}, {"method": "GET",
+                "rel": "provider", "href": "/dataSources/providers/Compute", "uri": "/dataSources/providers/Compute",
+                "type": "application/vnd.sas.data.provider"}]}], "links": [{"method": "GET",
+            "rel": "collection", "href": "/dataSources/providers/myProvider/sourceDefinitions",
+            "uri": "/dataSources/providers/myProvider/sourceDefinitions", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.source.definition"}, {"method": "GET",
+            "rel": "self", "href": "/dataSources/providers/myProvider/sourceDefinitions?sortBy=name:ascending&start=0&limit=10",
+            "uri": "/dataSources/providers/myProvider/sourceDefinitions?sortBy=name:ascending&start=0&limit=10",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source.definition"},
+          {"method": "GET", "rel": "up", "href": "/dataSources/providers/myProvider",
+            "uri": "/dataSources/providers/myProvider", "type": "application/vnd.sas.data.provider"},
+          {"method": "POST", "rel": "createSourceDefinition", "href": "/dataSources/providers/myProvider/sourceDefinitions",
+            "uri": "/dataSources/providers/myProvider/sourceDefinitions", "type": "application/vnd.sas.data.source.definition",
+            "responseType": "application/vnd.sas.data.source.definition"}]}
+    sourceDefinitionSAS:
+      summary: The source definition for SAS
+      description: A sample source definition.
+      value: {"creationTimeStamp": "0001-01-01T00:00:00Z", "modifiedTimeStamp": "0001-01-01T00:00:00Z",
+        "createdBy": "sasjoe", "modifiedBy": "sasjoe", "id": "ea1a9f8a-5013-4c89-8298-78c95659782e",
+        "name": "pathdnfs", "providerId": "Compute", "description": "description for\
+          \ source definition for base SAS", "dataSourceId": "SAS Studio compute context",
+        "defaultLibref": "pathdnfs", "attributes": {"engineName": "sase7", "options": {
+            "ENABLEDIRECTIO": "NO", "NOSETPERM": "NO", "USEDIRECTIO": "NO"}, "physicalName": "/dmtesting/custom_steps/Loqate/sample_data"},
+        "version": 2, "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.data.source.definition"}, {"method": "PUT",
+            "rel": "update", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.data.source.definition"}, {"method": "DELETE",
+            "rel": "delete", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e"},
+          {"method": "PUT", "rel": "export", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.transfer.object"}, {"method": "PUT", "rel": "import",
+            "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.transfer.object", "responseType": "application/vnd.sas.summary"},
+          {"method": "GET", "rel": "up", "href": "/dataSources/providers/Compute/sourceDefinitions",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.source.definition"}, {"method": "GET",
+            "rel": "provider", "href": "/dataSources/providers/Compute", "uri": "/dataSources/providers/Compute",
+            "type": "application/vnd.sas.data.provider"}]}
+    sourceDefinitionPostgresSQL:
+      summary: The source definition for PostgreSQL database
+      description: A sample source definition.
+      value: {"creationTimeStamp": "0001-01-01T00:00:00Z", "modifiedTimeStamp": "0001-01-01T00:00:00Z",
+        "createdBy": "sasjoe", "modifiedBy": "sasjoe", "id": "e7042058-2849-4c38-b068-10d10af6c6c0",
+        "name": "mypgdb", "providerId": "Compute", "description": "description for\
+          \ source definition for PostgreSQL database", "dataSourceId": "SAS Studio\
+          \ compute context", "defaultLibref": "mypgdb", "attributes": {"engineName": "sasioptg",
+          "options": {"SERVER": "example.sas.com", "DATABASE": "everest", "PORT": 5432,
+            "UID": "james", "PWD": "bond"}}, "version": 2, "links": [{"method": "GET",
+            "rel": "self", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.data.source.definition"}, {"method": "PUT",
+            "rel": "update", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.data.source.definition"}, {"method": "DELETE",
+            "rel": "delete", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e"},
+          {"method": "PUT", "rel": "export", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.transfer.object"}, {"method": "PUT", "rel": "import",
+            "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.transfer.object", "responseType": "application/vnd.sas.summary"},
+          {"method": "GET", "rel": "up", "href": "/dataSources/providers/Compute/sourceDefinitions",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.source.definition"}, {"method": "GET",
+            "rel": "provider", "href": "/dataSources/providers/Compute", "uri": "/dataSources/providers/Compute",
+            "type": "application/vnd.sas.data.provider"}]}
+    sourceDefinitionOracle:
+      summary: The source definition for Oracle database
+      description: A sample source definition.
+      value: {"creationTimeStamp": "0001-01-01T00:00:00Z", "modifiedTimeStamp": "0001-01-01T00:00:00Z",
+        "createdBy": "sasjoe", "modifiedBy": "sasjoe", "id": "3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+        "name": "oradb", "providerId": "Compute", "description": "description for\
+          \ source definition for Oracle database", "dataSourceId": "SAS Studio compute\
+          \ context", "defaultLibref": "oradb", "attributes": {"engineName": "sasioora",
+          "options": {"DBCLIENT_ENCODING_FIXED": false, "DBSERVER_ENCODING_FIXED": false,
+            "PRESERVE_COL_NAMES": true, "PRESERVE_TAB_NAMES": true, "PATH": "dsn",
+            "SCHEMA": "DMTEST", "UID": "DMTEST", "PWD": "dmtest"}}, "version": 2,
+        "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+            "type": "application/vnd.sas.data.source.definition"}, {"method": "PUT",
+            "rel": "update", "href": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+            "type": "application/vnd.sas.data.source.definition"}, {"method": "DELETE",
+            "rel": "delete", "href": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3"},
+          {"method": "PUT", "rel": "export", "href": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+            "type": "application/vnd.sas.transfer.object"}, {"method": "PUT", "rel": "import",
+            "href": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/3dec2f57-4ad8-498a-a29d-deaa4d211ed3",
+            "type": "application/vnd.sas.transfer.object", "responseType": "application/vnd.sas.summary"},
+          {"method": "GET", "rel": "up", "href": "/dataSources/providers/Compute/sourceDefinitions",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.source.definition"}, {"method": "GET",
+            "rel": "provider", "href": "/dataSources/providers/Compute", "uri": "/dataSources/providers/Compute",
+            "type": "application/vnd.sas.data.provider"}]}
+    createSourceDefinitionSASRequest:
+      summary: Create Source definition request for SAS
+      description: A sample request body to create a source definition.
+      value: {"name": "pathdnfs", "providerId": "Compute", "description": "A description\
+          \ for source definition for SAS", "dataSourceId": "SAS Studio compute context",
+        "defaultLibref": "pathdnfs", "attributes": {"engineName": "sase7", "options": {
+            "ENABLEDIRECTIO": "NO", "NOSETPERM": "NO", "USEDIRECTIO": "NO"}, "physicalName": "/dmtesting/custom_steps/Loqate/sample_data"}}
+    createSourceDefinitionPostgreSQLRequest:
+      summary: Create Source definition request for PostgreSQL database
+      description: A sample request body to create a source definition.
+      value: {"name": "mypgdb", "providerId": "Compute", "description": "A description\
+          \ for source definition for PostgreSQL database", "dataSourceId": "SAS Studio\
+          \ compute context", "defaultLibref": "mypgdb", "attributes": {"engineName": "sasioptg",
+          "options": {"SERVER": "example.sas.com", "DATABASE": "everest", "PORT": 5432,
+            "UID": "james", "PWD": "bond"}}}
+    createSourceDefinitionOracleRequest:
+      summary: Create Source definition request for Oracle database
+      description: A sample request body to create a source definition.
+      value: {"name": "myoradb", "providerId": "Compute", "description": "A description\
+          \ for source definition for Oracle database", "dataSourceId": "SAS Studio\
+          \ compute context", "defaultLibref": "myoradb", "attributes": {"engineName": "sasioora",
+          "options": {"DBCLIENT_ENCODING_FIXED": false, "DBSERVER_ENCODING_FIXED": false,
+            "PRESERVE_COL_NAMES": true, "PRESERVE_TAB_NAMES": true, "PATH": "dsn",
+            "SCHEMA": "DMTEST", "UID": "DMTEST", "PWD": "dmtest"}}}
+    updateSourceDefinitionRequest:
+      summary: Source definition request for name change
+      description: A sample request for updating a source definition request PUT /providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e.
+      value: {"id": "ea1a9f8a-5013-4c89-8298-78c95659782e", "name": "pdnfsmod", "providerId": "Compute",
+        "description": "A description for source definition for base pathdnfs", "dataSourceId": "SAS\
+          \ Studio compute context", "defaultLibref": "pathdnfs", "attributes": {
+          "engineName": "sase7", "options": {"ENABLEDIRECTIO": "NO", "NOSETPERM": "NO",
+            "USEDIRECTIO": "NO"}, "physicalName": "/dmtesting/custom_steps/Loqate/sample_data"},
+        "version": 2}
+    updateSourceDefinitionResponse:
+      summary: Source definition update response
+      description: A sample response for update a source definition request PUT /providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e.
+      value: {"creationTimeStamp": "0001-01-01T00:00:00Z", "modifiedTimeStamp": "0001-01-01T00:00:00Z",
+        "createdBy": "sasjoe", "modifiedBy": "sasjoe", "id": "ea1a9f8a-5013-4c89-8298-78c95659782e",
+        "name": "pdnfsmod", "providerId": "Compute", "description": "A description\
+          \ for source definition for base pathdnfs", "dataSourceId": "SAS Studio\
+          \ compute context", "defaultLibref": "pathdnfs", "attributes": {"engineName": "sase7",
+          "options": {"ENABLEDIRECTIO": "NO", "NOSETPERM": "NO", "USEDIRECTIO": "NO"},
+          "physicalName": "/dmtesting/custom_steps/Loqate/sample_data"}, "version": 2,
+        "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.data.source.definition"}, {"method": "PUT",
+            "rel": "update", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.data.source.definition"}, {"method": "DELETE",
+            "rel": "delete", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e"},
+          {"method": "PUT", "rel": "export", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.transfer.object"}, {"method": "PUT", "rel": "import",
+            "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.transfer.object", "responseType": "application/vnd.sas.summary"},
+          {"method": "GET", "rel": "up", "href": "/dataSources/providers/Compute/sourceDefinitions",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.source.definition"}, {"method": "GET",
+            "rel": "provider", "href": "/dataSources/providers/Compute", "uri": "/dataSources/providers/Compute",
+            "type": "application/vnd.sas.data.provider"}]}
+    sourceCollection:
+      summary: The data source collection
+      description: GET /providers/{providerId}/sources
+      value: {"name": "sources", "accept": "application/vnd.sas.data.source", "count": 1,
+        "version": 1, "items": [{"id": "cas", "name": "cas", "type": "casServer",
+            "providerId": "cas", "description": "controller", "hasTables": true, "hasEngines": false,
+            "attributes": {"port": "8850", "host": "server.example.com"}, "version": 1,
+            "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "alternate", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source.summary"},
+              {"method": "GET", "rel": "status", "href": "/casManagement/servers/cas/status",
+                "uri": "/casManagement/servers/cas/status", "responseType": "application/json"},
+              {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas/tables",
+                "uri": "/dataTables/dataSources/cas~fs~cas/tables", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.data.table"}, {"method": "GET", "rel": "up",
+                "href": "/dataSources/providers/cas/sources", "uri": "/dataSources/providers/cas/sources",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "children", "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"}]}],
+        "links": [{"method": "GET", "rel": "collection", "href": "/dataSources/providers/cas/sources",
+            "uri": "/dataSources/providers/cas/sources", "type": "application/vnd.sas.collection"},
+          {"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources?start=0&limit=10",
+            "uri": "/dataSources/providers/cas/sources?start=0&limit=10", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.source"}, {"method": "GET", "rel": "up",
+            "href": "/dataSources/providers/cas", "uri": "/dataSources/providers/cas",
+            "type": "application/vnd.sas.data.provider"}]}
+    sourceCollectionWithSession:
+      summary: Client Provides a sessionId
+      description: |
+        Here is an example of a user passing a known session identifier as the query parameter `sessionId`.
+        - This session identifier is used when establishing a connection to the data service provider's backing service (such as CAS).
+        - If the `sessionId` does not exist, a 404 is returned.
+        - The service returns a `session` link that points to the appropriate session in the path `/dataSources/providers/{providerId}/sources/{sourceId}/sessions/{sessionId}`, where `sourceId` corresponds to the level of the data hierarchy that the session is associated with (such as the first-level CAS server for CAS).
+        - The `sessionId` is appended as a query parameter to all links except the `self` link, and the `sessionScoped` link is appended to the respective resource.
+      value: {"name": "sources", "accept": "application/vnd.sas.data.sourc", "count": 1,
+        "version": 2, "items": [{"id": "cas", "name": "cas", "type": "casServer",
+            "providerId": "cas", "description": "controller", "hasTables": true, "hasEngines": false,
+            "attributes": {"port": "8850", "host": "server.example.com"}, "version": 1,
+            "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "alternate", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source.summary"},
+              {"method": "GET", "rel": "status", "href": "/casManagement/servers/cas/status",
+                "uri": "/casManagement/servers/cas/status", "responseType": "application/json"},
+              {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas/tables",
+                "uri": "/dataTables/dataSources/cas~fs~cas/tables", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.data.table"}, {"method": "GET", "rel": "up",
+                "href": "/dataSources/providers/cas/sources", "uri": "/dataSources/providers/cas/sources",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "children", "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"}]}],
+        "links": [{"method": "GET", "rel": "collection", "href": "/dataSources/providers/cas/sources",
+            "uri": "/dataSources/providers/cas/sources", "type": "application/vnd.sas.collection"},
+          {"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources?start=0&limit=10",
+            "uri": "/dataSources/providers/cas/sources?start=0&limit=10", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.source"}, {"method": "GET", "rel": "up",
+            "href": "/dataSources/providers/cas", "uri": "/dataSources/providers/cas",
+            "type": "application/vnd.sas.data.provider"}]}
+    source:
+      summary: The data source
+      description: GET /providers/{providerId}/sources/{sourceId}
+      value: {"id": "cas", "name": "cas", "type": "casServer", "providerId": "cas",
+        "description": "controller", "hasTables": true, "hasEngines": false, "attributes": {
+          "port": "8850", "host": "server.example.com"}, "version": 1, "links": [
+          {"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas",
+            "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+          {"method": "GET", "rel": "alternate", "href": "/dataSources/providers/cas/sources/cas",
+            "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source.summary"},
+          {"method": "GET", "rel": "status", "href": "/casManagement/servers/cas/status",
+            "uri": "/casManagement/servers/cas/status", "responseType": "application/json"},
+          {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas/tables",
+            "uri": "/dataTables/dataSources/cas~fs~cas/tables", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.table"}, {"method": "GET", "rel": "up",
+            "href": "/dataSources/providers/cas/sources", "uri": "/dataSources/providers/cas/sources",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+          {"method": "GET", "rel": "children", "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"}]}
+    providerCollectionExample:
+      summary: Retrieving Providers
+      description: "Here is an example of performing a GET request using the URI /dataSources/providers\
+        \ to return a collection of all the application/vnd.sas.data.provider resources\
+        \ currently available. <br><br>Note: The data sources service is used to retrieve\
+        \ all available CAS servers and their respective caslibs."
+      value: {"name": "providers", "accept": "application/vnd.sas.data.provider.summary\
+          \ application/vnd.sas.data.provider", "start": 0, "count": 1, "items": [
+          {"id": "cas", "type": "dataSources", "links": [{"method": "GET", "rel": "self",
+                "href": "/dataSources/providers/cas", "uri": "/dataSources/providers/cas",
+                "type": "application/vnd.sas.data.provider"}, {"method": "GET", "rel": "alternate",
+                "href": "/dataSources/providers/cas", "uri": "/dataSources/providers/cas",
+                "type": "application/vnd.sas.data.provider.summary"}, {"method": "GET",
+                "rel": "up", "href": "/dataSources/providers", "uri": "/dataSources/providers",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.provider.summary"},
+              {"method": "GET", "rel": "dataSources", "href": "/dataSources/providers/cas/sources",
+                "uri": "/dataSources/providers/cas/sources", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.data.source"}], "version": 2}], "limit": 10,
+        "links": [{"method": "GET", "rel": "collection", "href": "/dataSources/providers",
+            "uri": "/dataSources/providers", "type": "application/vnd.sas.collection"},
+          {"method": "GET", "rel": "self", "href": "/dataSources/providers?start=0&limit=10",
+            "uri": "/dataSources/providers?start=0&limit=10", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.provider.summary"}], "version": 2}
+    sourceCollectionExample:
+      summary: Retrieving Top-Level Data Sources
+      description: |
+        Here is an example of following the dataSources link of the application/vnd.sas.data.provider with the ID cas to perform a GET request to the URL /dataSources/providers/cas/sources.
+        - These sources are the top or root level data sources. In the case of the CAS provider, the sources are CAS servers.
+      value: {"name": "sources", "accept": "application/vnd.sas.data.source", "count": 1,
+        "version": 2, "items": [{"id": "cas", "name": "cas", "type": "casServer",
+            "providerId": "cas", "description": "controller", "hasTables": true, "attributes": {
+              "port": "8850", "host": "rdcgrd001.unx.sas.com"}, "version": 1, "links": [
+              {"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "status", "href": "/casManagement/servers/cas/status",
+                "uri": "/casManagement/servers/cas/status", "responseType": "application/json"},
+              {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas/tables",
+                "uri": "/dataTables/dataSources/cas~fs~cas/tables", "type": "application/vnd.sas.collection",
+                "itemType": "application/vnd.sas.data.table"}, {"method": "GET", "rel": "up",
+                "href": "/dataSources/providers/cas/sources", "uri": "/dataSources/providers/cas/sources",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "children", "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"}]}],
+        "links": [{"method": "GET", "rel": "collection", "href": "/dataSources/providers/cas/sources",
+            "uri": "/dataSources/providers/cas/sources", "type": "application/vnd.sas.collection"},
+          {"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources?start=0&limit=10",
+            "uri": "/dataSources/providers/cas/sources?start=0&limit=10", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.source"}, {"method": "GET", "rel": "up",
+            "href": "/dataSources/providers/cas", "uri": "/dataSources/providers/cas",
+            "type": "application/vnd.sas.data.provider"}]}
+    sourceChildrenCollection:
+      summary: The Source's children
+      description: GET /providers/{providerId}/sources/{sourceId}/children
+      value: {"name": "sources", "accept": "application/vnd.sas.data.source application/vnd.sas.data.source.summary",
+        "version": 2, items: [{"id": "MYCASLIB", "name": "MYCASLIB", "type": "caslib",
+            "providerId": "cas", "description": "castest test files.", "hasTables": true,
+            "hasEngines": false, "attributes": {active": "false", personal": "false",
+              subDirs": "true"}, "version": 1, "links": [{"method": "GET", "rel": "self",
+                "href": "/dataSources/providers/cas/sources/cas-shared-default~fs~MYCASLIB",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default~fs~MYCASLIB",
+                "type": "application/vnd.sas.data.source"}, {"method": "GET", "rel": "alternate",
+                "href": "/dataSources/providers/cas/sources/cas-shared-default~fs~MYCASLIB",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default~fs~MYCASLIB",
+                "type": "application/vnd.sas.data.source.summary"}, {"method": "GET",
+                "rel": "up", "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "parent", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"}]},
+          {"id": "EngTest", "name": "EngTest", "type": "caslib", "providerId": "cas",
+            "description": "engtest HDAT files.", "hasTables": true, "attributes": {
+              "active": "false", "personal": "false", "subDirs": "true"}, "version": 1,
+            "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas~fs~EngTest",
+                "uri": "/dataSources/providers/cas/sources/cas~fs~EngTest", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "alternate", "href": "/dataSources/providers/cas/sources/cas~fs~EngTest",
+                "uri": "/dataSources/providers/cas/sources/cas~fs~EngTest", "type": "application/vnd.sas.data.source.summary"},
+              {"method": "GET", "rel": "up", "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "parent", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~EngTest/tables",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~EngTest/tables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"}]},
+          {"id": "Formats", "name": "Formats", "type": "caslib", "providerId": "cas",
+            "description": "Format Caslib", "hasTables": true, "hasEngines": false,
+            "attributes": {"active": "false", "personal": "false", "subDirs": "true"},
+            "version": 1, "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas~fs~Formats",
+                "uri": "/dataSources/providers/cas/sources/cas~fs~Formats", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "alternate", "href": "/dataSources/providers/cas/sources/cas~fs~Formats",
+                "uri": "/dataSources/providers/cas/sources/cas~fs~Formats", "type": "application/vnd.sas.data.source.summary"},
+              {"method": "GET", "rel": "up", "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "parent", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Formats/tables",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Formats/tables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"}]},
+          {"id": "HPS", "name": "HPS", "type": "caslib", "providerId": "cas", "description": "HDAT\
+              \ files on /hps", "hasTables": true, "hasEngines": false, "attributes": {
+              "active": "false", "personal": "false", "subDirs": "true"}, "version": 1,
+            "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas~fs~HPS",
+                "uri": "/dataSources/providers/cas/sources/cas~fs~HPS", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "alternate", "href": "/dataSources/providers/cas/sources/cas~fs~HPS",
+                "uri": "/dataSources/providers/cas/sources/cas~fs~HPS", "type": "application/vnd.sas.data.source.summary"},
+              {"method": "GET", "rel": "up", "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "parent", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~HPS/tables",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~HPS/tables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"}]}],
+        "links": [{"method": "GET", "rel": "collection", "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+          {"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas-shared-default/children?start=0&limit=10",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default/children?start=0&limit=10",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+          {"method": "GET", "rel": "up", "href": "/dataSources/providers/cas/sources/cas",
+            "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"}]}
+    sourceChildrenCollectionExample:
+      summary: Retrieving Child Data Sources
+      description: |
+        Here is an example of using a children link to drill down the hierarchy when a data source has child data sources.
+        - In the case of CAS, this returns the respective CAS server's caslibs as application/vnd.sas.data.source resources.
+      value: {"name": "sources", "accept": "application/vnd.sas.data.source", "items": [
+          {"id": "MYCASLIB", "name": "MYCASLIB", "type": "caslib", "providerId": "cas",
+            "description": "castest's test files", "hasTables": true, "attributes": {
+              "active": false, "personal": false, "subDirs": true}, "version": 1,
+            "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas-shared-default~fs~MYCASLIB",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default~fs~MYCASLIB",
+                "type": "application/vnd.sas.data.source"}, {"method": "GET", "rel": "up",
+                "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "parent", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"}]},
+          {"id": "CASUSER(sasjoe)", "name": "CASUSER(sasjoe)", "type": "caslib", "providerId": "cas",
+            "description": "Personal File System Caslib", "hasTables": true, "attributes": {
+              "active": false, "personal": true, "subDirs": true}, "version": 1, "links": [
+              {"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas~fs~CASUSER(sasjoe)",
+                "uri": "/dataSources/providers/cas/sources/cas~fs~CASUSER(sasjoe)",
+                "type": "application/vnd.sas.data.source"}, {"method": "GET", "rel": "up",
+                "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "parent", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(sasjoe)/tables",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSER(sasjoe)/tables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"}]},
+          {"id": "CASUSERHDFS(sasjoe)", "name": "CASUSERHDFS(sasjoe)", "type": "caslib",
+            "providerId": "cas", "description": "Personal HDFS Caslib", "hasTables": true,
+            "attributes": {"active": true, "personal": true, "subDirs": true}, "version": 1,
+            "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas~fs~CASUSERHDFS(sasjoe)",
+                "uri": "/dataSources/providers/cas/sources/cas~fs~CASUSERHDFS(sasjoe)",
+                "type": "application/vnd.sas.data.source"}, {"method": "GET", "rel": "up",
+                "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "parent", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSERHDFS(sasjoe)/tables",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~CASUSERHDFS(sasjoe)/tables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"}]},
+          {"id": "EngTest", "name": "EngTest", "type": "caslib", "providerId": "cas",
+            "description": "engtest's HDAT files", "hasTables": true, "attributes": {
+              "active": false, "personal": false, "subDirs": true}, "version": 1,
+            "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas~fs~EngTest",
+                "uri": "/dataSources/providers/cas/sources/cas~fs~EngTest", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "up", "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "parent", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~EngTest/tables",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~EngTest/tables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"}]},
+          {"id": "Formats", "name": "Formats", "type": "caslib", "providerId": "cas",
+            "description": "Format Caslib", "hasTables": true, "attributes": {"active": false,
+              "personal": false, "subDirs": true}, "version": 1, "links": [{"method": "GET",
+                "rel": "self", "href": "/dataSources/providers/cas/sources/cas~fs~Formats",
+                "uri": "/dataSources/providers/cas/sources/cas~fs~Formats", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "up", "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "parent", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Formats/tables",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Formats/tables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"}]},
+          {"id": "HPS", "name": "HPS", "type": "caslib", "providerId": "cas", "description": "HDAT\
+              \ files on /hps", "hasTables": true, "attributes": {"active": false,
+              "personal": false, "subDirs": true}, "version": 1, "links": [{"method": "GET",
+                "rel": "self", "href": "/dataSources/providers/cas/sources/cas~fs~HPS",
+                "uri": "/dataSources/providers/cas/sources/cas~fs~HPS", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "up", "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "parent", "href": "/dataSources/providers/cas/sources/cas",
+                "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+              {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~HPS/tables",
+                "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~HPS/tables",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"}]}],
+        "links": [{"method": "GET", "rel": "collection", "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+          {"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas-shared-default/children?start=0&limit=10",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default/children?start=0&limit=10",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+          {"method": "GET", "rel": "up", "href": "/dataSources/providers/cas/sources/cas",
+            "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"}],
+        "version": 2}
+    retrieveSourceDefinitionsLinkExample:
+      summary: Retrieving Source Definitions
+      description: |
+        Here is an example of following the `sourceDefinitions` link from the provider to get a collection of data source definitions.
+        - In the example, the sourceDefinitions link is from the application/vnd.sas.data.provider.
+        Note: Data source definitions were added in version 2 of this API to allow users to store metadata about a data source that might not be discoverable, but would still need to be referenced.
+        For example, you might need to store metadata for connecting to a libref from your SAS code to use the Compute provider.
+        In the examples below, we use the Compute provider.
+      value: {"method": "GET", "rel": "sourceDefinitions", "href": "/dataSources/providers/Compute/sourceDefinitions",
+        "uri": "/dataSources/providers/Compute/sourceDefinitions", "type": "application/vnd.sas.collection",
+        "itemType": "application/vnd.sas.data.source.definition"}
+    createSourceDefinitionLink:
+      summary: Creating a Data Source Definition
+      description: |
+        Here is an example of using the `createSourceDefinition` link to create a source definition.
+        - In the example, the sourceDefinitions link is from the application/vnd.sas.data.provider.
+      value: {"method": "POST", "rel": "createSourceDefinition", "href": "/dataSources/providers/Compute/sourceDefinitions",
+        "uri": "/dataSources/providers/Compute/sourceDefinitions", "type": "application/vnd.sas.data.source.definition"}
+    sessionHandlingExample:
+      summary: Session handling
+      description: >
+        Certain Data Sources service providers support session-based data retrieval.
+        To determine whether this is supported by any particular
+        provider, query `/dataTables/providers/{providerId}` to retrieve the [`application/vnd.sas.data.provider`](https://developer.sas.com/apis/rest/DataManagement/#application-vnd.sas.data.provider)
+        media type. Then check the `usesSessions` member.
+      value: {}
+    retrieveTablesLinkExample:
+      summary: Retrieving Tables
+      description: |
+        Here is an example of using a GET request on the [`application/vnd.sas.data.source`](https://developer.sas.com/apis/rest/DataManagement/#application-vnd.sas.data.source) to return a resource.
+        - From a caslib data source, the `tables` link is provided to give the user the ability to list all of the available tables for that caslib.
+        - You can use the link to retrieve a collection of [`application/vnd.sas.data.table`](https://developer.sas.com/apis/rest/DataManagement/#application-vnd.sas.data.table) resources from the [Data Tables API](https://developer.sas.com/apis/rest/DataManagement/#data-tables).
+      value: {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables",
+        "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables",
+        "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"}
+    queryParamsExample:
+      summary: Query Parameters
+      description: |
+        If sessions are supported by the provider, the following query parameters are supported for calls to `/dataSources/providers/{providerId}/sources/{sourceId}`
+        and `/dataSources/providers/{providerId}/sources/{sourceId}/children`
+
+        | Name               | Type      | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+        |--------------------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+        | `?sessionId`       | `string`  | The unique identifier of the session used to access the data service provider's backing service. When this is not specified, the data service provider creates a temporary session and then destroys it after the request is complete. If this is specified, the sessionId query parameter is added to the respective URIs for all returned links, except the `self` link.  Also, they contain an additional `session` link to the [application/vnd.sas.data.session](https://developer.sas.com/apis/rest/DataManagement/#application-vnd.sas.data.session) resource that corresponds to the provided sessionId. |
+        | `?preserveSession` | `Boolean` | This has effect only when the `?sessionId` query parameter is not specified. If this is set to true, no `?sessionId` is provided and the session created by the data service provider is not destroyed. The sessionId query parameter is added to the respective URIs for all returned links, except the `self` link. Also, they contain an additional `session` link to the application/vnd.sas.data.session resource that corresponds to the provided `?sessionId`. If set to false or not specified, the session is destroyed after the request is complete. Defaults to false.                                                                          |
+      value: {}
+    linkRelationsExample:
+      summary: Link Relations
+      description: >
+        **Session Link**
+
+        The `session` link is added anytime the `sessionId` is provided by the user
+        or the `preserveSession` query parameter is set to true.
+        This `session` link uses the [application/vnd.sas.data.session](https://developer.sas.com/apis/rest/DataManagement/#application-vnd.sas.data.session)
+        media type.
+        The `href` is `/dataSources/providers/{providerId}/sources/{sourceId}/sessions/{sessionId}`.
+        This is provided so that the client can obtain further links to destroy the
+        session if they want to do so.
+
+        **sessionScoped Link**
+
+        The `sessionScoped` link is added anytime the `sessionId` is provided by the
+        user or the `preserveSession` query parameter is set to true.
+        This link gives the user access to a session-scoped version of the `self`
+        link. Users must understand that they are working with a session that is temporary
+        by its nature.
+        The `self`link is the resource identifier that the user persists. The `sessionScoped`
+        link can be used for immediate access and work being done with the resource
+        by the client.
+      value: {}
+    engineCollection:
+      summary: The engines collection
+      description: GET /providers/{providerId}/sources/{sourceId}/engines
+      value: {"name": "engines", "accept": "application/vnd.sas.data.engine", "start": 0,
+        "limit": 10, "count": 1, "version": 2, "items": [{"name": "sasionza", "label": "NETEZZA",
+            "description": "SAS/ACCESS to Netezza", "providerId": "compute", "licensed": true,
+            "version": 1, "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines/sasionza",
+                "uri": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines/sasionza",
+                "type": "application/vnd.sas.data.engine"}, {"method": "GET", "rel": "up",
+                "href": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines",
+                "uri": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.engine"},
+              {"method": "GET", "rel": "provider", "href": "/dataSources/providers/Compute",
+                "uri": "/dataSources/providers/Compute", "type": "application/vnd.sas.data.provider"},
+              {"method": "GET", "rel": "dataSource", "href": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af",
+                "uri": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af",
+                "type": "application/vnd.sas.data.source"}, {"method": "GET", "rel": "definition",
+                "href": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines/sasionza/definition",
+                "uri": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines/sasionza/definition",
+                "type": "application/schema"}]}], "links": [{"method": "GET", "rel": "self",
+            "href": "/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines?start=0&limit=10",
+            "uri": "/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines?start=0&limit=10",
+            "type": "application/vnd.sas.collection"}, {"method": "GET", "rel": "collection",
+            "href": "/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines",
+            "uri": "/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines",
+            "type": "application/vnd.sas.collection"}, {"method": "GET", "rel": "up",
+            "href": "/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af",
+            "uri": "/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af",
+            "type": "application/vnd.sas.data.source"}]}
+    session:
+      summary: The provider session
+      description: GET /dataSources/providers/cas/sources/casServer/sessions/{sessionId}
+      value: {"version": 1, "id": "d75b412f-6004-4a03-9e6a-f447fdfc1eff", "providerId": "cas",
+        "owner": "sasjoe", "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/casServer/sessions/d75b412f-6004-4a03-9e6a-f447fdfc1eff",
+            "uri": "/dataSources/providers/cas/sources/casServer/sessions/d75b412f-6004-4a03-9e6a-f447fdfc1eff",
+            "type": "application/vnd.sas.data.session"}, {"method": "DELETE", "rel": "delete",
+            "href": "/dataSources/providers/cas/sources/casServer/sessions/d75b412f-6004-4a03-9e6a-f447fdfc1eff",
+            "uri": "/dataSources/providers/cas/sources/casServer/sessions/d75b412f-6004-4a03-9e6a-f447fdfc1eff"},
+          {"method": "GET", "rel": "provider", "href": "/dataSources/providers/cas",
+            "uri": "/dataSources/providers/cas", "type": "application/vnd.sas.data.provider"}]}
+    engine:
+      summary: The engine
+      description: GET /dataSources/providers/Compute/sources/{sourceId}/engines/{engineName}
+      value: {"name": "sasionza", "nickname": "NETEZZA", "legalName": "SAS/ACCESS\
+          \ to Netezza", "providerId": "compute", "licensed": true, "hasDefinition": true,
+        "version": 1, "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines/sasionza",
+            "uri": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines/sasionza",
+            "type": "application/vnd.sas.data.engine"}, {"method": "GET", "rel": "up",
+            "href": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines",
+            "uri": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.engine"},
+          {"method": "GET", "rel": "provider", "href": "/dataSources/providers/Compute",
+            "uri": "/dataSources/providers/Compute", "type": "application/vnd.sas.data.provider"},
+          {"method": "GET", "rel": "dataSource", "href": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af",
+            "uri": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af",
+            "type": "application/vnd.sas.data.source"}, {"method": "GET", "rel": "definition",
+            "href": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines/sasionza/definition",
+            "uri": "/dataSources/providers/Compute/sources/940c9a86-05be-4099-b694-e2bca22d92af/engines/sasionza/definition",
+            "type": "application/schema"}]}
+    noSessionIdExample:
+      summary: Client Does Not Specify a sessionId
+      description: >
+        Here is an example of the data provider service creating a temporary session
+        to request the data from the backing service and then destroy that session
+        upon completion of the request.
+        This occurs when a user does not provide a session identifier to a data source
+        that uses sessions.
+
+        ```
+        # HTTP GET request to get a table that does not specify a sessionId
+        GET /dataSources/providers/cas/sources/casServer~fs~MYCASLIB
+        #Response application/vnd.sas.data.source+json
+        ```
+        #Response application/vnd.sas.data.source+json
+      value: {"id": "MYCASLIB", "name": "MYCASLIB", "type": "caslib", "providerId": "cas",
+        "description": "castest's test files", "hasTables": true, "attributes": {
+          "active": false, "personal": false, "subDirs": true}, "version": 1, "links": [
+          {"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas-shared-default~fs~MYCASLIB",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default~fs~MYCASLIB",
+            "type": "application/vnd.sas.data.source"}, {"method": "GET", "rel": "up",
+            "href": "/dataSources/providers/cas/sources/cas-shared-default/children",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default/children",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+          {"method": "GET", "rel": "parent", "href": "/dataSources/providers/cas/sources/cas",
+            "uri": "/dataSources/providers/cas/sources/cas", "type": "application/vnd.sas.data.source"},
+          {"method": "GET", "rel": "tables", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"}]}
+    preserveSessionExample:
+      summary: Client Does Not Specify a sessionId and Specifies preserveSession=true
+      description: >-
+        Here is an example of the sessionId being placed on the returned links when
+        the user sets the `preserveSession` query parameter to true, so the temporary
+        session is preserved (not destroyed).
+
+        * In the example, 756b212c-56b1-8848-ad52-f86fcb06301f is the session identifier
+        for a temporary session that is preserved.
+        * The service returns a `session` link that points to the appropriate session
+        in the path `/dataSources/providers/{providerId}/sources/{sourceId}/sessions/{sessionId}`,
+        where `sourceId` corresponds to the level of the data hierarchy that the session
+        is associated with (such as the first-level CAS server for CAS).
+        * The `sessionId` is appended as a query parameter to all links except the
+        `self` link, and the `sessionScoped` link is appended to the respective resource.
+
+        Note: The data provider service creates a temporary session to request the
+        data from the backing service and then destroys that session upon completion
+        of the request. This occurs when a user does not provide a session identifier
+        to a data source that uses sessions.
+
+        ```
+        # HTTP GET request to get a table with preserveSession set to true
+        GET /dataSources/providers/cas/sources/casServer~fs~MYCASLIB?preserveSession=true
+        #Response application/vnd.sas.data.source+json
+        ```
+      value: {"id": "MYCASLIB", "name": "MYCASLIB", "type": "caslib", "providerId": "cas",
+        "description": "castest's test files", "hasTables": true, "attributes": {
+          "active": false, "personal": false, "subDirs": true}, "version": 1, "links": [
+          {"method": "GET", "rel": "self", "href": "/dataSources/providers/cas/sources/cas-shared-default~fs~MYCASLIB",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default~fs~MYCASLIB",
+            "type": "application/vnd.sas.data.source"}, {"method": "GET", "rel": "sessionScoped",
+            "href": "/dataSources/providers/cas/sources/cas-shared-default~fs~MYCASLIB?sessionId=756b212c-56b1-8848-ad52-f86fcb06301f",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default~fs~MYCASLIB?sessionId=756b212c-56b1-8848-ad52-f86fcb06301f",
+            "type": "application/vnd.sas.data.source"}, {"method": "GET", "rel": "session",
+            "href": "/dataSources/providers/cas/sources/cas-shared-default/sessions/756b212c-56b1-8848-ad52-f86fcb06301f",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default/sessions/756b212c-56b1-8848-ad52-f86fcb06301f",
+            "type": "application/vnd.sas.data.session"}, {"method": "GET", "rel": "up",
+            "href": "/dataSources/providers/cas/sources/cas-shared-default/children?sessionId=756b212c-56b1-8848-ad52-f86fcb06301f",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default/children?sessionId=756b212c-56b1-8848-ad52-f86fcb06301f",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.source"},
+          {"method": "GET", "rel": "parent", "href": "/dataSources/providers/cas/sources/cas?sessionId=756b212c-56b1-8848-ad52-f86fcb06301f",
+            "uri": "/dataSources/providers/cas/sources/cas?sessionId=756b212c-56b1-8848-ad52-f86fcb06301f",
+            "type": "application/vnd.sas.data.source"}, {"method": "GET", "rel": "tables",
+            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables?sessionId=756b212c-56b1-8848-ad52-f86fcb06301f",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~MYCASLIB/tables?sessionId=756b212c-56b1-8848-ad52-f86fcb06301f",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"}]}
+    engineDefinition:
+      summary: Engine Definition
+      description: The engine definition as a json schema.
+      value: {$schema: http://json-schema.org/draft-04/schema#, title: SASE7, type: object,
+        additionalProperties: false, required: [engineName], properties: {engineName: {
+            label: V9, type: string, default: SASE7, enum: [SASE7]}}}
+    transferObject:
+      summary: Transfer Object
+      description: The transfer object example.
+      value: {"id": "ea1a9f8a-5013-4c89-8298-78c95659782e", "content": "eyjjcmvhdglvblrpbwvtdgftcci6ijiwmjmtmdetmjzumtm6mja6mt",
+        "summary": {"creationTimeStamp": "0001-01-01T00:00:00Z", "modifiedTimeStamp": "0001-01-01T00:00:00Z",
+          "createdBy": "sasjoe", "modifiedBy": "sasjoe", "id": "ea1a9f8a-5013-4c89-8298-78c95659782e",
+          "name": "ORAFW", "providerId": "Compute", "description": "description for\
+            \ source definition", "dataSourceId": "SAS Studio compute context", "defaultLibref": "ORAFW",
+          "attributes": {"engineName": "sase7", "options": {"ENABLEDIRECTIO": "NO",
+              "NOSETPERM": "NO", "USEDIRECTIO": "NO"}, "physicalName": "/dmtesting/custom_steps/Loqate/sample_data"},
+          "version": 1, "links": [{"method": "GET", "rel": "self", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+              "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+              "type": "application/vnd.sas.data.source.definition"}, {"method": "PUT",
+              "rel": "update", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+              "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+              "type": "application/vnd.sas.data.source.definition"}, {"method": "DELETE",
+              "rel": "delete", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+              "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e"},
+            {"method": "PUT", "rel": "export", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+              "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+              "type": "application/vnd.sas.transfer.object"}, {"method": "PUT", "rel": "import",
+              "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+              "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+              "type": "application/vnd.sas.transfer.object", "responseType": "application/vnd.sas.summary"},
+            {"method": "GET", "rel": "up", "href": "/dataSources/providers/Compute/sourceDefinitions",
+              "uri": "/dataSources/providers/Compute/sourceDefinitions", "type": "application/vnd.sas.collection",
+              "itemType": "application/vnd.sas.data.source.definition"}, {"method": "GET",
+              "rel": "provider", "href": "/dataSources/providers/Compute", "uri": "/dataSources/providers/Compute",
+              "type": "application/vnd.sas.data.provider"}]}, "version": 2}
+    transferObjectSummary:
+      summary: The transfer object summary
+      description: The transfer object example.
+      value: {"creationTimeStamp": "0001-01-01T00:00:00Z", "modifiedTimeStamp": "0001-01-01T00:00:00Z",
+        "createdBy": "sasjoe", "modifiedBy": "anonymousUse", "id": "ea1a9f8a-5013-4c89-8298-78c95659782e",
+        "name": "sourceDefName1", "version": 2, "links": [{"method": "GET", "rel": "self",
+            "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.data.source.definition"}, {"method": "PUT",
+            "rel": "update", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "type": "application/vnd.sas.data.source.definition"}, {"method": "DELETE",
+            "rel": "delete", "href": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions/ea1a9f8a-5013-4c89-8298-78c95659782e"},
+          {"method": "GET", "rel": "up", "href": "/dataSources/providers/Compute/sourceDefinitions",
+            "uri": "/dataSources/providers/Compute/sourceDefinitions", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.data.source.definition"}, {"method": "GET",
+            "rel": "provider", "href": "/dataSources/providers/Compute", "uri": "/dataSources/providers/Compute",
+            "type": "application/vnd.sas.data.provider"}]}
+    error400:
+      description: This is an example of an error that could be returned for bad requests
+      summary: Bad Request
+      value: {"errorCode": 12345, "httpStatusCode": 400, "details": ["path": "resource\
+              \ URI", "correlator": "18afd83a-58d7-4b9b-9df8-de99dc821dc5"], "message": "error\
+          \ message explaining what when wrong", "version": 2}
+    error404:
+      description: This is an example of an error that could be returned for resource
+        not found
+      summary: Not Found
+      value: {"httpStatusCode": 404, "details": ["path": "resource URI", "correlator": "18afd83a-58d7-4b9b-9df8-de99dc821dc5"],
+        "message": "The resource not found", "version": 2}
+    error406:
+      description: This is an example of an error that could be returned for unsupported
+        requested media type
+      summary: Not Acceptable
+      value: {"httpStatusCode": 406, "message": "Not Acceptable", "details": ["application/vnd.sas.data.source.definition+json",
+          "application/json", "application/vnd.sas.summary+json", "path": "/dataSources/providers/Compute/sourceDefinitions/7841c9a3-2c80-4a99-962f-9c5273573e3f",
+          "correlator": "19f0716a-973f-4001-a234-8719df94741c"], "version": 2}
+    error412:
+      description: This is an example of an error that could be returned for invalid
+        Etag
+      summary: Precondition Failed
+      value: {"httpStatusCode": 412, "details": ["path": "/dataSources/providers/Compute/sourceDefinitions/7841c9a3-2c80-4a99-962f-9c5273573e3f",
+          "correlator": "44d09ec8-3236-499a-9d33-dd794a9e9ca2"], "message": "The If-Match\
+          \ header value does not match current ETag.", "version": 2}
+    error428:
+      description: This is an example of an error that could be returned for missing
+        If-Match header
+      summary: Precondition Required
+      value: {"httpStatusCode": 412, "details": ["path": "/dataSources/providers/Compute/sourceDefinitions/7841c9a3-2c80-4a99-962f-9c5273573e3f",
+          "correlator": "44d09ec8-3236-499a-9d33-dd794a9e9ca2"], "message": The If-Match
+          header not provided for the update., "version": 2}
+  schemas:
+    provider:
+      title: Provider
+      type: object
+      description: Information about a Provider.
+      properties:
+        id:
+          type: string
+          description: |
+            The unique provider identifier.
+        version:
+          type: integer
+          description: The provider schema version.
+        apiVersion:
+          type: integer
+          description: The provider API version.
+        usesSessions:
+          type: boolean
+          description: If this value is true, this provider supports sessions. If
+            false, sessions are not supported.
+        sourceDefinitionsSupport:
+          type: string
+          description: >
+            Indicates to the dataSources service how it should handle source
+            definition persistence for this provider. The possible values are
+            none (no support) and providedByDataSources (data sources service
+            stores source definitions for the provider).
+          x-sas-since: "2"
+        attributes:
+          type: object
+          description: Additional provider-specific attributes.
+          additionalProperties: {}
+        links:
+          type: array
+          description: Links that apply to this resource.
+          items:
+            $ref: "#/components/schemas/link"
+    providerSummary:
+      title: Provider Summary
+      type: object
+      description: Summary information about a provider.
+      properties:
+        id:
+          type: string
+          description: |
+            The unique provider identifier.
+        version:
+          type: integer
+          description: The provider schema version.
+        links:
+          type: array
+          description: Links that apply to this resource.
+          items:
+            $ref: "#/components/schemas/link"
+    providerSummaryCollection:
+      title: Provider Summary Collection
+      type: object
+      description: A pageable collection of provider resources.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/providerSummary"
+            description: The array that contains provider summary resources.
+    source:
+      title: Data Source
+      type: object
+      description: Information about a data source.
+      properties:
+        id:
+          type: string
+          description: |
+            The unique data source identifier.
+        providerId:
+          type: string
+          description: |
+            The source provider identifier.
+        name:
+          type: string
+          description: |
+            The non-unique name of the data source.
+        description:
+          type: string
+          description: |
+            A brief description of the source.
+        hasTables:
+          type: boolean
+          description: >
+            If this value is true, this source is a table container.
+            If this value is false, this source is not a table container.
+        hasEngines:
+          type: boolean
+          description: >
+            If this value is true, this source, this source has engines available
+            for it.
+            If this value is false, this source does not have engines available for
+            it.
+        createdBy:
+          type: string
+          description: |
+            The user who created this source.
+        modifiedBy:
+          type: string
+          description: |
+            The last user to modify this source.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for the source creation.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for the last source modification.
+        attributes:
+          type: object
+          description: |
+            The attributes for this source.
+          additionalProperties: {}
+        version:
+          type: integer
+          description: The source schema version.
+        links:
+          type: array
+          description: The paging links that apply to this object.
+          items:
+            $ref: "#/components/schemas/link"
+    sourceCollection:
+      title: Data Source Collection
+      type: object
+      description: A pageable collection of source objects.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/source"
+            description: The array that contains data source resources.
+    sourceChildrenCollection:
+      title: Data Source Children Collection
+      type: object
+      description: A pageable collection of source objects.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/source"
+            description: The array that contains data source resources.
+    engineCollection:
+      title: Engine Collection
+      type: object
+      description: A pageable collection of engine objects.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/engine"
+            description: The array that contains engine resources.
+    sourceDefinition:
+      title: Source Definition
+      description: Information about a data source definition.
+      type: object
+      required:
+      - id
+      - providerId
+      - name
+      properties:
+        id:
+          type: string
+          description: The unique data source definition identifier.
+          maxLength: 36
+        providerId:
+          type: string
+          description: The provider identifier.
+          minLength: 1
+          maxLength: 36
+        name:
+          type: string
+          description: The non-unique name of the data source.
+          minLength: 1
+          maxLength: 250
+        dataSourceId:
+          type: string
+          description: A non-unique identifier of the associated data source.
+          minLength: 0
+          maxLength: 2048
+        description:
+          type: string
+          description: A brief description of the data source definition.
+          minLength: 0
+          maxLength: 1000
+        createdBy:
+          type: string
+          description: The user who created this source definition.
+        modifiedBy:
+          type: string
+          description: The last user to modify this data source definition.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for the source definition creation.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for the last source definition modification.
+        defaultLibref:
+          type: string
+          description: A libref for use when LIBNAME statement is auto generated.
+          minLength: 1
+          maxLength: 8
+        attributes:
+          type: object
+          description: >
+            The map of attribute names to values for this source definition.
+            The contents of this field usually include data source engine properties
+            and options
+            just like the ones used in defining a library using a LIBNAME statement.
+            Refer to compute service engines API [`engines`](https://developer.sas.com/rest-apis/compute/#engines)
+            for engine and options information.
+            The value of each attribute may be of types: number, string, boolean,
+            or
+            object like a map. If an attribute does not have a value, the value should
+            be set to null.
+          additionalProperties: {}
+          minLength: 0
+          maxLength: 65535
+        version:
+          type: integer
+          description: The source definition schema version.
+        links:
+          type: array
+          description: Paging links that apply to this object.
+          items:
+            $ref: "#/components/schemas/link"
+    createSourceDefinition:
+      title: Create Source Definition Request
+      description: Information about a data source definition.
+      type: object
+      required:
+      - providerId
+      - name
+      properties:
+        providerId:
+          type: string
+          description: The provider identifier.
+          minLength: 1
+          maxLength: 36
+        name:
+          type: string
+          description: The non-unique name for the data source definition.
+          minLength: 1
+          maxLength: 250
+        description:
+          type: string
+          description: A brief description of the data source definition.
+          minLength: 0
+          maxLength: 1000
+        dataSourceId:
+          type: string
+          description: The non-unique identifier for the associated data source.
+          minLength: 0
+          maxLength: 2048
+        defaultLibref:
+          type: string
+          description: A libref for use when LIBNAME statement is auto generated.
+          minLength: 1
+          maxLength: 8
+        attributes:
+          type: object
+          description: >
+            The map of attribute names to values for this source definition.
+            The contents of this field usually include data source engine properties
+            and options
+            just like the ones used in defining a library using a LIBNAME statement.
+            Refer to compute service engines API [`engines`](https://developer.sas.com/rest-apis/compute/#engines)
+            for engine and options information.
+            The value of each attribute may be of types: number, string, boolean,
+            or
+            object like a map. If an attribute does not have a value, the value should
+            be set to null.
+          additionalProperties: {}
+          minLength: 0
+          maxLength: 65535
+        version:
+          type: integer
+          description: The source definition schema version.
+    updateSourceDefinition:
+      title: Update Source Definition Request
+      description: Information about a data source definition.
+      type: object
+      required:
+      - id
+      - providerId
+      - name
+      properties:
+        id:
+          type: string
+          description: The unique data source definition identifier.
+          maxLength: 36
+        providerId:
+          type: string
+          description: The provider identifier.
+          minLength: 1
+          maxLength: 36
+        name:
+          type: string
+          description: The non-unique name for the data source definition.
+          minLength: 1
+          maxLength: 250
+        description:
+          type: string
+          description: A brief description for the data source definition.
+          minLength: 0
+          maxLength: 1000
+        dataSourceId:
+          type: string
+          description: The non-unique identifier for the associated data source.
+          minLength: 0
+          maxLength: 2048
+        defaultLibref:
+          type: string
+          description: A libref for use when LIBNAME statement is auto generated.
+          minLength: 1
+          maxLength: 8
+        attributes:
+          type: object
+          description: >
+            The map of attribute names to values for this source definition.
+            The contents of this field usually include data source engine properties
+            and options
+            just like the ones used in defining a library using a LIBNAME statement.
+            Refer to compute service engines API [`engines`](https://developer.sas.com/rest-apis/compute/#engines)
+            for engine and options information.
+            The value of each attribute may be of types: number, string, boolean,
+            or
+            object like a map. If an attribute does not have a value, the value should
+            be set to null.
+          additionalProperties: {}
+          minLength: 0
+          maxLength: 65535
+        version:
+          type: integer
+          description: The source definition schema version.
+    sourceDefinitionCollection:
+      title: Data Source Definition Collection
+      type: object
+      description: A pageable collection of source definition resources.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/sourceDefinition"
+            description: The array that contains source definition resources.
+    session:
+      title: Session
+      type: object
+      description: Information about a session.
+      properties:
+        version:
+          type: integer
+          description: The media type's schema version number.
+        id:
+          type: string
+          description: The unique session identifier.
+        providerId:
+          type: string
+          description: The provider identifier for this session.
+        owner:
+          type: string
+          description: The user ID for the owner of this session.
+        attributes:
+          type: object
+          description: |
+            The attributes for this session.
+          additionalProperties:
+            type: object
+        links:
+          type: array
+          description: The links that apply to the resource or object.
+          items:
+            $ref: "#/components/schemas/link"
+    engine:
+      title: Engine
+      type: object
+      description: Information about an engine.
+      properties:
+        version:
+          type: integer
+          description: The media type's schema version number.
+        name:
+          type: string
+          description: The unique name of this engine within its data source.
+        nickname:
+          type: string
+          description: The user visible nickname of the engine.
+        legalName:
+          type: string
+          description: The engine's short legal name.
+        providerId:
+          type: string
+          description: The unique identifier of this engine's provider.
+        dataSourceId:
+          type: string
+          description: The unique identifier of this engine's parent data source.
+        licensed:
+          type: boolean
+          description: If true, the engine is licensed. If false, the engine is not
+            licensed.
+        hasDefinition:
+          type: boolean
+          description: If true, the engine has an associated definition. If false,
+            the definition link is omitted.
+        links:
+          type: array
+          description: The links that apply to this object.
+          items:
+            $ref: "#/components/schemas/link"
+    engineDefinition:
+      title: Engine Definition
+      type: object
+      description: The engine definition as a json schema.
+      example:
+        $schema: http://json-schema.org/draft-04/schema#
+        title: SASE7
+        type: object
+        additionalProperties: false
+        required:
+        - engineName
+        properties:
+          engineName:
+            label: V9
+            type: string
+            default: SASE7
+            enum:
+            - SASE7
+    transferObject:
+      title: Transfer Object
+      type: object
+      description: Information about a transfer object.
+      properties:
+        version:
+          type: integer
+          description: The version number of the transfer object.
+        id:
+          type: string
+          description: The unique transfer object identifier.
+        summary:
+          type: object
+          description: The details of the source definition.
+        content:
+          type: string
+          description: The encoded data of the transfer object.
+        connectors:
+          type: array
+          description: Items that are associated with the transfer object.
+          items:
+            type: object
+    transferObjectSummary:
+      title: Transfer Resource Summary Object
+      type: object
+      description: Information about a data source definition transfer.
+      properties:
+        id:
+          type: string
+          description: The unique data source definition identifier.
+        name:
+          type: string
+          description: The non-unique name of the data source.
+        createdBy:
+          type: string
+          description: The user who created this source definition.
+        modifiedBy:
+          type: string
+          description: The last user to modify this data source definition.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for the source definition creation.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for the last source definition modification.
+        links:
+          type: array
+          description: Paging links that apply to this object.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The source definition schema version.
+    api:
+      description: A list of links to top level resources available from the root
+        of the API.
+      properties:
+        links:
+          description: The API's top-level links.
+          items:
+            $ref: "#/components/schemas/link"
+          type: array
+        version:
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+          type: integer
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+  parameters:
+    IfMatchHeader:
+      name: If-Match
+      in: header
+      required: true
+      description: The ETag that was returned from a GET, POST, PUT, PATCH, or HEAD
+        of this object.  If the ETag does not match, the update will fail.
+      schema:
+        type: string
+    SourceDefinitionIDPathParam:
+      name: sourceDefinitionId
+      in: path
+      description: The ID for the source definition.
+      required: true
+      schema:
+        type: string
+    DataSourceAcceptItemHeader:
+      name: Accept-Item
+      in: header
+      description: |
+        The desired data source representation.
+        If no Accept-Item header is present, the full representation of data sources are returned.
+      schema:
+        type: string
+        enum: [application/vnd.sas.data.source+json, application/vnd.sas.data.source.summary+json]
+        default: "application/vnd.sas.data.source+json"
+    LimitQueryParam:
+      name: limit
+      in: query
+      description: Maximum number of objects to return.  Defaults to 10.
+      schema:
+        type: integer
+    SourceIDPathParam:
+      name: sourceId
+      in: path
+      description: The ID for the source.
+      required: true
+      schema:
+        type: string
+    PreserveSessionQueryParam:
+      name: preserveSession
+      in: query
+      description: This only has effect when the sessionId query parameter is not
+        specified. If this is set to true, no sessionId is provided and the session
+        created by the data service provider is not destroyed. All returned links,
+        except the "self" link, have the sessionId query parameter added to their
+        respective URIs. Also, they contain an additional session link to the application/vnd.sas.data.session
+        resource that corresponds to the provided sessionId. If set to false or not
+        specified, the session is destroyed after the request is complete. Defaults
+        to false.
+      schema:
+        type: boolean
+    ProviderIDPathParam:
+      name: providerId
+      in: path
+      description: The ID for the provider.
+      required: true
+      schema:
+        type: string
+    SessionIDPathParam:
+      name: sessionId
+      in: path
+      description: The unique identifier of the session used to access the data service
+        provider's backing service.
+      required: true
+      schema:
+        type: string
+    SessionIDQueryParam:
+      name: sessionId
+      in: query
+      description: The unique identifier of the session used to access the data service
+        provider's backing service. When this is not specified, the data service provider
+        creates a temporary session and then destroys it after the request is complete.
+        If this is specified, all returned links, except the "self" link, have the
+        sessionId query parameter added to their respective URIs. Also, they contain
+        an additional session link to the application/vnd.sas.data.session resource
+        that corresponds to the provided sessionId.
+      schema:
+        type: string
+    EngineNamePathParam:
+      name: engineName
+      in: path
+      description: The unique name of this engine within its data source.
+      required: true
+      schema:
+        type: string
+    StartQueryParam:
+      name: start
+      in: query
+      description: 0-based Offset of first object to return.  Defaults to 0.
+      schema:
+        type: integer

@@ -1,0 +1,1455 @@
+---
+openapi: 3.0.3
+info:
+  description: Forecasting Filters API
+  version: "2"
+  title: Forecasting Filters
+  contact:
+    name: SAS Developers
+    url: "https://developer.sas.com"
+    email: devex@sas.com
+  license:
+    name: SAS Institute Inc.
+    url: "https://support.sas.com/techsup/license/index.html"
+tags:
+- name: Root
+  description: The operations for the root resource.
+- name: ForecastingFilter
+  description: The operations for a filter resource.
+- name: ForecastingFilterResults
+  description: The operations for filter results.
+- name: ForecastingFilterConsumers
+  description: The operations for filter consumers.
+paths:
+  /:
+    get:
+      tags:
+      - Root
+      summary: Get the links for the API
+      description: The API object contains a set of links for the supported endpoints.
+      operationId: root
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/rootResp"
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/rootResp"
+          headers: {}
+  /filters:
+    get:
+      tags:
+      - ForecastingFilter
+      summary: Get a collection of filters
+      description: Returns a collection of forecasting filters based on the specified
+        pagination and sorting options. The items in the collection use the `application/vnd.sas.forecasting.filters.spec`
+        media type.
+      operationId: getFilters
+      parameters:
+      - name: consumerId
+        in: query
+        description: Retrieve the filter specifications associated with the consumer
+          Id
+        required: false
+        schema:
+          type: string
+      - name: start
+        in: query
+        description: Offset of first filter specification to retrieve
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: Maximum number of filter specifications to retrieve
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 30
+      - name: filter
+        in: query
+        description: "Filter criteria for returned types. See [Filtering in REST APIs](https://developer.sas.com/rest-apis/forecastingFilters-v2/docs/getting-started/usage-notes#filtering)."
+        schema:
+          type: string
+          format: filter-criteria
+      - name: sortBy
+        in: query
+        description: "The criteria for sorting the score definitions. See [Sorting\
+          \ in REST APIs](https://developer.sas.com/rest-apis/forecastingFilters-v2/docs/getting-started/usage-notes#sorting)."
+        required: false
+        schema:
+          type: string
+          default: "modifiedTimeStamp:descending"
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum:
+                - application/vnd.sas.collection+json
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/filterCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/filterGetAll"
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/filterCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/filterGetAll"
+    post:
+      tags:
+      - ForecastingFilter
+      summary: Create a new filter or return an existing one if it matches the request
+      description: It creates a forecasting filter using the filter specification
+        or returns an existing one if one already exists.  A successful response body
+        will contain the fully-populated resource.
+      operationId: createFilter
+      requestBody:
+        content:
+          application/vnd.sas.forecasting.filters.spec+json:
+            schema:
+              $ref: "#/components/schemas/filterSpecification"
+            examples:
+              json:
+                $ref: "#/components/examples/createFilterRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/filterSpecification"
+            examples:
+              json:
+                $ref: "#/components/examples/createFilterRequest"
+        description: Filter specification
+      responses:
+        "200":
+          description: The response body contains an already existing filter.
+          headers:
+            Location:
+              description: The URL of the filter that got created.
+              schema:
+                type: string
+                format: uri
+            ETag:
+              description: E-Tag for the filter.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.forecasting.filters.spec+json:
+              schema:
+                $ref: "#/components/schemas/filterSpecification"
+              examples:
+                default:
+                  $ref: "#/components/examples/filterSpec"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/filterSpecification"
+              examples:
+                default:
+                  $ref: "#/components/examples/filterSpec"
+        "201":
+          description: Created
+          headers:
+            Location:
+              description: The URL of the filter that got created.
+              schema:
+                type: string
+                format: uri
+            ETag:
+              description: E-Tag for the filter.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.forecasting.filters.spec+json:
+              schema:
+                $ref: "#/components/schemas/filterSpecification"
+              examples:
+                json:
+                  $ref: "#/components/examples/filterPost"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/filterSpecification"
+              examples:
+                json:
+                  $ref: "#/components/examples/filterPost"
+        "400":
+          description: The information sent in the request body contains an error
+            or is incomplete.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+  /filters/results/timeseries:
+    post:
+      tags:
+      - ForecastingFilterResults
+      summary: Get filter results for a specified Forecasting Filter Result specification
+      description: 'Get aggregated time series for a forecasting filter that corresponds
+        to the specified result specification. Note: No "Location" header is returned
+        since the result is a transient resource that is not persisted.'
+      operationId: createFilterResults
+      requestBody:
+        $ref: "#/components/requestBodies/filterResultSpecification"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/filterForecasts"
+              examples:
+                default:
+                  $ref: "#/components/examples/filterResults"
+            application/vnd.sas.forecasting.filters.results.timeseries+json:
+              schema:
+                $ref: "#/components/schemas/filterForecasts"
+              examples:
+                default:
+                  $ref: "#/components/examples/filterResults"
+        "400":
+          description: The information sent in the request body contains an error
+            or is incomplete.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: The specified filter does not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+  "/filters/{filterId}":
+    get:
+      tags:
+      - ForecastingFilter
+      summary: Get a Forecasting Filter
+      description: Get a forecasting filter that corresponds to the specified filter
+        id.
+      operationId: getFilter
+      parameters:
+      - name: filterId
+        in: path
+        description: Unique id associated with the filter being requested.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for the filter.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.forecasting.filters.spec+json:
+              schema:
+                $ref: "#/components/schemas/filterSpecification"
+              examples:
+                default:
+                  $ref: "#/components/examples/filterSpec"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/filterSpecification"
+              examples:
+                default:
+                  $ref: "#/components/examples/filterSpec"
+        "404":
+          description: The specified filter does not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    head:
+      tags:
+      - ForecastingFilter
+      summary: Check the availability of a filter resource
+      description: |
+        Retrieve the headers and check the availability of a filter.
+      operationId: headersForFilter
+      parameters:
+      - name: filterId
+        in: path
+        description: Unique id associated with the filter being requested.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for the filter.
+              schema:
+                type: string
+        "404":
+          description: The specified filter does not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    put:
+      tags:
+      - ForecastingFilter
+      summary: Update a Forecasting Filter
+      description: Update a forecasting filter. A successful response body will contain
+        the fully-populated resource.
+      operationId: updateFilter
+      parameters:
+      - name: filterId
+        in: path
+        description: Unique id associated with the filter being requested.
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        description: Update the filter only if the current ETag header matches this
+          value
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/vnd.sas.forecasting.filters.spec+json:
+            schema:
+              $ref: "#/components/schemas/filterSpecification"
+            examples:
+              json:
+                $ref: "#/components/examples/updateFilterRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/filterSpecification"
+            examples:
+              json:
+                $ref: "#/components/examples/updateFilterRequest"
+        description: Filter properties like name and description that are allowed
+          to be changed
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              description: E-Tag for the filter.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.forecasting.filters.spec+json:
+              schema:
+                $ref: "#/components/schemas/filterSpecification"
+              examples:
+                default:
+                  $ref: "#/components/examples/filterSpec"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/filterSpecification"
+              examples:
+                default:
+                  $ref: "#/components/examples/filterSpec"
+        "400":
+          description: The information sent in the request body contains an error
+            or is incomplete.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: The specified filter does not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+        "412":
+          description: The `If-Match` request header did not match the resource's
+            entity tag.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionFailed"
+        "428":
+          description: The request headers did not include a 'If-Match' precondition.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/preConditionRequired"
+    delete:
+      tags:
+      - ForecastingFilter
+      summary: Delete a Forecasting Filter
+      description: Delete an existing forecasting filter resource that corresponds
+        to the specified filter id.
+      operationId: deleteFilter
+      parameters:
+      - name: filterId
+        in: path
+        description: Unique id associated with the filter being requested.
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: The specified forecasting filter does not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+  "/filters/{filterId}/consumers":
+    post:
+      tags:
+      - ForecastingFilterConsumers
+      summary: Associate a consumer with Forecasting Filter
+      description: Update a forecasting filter to include the consumer association.
+        A successful response body will contain the consumer information.
+      operationId: createFilterConsumer
+      parameters:
+      - name: filterId
+        in: path
+        description: Unique id associated with the filter for which the consumer is
+          added.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/filterConsumer"
+            examples:
+              json:
+                $ref: "#/components/examples/createConsumerRequest"
+          application/vnd.sas.forecasting.filters.consumer+json:
+            schema:
+              $ref: "#/components/schemas/filterConsumer"
+            examples:
+              json:
+                $ref: "#/components/examples/createConsumerRequest"
+        description: Filter consumer such as a forecasting project
+      responses:
+        "201":
+          description: OK
+          headers:
+            Location:
+              description: The URL of the consumer that got associated with the filter.
+              schema:
+                type: string
+                format: uri
+            ETag:
+              description: E-Tag for the filter.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.forecasting.filters.consumer+json:
+              schema:
+                $ref: "#/components/schemas/filterConsumer"
+              examples:
+                default:
+                  $ref: "#/components/examples/consumerResp"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/filterConsumer"
+              examples:
+                default:
+                  $ref: "#/components/examples/consumerResp"
+        "400":
+          description: The information sent in the request body contains an error
+            or is incomplete.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: The specified filter does not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+  "/filters/{filterId}/consumers/{consumerId}":
+    get:
+      tags:
+      - ForecastingFilterConsumers
+      summary: Get the consumer associated with a filter
+      description: Get the consumer associated with the filter.
+      operationId: getConsumer
+      parameters:
+      - name: filterId
+        in: path
+        description: Filter id with which the consumer is associated.
+        required: true
+        schema:
+          type: string
+      - name: consumerId
+        in: path
+        description: Consumer id that is associated with the filter.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum:
+                - application/vnd.sas.forecasting.filters.consumer+json
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/filterConsumer"
+              examples:
+                default:
+                  $ref: "#/components/examples/consumerResp"
+            application/vnd.sas.forecasting.filters.consumer+json:
+              schema:
+                $ref: "#/components/schemas/filterConsumer"
+              examples:
+                default:
+                  $ref: "#/components/examples/consumerResp"
+        "404":
+          description: The specified resource does not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    head:
+      tags:
+      - ForecastingFilter
+      summary: Check the availability of a filter consumer
+      description: |
+        Retrieve the headers and check the availability of a consumer.
+      operationId: headersForConsumer
+      parameters:
+      - name: filterId
+        in: path
+        description: Filter id with which the consumer is associated.
+        required: true
+        schema:
+          type: string
+      - name: consumerId
+        in: path
+        description: Consumer id that is associated with the filter.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum:
+                - application/vnd.sas.forecasting.filters.consumer+json
+        "404":
+          description: The specified resource does not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+    delete:
+      tags:
+      - ForecastingFilter
+      summary: Delete a consumer association from a Forecasting Filter
+      description: Delete an existing consumer association for the give consumer id
+        from a forecasting filter resource that corresponds to the specified filter
+        id.
+      operationId: deleteConsumer
+      parameters:
+      - name: filterId
+        in: path
+        description: Filter id that the consumer is associated with.
+        required: true
+        schema:
+          type: string
+      - name: consumerId
+        in: path
+        description: Consumer id that is associated with the filter.
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: The specified forecasting filter does not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+  "/filters/{filterId}/results/timeseries":
+    post:
+      tags:
+      - ForecastingFilterResults
+      summary: Get Filter results with Filter ID
+      description: 'Get matching time series for a forecasting filter that corresponds
+        to the specified result specification and filter id.  Note: No \"Location\"
+        header is returned since the result is a transient resource that is not persisted.'
+      operationId: createFilterIdResults
+      parameters:
+      - name: filterId
+        in: path
+        description: filterId
+        required: true
+        schema:
+          type: string
+      requestBody:
+        $ref: "#/components/requestBodies/filterResultSpecification"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/filterForecasts"
+              examples:
+                default:
+                  $ref: "#/components/examples/filterResults"
+            application/vnd.sas.forecasting.filters.results.timeseries+json:
+              schema:
+                $ref: "#/components/schemas/filterForecasts"
+              examples:
+                default:
+                  $ref: "#/components/examples/filterResults"
+        "400":
+          description: The information sent in the request body contains an error
+            or is incomplete.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: The specified filter does not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                json:
+                  $ref: "#/components/examples/notFound"
+  "/dataSources/{dataSourceId}/filterValidations":
+    post:
+      tags:
+      - ForecastingFilter
+      summary: Validate filter specifications
+      description: Validates filter specifications against the specified data source.
+      operationId: createFilterValidation
+      parameters:
+      - name: dataSourceId
+        in: path
+        description: The identifier of the data source to validate filters against.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: Validation request specifying the scope of filter validation.
+        required: true
+        content:
+          application/vnd.sas.forecasting.filters.validation.request+json:
+            schema:
+              type: object
+              properties:
+                dataSourceId:
+                  type: string
+                  format: uuid
+                  description: The identifier of the data specification.
+                tableDefinitionId:
+                  type: string
+                  format: uuid
+                  description: The identifier of the table definition.
+                group:
+                  type: string
+                  description: The group to scope the validation.
+            examples:
+              default:
+                value:
+                  dataSourceId: "d4f5a6b7-c8d9-4e0f-a1b2-c3d4e5f6a7b8"
+                  tableDefinitionId: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+                  group: "Region_A"
+          application/json:
+            schema:
+              type: object
+              properties:
+                dataSourceId:
+                  type: string
+                  format: uuid
+                  description: The identifier of the data specification.
+                tableDefinitionId:
+                  type: string
+                  format: uuid
+                  description: The identifier of the table definition.
+                group:
+                  type: string
+                  description: The group to scope the validation.
+            examples:
+              default:
+                value:
+                  dataSourceId: "d4f5a6b7-c8d9-4e0f-a1b2-c3d4e5f6a7b8"
+                  tableDefinitionId: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Request body is invalid or incomplete.
+servers:
+- url: http://example.com/forecastingFilters
+  description: Kubernetes mock server
+components:
+  requestBodies:
+    filterResultSpecification:
+      content:
+        application/vnd.sas.forecasting.filters.result.spec+json:
+          schema:
+            $ref: "#/components/schemas/filterResultSpecification"
+          examples:
+            json:
+              $ref: "#/components/examples/applyFilterRequest"
+        application/json:
+          schema:
+            $ref: "#/components/schemas/filterResultSpecification"
+          examples:
+            json:
+              $ref: "#/components/examples/applyFilterRequest"
+      description: Filter result specification
+      required: true
+  schemas:
+    columnMetadata:
+      type: object
+      required:
+      - name
+      properties:
+        format:
+          type: string
+          description: Data format assoicated with the column
+        label:
+          type: string
+          description: Label assoicated with the column
+        name:
+          type: string
+          description: Name of the column
+        type:
+          type: string
+          description: Data type of the column
+      description: Metadata that describes a table column.  This is not a top-level
+        model.
+    filterResultSpecification:
+      type: object
+      required:
+      - timeSeriesTable
+      properties:
+        aggregateResults:
+          type: boolean
+          description: Aggregate the filtered results if set to true
+        filterSpecification:
+          $ref: "#/components/schemas/filterSpecification"
+        timeSeriesTable:
+          type: string
+          description: Time series table to apply filter on
+          enum:
+          - TIMESERIES
+          - FORECASTS_STAT
+          - FORECASTS_OVERRIDES
+          - FORECASTS_FINAL_ONLY
+      description: "Specification of filter results, includes aggregation options\
+        \ and the target table. Media type is application/vnd.sas.forecasting.filters.result.spec+json"
+    filterConsumer:
+      type: object
+      required:
+      - consumerId
+      properties:
+        consumerId:
+          type: string
+          description: Consumer id to be associated with a filter
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: Version of the resource
+      description: Representation of a filter consumer.  Media type is application/vnd.sas.forecasting.filters.consumer+json
+    filterSpecification:
+      type: object
+      required:
+      - dataSourceId
+      properties:
+        attributesCaslib:
+          type: string
+          description: Name of the library that contains the time series attributes
+            table.
+        attributesTable:
+          type: string
+          description: Name of the tables contains the time series attributes.
+        createdBy:
+          type: string
+          description: userid of the user who created the resource
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: creation time of the resource
+        dataSourceId:
+          type: string
+          description: Data specification identifier.
+        description:
+          type: string
+          description: Description of the filter
+        favorite:
+          type: boolean
+          default: true
+          description: Mark this filter as a favorite for quick access.
+        fieldCombiningOperator:
+          type: string
+          description: 'Operator to combine different categories in the query, valid
+            values are "AND" and "OR".  The default is "AND"'
+          enum:
+          - AND
+          - OR
+        id:
+          type: string
+          description: Id of the filter
+        inUse:
+          type: boolean
+          default: false
+          description: The filter has been associated with one more consumers.
+        keyNames:
+          type: array
+          description: List of variables used to identify time series.
+          items:
+            type: string
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        modifiedBy:
+          type: string
+          description: The userid of the user who last updated the resource
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The time of the last update of the resource
+        name:
+          type: string
+          description: Name of the filter
+        query:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/filterValues"
+          description: "Filter query is a map of variable name to a list of filter\
+            \ values, all the elements of the map are combined using the combining\
+            \ operator."
+        version:
+          type: integer
+          description: This media type's schema version number. This representation
+            is version 2.
+      description: Specification of a filter based on time series attributes table.
+        Media type is application/vnd.sas.forecasting.filters.spec+json
+    filterForecasts:
+      type: object
+      required:
+      - columnMetadata
+      properties:
+        columnMetadata:
+          type: object
+          description: "Map of column name to it's metadata such as label, type, format"
+          additionalProperties:
+            $ref: "#/components/schemas/columnMetadata"
+        createdBy:
+          type: string
+          description: userid of the user who created the resource
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: creation time of the resource
+        data:
+          type: array
+          description: Data rows that represent the values
+          items:
+            $ref: "#/components/schemas/tableDataMap"
+        dependentVar:
+          type: string
+          description: Dependent variable for the time series
+        filterDescription:
+          type: string
+          description: Filter description
+        filterId:
+          type: string
+          description: Filter id to be applied for retrieving matching time series
+        filterName:
+          type: string
+          description: Filter name
+        horizonStart:
+          type: number
+          format: double
+          description: Start period of forecast horizon
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        modifiedBy:
+          type: string
+          description: The userid of the user who last updated the resource
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The time of the last update of the resource
+        timeIdVar:
+          type: string
+          description: Time id variable defined for the time series
+        version:
+          type: integer
+          format: int32
+          description: Version of the resource
+      description: Representation of forecasts selected by the filter specification.  Media
+        type is application/vnd.sas.forecasting.filters.results.timeseries+json
+    filterValue:
+      type: object
+      required:
+      - operator
+      - value
+      properties:
+        operator:
+          type: string
+          description: Operator to be used for filtering operation
+          enum:
+          - EQ
+          - NE
+          - LT
+          - LE
+          - GT
+          - GE
+          - BETWEEN
+          - IN
+          - NOT_IN
+          - IS_MISSING
+          - IS_NOT_MISSING
+        value: {}
+      description: Representation of a value that needs to be filtered.  This is not
+        a top level model
+    filterValues:
+      type: array
+      description: This is an array of filter values
+      items:
+        $ref: "#/components/schemas/filterValue"
+    filterCollection:
+      title: Filter Collection
+      type: object
+      description: A pageable collection of filters.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/filterSpecification"
+            description: An array of `application/vnd.sas.forecasting.filters.spec+json`
+              representations.
+    tableDataMap:
+      type: object
+      description: "It is a map<string, string> of column name to the value of each\
+        \ table cell."
+      additionalProperties: {} # any value
+
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+  examples:
+    createFilterRequest:
+      description: An example of a create filter specification request.
+      value: {"name": "LocationFilter", "description": "Filter for LOCATION", "query": {
+          "location": [{"operator": "EQ", "value": "DC008"}]}, "dataSourceId": "xxxx-xxxx-xxxx-xxxx"}
+    createConsumerRequest:
+      description: An example of a create consumer request.
+      value: {"consumerId": "50"}
+    applyFilterRequest:
+      description: An example of a request for applying a filter specification.
+      value: {"filterSpecification": {"name": "FSFilter", "description": "Filter for\
+            \ forecast series", "query": {"location": [{"operator": "EQ", "value": "DC006"}]},
+          "dataSourceId": "0cc98eb3-6026-44ec-9302-1f889b4ed7fe"}, "aggregateResults": true,
+        "timeSeriesTable": "FORECASTS_OVERRIDES"}
+    updateFilterRequest:
+      description: An example of a request for updating a filter specification.
+      value: {"name": "location_10", "description": "Filter for the location 10",
+        "dataSourceId": "xxxx-xxxx-xxxx-xxxx"}
+    badRequest:
+      description: An example response content with 404 status code.
+      value: {"version": 2, "httpStatusCode": 400, "message": "Bad Request", "details": [
+          "The body member <member_name> has an invalid value. (The specified value\
+            \ is .)", "path: /forecastingFilters/filters", "correlator: 624db953-fed5-4cfb-9050-7cc42929af8b"]}
+    notFound:
+      description: An example response content with 404 status code.
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 12345, "message": "The\
+          \ resource was not found. (ID or URI: /path/to/the/resource)", "details": [
+          "traceId: 76673823245ccda1", "path: /path/to/the/resource", "path: /uri/path",
+          "correlator: 39b72009-d18b-4348-82e9-2ac8bab70612"]}
+    preConditionFailed:
+      description: Pre-condition failed.
+      value:
+        httpStatusCode: 412
+        version: 2
+    preConditionRequired:
+      description: Pre-condition required.
+      value:
+        httpStatusCode: 428
+        version: 2
+    filterPost:
+      description: An example response from POST filter operation.
+      value: {"creationTimeStamp": "2022-12-20T16:13:18.016354Z", "createdBy": "sasiom5",
+        "modifiedTimeStamp": "2022-12-20T16:13:18.016361Z", "modifiedBy": "sasiom5",
+        "id": "7c8f5a9a-f3be-4844-95bc-3137dcc506a1", "name": "dist_filter", "dataSourceId": "c7a4fdfb-dfb8-44c5-9709-c80fa22eb986",
+        "keyNames": [""], "query": {"location": [{"operator": "IN", "value": ["DC009\
+                  \                                   ", "DC015                  \
+                  \                 "]}]}, "fieldCombiningOperator": "AND", "scope": "timeseries",
+        "favorite": true, "inUse": false, "valid": true, "links": [{"method": "GET",
+            "rel": "self", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/7c8f5a9a-f3be-4844-95bc-3137dcc506a1",
+            "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/7c8f5a9a-f3be-4844-95bc-3137dcc506a1",
+            "type": "application/vnd.sas.forecasting.filters.spec"}, {"method": "GET",
+            "rel": "up", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+            "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.forecasting.filters.spec"},
+          {"method": "PUT", "rel": "update", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/7c8f5a9a-f3be-4844-95bc-3137dcc506a1",
+            "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/7c8f5a9a-f3be-4844-95bc-3137dcc506a1",
+            "type": "application/vnd.sas.forecasting.filters.spec"}, {"method": "DELETE",
+            "rel": "delete", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/7c8f5a9a-f3be-4844-95bc-3137dcc506a1",
+            "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/7c8f5a9a-f3be-4844-95bc-3137dcc506a1"}],
+        "version": 2, "revision": 0}
+    filterResults:
+      description: An example results fron applying a filter specification to time
+        series forecast data.
+      value: {"columnMetadata": {"ACTUAL": {"name": "ACTUAL", "label": "Actual Values",
+            "type": "numeric", "format": "BEST12."}, "DATE": {"name": "date", "label": "Time\
+              \ ID Values", "type": "numeric", "format": "MONYY5"}, "FF": {"name": "FF",
+            "label": "FF", "type": "numeric", "format": "BEST12."}, "LOWER": {"name": "lower",
+            "label": "lower", "type": "numeric", "format": "BEST12."}, "PREDICT": {
+            "name": "PREDICT", "label": "Predicted Values", "type": "numeric", "format": "BEST12."},
+          "UPPER": {"name": "upper", "label": "upper", "type": "numeric", "format": "BEST12."}},
+        "data": [{"ACTUAL": "3253", "FF": "NaN", "PREDICT": "3268.98224767", "date": "13880",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3170", "FF": "NaN", "PREDICT": "3233.63277982",
+            "date": "13911", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3459", "FF": "NaN",
+            "PREDICT": "3239.08496568", "date": "13939", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3239", "FF": "NaN", "PREDICT": "3278.38323689", "date": "13970",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3267", "FF": "NaN", "PREDICT": "3269.64997795",
+            "date": "14000", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3471", "FF": "NaN",
+            "PREDICT": "3299.93418893", "date": "14031", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3416", "FF": "NaN", "PREDICT": "3231.93447824", "date": "14061",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3260", "FF": "NaN", "PREDICT": "3245.21259406",
+            "date": "14092", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3346", "FF": "NaN",
+            "PREDICT": "3264.0063271", "date": "14123", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3304", "FF": "NaN", "PREDICT": "3239.32695177", "date": "14153",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "2962", "FF": "NaN", "PREDICT": "3225.37165857",
+            "date": "14184", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3113", "FF": "NaN",
+            "PREDICT": "3209.15589771", "date": "14214", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3093", "FF": "NaN", "PREDICT": "3256.63890518", "date": "14245",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3219", "FF": "NaN", "PREDICT": "3219.41248146",
+            "date": "14276", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3228", "FF": "NaN",
+            "PREDICT": "3231.44886319", "date": "14304", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3337", "FF": "NaN", "PREDICT": "3267.49697498", "date": "14335",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3480", "FF": "NaN", "PREDICT": "3269.71091692",
+            "date": "14365", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3787", "FF": "NaN",
+            "PREDICT": "3309.28642771", "date": "14396", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3385", "FF": "NaN", "PREDICT": "3250.20534823", "date": "14426",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3382", "FF": "NaN", "PREDICT": "3258.96945893",
+            "date": "14457", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3411", "FF": "NaN",
+            "PREDICT": "3269.76042256", "date": "14488", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3230", "FF": "NaN", "PREDICT": "3246.82537037", "date": "14518",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3084", "FF": "NaN", "PREDICT": "3253.77349278",
+            "date": "14549", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3057", "FF": "NaN",
+            "PREDICT": "3246.42877374", "date": "14579", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3192", "FF": "NaN", "PREDICT": "3296.40004744", "date": "14610",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3236", "FF": "NaN", "PREDICT": "3257.13185416",
+            "date": "14641", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3159", "FF": "NaN",
+            "PREDICT": "3267.13402801", "date": "14670", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3390", "FF": "NaN", "PREDICT": "3297.81031609", "date": "14701",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3282", "FF": "NaN", "PREDICT": "3294.48544404",
+            "date": "14731", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3323", "FF": "NaN",
+            "PREDICT": "3342.07789099", "date": "14762", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3326", "FF": "NaN", "PREDICT": "3263.92500669", "date": "14792",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3351", "FF": "NaN", "PREDICT": "3271.26264435",
+            "date": "14823", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3324", "FF": "NaN",
+            "PREDICT": "3278.69550496", "date": "14854", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3151", "FF": "NaN", "PREDICT": "3246.04982237", "date": "14884",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3261", "FF": "NaN", "PREDICT": "3233.96567069",
+            "date": "14915", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3103", "FF": "NaN",
+            "PREDICT": "3231.44268554", "date": "14945", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3302", "FF": "NaN", "PREDICT": "3277.84923035", "date": "14976",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3278", "FF": "NaN", "PREDICT": "3243.77212836",
+            "date": "15007", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3252", "FF": "NaN",
+            "PREDICT": "3252.79998374", "date": "15035", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3317", "FF": "NaN", "PREDICT": "3289.38790398", "date": "15066",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3481", "FF": "NaN", "PREDICT": "3284.50518131",
+            "date": "15096", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3477", "FF": "NaN",
+            "PREDICT": "3326.12247114", "date": "15127", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3297", "FF": "NaN", "PREDICT": "3260.59079216", "date": "15157",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3508", "FF": "NaN", "PREDICT": "3261.93629069",
+            "date": "15188", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3290", "FF": "NaN",
+            "PREDICT": "3281.57236178", "date": "15219", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3222", "FF": "NaN", "PREDICT": "3251.44009647", "date": "15249",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3267", "FF": "NaN", "PREDICT": "3239.83337465",
+            "date": "15280", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "2999", "FF": "NaN",
+            "PREDICT": "3239.18913861", "date": "15310", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3097", "FF": "NaN", "PREDICT": "3279.91727774", "date": "15341",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3377", "FF": "NaN", "PREDICT": "3236.83821279",
+            "date": "15372", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3294", "FF": "NaN",
+            "PREDICT": "3240.82792268", "date": "15400", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3487", "FF": "NaN", "PREDICT": "3269.85301942", "date": "15431",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3368", "FF": "NaN", "PREDICT": "3266.77992269",
+            "date": "15461", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3529", "FF": "NaN",
+            "PREDICT": "3309.49751059", "date": "15492", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3262", "FF": "NaN", "PREDICT": "3241.51143551", "date": "15522",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3259", "FF": "NaN", "PREDICT": "3250.29448617",
+            "date": "15553", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3231", "FF": "NaN",
+            "PREDICT": "3265.09425526", "date": "15584", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "3094", "FF": "NaN", "PREDICT": "3244.6203142", "date": "15614",
+            "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3157", "FF": "NaN", "PREDICT": "3225.31860287",
+            "date": "15645", "lower": "NaN", "upper": "NaN"}, {"ACTUAL": "3042", "FF": "NaN",
+            "PREDICT": "3218.44554807", "date": "15675", "lower": "NaN", "upper": "NaN"},
+          {"ACTUAL": "NaN", "FF": "3255.74465429", "PREDICT": "3255.74465429", "date": "15706",
+            "lower": "3074.17836828", "upper": "3437.3109403"}, {"ACTUAL": "NaN",
+            "FF": "3220.69037778", "PREDICT": "3220.69037778", "date": "15737", "lower": "3038.93672276",
+            "upper": "3402.4440328"}, {"ACTUAL": "NaN", "FF": "3230.03583786", "PREDICT": "3230.03583786",
+            "date": "15765", "lower": "3048.0950068", "upper": "3411.97666893"}, {
+            "ACTUAL": "NaN", "FF": "3265.38105904", "PREDICT": "3265.38105904", "date": "15796",
+            "lower": "3083.25324429", "upper": "3447.50887379"}, {"ACTUAL": "NaN",
+            "FF": "3258.92603638", "PREDICT": "3258.92603638", "date": "15826", "lower": "3076.61142972",
+            "upper": "3441.24064305"}, {"ACTUAL": "NaN", "FF": "3294.07077057", "PREDICT": "3294.07077057",
+            "date": "15857", "lower": "3111.56956318", "upper": "3476.57197797"},
+          {"ACTUAL": "NaN", "FF": "3216.61526864", "PREDICT": "3216.61526864", "date": "15887",
+            "lower": "3033.92765111", "upper": "3399.30288616"}, {"ACTUAL": "NaN",
+            "FF": "3221.35952201", "PREDICT": "3221.35952201", "date": "15918", "lower": "3038.48568437",
+            "upper": "3404.23335965"}, {"ACTUAL": "NaN", "FF": "3230.50352949", "PREDICT": "3230.50352949",
+            "date": "15949", "lower": "3047.44366116", "upper": "3413.56339781"},
+          {"ACTUAL": "NaN", "FF": "3204.24729802", "PREDICT": "3204.24729802", "date": "15979",
+            "lower": "3021.00158787", "upper": "3387.49300816"}, {"ACTUAL": "NaN",
+            "FF": "3197.79082661", "PREDICT": "3197.79082661", "date": "16010", "lower": "3014.35946292",
+            "upper": "3381.2221903"}, {"ACTUAL": "NaN", "FF": "3196.73411478", "PREDICT": "3196.73411478",
+            "date": "16040", "lower": "3013.11728527", "upper": "3380.3509443"}],
+        "filterId": "4f2dcc4f-ea73-4437-a566-aff77fbbad44", "filterName": "region_filter",
+        "timeIdVar": "date", "dependentVar": "sale", "horizonStart": 15706, "version": 1}
+    filterSpec:
+      description: An example of an existing filter specification.
+      value: {"creationTimeStamp": "2022-02-09T20:08:46.395041Z", "createdBy": "sasiom5",
+        "modifiedTimeStamp": "2022-02-09T20:08:46.395056Z", "modifiedBy": "sasiom5",
+        "id": "4f2dcc4f-ea73-4437-a566-aff77fbbad44", "name": "region_filter", "dataSourceId": "a5296039-86b4-4ea5-a6a6-ce1c55457b6d",
+        "keyNames": [""], "query": {"regionName": [{"operator": "IN", "value": ["Region2"]}]},
+        "fieldCombiningOperator": "AND", "scope": "timeseries", "favorite": true,
+        "inUse": false, "valid": true, "links": [{"method": "GET", "rel": "self",
+            "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/filters/4f2dcc4f-ea73-4437-a566-aff77fbbad44",
+            "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/filters/4f2dcc4f-ea73-4437-a566-aff77fbbad44",
+            "type": "application/vnd.sas.forecasting.filters.spec"}, {"method": "GET",
+            "rel": "up", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/filters",
+            "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/filters",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.forecasting.filters.spec"},
+          {"method": "PUT", "rel": "update", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/filters/4f2dcc4f-ea73-4437-a566-aff77fbbad44",
+            "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/filters/4f2dcc4f-ea73-4437-a566-aff77fbbad44",
+            "type": "application/vnd.sas.forecasting.filters.spec"}, {"method": "DELETE",
+            "rel": "delete", "href": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/filters/4f2dcc4f-ea73-4437-a566-aff77fbbad44",
+            "uri": "/forecastingGateway/projects/a2bbf43f-66a8-4ae1-8b09-c598fb1efcb3/filters/4f2dcc4f-ea73-4437-a566-aff77fbbad44"}],
+        "version": 2, "revision": 0}
+    rootResp:
+      description: An example response from the root API.
+      value: {"version": 1, "links": [{"method": "GET", "rel": "filters", "href": "/forecastingFilters/filters",
+            "uri": "/forecastingFilters/filters", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.forecasting.filters.spec"}, {"method": "POST",
+            "rel": "createFilter", "href": "/forecastingFilters/filters", "uri": "/forecastingFilters/filters",
+            "responseType": "application/vnd.sas.collection", "responseItemType": "application/vnd.sas.forecasting.filters.spec"},
+          {"method": "POST", "rel": "applyResultSpec", "href": "/results/timeseries",
+            "uri": "/results/timeseries", "type": "application/vnd.sas.forecasting.filters.result.spec",
+            "responseType": "application/vnd.sas.forecasting.filters.results.timeseries"},
+          {"method": "POST", "rel": "validateFilters", "href": "/forecastingFilters/dataSources/{dataSourceId}/filterValidations",
+            "uri": "/forecastingFilters/dataSources/{dataSourceId}/filterValidations",
+            "type": "application/vnd.sas.forecasting.filters.validation.request"}]}
+    filterGetAll:
+      description: An example response for getting a collection of filters.
+      value: {"version": 2, "accept": "application/vnd.sas.forecasting.filters.spec",
+        "count": 4, "start": 0, "limit": 9999, "name": "filterSpecifications", "items": [
+          {"creationTimeStamp": "2022-12-20T16:13:18.016354Z", "createdBy": "sasiom5",
+            "modifiedTimeStamp": "2022-12-20T16:13:18.016361Z", "modifiedBy": "sasiom5",
+            "id": "7c8f5a9a-f3be-4844-95bc-3137dcc506a1", "name": "dist_filter", "dataSourceId": "c7a4fdfb-dfb8-44c5-9709-c80fa22eb986",
+            "keyNames": [""], "query": {"location": [{"operator": "IN", "value": [
+                    "DC009                                   ", "DC015           \
+                      \                        "]}]}, "fieldCombiningOperator": "AND",
+            "scope": "timeseries", "favorite": true, "inUse": false, "valid": true,
+            "links": [{"method": "GET", "rel": "self", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/7c8f5a9a-f3be-4844-95bc-3137dcc506a1",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/7c8f5a9a-f3be-4844-95bc-3137dcc506a1",
+                "type": "application/vnd.sas.forecasting.filters.spec"}, {"method": "GET",
+                "rel": "up", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.forecasting.filters.spec"},
+              {"method": "PUT", "rel": "update", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/7c8f5a9a-f3be-4844-95bc-3137dcc506a1",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/7c8f5a9a-f3be-4844-95bc-3137dcc506a1",
+                "type": "application/vnd.sas.forecasting.filters.spec"}, {"method": "DELETE",
+                "rel": "delete", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/7c8f5a9a-f3be-4844-95bc-3137dcc506a1",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/7c8f5a9a-f3be-4844-95bc-3137dcc506a1"}],
+            "version": 2, "revision": 0}, {"creationTimeStamp": "2022-12-19T21:25:01.88991Z",
+            "createdBy": "sasiom5", "modifiedTimeStamp": "2022-12-20T15:57:41.063331Z",
+            "modifiedBy": "sasiom5", "id": "1a451edc-bde1-41a8-be45-f41187895aec",
+            "name": "dist_09", "dataSourceId": "c7a4fdfb-dfb8-44c5-9709-c80fa22eb986",
+            "keyNames": [""], "query": {"location": [{"operator": "IN", "value": [
+                    "DC009                                   "]}]}, "fieldCombiningOperator": "AND",
+            "scope": "timeseries", "favorite": true, "inUse": false, "valid": true,
+            "links": [{"method": "GET", "rel": "self", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/1a451edc-bde1-41a8-be45-f41187895aec",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/1a451edc-bde1-41a8-be45-f41187895aec",
+                "type": "application/vnd.sas.forecasting.filters.spec"}, {"method": "GET",
+                "rel": "up", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.forecasting.filters.spec"},
+              {"method": "PUT", "rel": "update", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/1a451edc-bde1-41a8-be45-f41187895aec",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/1a451edc-bde1-41a8-be45-f41187895aec",
+                "type": "application/vnd.sas.forecasting.filters.spec"}, {"method": "DELETE",
+                "rel": "delete", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/1a451edc-bde1-41a8-be45-f41187895aec",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/1a451edc-bde1-41a8-be45-f41187895aec"}],
+            "version": 2, "revision": 3}, {"creationTimeStamp": "2022-12-20T14:45:01.236728Z",
+            "createdBy": "sasiom5", "modifiedTimeStamp": "2022-12-20T14:45:01.793944Z",
+            "modifiedBy": "sasiom5", "id": "16432c70-57cc-4668-9fdb-6b0543771e2d",
+            "name": "All series", "dataSourceId": "c7a4fdfb-dfb8-44c5-9709-c80fa22eb986",
+            "keyNames": [""], "query": {}, "fieldCombiningOperator": "AND", "scope": "timeseries",
+            "favorite": true, "inUse": true, "valid": true, "links": [{"method": "GET",
+                "rel": "self", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/16432c70-57cc-4668-9fdb-6b0543771e2d",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/16432c70-57cc-4668-9fdb-6b0543771e2d",
+                "type": "application/vnd.sas.forecasting.filters.spec"}, {"method": "GET",
+                "rel": "up", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.forecasting.filters.spec"},
+              {"method": "PUT", "rel": "update", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/16432c70-57cc-4668-9fdb-6b0543771e2d",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/16432c70-57cc-4668-9fdb-6b0543771e2d",
+                "type": "application/vnd.sas.forecasting.filters.spec"}, {"method": "DELETE",
+                "rel": "delete", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/16432c70-57cc-4668-9fdb-6b0543771e2d",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/16432c70-57cc-4668-9fdb-6b0543771e2d"}],
+            "version": 2, "revision": 1}, {"creationTimeStamp": "2022-12-19T20:59:33.608927Z",
+            "createdBy": "sasiom5", "modifiedTimeStamp": "2022-12-19T20:59:33.608933Z",
+            "modifiedBy": "sasiom5", "id": "d3f46693-b301-4621-8cf3-e3be449365b2",
+            "name": "location10", "description": "Location 10 filter.", "dataSourceId": "c7a4fdfb-dfb8-44c5-9709-c80fa22eb986",
+            "keyNames": [""], "query": {"location": [{"operator": "EQ", "value": "DC010"}]},
+            "fieldCombiningOperator": "AND", "scope": "timeseries", "favorite": false,
+            "inUse": true, "valid": false, "links": [{"method": "GET", "rel": "self",
+                "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/d3f46693-b301-4621-8cf3-e3be449365b2",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/d3f46693-b301-4621-8cf3-e3be449365b2",
+                "type": "application/vnd.sas.forecasting.filters.spec"}, {"method": "GET",
+                "rel": "up", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.forecasting.filters.spec"},
+              {"method": "PUT", "rel": "update", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/d3f46693-b301-4621-8cf3-e3be449365b2",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/d3f46693-b301-4621-8cf3-e3be449365b2",
+                "type": "application/vnd.sas.forecasting.filters.spec"}, {"method": "DELETE",
+                "rel": "delete", "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/d3f46693-b301-4621-8cf3-e3be449365b2",
+                "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters/d3f46693-b301-4621-8cf3-e3be449365b2"}],
+            "version": 2, "revision": 0}], "links": [{"method": "GET", "rel": "collection",
+            "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+            "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.forecasting.filters.spec"},
+          {"method": "GET", "rel": "up", "href": "/analyticsGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82",
+            "uri": "/analyticsGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82",
+            "type": "application/vnd.sas.analytics.project"}, {"method": "POST", "rel": "create",
+            "href": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+            "uri": "/forecastingGateway/projects/0f408b16-a12e-4a4f-a6cf-4bf5f3d8ec82/filters",
+            "type": "application/vnd.sas.forecasting.filters.spec"}]}
+    consumerResp:
+      description: An example response representing a filter consumer.
+      value: {"consumerId": "c1", "links": [{"method": "GET", "rel": "self", "href": "/forecastingFilters/filters/fcff6dcc-956c-462b-9bb2-eea43b1d9a53/consumers/c1",
+            "uri": "/forecastingFilters/filters/fcff6dcc-956c-462b-9bb2-eea43b1d9a53/consumers/c1",
+            "type": "application/vnd.sas.forecasting.filters.consumer"}, {"method": "DELETE",
+            "rel": "deleteConsumer", "href": "/forecastingFilters/filters/fcff6dcc-956c-462b-9bb2-eea43b1d9a53/consumers/c1",
+            "uri": "/forecastingFilters/filters/fcff6dcc-956c-462b-9bb2-eea43b1d9a53/consumers/c1"},
+          {"method": "DELETE", "rel": "deleteConsumerFromAllFilters", "href": "/forecastingFilters/consumers/c1",
+            "uri": "/forecastingFilters/consumers/c1"}]}

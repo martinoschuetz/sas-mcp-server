@@ -1,0 +1,5446 @@
+---
+openapi: 3.0.3
+info:
+  version: "1"
+  title: Data Maker
+  description: The Data Maker API is used to manage projects, connections, model settings,
+    and data generation results.
+  contact:
+    name: SAS Developers
+    url: https://developer.sas.com
+    email: devex@sas.com
+servers:
+- url: https://example.com/dataMaker
+  description: This is an example base URL.
+tags:
+- name: Root
+  description: Contains operations for the root resource of the Data Maker API.
+- name: Projects
+  description: |
+    Contains operations for managing Data Maker projects.
+    A project is an organizational unit allowing for governance, traceability, and version control for your synthetic data generation.
+- name: Connections
+  description: |
+    Contains operations for managing Data Maker connections.
+    A connection specifies input data sources or output destinations for generated synthetic data.
+- name: Models
+  description: |
+    Contains operations for managing models within a Data Maker project.
+    A model represents the generator type and settings to be used for training. Projects can consist of multiple iterations of a model.
+- name: Tables
+  description: Contains operations for managing tables within a Data Maker model.
+- name: Entities
+  description: Contains operations for managing entities within a Data Maker table.
+- name: Columns
+  description: Contains operations for managing columns within a Data Maker table.
+- name: Tasks
+  description: Contains operations for managing Data Maker tasks (i.e. analysis, training
+    and generation).
+- name: Health
+  description: Operations for the health check resource.
+- name: Config
+  description: Operations for the resource configuration.
+paths:
+  /:
+    get:
+      summary: Get API resource links
+      tags:
+      - Root
+      operationId: root
+      description: Return the list of links to top-level resources and operations
+        available from the root of the API.
+      responses:
+        "200":
+          description: A collection of link objects was successfully retrieved.
+          content:
+            application/vnd.sas.api+json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/getDataMakerRootResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api"
+              examples:
+                default:
+                  $ref: "#/components/examples/getDataMakerRootResponse"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+  /internal/health:
+    get:
+      summary: Check if the service is reachable
+      tags:
+      - Health
+      operationId: getHealth
+      x-sas-internal: true
+      description: Returns a 200 status code if the service can be reached.
+      responses:
+        "200":
+          description: The request was successfully processed.
+  /internal/config:
+    get:
+      summary: Obtain service config
+      tags:
+      - Config
+      operationId: getConfig
+      x-sas-internal: true
+      description: The api config
+      responses:
+        "200":
+          description: The config was obtained successfully.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: "#/components/schemas/config"
+  /tables/{tableID}:
+    get:
+      tags:
+      - Tables
+      operationId: getTable
+      summary: Get table
+      description: Retrieves the table that has the specified ID.
+      parameters:
+      - name: tableID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: The table was successfully retrieved.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: "#/components/schemas/table"
+        "404":
+          $ref: "#/components/responses/notFound"
+    put:
+      tags:
+      - Tables
+      operationId: setTableProperties
+      summary: Update table properties
+      description: Updates all properties for the specified table.
+      parameters:
+      - name: tableID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/setTableProperties"
+      responses:
+        "200":
+          $ref: "#/components/responses/tablePropertiesUpdated"
+    patch:
+      tags:
+      - Tables
+      operationId: patchTableProperties
+      summary: Update table properties
+      description: Updates individual properties for the specified table by providing
+        one or more attribute key-value pairs.
+      parameters:
+      - name: tableID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/patchTableProperties"
+      responses:
+        "200":
+          $ref: "#/components/responses/tablePropertiesUpdated"
+  /entities:
+    post:
+      operationId: createEntity
+      tags:
+      - Entities
+      summary: Create entity
+      description: Create an entity on a specific table.
+      requestBody:
+        $ref: "#/components/requestBodies/entityCreate"
+      responses:
+        "201":
+          description: The entity was created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/entity"
+        "404":
+          $ref: "#/components/responses/notFound"
+        "400":
+          $ref: "#/components/responses/badRequest"
+  /entities/{entityID}:
+    get:
+      operationId: getEntity
+      tags:
+      - Entities
+      summary: Get entity
+      description: Returns the entity that has the specified ID.
+      parameters:
+      - name: entityID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: The entity was successfully retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/entity"
+        "404":
+          $ref: "#/components/responses/notFound"
+    put:
+      operationId: updateEntity
+      tags:
+      - Entities
+      summary: Update entity
+      description: Updates all settings for the entity. Can be used to add columns
+        to the entity.
+      parameters:
+      - name: entityID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/updateEntity"
+      responses:
+        "200":
+          description: The entity settings were successfully updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/entity"
+        "404":
+          $ref: "#/components/responses/notFound"
+        "400":
+          $ref: "#/components/responses/badRequest"
+    patch:
+      operationId: updateEntitySettings
+      tags:
+      - Entities
+      summary: Update entity
+      description: Updates individual settings for the specified entity by providing
+        one or more attribute key-value pairs.
+      parameters:
+      - name: entityID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/updateEntitySettings"
+      responses:
+        "200":
+          description: The entity settings were successfully updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/entity"
+        "404":
+          $ref: "#/components/responses/notFound"
+        "400":
+          $ref: "#/components/responses/badRequest"
+  /columns/{columnID}:
+    get:
+      tags:
+      - Columns
+      operationId: getColumn
+      summary: Get column
+      description: Returns the column that has the specified ID.
+      parameters:
+      - name: columnID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: The column was successfully retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/column"
+        "404":
+          $ref: "#/components/responses/notFound"
+    put:
+      tags:
+      - Columns
+      operationId: setColumnProperties
+      summary: Update column properties
+      description: Updates all properties for the column.
+      parameters:
+      - name: columnID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/setColumnProperties"
+      responses:
+        "200":
+          $ref: "#/components/responses/columnPropertiesUpdated"
+    patch:
+      tags:
+      - Columns
+      operationId: patchColumnProperties
+      summary: Update column properties
+      description: Updates individual properties for the specified column by providing
+        one or more attribute key-value pairs.
+      parameters:
+      - name: columnID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/patchColumnProperties"
+      responses:
+        "200":
+          $ref: "#/components/responses/columnPropertiesUpdated"
+  /projects/{projectId}/models:
+    get:
+      tags:
+      - Models
+      operationId: getProjectModels
+      summary: Get project models
+      description: Retrieves the models belonging to the specified project.
+      parameters:
+      - name: projectId
+        in: path
+        description: The ID of the project for which models are requested.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: start
+        in: query
+        description: The start index for pagination.
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: The limit parameter for pagination.
+        schema:
+          type: integer
+          format: int64
+          default: 10
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the collection. See [Sorting in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: The models were successfully retrieved.
+          headers:
+            ETag:
+              description: ETag for response.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.maker.project+json:
+              schema:
+                $ref: "#/components/schemas/modelCollection"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/modelCollection"
+        "400":
+          $ref: "#/components/responses/badRequest"
+    post:
+      tags:
+      - Models
+      operationId: createProjectModel
+      summary: Create model
+      description: Creates a new model in the specified project.
+      parameters:
+      - name: projectId
+        in: path
+        description: The ID of the project for which models are requested.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/modelCreate"
+      responses:
+        "201":
+          description: The model was created.
+          content:
+            application/vnd.sas.data.maker.project+json:
+              schema:
+                $ref: "#/components/schemas/model"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/model"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /models/{modelId}:
+    get:
+      tags:
+      - Models
+      operationId: getModelByID
+      summary: Get model
+      description: Retrieves the specified model.
+      parameters:
+      - name: modelId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: The model was successfully retrieved.
+          headers:
+            ETag:
+              description: ETag for response.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.maker.project+json:
+              schema:
+                $ref: "#/components/schemas/model"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/model"
+        "404":
+          $ref: "#/components/responses/notFound"
+    patch:
+      operationId: patchModelProperties
+      tags:
+      - Models
+      summary: Update model settings
+      description: Updates individual settings for the specified model by providing
+        one or more attribute key-value pairs.
+      parameters:
+      - name: modelId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/patchModelProperties"
+      responses:
+        "200":
+          $ref: "#/components/responses/modelSettingsUpdated"
+        "400":
+          $ref: "#/components/responses/badRequest"
+    put:
+      operationId: putModel
+      tags:
+      - Models
+      summary: Update model settings
+      description: Updates all settings for the specified model.
+      parameters:
+      - name: modelId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/modelsUpdateRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/modelSettingsUpdated"
+        "400":
+          $ref: "#/components/responses/badRequest"
+    delete:
+      operationId: deleteModelByID
+      tags:
+      - Models
+      summary: Delete model
+      description: Deletes the specified model.
+      parameters:
+      - name: modelId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          $ref: "#/components/responses/deleted"
+        "400":
+          $ref: "#/components/responses/badRequest"
+  /models/{modelId}/fork:
+    post:
+      tags:
+      - Models
+      operationId: forkModel
+      summary: Fork model
+      description: Creates a fork of the model and all its dependencies.
+      parameters:
+      - name: modelId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/modelFork"
+      responses:
+        "200":
+          description: The model was forked.
+          content:
+            application/vnd.sas.data.maker.project+json:
+              schema:
+                $ref: "#/components/schemas/model"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/model"
+        "400":
+          $ref: "#/components/responses/badRequest"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /models/{modelId}/analyse:
+    post:
+      operationId: analyseModel
+      tags:
+      - Tasks
+      summary: Create analysis job
+      description: Creates a new analysis job.
+      parameters:
+      - name: modelId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/analysisCreate"
+      responses:
+        "201":
+          $ref: "#/components/responses/taskCreated"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /models/{modelId}/train:
+    post:
+      operationId: trainModel
+      tags:
+      - Tasks
+      summary: Create training job
+      description: Creates a new training job.
+      parameters:
+      - name: modelId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "201":
+          $ref: "#/components/responses/taskCreated"
+        "404":
+          $ref: "#/components/responses/notFound"
+        "422":
+          description: The model still has validation errors which must be resolved
+            before training can take place.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/ExportErrorResponse"
+  /models/{modelId}/generate:
+    post:
+      operationId: generateModel
+      tags:
+      - Tasks
+      summary: Create generation job
+      description: Creates a new generation job.
+      parameters:
+      - name: modelId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/generateTaskCreate"
+      responses:
+        "201":
+          $ref: "#/components/responses/taskCreated"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /models/{modelID}/jobs:
+    get:
+      operationId: getTasksForModel
+      tags:
+      - Tasks
+      summary: Get model jobs
+      description: Retrieves all jobs belonging to the specified model.
+      parameters:
+      - name: modelID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: start
+        in: query
+        description: The start index for pagination.
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: The limit parameter for pagination.
+        schema:
+          type: integer
+          format: int64
+          default: 10
+      - name: type
+        in: query
+        description: Task type.
+        schema:
+          allOf:
+          - $ref: "#/components/schemas/TaskType"
+      responses:
+        "200":
+          $ref: "#/components/responses/taskCollectionRetrieved"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /jobs:
+    get:
+      operationId: listTasksMetadata
+      tags:
+      - Tasks
+      summary: Get active/recent tasks
+      description: Retrieves all currently active or recently completed jobs (<1hr
+        ago).
+      responses:
+        "200":
+          $ref: "#/components/responses/taskCollectionRetrieved"
+  /jobs/{taskId}:
+    get:
+      operationId: getTaskMetadata
+      tags:
+      - Tasks
+      summary: Get task metadata
+      description: Retrieves metadata for the specified task. Does not include the
+        task configuration or results.
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              description: Type of returned content
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          $ref: "#/components/responses/notFound"
+    delete:
+      operationId: deleteTask
+      tags:
+      - Tasks
+      summary: Delete task
+      description: Deletes the specified task.
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "202":
+          description: The request to delete has been accepted and is likely to succeed.
+          headers:
+            Content-Type:
+              description: Type of returned content
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/taskDeleteResponse"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /jobs/{taskId}/config:
+    get:
+      # used internally when k8s init container fetches the config for synth to start
+      x-sas-internal: true
+      operationId: getTaskConfig
+      tags:
+      - Tasks
+      summary: Get task configuration
+      description: Retrieves the configuration for the specified task in JSON format.
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: The task config was fetched.
+          headers:
+            ETag:
+              description: ETag for response.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.maker.project+json:
+              schema:
+                $ref: "#/components/schemas/TaskConfig"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /jobs/{taskId}/result:
+    get:
+      operationId: getTaskResult
+      tags:
+      - Tasks
+      summary: Get task progress/result
+      description: Retrieve the progress and/or result for the specified task.
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: The task result/progress was fetched.
+          headers:
+            ETag:
+              description: ETag for response.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.maker.project+json:
+              schema:
+                $ref: "#/components/schemas/TaskResult"
+        "404":
+          $ref: "#/components/responses/notFound"
+    post:
+      # used internally by the synth to update a task by sending progress or a result
+      # should never be called by the user directly
+      x-sas-internal: true
+      operationId: updateTask
+      tags:
+      - Tasks
+      summary: Update task progress/result
+      description: Update the progress/result for the specified task.
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/taskUpdate"
+      responses:
+        "201":
+          description: The task progress/result was successfully updated.
+          headers:
+            ETag:
+              description: ETag for response.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.maker.project+json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /jobs/{taskId}/generated-data:
+    get:
+      operationId: viewGeneratedData
+      tags:
+      - Tasks
+      summary: Get generation metadata
+      description: Gets information about generated data files for each table in a
+        generation run.
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: Generated data information
+          headers:
+            ETag:
+              description: ETag for response.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.maker.project+json:
+              schema:
+                $ref: "#/components/schemas/taskViewGeneratedDataResponse"
+        "400":
+          $ref: "#/components/responses/badRequestNotGenerationTask"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /jobs/{taskId}/generated-data/download:
+    get:
+      operationId: downloadGeneratedData
+      tags:
+      - Tasks
+      summary: Download generated data
+      description: Download generated data for each table in a generation run.
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: Generated Data download links
+          headers:
+            ETag:
+              description: ETag for response.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.maker.project+json:
+              schema:
+                $ref: "#/components/schemas/taskDownloadGeneratedDataResponse"
+        "400":
+          $ref: "#/components/responses/badRequestNotGenerationTask"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /models/{modelID}/tables:
+    get:
+      operationId: getTablesForModel
+      tags:
+      - Models
+      summary: Get model tables
+      description: Gets tables and high level column information relating to a model.
+      parameters:
+      - name: modelID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the collection. See [Sorting in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: The columns were fetched.
+          headers:
+            ETag:
+              description: ETag for response.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.maker.project+json:
+              schema:
+                $ref: "#/components/schemas/tableCollection"
+  /models/{modelID}/columns:
+    get:
+      operationId: getColumnsForModel
+      tags:
+      - Models
+      summary: Get columns relating to a model
+      description: Get columns relating to a model
+      parameters:
+      - name: modelID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: start
+        in: query
+        description: The start index for pagination.
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: The limit parameter for pagination.
+        schema:
+          type: integer
+          format: int64
+          default: 10
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the collection. See [Sorting in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: The columns were fetched.
+          headers:
+            ETag:
+              description: ETag for response.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.data.maker.project+json:
+              schema:
+                $ref: "#/components/schemas/columnCollection"
+  /models/{modelID}/entities:
+    get:
+      operationId: getEntitiesForModel
+      tags:
+      - Models
+      summary: Get entities relating to a model
+      description: Get entities relating to a model
+      parameters:
+      - name: modelID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: The entities on the model
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/entityCollection"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /models/{modelID}/artifacts:
+    get:
+      x-sas-internal: true
+      operationId: getArtifactsForModel
+      tags:
+      - Models
+      summary: Get model artifacts
+      description: Gets artifacts for the specified trained model.
+      parameters:
+      - name: modelID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: Model artifacts retrieved succcessfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/modelArtifacts"
+        "404":
+          description: Requested model does not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  /models/{modelID}/metrics:
+    get:
+      operationId: getMetricsForModel
+      tags:
+      - Models
+      summary: Get model metrics
+      description: Retrieves metrics for the specified trained model.
+      parameters:
+      - name: modelID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: Model metrics retrieved succcessfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetricsManifest"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /models/{modelID}/metrics/{linkID}:
+    get:
+      operationId: getMetricChartData
+      tags:
+      - Models
+      summary: Get metric chart data
+      description: Retrieves metric chart data for the specified trained model.
+      parameters:
+      - name: modelID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: linkID
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Model metrics retrieved succcessfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChartData"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /models/{modelID}/samples:
+    get:
+      operationId: getSamplesForModel
+      tags:
+      - Models
+      summary: Get model sample data
+      description: Gets sample synthetic data from the specified trained model.
+      parameters:
+      - name: modelID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: Model metrics retrieved succcessfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sampleSchema"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /projects:
+    get:
+      operationId: getProjects
+      tags:
+      - Projects
+      summary: Get projects
+      description: Retrieves the available projects.
+      parameters:
+      - name: start
+        in: query
+        description: The start index for pagination.
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: The limit parameter for pagination.
+        schema:
+          type: integer
+          format: int64
+          default: 10
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the collection. See [Sorting in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              description: Type of returned content.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/projectSummaryCollection"
+    post:
+      operationId: createProject
+      tags:
+      - Projects
+      summary: Create project
+      description: Creates a new project.
+      requestBody:
+        $ref: "#/components/requestBodies/projectCreate"
+      responses:
+        "201":
+          description: The project was created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/project"
+        "400":
+          $ref: "#/components/responses/badRequest"
+  /projects/{projectId}:
+    get:
+      operationId: getProject
+      tags:
+      - Projects
+      summary: Get project
+      description: Retrieves the specified project.
+      parameters:
+      - name: projectId
+        in: path
+        description: The ID of the project requested.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: The request succeeded.
+          headers:
+            Content-Type:
+              description: Type of returned content
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/project"
+        "404":
+          $ref: "#/components/responses/notFound"
+    put:
+      operationId: updateProject
+      tags:
+      - Projects
+      summary: Update project
+      description: Updates all details for the specified project.
+      parameters:
+      - name: projectId
+        in: path
+        description: The ID of the project to be updated.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/projectUpdate"
+      responses:
+        "200":
+          description: The project was updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/project"
+        "400":
+          $ref: "#/components/responses/badRequest"
+    delete:
+      operationId: deleteProject
+      tags:
+      - Projects
+      summary: Delete project
+      description: Deletes the specified project.
+      parameters:
+      - name: projectId
+        in: path
+        description: The ID of the project to be deleted.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          $ref: "#/components/responses/deleted"
+        "400":
+          $ref: "#/components/responses/badRequest"
+  /models/{modelId}/data-ranges:
+    get:
+      operationId: getDataRanges
+      tags:
+      - Conditions
+      summary: Get data ranges for a specific column.
+      parameters:
+      - name: modelId
+        in: path
+        description: The ID of the model to get data ranges for.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: tableName
+        in: query
+        description: The name of the table for which to get the data ranges.
+        required: true
+        schema:
+          type: string
+      - name: columnName
+        in: query
+        description: The name of the column for which to get the data ranges.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The data ranges for the requested column.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ColumnRange"
+        "404":
+          description: No such table/column was found in the data for the specified
+            model.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  /models/{modelId}/conditions:
+    get:
+      operationId: getConditionsForModel
+      tags:
+      - Conditions
+      summary: List all conditions for a specific model
+      parameters:
+      - name: modelId
+        in: path
+        description: The ID of the model to get conditions for.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: The conditions for the model
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/condition"
+        "404":
+          description: A model with the specified ID was not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+    post:
+      operationId: createCondition
+      tags:
+      - Conditions
+      summary: Create a new condition
+      parameters:
+      - name: modelId
+        in: path
+        description: The ID of the model to create conditions on.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/conditionCreate"
+      responses:
+        "201":
+          description: The condition was created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/condition"
+        "400":
+          description: The request to create a condition is invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "404":
+          description: A model with the specified ID was not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  /conditions/{conditionId}:
+    put:
+      operationId: updateCondition
+      tags:
+      - Conditions
+      summary: Update a specific condition
+      parameters:
+      - name: conditionId
+        in: path
+        description: The ID of the condition to be updated.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/conditionUpdate"
+      responses:
+        "200":
+          description: The condition was updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/condition"
+        "400":
+          description: The request to update a condition is invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "404":
+          description: A condition with the specified ID was not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+    delete:
+      operationId: deleteCondition
+      tags:
+      - Conditions
+      summary: Delete a specific condition
+      parameters:
+      - name: conditionId
+        in: path
+        description: The ID of the condition to be deleted.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: The condition was deleted.
+        "400":
+          description: The request to delete a condition is invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "404":
+          description: A condition with the specified ID was not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  /connections:
+    get:
+      operationId: getConnections
+      tags:
+      - Connections
+      summary: Get connections
+      description: Retrieves the available data connections.
+      parameters:
+      - name: start
+        in: query
+        description: The start index for pagination.
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: The limit parameter for pagination.
+        schema:
+          type: integer
+          format: int64
+          default: 10
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the collection. See [Sorting in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/connectionCollection"
+    post:
+      operationId: createConnection
+      tags:
+      - Connections
+      summary: Create connection
+      description: Creates a new connection.
+      requestBody:
+        $ref: "#/components/requestBodies/connectionCreate"
+      responses:
+        "201":
+          description: The connection was created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/connection"
+        "400":
+          $ref: "#/components/responses/badRequest"
+  /connections/{connectionId}:
+    get:
+      operationId: getConnection
+      tags:
+      - Connections
+      summary: Get connection
+      description: Retrieves the specified connection.
+      parameters:
+      - name: connectionId
+        in: path
+        description: The ID of the connection requested.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/connection"
+    put:
+      operationId: updateConnection
+      tags:
+      - Connections
+      summary: Update connection
+      description: Updates all details for the specified connection.
+      parameters:
+      - name: connectionId
+        in: path
+        description: The ID of the connection to be updated.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/connectionUpdate"
+      responses:
+        "200":
+          description: The connection was updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/connection"
+        "400":
+          $ref: "#/components/responses/badRequest"
+    delete:
+      operationId: deleteConnection
+      tags:
+      - Connections
+      summary: Delete connection
+      description: Deletes an existing connection.
+      parameters:
+      - name: connectionId
+        in: path
+        description: The ID of the connection to be deleted.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          $ref: "#/components/responses/deleted"
+        "400":
+          $ref: "#/components/responses/badRequest"
+  /connections/{connectionId}/files:
+    get:
+      operationId: getConnectionFiles
+      tags:
+      - Connections
+      summary: Get connection files
+      description: Retrieves the available files within the specified connection.
+      parameters:
+      - name: connectionId
+        in: path
+        description: The ID of the connection for which files requested.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/connectionFilesCollection"
+    post:
+      operationId: uploadConnectionFiles
+      tags:
+      - Connections
+      summary: Upload files
+      description: Uploads the provided files to the specified connection.
+      parameters:
+      - name: connectionId
+        in: path
+        description: The ID of the connection for which to upload the files.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/connectionFileUpload"
+      responses:
+        "201":
+          description: The files were successfully uploaded.
+        "400":
+          $ref: "#/components/responses/badRequest"
+        "404":
+          $ref: "#/components/responses/notFound"
+  /connections/test:
+    post:
+      operationId: testConnection
+      tags:
+      - Connections
+      summary: Test connection
+      description: Tests the validity of the specified connection.
+      requestBody:
+        $ref: "#/components/requestBodies/connectionTest"
+      responses:
+        "200":
+          description: The request to test a connection was successful though the
+            connection details might includes errors.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/connectionTestResult"
+        "400":
+          $ref: "#/components/responses/badRequest"
+components:
+  requestBodies:
+    patchTableProperties:
+      content:
+        application/vnd.sas.api+json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/patches"
+    setTableProperties:
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/setTableProperties"
+    setColumnProperties:
+      content:
+        application/vnd.sas.api+json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/columnProperties"
+    patchColumnProperties:
+      content:
+        application/vnd.sas.api+json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/patches"
+    modelCreate:
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/modelCreateRequest"
+    modelFork:
+      description: Data Maker model fork request.
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/modelForkRequest"
+    patchModelProperties:
+      content:
+        application/vnd.sas.api+json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/patches"
+    projectCreate:
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/projectCreateRequest"
+            required:
+            - name
+      description: Data Maker project create request.
+      required: true
+    projectUpdate:
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/projectUpdateRequest"
+            required:
+            - id
+      description: Data Maker project update request. Only the name and description
+        fields are updatable.
+      required: true
+    connectionCreate:
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/connectionCreateRequest"
+            required:
+            - name
+      description: Data Maker connection create request.
+      required: true
+    connectionUpdate:
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/connectionUpdateRequest"
+            required:
+            - id
+      description: Data Maker connection update request. Only the settings field is
+        updateable.
+      required: true
+    connectionTest:
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/connectionTestRequest"
+      description: Data Maker connection create request.
+      required: true
+    connectionFileUpload:
+      content:
+        multipart/form-data:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/connectionFileUploadRequest"
+      description: Data Maker connection create request.
+      required: true
+    entityCreate:
+      description: Data Maker entity create request.
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/entityCreateRequest"
+    updateEntity:
+      description: Data Maker entity update request.
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/entityUpdateRequest"
+    updateEntitySettings:
+      description: Data Maker entity settings update request.
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/patches"
+    conditionCreate:
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/conditionCreateRequest"
+            required:
+            - name
+      description: Data Maker condition create request.
+      required: true
+    conditionUpdate:
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/conditionUpdateRequest"
+            required:
+            - id
+      description: Data Maker condition update request. Only the settings field is
+        updateable.
+      required: true
+    generateTaskCreate:
+      description: Create an analysis task.
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/generateParams"
+    taskUpdate:
+      x-sas-internal: true
+      description: Update the progress/result for a specific task.
+      required: true
+      content:
+        application/json:
+          schema:
+            required:
+            - taskID
+            - state
+            allOf:
+            - $ref: "#/components/schemas/TaskResult"
+    analysisCreate:
+      description: Create an analysis task.
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/analysisCreateRequest"
+  responses:
+    tablePropertiesUpdated: # 200
+      description: The table properties were successfully updated.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/table"
+    entitySettingsUpdated: # 200
+      description: The entity settings were successfully updated.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/entity"
+    columnPropertiesUpdated: # 200
+      description: The column properties were successfully updated.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/columnProperties"
+    modelSettingsUpdated: # 200
+      description: The model settings were successfully updated.
+      headers:
+        ETag:
+          description: ETag for response.
+          schema:
+            type: string
+      content:
+        application/vnd.sas.data.maker.project+json:
+          schema:
+            $ref: "#/components/schemas/model"
+        application/json:
+          schema:
+            $ref: "#/components/schemas/model"
+    taskCollectionRetrieved: # 200
+      description: The tasks were successfully retrieved.
+      headers:
+        ETag:
+          description: ETag for response.
+          schema:
+            type: string
+      content:
+        application/vnd.sas.data.maker.project+json:
+          schema:
+            $ref: "#/components/schemas/taskCollection"
+    taskCreated: # 201
+      description: The task was successfully created.
+      headers:
+        ETag:
+          description: ETag for response.
+          schema:
+            type: string
+      content:
+        application/vnd.sas.data.maker.project+json:
+          schema:
+            $ref: "#/components/schemas/Task"
+    deleted: # 204
+      description: The resource was successfully deleted.
+    badRequest: # 400
+      description: The request is invalid.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          examples:
+            default:
+              $ref: "#/components/examples/errorResponse"
+    badRequestNotGenerationTask: # 400
+      description: The task with the specified ID is not a generation task.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+    notFound: # 404
+      description: The requested resource does not exist or could not be found.
+      content:
+        application/vnd.sas.error+json:
+          schema:
+            $ref: "#/components/schemas/error2"
+          examples:
+            default:
+              $ref: "#/components/examples/errorResponse"
+  schemas:
+    config:
+      x-sas-internal: true
+      type: object
+      description: API Config.
+      required:
+      - auth
+      - uploadAPIEnabled
+      - uploadAPIMaxFileSize
+      - SoftwareVersions
+      - conditionalGenerationEnabled
+      properties:
+        auth:
+          nullable: false
+          allOf:
+          - $ref: "#/components/schemas/AuthInfo"
+        uploadAPIEnabled:
+          nullable: false
+          type: boolean
+          default: false
+        uploadAPIMaxFileSize:
+          nullable: false
+          type: integer
+          format: int64
+          default: 5242880
+        SoftwareVersions:
+          nullable: false
+          allOf:
+          - $ref: "#/components/schemas/SoftwareVersions"
+        conditionalGenerationEnabled:
+          nullable: false
+          type: boolean
+          default: false
+    AuthInfo:
+      x-sas-internal: true
+      type: object
+      description: Information to determine how to perform authentication/authorization
+      properties:
+        method:
+          nullable: false
+          allOf:
+          - $ref: "#/components/schemas/authMethod"
+        clientID:
+          type: string
+          nullable: false
+        wellKnownOIDCConfig:
+          type: string
+          nullable: false
+        redirectURI:
+          nullable: false
+          type: string
+          default: ""
+        audience:
+          type: string
+    authMethod:
+      type: string
+      enum:
+      - auth0
+      - keycloak-org
+      description: Possible model state values.
+    SoftwareVersions:
+      x-sas-internal: true
+      type: object
+      description: Versions of deployable units
+      properties:
+        APIVersion:
+          type: string
+          nullable: false
+        AppVersion:
+          type: string
+          nullable: false
+        SynthVersion:
+          type: string
+          nullable: false
+    tableCollection:
+      type: object
+      allOf:
+      - type: object
+        properties:
+          items:
+            type: array
+            description: An array that contains Data Maker column objects.
+            items:
+              $ref: "#/components/schemas/table"
+      description: A collection of Data Maker column objects
+    columnCollection:
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: An array that contains Data Maker column objects.
+            items:
+              $ref: "#/components/schemas/column"
+      description: A collection of Data Maker column objects
+    taskCollection:
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: An array that contains Data Maker task objects.
+            items:
+              $ref: "#/components/schemas/Task"
+      description: A collection of Data Maker task objects
+    modelCollection:
+      type: object
+      description: A collection of Data Maker model objects.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: An array that contains Data Maker model objects.
+            items:
+              $ref: "#/components/schemas/model"
+    model:
+      type: object
+      description: Data Maker model
+      properties:
+        ID:
+          type: integer
+          format: int64
+        metadata:
+          allOf:
+          - $ref: "#/components/schemas/modelMetadata"
+          nullable: true
+        modelSettings:
+          allOf:
+          - $ref: "#/components/schemas/modelSettings"
+          nullable: true
+        metricSettings:
+          allOf:
+          - type: array
+            items:
+              $ref: "#/components/schemas/metricSettings"
+            nullable: true
+        metricScores:
+          allOf:
+          - $ref: "#/components/schemas/metricScores"
+          nullable: true
+        validationErrors:
+          allOf:
+          - $ref: "#/components/schemas/ValidationErrorTracker"
+    modelState:
+      enum:
+      - uninitialised
+      - analyse_queued
+      - analysing
+      - analyse_failed
+      - analyse_killed
+      - configuring
+      - training_queued
+      - training
+      - trained
+      - training_killed
+      - training_failed
+      - error
+      description: Possible model state values.
+    modelMetadata:
+      type: object
+      description: Metadata of Data Maker model.
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      properties:
+        parentModelID:
+          nullable: true
+          type: integer
+          format: int64
+          description: ID of parent model if it exists.
+        description:
+          nullable: true
+          type: string
+          description: Description of Data Maker model.
+          default: ""
+        name:
+          type: string
+          description: Name of Data Maker model
+          nullable: true
+        projectID:
+          nullable: true
+          type: integer
+          format: int64
+          description: ID of the project
+        state:
+          nullable: true
+          description: Current state of the given model.
+          allOf:
+          - $ref: "#/components/schemas/modelState"
+        fileID:
+          type: string
+          description: ID of the file
+    modelSettings:
+      type: object
+      description: Data Maker generator settings representation
+      properties:
+        randomState:
+          type: integer
+          format: int64
+          title: Random seed for model
+          description: Random seed for model
+          nullable: true
+        modelParameters:
+          allOf:
+          - $ref: "#/components/schemas/modelParameters"
+          nullable: true
+    metricSettings:
+      type: object
+      description: Metric setting for Data Maker model
+      properties:
+        metricType:
+          $ref: "#/components/schemas/MetricType"
+        mutualInformationSimilaritySettings:
+          anyOf:
+          - $ref: "#/components/schemas/MutualInformationSimilaritySettings"
+          nullable: true
+        histogramSimilaritySettings:
+          anyOf:
+          - $ref: "#/components/schemas/HistogramSimilaritySettings"
+          nullable: true
+        presenceDisclosureSettings:
+          anyOf:
+          - $ref: "#/components/schemas/PresenceDisclosureSettings"
+          nullable: true
+        densityDisclosureSettings:
+          anyOf:
+          - $ref: "#/components/schemas/DensityDisclosureSettings"
+          nullable: true
+    metricScores:
+      type: object
+      description: Metric scores for Data Maker model
+      properties:
+        crossTableMutualInformationSimilarity:
+          type: number
+          format: double
+          title: Score for CrossTableMutualInformationSimilarity Metric
+          nullable: true
+        degreeDistributionSimilarity:
+          type: number
+          format: double
+          title: Score for DegreeDistributionSimilarity Metric
+          nullable: true
+        mutualInformationSimilarity:
+          type: number
+          format: double
+          title: Score for MutualInformationSimilarity Metric
+          nullable: true
+        histogramSimilarity:
+          type: number
+          format: double
+          title: Score for HistogramSimilarity Metric
+          nullable: true
+        presenceDisclosure:
+          type: number
+          format: double
+          title: Score for PresenceDisclosure Metric
+          nullable: true
+        densityDisclosure:
+          type: number
+          format: double
+          title: Score for DensityDisclosure Metric
+          nullable: true
+    modelParameters:
+      type: object
+      description: Data Maker generative model parameters representation
+      properties:
+        modelType:
+          $ref: "#/components/schemas/ModelType"
+        privBayes:
+          anyOf:
+          - $ref: "#/components/schemas/PrivBayesConfig"
+          nullable: true
+        smote:
+          anyOf:
+          - $ref: "#/components/schemas/SmoteConfig"
+          nullable: true
+        sequential:
+          anyOf:
+          - $ref: "#/components/schemas/SequentialConfig"
+          nullable: true
+        mst:
+          anyOf:
+          - $ref: "#/components/schemas/MSTConfig"
+          nullable: true
+        privateEvolution:
+          anyOf:
+          - $ref: "#/components/schemas/PrivateEvolutionConfig"
+          nullable: true
+    modelsUpdateRequest:
+      type: object
+      description: Representation used to update a Data Maker model
+      properties:
+        metadata:
+          allOf:
+          - $ref: "#/components/schemas/modelMetadata"
+          nullable: true
+        modelSettings:
+          allOf:
+          - $ref: "#/components/schemas/modelSettings"
+          nullable: true
+        metricSettings:
+          allOf:
+          - type: array
+            items:
+              $ref: "#/components/schemas/metricSettings"
+            nullable: true
+    setTableProperties:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the table
+        props:
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/tableProperties"
+          description: The properties of the table
+      required:
+      - name
+      - props
+      description: Set the properties of a table
+    tableProperties:
+      type: object
+      description: Contains the table properties
+      properties:
+        tableType:
+          allOf:
+          - $ref: "#/components/schemas/TableType"
+        sequentialTable:
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/SequentialTable"
+          nullable: true
+    TableType:
+      enum:
+      - tabular
+      - sequential
+      - reference
+      title: Table type
+      description: Table types available to define tables in data maker.
+    SequentialTable:
+      type: object
+      description: Data schema definition for a sequential table
+      properties:
+        seqID:
+          type: integer
+          format: int64
+          description: The column used to identify unique sequences.
+          nullable: true
+        sortBy:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: The columns used to sort the table to set the order of sequences.
+          nullable: true
+    MSTConfig:
+      type: object
+      title: MSTConfig
+      description: MST is an algorithm introduced in 2021 that relies on discretising
+        the data and fitting a differentially private graphical model to low-dimensional
+        marginals in order to allow for efficient data generation.
+      properties:
+        epsilon:
+          $ref: "#/components/schemas/Epsilon"
+        nBins:
+          $ref: "#/components/schemas/NBins"
+        maxCat:
+          $ref: "#/components/schemas/MaxCat"
+        useDifferentialPrivacy:
+          $ref: "#/components/schemas/UseDifferentialPrivacy"
+        delta:
+          title: Delta
+          description: Probability of information accidentally being leaked. Second
+            Differential Privacy Parameter.
+          type: number
+          format: double
+          minimum: 0.0
+          maximum: 1.0
+          default: 1e-5
+          nullable: true
+        nIters:
+          title: Number of iterations
+          description: Number of training iterations.
+          type: integer
+          format: int64
+          minimum: 0
+          default: 1000
+          nullable: true
+        compressDomain:
+          title: Compress domain
+          description: When set to True the domain of the 1-way marginals is compressed
+            according to the available privacy budget.
+          type: boolean
+          default: true
+          nullable: true
+    Epsilon:
+      title: Epsilon
+      description: Privacy budget parameter. Use small values such as 0.01 for extremely
+        high privacy guarantees, around 1-25 for standard privacy guarantees and large
+        values such as 10000 for low privacy but greater accuracy.
+      type: number
+      exclusiveMinimum: true
+      minimum: 0.0
+      format: double
+      default: 1000
+      nullable: true
+    NBins:
+      title: Number of bins
+      description: The number of bins to use when discretizing numerical data.
+      type: integer
+      format: int64
+      minimum: 1.0
+      default: 100
+      nullable: true
+    MaxCat:
+      title: Maximum categories
+      description: Maximum amount of categorical information to preserve in each categorical
+        column.
+      type: integer
+      minimum: 1.0
+      format: int64
+      default: 100
+      nullable: true
+    UseDifferentialPrivacy:
+      type: boolean
+      title: Use differential privacy
+      description: Set to true to turn on differential privacy applying the epsilon
+        privacy budget parameter.
+      default: true
+      nullable: true
+    taskDownloadGeneratedDataResponse:
+      type: object
+      properties:
+        tables:
+          type: object
+          description: Generated data for each table
+          additionalProperties:
+            $ref: "#/components/schemas/GeneratedDataDownloadLinks"
+    GeneratedDataDownloadLinks:
+      description: Download Links for generated data for a table in a generation run
+      type: object
+      properties:
+        downloadURL:
+          description: A Shared Access Signature download URL valid
+          type: string
+        downloadURLExpiry:
+          description: The expiry time of the download url
+          format: date-time
+          type: string
+    PresenceDisclosureSettings:
+      title: Presence disclosure
+      description: |
+        Measures the certainty with which an adversary could infer whether
+        an arbitrary data point was present in the real data used to train the
+        synthetic data generator.
+      allOf:
+      - $ref: "#/components/schemas/BaseMetricSettings"
+      properties:
+        numRecords:
+          type: integer
+          format: int64
+          title: Number of source data records
+          description: Number of source data records to be sampled for computing the
+            metric.
+          exclusiveMinimum: true
+          minimum: 0
+          default: 1000
+          nullable: true
+        magnitude:
+          type: number
+          format: double
+          title: Synthetic data magnitude
+          description: Amount of synthetic data to be sampled for computing the metric.
+          exclusiveMinimum: true
+          minimum: 0
+          default: 1
+          nullable: true
+        numIter:
+          type: integer
+          format: int64
+          title: Number of scoring iterations
+          description: Number of iterations to run when computing the metric.
+          exclusiveMinimum: true
+          minimum: 0
+          default: 1
+          nullable: true
+    BaseMetricSettings:
+      properties:
+        table:
+          type: string
+          title: Name of table
+          description: |
+            The name of the table to compute the metric for.
+            If null, the metric will be computed for all tables.
+          nullable: true
+    PrivBayesConfig:
+      properties:
+        nBins:
+          $ref: "#/components/schemas/NBins"
+        maxCat:
+          $ref: "#/components/schemas/MaxCat"
+        epsilon:
+          $ref: "#/components/schemas/Epsilon"
+        useDifferentialPrivacy:
+          $ref: "#/components/schemas/UseDifferentialPrivacy"
+        nParents:
+          type: integer
+          exclusiveMinimum: true
+          minimum: 1
+          format: int64
+          title: Number of parents
+          description: Number of parents per node to use in network building.
+          default: 3
+          nullable: true
+      type: object
+      title: PrivBayesConfig
+    connectionCreateRequest:
+      type: object
+      description: >
+        Representation used to create a Data Maker connection
+      properties:
+        connectionSettings:
+          allOf:
+          - $ref: "#/components/schemas/connectionSettings"
+      required:
+      - connectionType
+    connectionSettings:
+      type: object
+      description: The connection settings.
+      properties:
+        connectionType:
+          description: The type of connection that the settings specify.
+          allOf:
+          - $ref: "#/components/schemas/connectionType"
+        IO:
+          description: Determines if the connection is for input or output data.
+          allOf:
+          - $ref: "#/components/schemas/IOType"
+        azureBlobStorageSettings:
+          allOf:
+          - $ref: "#/components/schemas/azureBlobStorageSettings"
+          nullable: true
+    connectionType:
+      type: string
+      enum:
+      - azure-blob-storage
+    IOType:
+      enum:
+      - input
+      - output
+      - input_output
+      - upload
+      - download
+      title: IO Type
+      description: Determines whether the connection can be used for input or output
+        data.
+    azureBlobStorageSettings:
+      type: object
+      description: Representation used to specify a connection to azure blob storage.  See
+        [Storage Blobs Introduction](https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blobs-introduction).
+      properties:
+        storageAccount:
+          description: Blob storage account name.
+          type: string
+          nullable: true
+        container:
+          description: Blob storage container name.
+          type: string
+    sampleSchema:
+      type: array
+      description: Schema with samples
+      items:
+        $ref: "#/components/schemas/sampleColumn"
+    sampleColumn:
+      type: object
+      description: Column schema with samples
+      properties:
+        col:
+          description: Column name
+          type: string
+        table:
+          description: Table name
+          type: string
+        dtype:
+          description: Semantic data type
+          type: string
+        entityGroup:
+          description: ID of the entity group. The ID value has no relevance other
+            than to group columns together.
+          type: string
+        samples:
+          description: Column samples
+          type: array
+          items:
+            type: string
+    modelForkRequest:
+      type: object
+      description: Representation used to fork a Data Maker model
+      properties:
+        name:
+          description: Name of the forked model
+          type: string
+          nullable: true
+    projectCreateRequest:
+      type: object
+      description: >
+        Representation used to create a Data Maker project
+      properties:
+        name:
+          description: Name of the project
+          type: string
+        description:
+          description: a description for the project
+          type: string
+    connectionTestResult:
+      type: object
+      description: The result from testing connection details.
+      properties:
+        valid:
+          description: Whether the connection details are valid or not, or null if
+            undetermined.
+          type: boolean
+          nullable: true
+        error:
+          description: The errors that occured when testing the connection details.
+          type: string
+      required:
+      - valid
+    connectionFileUploadRequest:
+      type: object
+      properties:
+        path:
+          type: string
+        files:
+          type: array
+          items:
+            type: string
+            format: binary
+      required:
+      - path
+      - files
+    connection:
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      - $ref: "#/components/schemas/accessControl"
+      type: object
+      description: Data Maker connection representation
+      properties:
+        ID:
+          type: integer
+          format: int64
+          description: ID of the connection.
+        projectIDs:
+          type: array
+          description: A list of project IDs the connection is used by and which are
+            visible to the user.
+          items:
+            type: integer
+            format: int64
+        deletable:
+          type: boolean
+          description: A flag that describes if a connection can be deleted.
+        connectionSettings:
+          allOf:
+          - $ref: "#/components/schemas/connectionSettings"
+    table:
+      type: object
+      description: Main table object
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        relPath:
+          type: string
+        dbSchemaName:
+          type: string
+        dbTableName:
+          type: string
+        props:
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/tableProperties"
+        keyColumns:
+          type: array
+          description: An array that contains top level column information.
+          items:
+            $ref: "#/components/schemas/simpleColumn"
+        sizeBytes:
+          type: integer
+          format: int64
+          description: The size of the table in bytes.
+        numRows:
+          type: integer
+          format: int64
+          description: The number of rows in the table.
+      required:
+      - id
+      - name
+    simpleColumn:
+      type: object
+      description: Main column object
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        primaryKey:
+          type: boolean
+        dtype:
+          allOf:
+          - $ref: "#/components/schemas/SemanticType"
+        piiType:
+          allOf:
+          - $ref: "#/components/schemas/PIIType"
+          description: Level of PII sensitivity
+          default: "high"
+        entityID:
+          type: integer
+          format: int64
+          minimum: 0
+          title: Entity ID
+          description: The ID of the entity that this column belongs to.
+          nullable: true
+        foreignKey:
+          type: integer
+          format: int64
+          nullable: true
+        foreignKeyRef:
+          allOf:
+          - $ref: "#/components/schemas/foreignKeyRef"
+          nullable: true
+        dropColumn:
+          type: boolean
+          default: false
+        tableId:
+          type: integer
+          format: int64
+          description: The ID of the table that this column belongs to.
+    foreignKeyRef:
+      type: object
+      description: Foreign key reference
+      properties:
+        colName:
+          type: string
+          description: The column name the foreign key references
+        tableId:
+          type: integer
+          format: int64
+          description: The ID of the table the foreign key references
+    TaskType:
+      description: Type of a task.
+      enum:
+      - train
+      - generate
+      - analyse
+    SequentialConfig:
+      type: object
+      properties:
+        modelType:
+          allOf:
+          - $ref: "#/components/schemas/SequentialModelType"
+        stepSequential:
+          anyOf:
+          - $ref: "#/components/schemas/StepSequentialConfig"
+          nullable: true
+    SequentialModelType:
+      enum:
+      - sequential_basic
+      title: Sequential model type
+      description: Model types available for generating sequential data.
+    StepSequentialConfig:
+      type: object
+      properties:
+        windowSize:
+          type: integer
+          format: int64
+          title: Sequential conditioning window size
+          description: |
+            The number of previous elements in the sequence
+            to condition on during each sequential generation step.
+          default: 5
+          minimum: 1
+          nullable: true
+        nPredict:
+          type: integer
+          format: int64
+          title: Number of elements to predict
+          description: |
+            The number of elements in the sequence to predict
+            at each sequential generation step.
+          default: 2
+          minimum: 1
+          nullable: true
+    TaskResult:
+      description: Task progress or result.
+      type: object
+      properties:
+        taskID:
+          description: Unique identifier for the task.
+          type: integer
+          format: int64
+        taskType:
+          description: Task type.
+          allOf:
+          - $ref: "#/components/schemas/TaskType"
+        state:
+          description: Task state.
+          allOf:
+          - $ref: "#/components/schemas/TaskState"
+        killSignal:
+          description: Signal provided to kill the task.
+          allOf:
+          - $ref: "#/components/schemas/TaskKillSignal"
+          nullable: true
+        progress:
+          description: Task progress.
+          anyOf:
+          - $ref: "#/components/schemas/TaskProgress"
+          nullable: true
+        error:
+          description: Task error.
+          anyOf:
+          - $ref: "#/components/schemas/TaskError"
+          nullable: true
+        performanceMetrics:
+          description: Performance metrics.
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/PerfMetrics"
+          nullable: true
+        analysisResult:
+          description: Analysis result.
+          anyOf:
+          - $ref: "#/components/schemas/AnalysisResult"
+          nullable: true
+        generationResult:
+          description: Generation result.
+          anyOf:
+          - $ref: "#/components/schemas/GenerationResult"
+          nullable: true
+        trainingResult:
+          description: Training result.
+          anyOf:
+          - $ref: "#/components/schemas/TrainingResult"
+          nullable: true
+    ChartData:
+      type: object
+      properties:
+        chartType:
+          allOf:
+          - $ref: "#/components/schemas/chartType"
+        barChart:
+          allOf:
+          - $ref: "#/components/schemas/BarChart"
+          nullable: true
+        histogram:
+          allOf:
+          - $ref: "#/components/schemas/Histogram"
+          nullable: true
+        heatmap:
+          allOf:
+          - $ref: "#/components/schemas/Heatmap"
+          nullable: true
+        degreeDistributionHistograms:
+          allOf:
+          - $ref: "#/components/schemas/DegreeDistributionHistograms"
+          nullable: true
+    chartType:
+      enum:
+      - bar
+      - hist
+      - heatmap
+      - degree_distribution_histograms
+
+    BarChart:
+      type: object
+      properties:
+        x:
+          type: array
+          items: {}
+        traces:
+          type: array
+          items:
+            $ref: "#/components/schemas/YTrace"
+    Histogram:
+      type: object
+      properties:
+        x:
+          type: array
+          items: {}
+        xType:
+          allOf:
+          - $ref: "#/components/schemas/xType"
+        traces:
+          type: array
+          items:
+            $ref: "#/components/schemas/YTrace"
+    Heatmap:
+      type: object
+      properties:
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/HeatmapPoint"
+    DegreeDistributionHistograms:
+      type: object
+      properties:
+        top:
+          description: It will only ever be one of barChart or histogram
+          allOf:
+          - $ref: "#/components/schemas/ChartData"
+        bottom:
+          description: It will only ever be one of barChart or histogram
+          allOf:
+          - $ref: "#/components/schemas/ChartData"
+    YTrace:
+      type: object
+      properties:
+        label:
+          type: string
+          description: Label for the trace
+        y:
+          type: array
+          items:
+            type: number
+            format: double
+    xType:
+      enum:
+      - number
+      - datetime
+      - timedelta_seconds
+
+    HeatmapPoint:
+      type: object
+      properties:
+        x:
+          type: string
+        y:
+          type: string
+        z:
+          type: array
+          items:
+            $ref: "#/components/schemas/ZPoint"
+    ZPoint:
+      type: object
+      properties:
+        label:
+          type: string
+        value:
+          type: number
+          format: double
+    ExportErrorResponse:
+      type: object
+      properties:
+        validationErrors:
+          allOf:
+          - $ref: "#/components/schemas/ValidationErrorTracker"
+    entityUpdateRequest:
+      type: object
+      description: Representation used to set the settings on a Data Maker entity.
+      properties:
+        settings:
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/entitySettings"
+          nullable: true
+        columns:
+          type: array
+          items:
+            type: integer
+            format: int64
+          nullable: true
+    entitySettings:
+      type: object
+      description: Data Maker entity settings representation
+      properties:
+        entityType:
+          $ref: "#/components/schemas/entityType"
+        personEntitySetting:
+          allOf:
+          - $ref: "#/components/schemas/personEntitySetting"
+          nullable: true
+        locationEntitySetting:
+          allOf:
+          - $ref: "#/components/schemas/locationEntitySetting"
+          nullable: true
+      required:
+      - entityType
+    entityType:
+      title: Entity Type
+      description: Entity types available for creating an entity on a column
+      enum:
+      - person
+      - combination
+      - location
+    TaskConfig:
+      x-sas-internal: true
+      description: Representation of a generic Data Maker task.
+      type: object
+      properties:
+        taskID:
+          description: Unique identifier for the task.
+          type: integer
+          format: int64
+        initiatorID:
+          description: Unique identifier for the user who initiated the task.
+          type: string
+          format: uuid
+        taskType:
+          description: Task type.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/TaskType"
+        config:
+          description: Task configuration.
+          type: object
+    taskViewGeneratedDataResponse:
+      type: object
+      properties:
+        tables:
+          type: array
+          description: Generated data for each table
+          items:
+            $ref: "#/components/schemas/GeneratedData"
+    GeneratedData:
+      description: Generated data for a table in a generation run
+      type: object
+      properties:
+        name:
+          description: The name of the table
+          type: string
+        filePath:
+          description: Full raw path to file
+          type: string
+        fileSize:
+          description: File size in bytes
+          type: integer
+          format: int64
+    projectUpdateRequest:
+      type: object
+      description: Representation used to update a Data Maker project
+      properties:
+        name:
+          description: the name of the project
+          type: string
+        description:
+          description: a description for the project
+          type: string
+    conditionCreateRequest:
+      type: object
+      description: Representation used to create a Data Maker condition
+      allOf:
+      - $ref: "#/components/schemas/conditionBase"
+    conditionBase:
+      type: object
+      description: Data Maker base condition representation
+      properties:
+        conditionType:
+          $ref: "#/components/schemas/conditionType"
+        tableName:
+          type: string
+          description: Name of the target table
+        columnName:
+          type: string
+          description: Name of the target column
+        marginalDistribution:
+          type: boolean
+          description: Enable to sample from the marginal rather then a uniform distribution
+          default: false
+        nullProportion:
+          description: Proportion of null in the sampled data. By default this is
+            set to the null rate in the source data if marginal distribution is enabled
+            or 0.0 if disabled
+          type: number
+          format: double
+          nullable: true
+        settings:
+          allOf:
+          - $ref: "#/components/schemas/conditionSettings"
+    conditionType:
+      type: string
+      enum:
+      - float
+      - int
+      - date_time
+      - time_delta
+      - category
+    conditionSettings:
+      properties:
+        intCondition:
+          type: object
+          description: A bounded integer condition with a lower and upper bound
+          properties:
+            upper:
+              description: Upper integer bound
+              type: integer
+              format: int64
+              nullable: true
+            lower:
+              description: Lower integer bound
+              type: integer
+              format: int64
+              nullable: true
+          nullable: true
+        floatCondition:
+          type: object
+          description: A bounded float condition with a lower and upper bound
+          properties:
+            upper:
+              description: Upper float bound
+              type: number
+              format: double
+              nullable: true
+            lower:
+              description: Lower float bound
+              type: number
+              format: double
+              nullable: true
+          nullable: true
+        categoryCondition:
+          type: object
+          description: A category condition with a list of categories
+          properties:
+            categories:
+              type: array
+              items:
+                type: string
+          nullable: true
+        datetimeCondition:
+          type: object
+          description: A bounded datetime condition with a lower and upper bound
+          properties:
+            upper:
+              description: Upper datetime bound
+              type: string
+              nullable: true
+            lower:
+              description: Lower datetime bound
+              type: string
+              nullable: true
+          nullable: true
+        timedeltaCondition:
+          type: object
+          description: A bounded timedelta condition with a lower and upper bound
+          properties:
+            upper:
+              description: Upper timedelta bound
+              type: string
+              nullable: true
+            lower:
+              description: Lower timedelta bound
+              type: string
+              nullable: true
+          nullable: true
+    column:
+      type: object
+      description: Main column object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        props:
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/columnProperties"
+        tableId:
+          type: integer
+          format: int64
+        rawDataType:
+          description: Raw data type of the column.
+          type: string
+          nullable: true
+        columnSummary:
+          description: Column statistics and examples.
+          anyOf:
+          - $ref: "#/components/schemas/ColumnSummary"
+          nullable: true
+      required:
+      - id
+      - name
+      - props
+    columnProperties:
+      type: object
+      description: Used to set column properties
+      properties:
+        primaryKey:
+          type: boolean
+        foreignKey:
+          type: integer
+          format: int64
+          nullable: true
+        dtype:
+          anyOf:
+          - $ref: "#/components/schemas/SemanticType"
+        piiType:
+          anyOf:
+          - $ref: "#/components/schemas/PIIType"
+          description: Level of PII sensitivity
+          default: "high"
+        dropColumn:
+          type: boolean
+          title: Drop column
+          description: If True the column will be dropped from the table
+          default: false
+        entityID: # TODO should this be here, or move into the types which can be part of entities? perhaps the latter is better, it means a column can refer to multiple entities by switching the type, but unlikely to happen much in practice
+          type: integer
+          format: int64
+          minimum: 0
+          title: Entity ID
+          description: The ID of the location entity that this column belongs to.
+          nullable: true
+        repeatBy:
+          anyOf:
+          - $ref: "#/components/schemas/RepeatBy"
+          nullable: true
+        idType:
+          anyOf:
+          - $ref: "#/components/schemas/IDType"
+          nullable: true
+        constantType:
+          anyOf:
+          - $ref: "#/components/schemas/ConstantType"
+          nullable: true
+        floatType:
+          anyOf:
+          - $ref: "#/components/schemas/FloatType"
+          nullable: true
+        datetimeType:
+          anyOf:
+          - $ref: "#/components/schemas/DatetimeType"
+          nullable: true
+        intType:
+          anyOf:
+          - $ref: "#/components/schemas/IntType"
+          nullable: true
+        nameType:
+          anyOf:
+          - $ref: "#/components/schemas/NameType"
+          nullable: true
+        genderType:
+          anyOf:
+          - $ref: "#/components/schemas/GenderType"
+          nullable: true
+        timedeltaType:
+          anyOf:
+          - $ref: "#/components/schemas/TimedeltaType"
+          nullable: true
+        streetAddressType:
+          anyOf:
+          - $ref: "#/components/schemas/StreetAddressType"
+          nullable: true
+        countryType:
+          anyOf:
+          - $ref: "#/components/schemas/CountryType"
+          nullable: true
+        stateType:
+          anyOf:
+          - $ref: "#/components/schemas/StateType"
+          nullable: true
+        districtType:
+          anyOf:
+          - $ref: "#/components/schemas/DistrictType"
+          nullable: true
+        regionType:
+          anyOf:
+          - $ref: "#/components/schemas/RegionType"
+          nullable: true
+        cityType:
+          anyOf:
+          - $ref: "#/components/schemas/CityType"
+          nullable: true
+        postcodeType:
+          anyOf:
+          - $ref: "#/components/schemas/PostcodeType"
+          nullable: true
+        customAddressType:
+          anyOf:
+          - $ref: "#/components/schemas/CustomAddressType"
+          nullable: true
+      required:
+      - dtype
+    SemanticType:
+      enum:
+      - unknown
+      - id
+      - constant
+      - category   # no extra settings (other than entity ID which is defined on ColumnProperties)
+      - float
+      - integer
+      - date_time
+      - time_delta
+      - foreign_key   # now a property of ColumnProperties rather than its own type
+      - real   # no extra settings
+      - name
+      - user_name   # no extra settings (other than entity ID which is defined on ColumnProperties)
+      - email   # no extra settings (other than entity ID which is defined on ColumnProperties)
+      - title   # no extra settings (other than entity ID which is defined on ColumnProperties)
+      - gender
+      - street_address
+      - country
+      - state
+      - district
+      - region
+      - city
+      - postcode
+      - custom_address
+      title: Semantic type
+      description: Semantic types available to define columns as in data maker.
+    PIIType:
+      enum:
+      - high
+      - medium
+      - low
+      - non_pii
+      title: PII Type
+      description: An enumeration for different levels of PII type.
+    RepeatBy:
+      properties:
+        colRef:
+          anyOf:
+          - $ref: "#/components/schemas/ColumnReference"
+          description: The column that the target column is repeated by. Must be in
+            the same table.
+      required:
+      - colRef
+      additionalProperties: false
+      type: object
+      title: RepeatBy
+    IDType:
+      properties:
+        idType:
+          anyOf:
+          - $ref: "#/components/schemas/IDSamplerType"
+        incremental:
+          anyOf:
+          - $ref: "#/components/schemas/IncrementalIDSettings"
+          nullable: true
+        regex:
+          anyOf:
+          - $ref: "#/components/schemas/RegexIdSettings"
+          nullable: true
+      required:
+      - idType
+    ConstantType:
+      type: object
+      title: Constant Type
+      properties:
+        value:
+          title: Value
+          type: string
+          description: Single value to set for the entire column
+          nullable: true
+    FloatType:
+      properties:
+        formula:
+          anyOf:
+          - $ref: "#/components/schemas/FormulaSetting"
+          title: Formula config
+          description: Takes a formula setting object to set how this field is calculated.
+          nullable: true
+        bound:
+          anyOf:
+          - $ref: "#/components/schemas/NumericBoundedSetting"
+          title: Numeric bounded setting
+          nullable: true
+      additionalProperties: false
+      type: object
+      title: Float type
+    DatetimeType:
+      properties:
+        format:
+          type: string
+          title: Datetime format string
+          description: Format string used to parse datetime e.g. %Y-%m-%d for 2021-01-31
+            see https://strftime.org for format codes
+          nullable: true
+        formula:
+          anyOf:
+          - $ref: "#/components/schemas/FormulaSetting"
+          title: Formula config
+          description: Takes a formula setting object to set how this field is calculated.
+          nullable: true
+        bound:
+          anyOf:
+          - $ref: "#/components/schemas/DatetimeBoundedSetting"
+          title: Datetime bounded setting
+          description: Datetime bounded setting
+          nullable: true
+        maxUniqueInvalidDates:
+          type: integer
+          format: int64
+          title: Max unique invalid dates
+          description: If the number of unique invalid dates is less than or equal
+            to this threshold, invalid dates are preserved in the output. This is
+            useful for when a date column is not nullable and has invalid date values
+            instead of nulls. If False, invalid dates will be ouptut as missing values
+            in the synthetic data.
+          default: 10
+          nullable: true
+      additionalProperties: false
+      type: object
+      title: DatetimeType
+    IntType:
+      properties:
+        formula:
+          anyOf:
+          - $ref: "#/components/schemas/FormulaSetting"
+          title: Formula config
+          description: Takes a formula setting object to set how this field is calculated.
+          nullable: true
+        bound:
+          anyOf:
+          - $ref: "#/components/schemas/NumericBoundedSetting"
+          title: Numeric bounded setting
+          nullable: true
+      additionalProperties: false
+      type: object
+      title: Integer type
+    NameType:
+      properties:
+        type:
+          anyOf:
+          - $ref: "#/components/schemas/NameTypes"
+          title: Name Type
+          description: The type of name to be generated.
+        formatString:
+          type: string
+          title: Format string
+          description: 'Person format string used to create custom name types, for
+            example the format string "{title} {first_name:.1} {last_name}" would
+            create a custom name such as "Mr J Smith".Any of the following supported
+            name details can be provided in the format string: [''first_name'', ''second_name'',
+            ''third_name'', ''fourth_name'', ''fifth_name'', ''sixth_name'', ''last_name'',
+            ''initials'', ''email'', ''full_name'', ''user_name'', ''gender'', ''title'',
+            ''custom_columns''].'
+          nullable: true
+      required:
+      - type
+      additionalProperties: false
+      type: object
+      title: NameType
+      description: |-
+        Used to describe a column that contains names. These names can be of various types, such as
+        first name, last name, full name, and even custom names that are combinations of other name types.
+
+        An entity ID must be provided so that any data generated across the person entity remains coherent.
+    GenderType:
+      properties:
+        genderMap:
+          additionalProperties:
+            type: string
+            enum:
+            - m
+            - f
+            - o
+          type: object
+          title: Gender map
+          description: Mapping of gender categories. Each gender category should be
+            a key in the dictionary with the values being one from a selection of
+            'm', 'f', 'o', which correspond to male, female and other.
+          nullable: true
+      additionalProperties: false
+      type: object
+      title: GenderType
+      description: Used to handle gender information in a structured and consistent
+        manner.
+    TimedeltaType:
+      properties:
+        formula:
+          anyOf:
+          - $ref: "#/components/schemas/FormulaSetting"
+          title: Formula config
+          description: Takes a formula setting object to set how this field is calculated.
+          nullable: true
+        bound:
+          anyOf:
+          - $ref: "#/components/schemas/TimedeltaBoundedSetting"
+          title: Time delta bounded setting
+          nullable: true
+        unit:
+          anyOf:
+          - $ref: "#/components/schemas/TimedeltaUnit"
+      additionalProperties: false
+      type: object
+      title: TimedeltaType
+    StreetAddressType:
+      title: StreetAddressType
+      description: Used for street address location data.
+      properties:
+        type:
+          anyOf:
+          - $ref: "#/components/schemas/StreetAddressTypes"
+          title: Street Address Type
+          description: The type of street address to be generated.
+    CountryType:
+      title: CountryType
+      description: Used for country location data.
+      properties:
+        type:
+          anyOf:
+          - $ref: "#/components/schemas/CountryTypes"
+          title: Country Type
+          description: The type of country to be generated.
+    StateType:
+      title: StateType
+      description: Used for state location data.
+      properties:
+        type:
+          anyOf:
+          - $ref: "#/components/schemas/LocationTypes"
+          title: District Type
+          description: |
+            The type of state to be generated.
+            The "regular" option will generate state names while "code" will generate state codes.
+    DistrictType:
+      title: DistrictType
+      description: Used for district location data.
+      properties:
+        type:
+          anyOf:
+          - $ref: "#/components/schemas/LocationTypes"
+          title: District Type
+          description: |
+            The type of district to be generated.
+            The "regular" option will generate district names while "code" will generate district codes.
+    RegionType:
+      title: RegionType
+      description: Used for region location data.
+      properties:
+        type:
+          anyOf:
+          - $ref: "#/components/schemas/LocationTypes"
+          title: Region Type
+          description: |
+            The type of region to be generated.
+            The "regular" option will generate region names while "code" will generate region codes.
+    CityType:
+      title: CityType
+      description: Used for city location data.
+      properties:
+        type:
+          anyOf:
+          - $ref: "#/components/schemas/LocationTypes"
+          title: City Type
+          description: |
+            The type of city to be generated.
+            The "regular" option will generate city names while "code" will generate city codes.
+    PostcodeType:
+      title: PostcodeType
+      description: Used for postcode/zipcode data.
+      properties:
+        type:
+          anyOf:
+          - $ref: "#/components/schemas/PostcodeTypes"
+          title: Postcode Type
+          description: The type of post code to be generated.
+    CustomAddressType:
+      title: CustomAddressType
+      description: Used to describe a column consisting of addresses in a format that
+        combines other location types.
+      properties:
+        formatString:
+          type: string
+          title: Format string
+          description: Format string used to create a custom address, for example
+            the format string "{door}, {street}, {postcode}" would create an address
+            with the specified format.
+          nullable: true
+    ColumnReference:
+      properties:
+        columnID:
+          type: integer
+          format: int64
+      required:
+      - columnID
+      title: ColumnReference
+    IDSamplerType:
+      enum:
+      - incremental
+      - uuid
+      - regex
+      title: ID Sampler Type
+      description: The format to use when sampling an ID.
+    IncrementalIDSettings:
+      properties:
+        start:
+          type: integer
+          format: int64
+          minimum: 0
+          title: Start
+          description: The number to start the sequence on, Must be a positive integer.
+          default: 1
+          nullable: true
+        increment:
+          type: integer
+          format: int64
+          minimum: 1
+          title: Increment
+          description: The increase between numbers in the sequence. Must be a positive
+            integer
+          default: 1
+          nullable: true
+        asStr:
+          type: boolean
+          title: As string?
+          description: If True generated IDs are returned as strings
+          default: false
+          nullable: true
+    RegexIdSettings:
+      required:
+      - pattern
+      properties:
+        pattern:
+          type: string
+          title: Pattern
+          description: Regex pattern the id will conform to on generation. Escape
+            special regex characters with a single backslash.
+        unique:
+          type: boolean
+          title: Generate uniquely?
+          description: When set to True the generated values will be unique. This
+            is not guaranteed as the number of records generated could be greater
+            than the possible amount of unique values.
+          nullable: true
+          default: true
+        weightedSampling:
+          type: boolean
+          title: Weighted sampling
+          description: Determines the sampling strategy when encountering alternations
+            in provided regex patterns. If set to False (default), values will be
+            randomly sampled from all branches without considering their likelihood
+            due to cardinality. This leads to nearly equal sampling across each branch.
+            If switched to True, the function will sample from each branch based on
+            their cardinality, ensuring that choices with higher cardinality contribute
+            more samples.
+          nullable: true
+          default: false
+    FormulaSetting:
+      properties:
+        expression:
+          type: string
+          title: Expression
+          description: "\nFormula to apply to the column.\n\nSome examples of valid\
+            \ formulas are ``\"a + b + c\"`` or ``\"if(is_last(x), y, z)\"``. Note\
+            \ \nthat the formula cannot contain static values such as integers or\
+            \ strings. If this \nis required use a static value in the column map.\
+            \ See :ref:`expression-syntax-reference-label` for available syntax and\
+            \ examples.\n\n"
+        columnMap:
+          # how will this work? gonna just be dumped into the DB as a blob
+          additionalProperties:
+            anyOf:
+            - $ref: "#/components/schemas/FormulaVariable"
+          type: object
+          title: Column map
+          description: "\nA mapping between variables defined in the formula and the\
+            \ columns of the \nprovided data.\n\nThe dictionary value can either be\
+            \ an integer columnID, or\nanother dictionary specifying a constant value.\
+            \ \n The dtype is a required parameter which is used to convert the provided\
+            \ value into a datatype. The dtype can be \neither ``\"string\"``, ``\"\
+            float\"``, ``\"integer\"``, ``\"boolean\"``, ``\"datetime\"`` or ``\"\
+            timedelta\"``.\n\nWhen using \"timedelta\" in the ``column_map`` the following\
+            \ units can be used in strings:\n\n- ``W``\n- ``D`` / ``days`` / ``day``\n\
+            - ``hours`` / ``hour`` / ``hr`` / ``h``\n- ``m`` / ``minute`` / ``min``\
+            \ / ``minutes`` / ``T``\n- ``S`` / ``seconds`` / ``sec`` / ``second``\n\
+            - ``ms`` / ``milliseconds`` / ``millisecond`` / ``milli`` / ``millis``\
+            \ / ``L``\n- ``us`` / ``microseconds`` / ``microsecond`` / ``micro`` /\
+            \ ``micros`` / ``U``\n- ``ns`` / ``nanoseconds`` / ``nano`` / ``nanos``\
+            \ / ``nanosecond`` / ``N``\n\nIt is recommended to use these in a comma\
+            \ separated list. Some examples are:\n\n- ``30 days, 2 hours``\n- ``1W``\
+            \ - i.e. 1 week\n- ``1 hour, 30 mins, 30 seconds``\n\nWhen using a \"\
+            datetime\" value in the ``column_map`` it is recommended to use isoformat\
+            \ following\n``YYYY-MM-DD[*HH[:MM[:SS[.fff[fff]]]][+HH:MM[:SS[.ffffff]]]]``\
+            \ where * can match any single character.\n\nSome examples are:\n\n- ``2011-11-04``\n\
+            - ``2011-11-04T00:05:23``\n- ``2011-11-04 00:05:23.283``\n- ``2011-11-04\
+            \ 00:05:23.283+00:00``\n- ``2011-11-04T00:05:23+04:00``\n\n"
+          default: {}
+        modelError:
+          type: boolean
+          title: Model error?
+          description: "\nWhen set to True the system examines the source data to\
+            \ see if there\nis any difference between the result of the calculation\
+            \ in the source data and the actual value seen in the\nsource data. If\
+            \ there is a difference then this difference will be modelled\nand the\
+            \ difference replicated in the synthetic data.\n\nAn example of where\
+            \ this is useful is when looking at bank transactions where each transaction\n\
+            row includes the account balance which is a sum of the transactions so\n\
+            far plus a starting balance. In this case the error will be the starting\n\
+            balance and so if this parameter is set to true then the synthetic data\
+            \ will \nhave a similar distribution of starting balances. The system\
+            \ will either model \nthe difference for each row, or if the error in\
+            \ the source is constant for all \nthe records in a sequence then the\
+            \ error added in the synthetic data will be \nconstant over the sequence.\n"
+          default: false
+      required:
+      - expression
+      additionalProperties: false
+      type: object
+      title: Formula setting
+      description: This class is used to specify the formula that should be used to
+        specify the data.
+    NumericBoundedSetting:
+      properties:
+        upper:
+          anyOf:
+          - $ref: "#/components/schemas/NumericVariable"
+          title: Upper numeric bound
+          nullable: true
+        lower:
+          anyOf:
+          - $ref: "#/components/schemas/NumericVariable"
+          title: Lower numeric bound
+          nullable: true
+      additionalProperties: false
+      type: object
+      title: Numeric bounded setting
+      description: Specify a lower and/or upper bound which can be a constant or a
+        reference to another column in the same table.
+    DatetimeBoundedSetting:
+      properties:
+        upper:
+          anyOf:
+          - $ref: "#/components/schemas/DatetimeVariable"
+          title: Date time upper bound
+          nullable: true
+        lower:
+          anyOf:
+          - $ref: "#/components/schemas/DatetimeVariable"
+          title: Date time lower bound
+          nullable: true
+      additionalProperties: false
+      type: object
+      title: Datetime bounded setting
+      description: Specify a lower and/or upper bound which must be a reference to
+        another column in the same table.
+    NameTypes:
+      enum:
+      - first_name
+      - second_name
+      - third_name
+      - fourth_name
+      - fifth_name
+      - sixth_name
+      - last_name
+      - full_name
+      - custom_name
+      - initials
+      title: NameTypes
+      description: List of name types for the name data type
+    TimedeltaBoundedSetting:
+      properties:
+        upper:
+          anyOf:
+          - $ref: "#/components/schemas/TimedeltaVariable"
+          title: Upper time delta bound
+          nullable: true
+        lower:
+          anyOf:
+          - $ref: "#/components/schemas/TimedeltaVariable"
+          title: Lower time delta bound
+          nullable: true
+      additionalProperties: false
+      type: object
+      title: Timedelta bounded setting
+      description: Specify a lower and/or upper bound which must be a reference to
+        another column in the same table.
+    TimedeltaUnit:
+      enum:
+      - W
+      - D
+      - h
+      - m
+      - s
+      - ms
+      - us
+      - ns
+      title: Timedelta unit
+      description: Units for timedelta data type
+    StreetAddressTypes:
+      enum:
+      - door
+      - floor
+      - street_number
+      - street
+      title: StreetAddressTypes
+      description: List of street address types for the street address data type.
+    CountryTypes:
+      enum:
+      - country
+      - iso2
+      - iso3
+      title: CountryTypes
+      description: List of country types for the country data type.
+    LocationTypes:
+      enum:
+      - regular
+      - code
+      title: LocationTypes
+      description: List of location types for the location data types.
+    PostcodeTypes:
+      enum:
+      - postcode
+      - outcode
+      - incode
+      title: PostcodeTypes
+      description: List of postcode types for the postcode data type.
+    FormulaVariable:
+      properties:
+        variableType:
+          anyOf:
+          - $ref: "#/components/schemas/FormulaVariableType"
+          title: Type
+          description: The variable type, which can refer to a column or a constant
+            variable.
+          default: column
+        colRef:
+          anyOf:
+          - $ref: "#/components/schemas/ColumnReference"
+          description: Column reference. Must be in the same table.
+          nullable: true
+        constant:
+          anyOf:
+          - $ref: "#/components/schemas/ConstantValue"
+          nullable: true
+      required:
+      - variableType
+      additionalProperties: false
+      type: object
+      title: Formula variable
+      description: Describes either a constant
+    NumericVariable:
+      properties:
+        variableType:
+          anyOf:
+          - $ref: "#/components/schemas/NumericBoundVariableType"
+        colRef:
+          anyOf:
+          - $ref: "#/components/schemas/ColumnReference"
+          description: Column reference. Must be in the same table.
+          nullable: true
+        constant:
+          type: number
+          format: double
+          title: Constant value
+          nullable: true
+      required:
+      - variableType
+    DatetimeVariable:
+      properties:
+        variableType:
+          anyOf:
+          - $ref: "#/components/schemas/DatetimeBoundVariableType"
+        colRef:
+          anyOf:
+          - $ref: "#/components/schemas/ColumnReference"
+          description: Column reference. Must be in the same table.
+          nullable: true
+      required:
+      - variableType
+    TimedeltaVariable:
+      properties:
+        variableType:
+          anyOf:
+          - $ref: "#/components/schemas/TimedeltaBoundVariableType"
+        colRef:
+          anyOf:
+          - $ref: "#/components/schemas/ColumnReference"
+          description: Column reference. Must be in the same table.
+          nullable: true
+      required:
+      - variableType
+    FormulaVariableType:
+      enum:
+      - column
+      - constant
+      title: Formula variable type
+    ConstantValue:
+      properties:
+        value:
+          type: string
+          description: Value to be coerced into a data type.
+        dtype:
+          anyOf:
+          - $ref: "#/components/schemas/FormulaConstantVariableType"
+      required:
+      - value
+      - dtype
+    NumericBoundVariableType:
+      enum:
+      - column
+      - constant
+      title: Numeric bound variable type
+    DatetimeBoundVariableType:
+      enum:
+      - column
+      title: Datetime bound variable type
+    TimedeltaBoundVariableType:
+      enum:
+      - column
+      title: Timedelta bound variable type
+    FormulaConstantVariableType:
+      enum:
+      - string
+      - float
+      - integer
+      - boolean
+      - datetime
+      - timedelta
+      title: Constant data type
+      description: Data type to coerce a constant value to. This is used inside a
+        formula.
+    condition:
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/conditionBase"
+      - $ref: "#/components/schemas/trackedResource"
+      - type: object
+        properties:
+          ID:
+            type: integer
+            format: int64
+            description: ID of the condition
+    taskDeleteResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Message indicating the state of the task
+        Task:
+          $ref: "#/components/schemas/Task"
+    Task:
+      description: Representation of a generic Data Maker task.
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      - type: object
+        properties:
+          ID:
+            description: Unique identifier for the task.
+            type: integer
+            format: int64
+          modelID:
+            description: Unique identifier of the model the task belongs to.
+            type: integer
+            format: int64
+          type:
+            description: Task type.
+            allOf:
+            - $ref: "#/components/schemas/TaskType"
+          state:
+            description: Task state.
+            allOf:
+            - $ref: "#/components/schemas/TaskState"
+          queuePosition:
+            description: Position of the task in the queue if in waiting state - null
+              if not in waiting state.
+            type: integer
+            format: int64
+            nullable: true
+          killSignal:
+            description: Signal provided to kill the task.
+            allOf:
+            - $ref: "#/components/schemas/TaskKillSignal"
+            nullable: true
+          progress:
+            description: Task progress.
+            anyOf:
+            - $ref: "#/components/schemas/TaskProgress"
+            nullable: true
+          error:
+            description: Task error.
+            anyOf:
+            - $ref: "#/components/schemas/TaskError"
+            nullable: true
+          performanceMetrics:
+            description: Performance metrics.
+            type: object
+            anyOf:
+            - $ref: "#/components/schemas/PerfMetrics"
+            nullable: true
+    TaskState:
+      description: State of a task.
+      enum:
+      - waiting
+      - processing
+      - succeeded
+      - failed
+      - killed
+    TaskKillSignal:
+      description: Signal provided to kill the task.
+      enum:
+      - user
+      - system
+    TaskProgress:
+      description: Progress of a task.
+      type: object
+      properties:
+        currentProcessUnit:
+          description: Current progress step for the task.
+          type: integer
+          format: int64
+          minimum: 0
+        totalProcessUnits:
+          description: Total number of progress steps for the task.
+          type: integer
+          format: int64
+          minimum: 0
+        message:
+          description: Current progress message.
+          type: string
+          nullable: true
+        level:
+          description: Current progress level.
+          type: integer
+          format: int64
+          minimum: 0
+        label:
+          description: Current progress label.
+          type: string
+        messageID:
+          description: Data maker synth message ID.
+          type: string
+          nullable: true
+        messageArgs:
+          description: Key value object containing args that go alongside the message
+          type: object
+          nullable: true
+    TaskError:
+      description: Task error.
+      type: object
+      properties:
+        message:
+          description: Error message.
+          type: string
+        remediation:
+          description: Error remediation.
+          type: string
+          nullable: true
+    connectionCollection:
+      allOf:
+      - type: object
+      properties:
+        items:
+          type: array
+          description: An array that contains Data Maker connection objects.
+          items:
+            $ref: "#/components/schemas/connection"
+      description: A collection of Data Maker connections objects.
+      type: object
+    modelArtifacts:
+      x-sas-internal: true
+      type: object
+      description: Produced artifacts for a trained model.
+      properties:
+        metricsManifest:
+          anyOf:
+          - $ref: "#/components/schemas/MetricsManifest"
+        modelData:
+          anyOf:
+          - $ref: "#/components/schemas/modelData"
+        charts:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ChartData"
+    modelData:
+      type: object
+      description: Model training metadata.
+      properties:
+        data:
+          allOf:
+          - $ref: "#/components/schemas/modelDataContents"
+    modelDataContents:
+      type: object
+      description: Model training metadata.
+      properties:
+        sampleSchema:
+          allOf:
+          - $ref: "#/components/schemas/sampleSchema"
+    patches:
+      type: array
+      items:
+        oneOf:
+        - $ref: "#/components/schemas/patch"
+    patch:
+      type: object
+      description: Used to set column properties
+      properties:
+        op:
+          allOf:
+          - $ref: "#/components/schemas/patchOperationType"
+        path:
+          type: string
+        value: {} # this means any in openapi schema
+      required:
+      - op
+      - path
+    patchOperationType:
+      enum:
+      - replace
+      - add
+      - remove
+      title: Patch operation type
+      description: Semantic types available to define columns as in data maker.
+    projectSummaryCollection:
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: An array that contains Data Maker project summary objects.
+            items:
+              $ref: "#/components/schemas/projectSummary"
+      description: A collection of Data Maker projects objects.
+      type: object
+    projectSummary:
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      type: object
+      description: Data Maker project representation
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: ID of the project.
+        name:
+          type: string
+          description: Name of the project.
+        description:
+          type: string
+          description: Description of the project.
+        modelCounts:
+          allOf:
+          - $ref: "#/components/schemas/projectModelCounts"
+          description: Aggregate statistics of the status of models within a project
+        lastCreatedModelId:
+          type: integer
+          format: int64
+          description: ID of the last model created for the project
+    projectModelCounts:
+      type: object
+      description: Aggregate statistics of the status of models within a project
+      properties:
+        total:
+          type: integer
+          format: int64
+          description: Total number of models in the project
+        uninitialised:
+          type: integer
+          format: int64
+          description: Number of models uninitialised - data not yet selected
+        analyseQueued:
+          type: integer
+          format: int64
+          description: Number of models with a queued analysis task
+        analysing:
+          type: integer
+          format: int64
+          description: Number of models with an active analysis task
+        analyseFailed:
+          type: integer
+          format: int64
+          description: Number of models with a failed analysis task
+        analyseKilled:
+          type: integer
+          format: int64
+          description: Number of models with a stopped analysis task
+        configuring:
+          type: integer
+          format: int64
+          description: Number of models being configured
+        trainingQueued:
+          type: integer
+          format: int64
+          description: Number of models queued for training
+        training:
+          type: integer
+          format: int64
+          description: Number of models currently training
+        trainingKilled:
+          type: integer
+          format: int64
+          description: Number of models with a stopped training task
+        trainingFailed:
+          type: integer
+          format: int64
+          description: Number of models with a failed training task
+        trained:
+          type: integer
+          format: int64
+          description: Number of successfully trained models
+    entity:
+      type: object
+      description: Data Maker entity representation
+      properties:
+        ID:
+          type: integer
+          format: int64
+        tableID:
+          type: integer
+          format: int64
+        entityType:
+          $ref: "#/components/schemas/entityType"
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/column"
+          nullable: true
+        settings:
+          allOf:
+          - $ref: "#/components/schemas/entitySettings"
+          nullable: true
+      required:
+      - ID
+      - tableID
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    ModelType:
+      title: Model type
+      description: Model types available for generating synthetic data.
+      enum:
+      - smote
+      - priv_bayes
+      - mst
+      - private_evolution
+    DensityDisclosureSettings:
+      title: Density disclosure
+      description: |
+        Estimates the risk of an adversary constructing a mapping from the
+        synthetic data points to the real data points (this concept can also be
+        referred to as “reversibility”).
+      allOf:
+      - $ref: "#/components/schemas/BaseMetricSettings"
+      properties:
+        numRecords:
+          type: integer
+          format: int64
+          title: Number of synthetic data records
+          description: Number of synthetic data records to be sampled for computing
+            the metric.
+          exclusiveMinimum: true
+          minimum: 0
+          default: 10000
+          nullable: true
+    conditionUpdateRequest:
+      type: object
+      description: Representation used to update a Data Maker condition
+      allOf:
+      - $ref: "#/components/schemas/conditionBase"
+      - type: object
+        properties:
+          conditionType:
+            $ref: "#/components/schemas/conditionType"
+          tableName:
+            type: string
+            description: Name of the target table
+            nullable: true
+          columnName:
+            type: string
+            description: Name of the target column
+            nullable: true
+          marginalDistribution:
+            type: boolean
+            description: Enable to sample from the marginal rather then a uniform
+              distribution
+            nullable: true
+          settings:
+            allOf:
+            - $ref: "#/components/schemas/conditionSettings"
+            nullable: true
+    SmoteConfig:
+      properties:
+        kNeighbors:
+          type: integer
+          format: int64
+          title: Number of neighbors
+          description: Number of neighbors to use for interpolation of a new synthetic
+            data point.
+          default: 5
+          minimum: 1
+          nullable: true
+        maxCat:
+          $ref: "#/components/schemas/MaxCat"
+      type: object
+      title: SmoteConfig
+    project:
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      type: object
+      description: Data Maker project representation
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: ID of the project.
+        name:
+          type: string
+          description: Name of the project.
+        description:
+          type: string
+          description: Description of the project.
+        connections:
+          type: array
+          description: List of connection ids for all tables in all models across
+            the project.
+          items:
+            type: integer
+            format: int64
+        modelCollection:
+          type: object
+          description: A collection of Data Maker models on the project.
+          allOf:
+          - $ref: "#/components/schemas/modelCollection"
+    connectionFilesCollection:
+      allOf:
+      - type: object
+      properties:
+        items:
+          type: array
+          description: An array that contains Data Maker connection file objects.
+          items:
+            $ref: "#/components/schemas/connectionFile"
+      description: A collection of Data Maker connection file objects.
+      type: object
+    connectionFile:
+      type: object
+      description: a file that can be read from a connection.
+      properties:
+        name:
+          description: The name of the file.
+          type: string
+        creationTime:
+          description: The time the file was created.
+          type: string
+          format: date-time
+        lastModified:
+          description: The time the file was last modified.
+          type: string
+          format: date-time
+        contentLength:
+          description: The size of the file, in bytes.
+          type: integer
+          format: int64
+        extension:
+          allOf:
+          - $ref: "#/components/schemas/InputFileExtension"
+          readOnly: true
+          nullable: true
+    InputFileExtension:
+      enum:
+      - csv
+      - csv.gz
+      - parquet
+      - avro
+      - sas7bdat
+      - sashdat
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    modelCreateRequest:
+      type: object
+      description: >
+        Representation used to create a Data Maker model
+      properties:
+        name:
+          description: Name of the model
+          type: string
+          nullable: true
+    connectionTestRequest:
+      type: object
+      description: Representation used to test connection details
+      properties:
+        connectionSettings:
+          allOf:
+          - $ref: "#/components/schemas/connectionSettings"
+    connectionUpdateRequest:
+      type: object
+      description: Representation used to update a Data Maker connection
+      properties:
+        connectionSettings:
+          allOf:
+          - $ref: "#/components/schemas/connectionSettings"
+    MutualInformationSimilaritySettings:
+      title: Mutual information similarity
+      description: |
+        Measures the similarity of the real and synthetic data from an
+        information theoretical point of view.
+      allOf:
+      - $ref: "#/components/schemas/BaseMetricSettings"
+    trackedResource:
+      title: Tracked Resource
+      description: This class is used to provide common attributes and behaviors around
+        tracking who and when objects were created and modified to representation
+        objects.
+      properties:
+        createdBy:
+          type: string
+          description: The username of whoever created the resource.
+        modifiedBy:
+          type: string
+          description: The username of whoever last modified the resource.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for when the resource was created.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for when the resource was last modified.
+    MetricType:
+      enum:
+      - mutual_information_similarity
+      - histogram_similarity
+      - presence_disclosure
+      - density_disclosure
+      - degree_distribution_similarity
+      - cross_table_mutual_information_similarity
+      - aggregated_sequential_histogram_similarity
+      title: Metric type
+      description: Metric types available for evaluating synthetic data.
+    ValidationErrorTracker:
+      type: object
+      properties:
+        columns:
+          title: Column errors
+          description: Errors mapped to specific columns.
+          type: array
+          items:
+            $ref: "#/components/schemas/IDError"
+        tables:
+          title: Table errors
+          description: Errors mapped to specific tables.
+          type: array
+          items:
+            $ref: "#/components/schemas/IDError"
+        entities:
+          title: Entity errors
+          description: Errors mapped to specific entities.
+          type: array
+          items:
+            $ref: "#/components/schemas/IDError"
+        modelParameters:
+          title: Model parameter errors
+          type: array
+          items:
+            type: string
+        trainingConfig:
+          title: Training configuration errors
+          description: Errors mapped to overall training configuration.
+          type: array
+          items:
+            type: string
+        connection:
+          title: Connection errors
+          type: array
+          items:
+            type: string
+      additionalProperties: false
+      title: Error tracker
+      description: Used to track errors throughout the configuration.
+    IDError:
+      title: ID mapped validation error
+      description: Error mapping to an ID of a specific entity
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        errors:
+          type: array
+          items:
+            type: string
+    MetricsManifest:
+      type: object
+      properties:
+        overallScores:
+          description: Manifest containing top level scores and links to all metrics
+            data
+          type: object
+          properties:
+            histogramSimilarity:
+              $ref: "#/components/schemas/OverallScoreSet"
+            mutualInformationSimilarity:
+              $ref: "#/components/schemas/OverallScoreSet"
+            presenceDisclosure:
+              $ref: "#/components/schemas/OverallScoreSet"
+            densityDisclosure:
+              $ref: "#/components/schemas/OverallScoreSet"
+            degreeDistributionSimilarity:
+              $ref: "#/components/schemas/OverallScoreSet"
+            crossTableMutualInformationSimilarity:
+              $ref: "#/components/schemas/OverallScoreSet"
+            aggregatedSequentialHistogramSimilarity:
+              $ref: "#/components/schemas/OverallScoreSet"
+        charts:
+          type: object
+          properties:
+            histogramSimilarity:
+              type: array
+              items:
+                $ref: "#/components/schemas/ColumnChartLink"
+            mutualInformationSimilarity:
+              type: array
+              items:
+                $ref: "#/components/schemas/TableChartLink"
+            degreeDistributionSimilarity:
+              type: array
+              items:
+                $ref: "#/components/schemas/DegreeDistributionChartLink"
+            crossTableMutualInformationSimilarity:
+              type: array
+              items:
+                $ref: "#/components/schemas/ConnectionChartLink"
+            aggregatedSequentialHistogramSimilarity:
+              type: array
+              items:
+                $ref: "#/components/schemas/ColumnChartLink"
+    OverallScoreSet:
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/MetricScore"
+      properties:
+        individualScores:
+          type: array
+          items:
+            $ref: "#/components/schemas/SingleMetricScore"
+    ColumnChartLink:
+      type: object
+      properties:
+        score:
+          type: number
+          format: double
+          nullable: true
+        table:
+          type: string
+          description: Name of table
+        column:
+          type: string
+          description: Name of column
+        link:
+          type: string
+          description: Relative path to the chart for this column
+    TableChartLink:
+      type: object
+      properties:
+        score:
+          type: number
+          format: double
+          nullable: true
+        table:
+          type: string
+          description: Name of table
+        link:
+          type: string
+          description: Relative path to the chart for this table
+    DegreeDistributionChartLink:
+      type: object
+      properties:
+        score:
+          type: number
+          format: double
+          nullable: true
+        link:
+          type: string
+          description: Relative path to the chart for this table
+        topTable:
+          type: string
+        bottomTable:
+          type: string
+        topScore:
+          type: number
+          format: double
+          nullable: true
+        bottomScore:
+          type: number
+          format: double
+          nullable: true
+        joinTable:
+          type: string
+        inducedJoinTable:
+          type: boolean
+    ConnectionChartLink:
+      type: object
+      properties:
+        score:
+          type: number
+          format: double
+          nullable: true
+        link:
+          type: string
+          description: Relative path to the chart for this table
+        topTable:
+          type: string
+        bottomTable:
+          type: string
+    MetricScore:
+      type: object
+      properties:
+        score:
+          description: The score of the metric, a number between 0 and 1
+          type: number
+          format: double
+          nullable: true
+        bounds:
+          description: The bounds of the metric, most metrics have a range between
+            0 and 1.
+          type: object
+          properties:
+            lower:
+              type: number
+              format: double
+              nullable: true
+            upper:
+              type: number
+              format: double
+              nullable: true
+        metricCategory:
+          $ref: "#/components/schemas/MetricCategory"
+    SingleMetricScore:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the individual metric run, often a table name or connection
+            name in the case of multitable
+        score:
+          description: The score of the metric, a number between 0 and 1
+          type: number
+          format: double
+          nullable: true
+    MetricCategory:
+      enum:
+      - similarity
+      - utility
+      - privacy
+
+    entityCreateRequest:
+      type: object
+      description: Representation used to create a Data Maker entity.
+      properties:
+        columnID:
+          type: integer
+          format: int64
+          description: The ID of the column to make an entity.
+        entityType:
+          $ref: "#/components/schemas/entityType"
+      required:
+      - columnID
+      - entityType
+    HistogramSimilaritySettings:
+      title: Histogram similarity
+      description: Measures the similarity of the marginal distributions in the real
+        and synthetic data.
+      allOf:
+      - $ref: "#/components/schemas/BaseMetricSettings"
+    ColumnRange:
+      type: object
+      required:
+      - col
+      - dtype
+      properties:
+        col:
+          type: string
+        dtype:
+          $ref: "#/components/schemas/conditionType"
+        has_nan:
+          type: boolean
+        categories:
+          type: array
+          uniqueItems: true
+          items:
+            description: Category value. Concrete type depends the underlying data
+              type.
+          description: Present when dtype is category
+        aggregated:
+          type: boolean
+          description: Present when dtype is category
+        lower:
+          description: |
+            Lower bound for the column range.
+            For int: integer
+            For float: number
+            For date_time: ISO 8601 date-time string
+            For time_delta: ISO 8601 duration string
+        upper:
+          description: |
+            Upper bound for the column range.
+            For int: integer
+            For float: number
+            For date_time: ISO 8601 date-time string
+            For time_delta: ISO 8601 duration string
+        marginal:
+          type: object
+          additionalProperties: true
+          description: |
+            Marginal information for the column.
+            Expected shape depends on dtype:
+            - category -> CategoricalMarginal
+            - int -> IntMarginal
+            - float -> FloatMarginal
+            - date_time -> DatetimeMarginal
+            - time_delta -> TimedeltaMarginal
+    PrivateEvolutionConfig:
+      type: object
+      description: Tab-PE refines a single synthetic dataset by an evolutionary process
+        that leverages APIs to generate variations of the data, privately evaluate
+        them, and retain the highest-quality samples. This model produces the highest
+        utility data for a given privacy budget. Other models outperform when privacy
+        is not a concern. It can only be used for single table problems.
+      properties:
+        epsilon:
+          title: Epsilon
+          description: Privacy budget parameter. Use small values such as 0.01 for
+            extremely high privacy guarantees, around 1-20 for standard privacy guarantees.
+            20.0 is the maximum for this model type. Private evolution tends to produce
+            data with high utility even at this setting.
+          type: number
+          exclusiveMinimum: true
+          minimum: 0.0
+          maximum: 20.0
+          format: double
+          nullable: true
+          default: 10.0
+        maxCat:
+          $ref: "#/components/schemas/MaxCat"
+        useDifferentialPrivacy:
+          $ref: "#/components/schemas/UseDifferentialPrivacy"
+        decayType:
+          allOf:
+          - $ref: "#/components/schemas/PrivateEvolutionDecayType"
+          default: poly
+        variationAPI:
+          allOf:
+          - $ref: "#/components/schemas/VariationAPIType"
+          default: interpolation_and_weighted
+    PrivateEvolutionDecayType:
+      title: Private evolution decay type
+      description: The random walk mutation rate decay method during the training
+        process.
+      enum:
+      - linear
+      - poly
+    VariationAPIType:
+      title: Variation API type
+      description: The variation API takes public data and creates variations. Different
+        methods explore the data domain in different ways.
+      enum:
+      - random_walk
+      - reflected_random_walk
+      - interpolation
+      - interpolation_and_weighted
+    entityCollection:
+      type: object
+      description: A collection of Data Maker entity objects.
+      allOf:
+      - type: object
+        properties:
+          items:
+            type: array
+            description: An array that contains Data Maker entity objects.
+            items:
+              $ref: "#/components/schemas/entity"
+    personEntitySetting:
+      properties:
+        locales:
+          type: array
+          title: Locales
+          description: Locales used for generating person components.
+          items:
+            type: object
+            allOf:
+            - $ref: "#/components/schemas/personLocale"
+    personLocale:
+      type: string
+      enum:
+      - ar_AA
+      - ar_PS
+      - ar_SA
+      - az_AZ
+      - bg_BG
+      - bn_BD
+      - cs_CZ
+      - da_DK
+      - de_AT
+      - de_CH
+      - de_DE
+      - el_GR
+      - en_GB
+      - en_IE
+      - en_NZ
+      - en_US
+      - es_CA
+      - es_CL
+      - es_CO
+      - es_ES
+      - et_EE
+      - fa_IR
+      - fi_FI
+      - fr_CA
+      - fr_CH
+      - fr_FR
+      - fr_QC
+      - ga_IE
+      - he_IL
+      - hr_HR
+      - hu_HU
+      - hy_AM
+      - id_ID
+      - it_IT
+      - ja_JP
+      - ka_GE
+      - ko_KR
+      - ne_NP
+      - nl_NL
+      - no_NO
+      - or_IN
+      - pl_PL
+      - pt_BR
+      - pt_PT
+      - ro_RO
+      - ru_RU
+      - sl_SI
+      - sv_SE
+      - ta_IN
+      - th_TH
+      - tr_TR
+      - tw_GH
+      - uk_UA
+      - zh_CN
+      - zh_TW
+    PerfMetrics:
+      description: Collects performance metrics for multiple events.
+      type: object
+      properties:
+        name:
+          description: Name of the performance metrics tracker.
+          type: string
+        logLevel:
+          description: Global log level of the performance metrics tracker.
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/PerfLogLevel"
+          nullable: true
+        events:
+          description: Event performance metrics.
+          type: array
+          items:
+            $ref: "#/components/schemas/PerfEvent"
+    PerfLogLevel:
+      description: Log level (corresponding to Python standard library logging levels).
+      enum:
+      - notset
+      - debug
+      - info
+      - warning
+      - error
+      - critical
+    PerfEvent:
+      description: Stores runtime and memory metrics for a single event.
+      type: object
+      properties:
+        runtime:
+          description: Runtime measurement for the event.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/PerfRuntime"
+        memory:
+          description: Memory measurement for the event.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/PerfMemory"
+        logLevel:
+          description: Log level.
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/PerfLogLevel"
+          nullable: true
+        state:
+          description: State of the event.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/PerfEventState"
+        name:
+          description: Name of the event.
+          type: string
+    PerfRuntime:
+      description: Runtime measurement for an event.
+      type: object
+      properties:
+        initial:
+          description: Runtime measurement at the start of the event.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/PerfRuntimeMeasurement"
+        final:
+          description: Runtime measurement at the end of the event.
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/PerfRuntimeMeasurement"
+          nullable: true
+        totalSeconds:
+          description: Duration of the event (in seconds).
+          type: number
+          format: double
+          nullable: true
+    PerfMemory:
+      description: Memory measurement for an event.
+      type: object
+      properties:
+        initial:
+          description: Memory measurement at the start of the event.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/PerfMemoryMeasurement"
+        final:
+          description: Memory measurement at the end of the event.
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/PerfMemoryMeasurement"
+          nullable: true
+    PerfEventState:
+      description: State of an event.
+      enum:
+      - started
+      - finished
+    PerfRuntimeMeasurement:
+      description: Single runtime measurement.
+      type: object
+      properties:
+        time:
+          description: UTC timestamp.
+          type: string
+        epoch:
+          description: Time elapsed since the UNIX epoch (in seconds).
+          type: number
+          format: double
+    PerfMemoryMeasurement:
+      description: Single memory measurement.
+      type: object
+      properties:
+        peakBytes:
+          description: Peak memory, measured as max RSS (in bytes).
+          type: integer
+          format: int64
+        instBytes:
+          description: Instantaneous memory, measured as current RSS (in bytes).
+          type: integer
+          format: int64
+    TrainingResult:
+      type: object
+      properties:
+        metricsManifest:
+          allOf:
+          - $ref: "#/components/schemas/MetricsManifest"
+          nullable: true
+        dataRanges:
+          allOf:
+          - $ref: "#/components/schemas/DataRanges"
+          nullable: true
+    generateParams:
+      description: Parameters for generating data.
+      type: object
+      properties:
+        magnitude:
+          description: Magnitude of the data to generate. 1 will match the original
+            data size. While 2 means twice as much as the original training data.
+            This has the lowest precedence.
+          type: number
+          format: double
+          default: 1.0
+          nullable: true
+        numRecords:
+          type: integer
+          format: int64
+          title: Number of records
+          description: Number of records to generate can only be used with a single
+            table. This takes precedence over magnitude if both supplied.
+          nullable: true
+        tableNumRecords:
+          allOf:
+          - $ref: "#/components/schemas/tableNumRecords"
+          nullable: true
+        randomState:
+          type: integer
+          format: int64
+          title: Random seed for model
+          description: Random seed for model
+          nullable: true
+        connectionID:
+          type: integer
+          format: int64
+          title: Connection ID
+          description: Unique identifier of the connection to generate data for.
+        fileExtension:
+          title: File extension
+          description: File extension of the generated data.
+          allOf:
+          - $ref: "#/components/schemas/OutputFileExtension"
+        relPath:
+          type: string
+          title: Relative path
+          description: Relative path to store the generated data in the connection.
+            If this is not supplied a random UUID will be used.
+          nullable: true
+        conditionalGenerationIDs:
+          title: Conditions for generation
+          description: List of conditions to apply to the generation.
+          type: array
+          items:
+            type: integer
+            format: int64
+      required:
+      - connectionID
+    tableNumRecords:
+      type: object
+      description: Number of records to generate for a specific table. This takes
+        precedence.
+      properties:
+        table:
+          type: string
+          description: Table name
+        numRecords:
+          type: integer
+          format: int64
+          title: Number of records
+          description: Number of records to generate for the table.
+    analysisCreateRequest:
+      description: Create an analysis task.
+      type: object
+      required:
+      - connectionID
+      - tables
+      properties:
+        connectionID:
+          title: Connection ID
+          description: Unique identifier of the connection to analyse.
+          type: integer
+          format: int64
+        tables:
+          title: Table paths
+          description: Relative paths representing tables from the connection to analyse.
+          type: array
+          uniqueItems: true
+          minItems: 1
+          items:
+            type: string
+    ColumnSummary:
+      description: Summary statistics and examples for a column.
+      type: object
+      properties:
+        stats:
+          description: Summary statistics.
+          type: object
+          nullable: true
+          anyOf:
+          - $ref: "#/components/schemas/ColumnStats"
+        examples:
+          description: Sample data.
+          type: array
+          items:
+            type: string
+          nullable: true
+    ColumnStats:
+      description: Summary statistics and examples for a column.
+      type: object
+      properties:
+        nullCount:
+          description: Number of null values.
+          type: integer
+          format: int64
+          nullable: true
+        cardinality:
+          description: Number of unique values.
+          type: integer
+          format: int64
+          nullable: true
+        min:
+          description: Minimum value for numeric columns.
+          type: string
+          nullable: true
+        max:
+          description: Maximum value for numeric columns.
+          type: string
+          nullable: true
+        median:
+          description: Median value for numeric columns.
+          type: string
+          nullable: true
+        mean:
+          description: Mean value for numeric columns.
+          type: string
+          nullable: true
+    GenerationResult:
+      description: Generation result.
+      type: object
+      properties:
+        validationResult:
+          anyOf:
+          - $ref: "#/components/schemas/ValidationResult"
+          nullable: true
+        stats:
+          anyOf:
+          - $ref: "#/components/schemas/SynthDataStats"
+          nullable: true
+    ValidationResult:
+      description: Validation result.
+      type: object
+      properties:
+        rowCountValidator:
+          anyOf:
+          - $ref: "#/components/schemas/RowCountValidator"
+    SynthDataStats:
+      type: object
+      properties:
+        tables:
+          type: array
+          items:
+            type: object
+            anyOf:
+            - $ref: "#/components/schemas/SynthDataStatsTable"
+    SynthDataStatsTable:
+      type: object
+      properties:
+        name:
+          type: string
+        numRows:
+          type: integer
+          format: int64
+          description: Number of rows in synthetic table.
+        columns:
+          type: array
+          items:
+            anyOf:
+            - $ref: "#/components/schemas/SynthDataStatsColumn"
+    SynthDataStatsColumn:
+      type: object
+      properties:
+        name:
+          type: string
+        histogram:
+          anyOf:
+          - $ref: "#/components/schemas/SynthDataStatsHist"
+          nullable: true
+        dtype:
+          type: string
+          nullable: true
+        rawDType:
+          type: string
+          nullable: true
+        entityGroup:
+          type: string
+          nullable: true
+        samples:
+          type: array
+          items:
+            type: string
+        cardinality:
+          type: integer
+          format: int64
+          nullable: true
+        nullCount:
+          type: integer
+          format: int64
+          nullable: true
+        primaryKey:
+          type: boolean
+        foreignKeyRef:
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/ColId"
+          nullable: true
+        datetimeFormat:
+          type: string
+          nullable: true
+    ColId:
+      description: Column identifier
+      type: object
+      properties:
+        col:
+          description: Column to be targeted.
+          type: string
+        table:
+          description: Table to be targeted.
+          type: string
+    locationEntitySetting:
+      properties:
+        locales:
+          type: array
+          title: Locales
+          description: Locales used for generating location components.
+          items:
+            type: object
+            allOf:
+            - $ref: "#/components/schemas/geoLocale"
+        mismatch:
+          type: object
+          title: Location mismatch
+          description: Method of handling generated data that does not match predetermined
+            clusters.
+          allOf:
+          - $ref: "#/components/schemas/locationTypeMismatch"
+        numClusters:
+          type: integer
+          format: int64
+          title: Number of clusters
+          description: Number of clusters for geographic grouping of training data.
+        territoryModelling:
+          type: object
+          title: Territory modelling
+          description: Modelling strategy for low specificity locations such as country,
+            district and state.
+          allOf:
+          - $ref: "#/components/schemas/locationTerritoryModellingType"
+    geoLocale:
+      type: string
+      enum:
+      - en_GB
+      - en_US
+      - en_CA
+      - en_AU
+      - en_IE
+      - es_ES
+      - fr_FR
+      - da_DK
+      - de_DE
+      - sv_SE
+      - no_NO
+      - fi_FI
+      - cs_CZ
+    locationTypeMismatch:
+      type: string
+      enum:
+      - random
+      - drop
+      - approximate
+    locationTerritoryModellingType:
+      type: string
+      enum:
+      - combination
+      - asset_sampling
+    accessControl:
+      type: object
+      properties:
+        mutable:
+          description: Whether the connection can be modified by the calling user
+          type: boolean
+      required:
+      - mutable
+    AnalysisResult:
+      description: Results of an analysis task.
+      type: object
+      properties:
+        tables:
+          description: Analysis results for each table.
+          type: array
+          items:
+            $ref: "#/components/schemas/TableAnalysisResult"
+        failures:
+          description: Names of tables which resulted in errors during analysis.
+          type: array
+          items:
+            type: string
+    TableAnalysisResult:
+      description: Results of analysis on a single table.
+      type: object
+      properties:
+        tableID:
+          description: Unique identifier of the table.
+          type: integer
+          format: int64
+          nullable: true
+        tableName:
+          description: Name of the table.
+          type: string
+        columns:
+          description: Analysis results for each column in a table.
+          type: array
+          items:
+            $ref: "#/components/schemas/ColumnAnalysisResult"
+        entities:
+          description: Table entities.
+          type: array
+          items:
+            $ref: "#/components/schemas/EntityAnalysisResult"
+        error:
+          description: Any error that occurred while analysing a table.
+          nullable: true
+          anyOf:
+          - $ref: "#/components/schemas/AnalysisError"
+        sizeBytes:
+          description: Size of an analysed table in bytes.
+          type: integer
+          format: int64
+        numRows:
+          description: Number of rows in an analysed table.
+          type: integer
+          format: int64
+        tableKeysAnalysisResult:
+          description: Analysis results for primary, foreign and composite key relationships
+            for a table.
+          nullable: true
+          anyOf:
+          - $ref: "#/components/schemas/TableKeysAnalysisResult"
+        connection:
+          description: Connection ID.
+          type: string
+        relPath:
+          description: Relative path to the table.
+          type: string
+    ColumnAnalysisResult:
+      description: Results of analysis on a single column within a table.
+      type: object
+      properties:
+        columnID:
+          description: Unique identifier of the column.
+          type: integer
+          format: int64
+          nullable: true
+        column:
+          description: Name of the column.
+          type: string
+        description:
+          description: Description of the column.
+          type: string
+          nullable: true
+        rawDataType:
+          description: Raw data type of the column.
+          type: string
+          nullable: true
+        properties:
+          description: Column properties.
+          type: object
+          nullable: true
+          anyOf:
+          - $ref: "#/components/schemas/columnProperties"
+        columnSummary:
+          description: Column statistics and examples.
+          type: object
+          nullable: true
+          anyOf:
+          - $ref: "#/components/schemas/ColumnSummary"
+    EntityAnalysisResult:
+      description: Results of analysis for a single entity.
+      type: object
+      properties:
+        columns:
+          type: array
+          items:
+            type: string
+        entitySettings:
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/entitySettings"
+          nullable: true
+    AnalysisError:
+      description: Any error that arose during analysis.
+      type: object
+      properties:
+        msg:
+          description: Error message.
+          type: string
+    TableKeysAnalysisResult:
+      description: Results of analysis on the primary, foreign and composite key relationships
+        between tables.
+      type: object
+      properties:
+        primaryKey:
+          description: Primary key column for the table.
+          type: object
+          nullable: true
+          anyOf:
+          - $ref: "#/components/schemas/PrimaryKey"
+        compositeKey:
+          description: Composite key for the table.
+          type: object
+          nullable: true
+          anyOf:
+          - $ref: "#/components/schemas/CompositeKey"
+        foreignKeys:
+          description: Foreign key columns for the table.
+          type: array
+          items:
+            type: object
+            allOf:
+            - $ref: "#/components/schemas/ForeignKey"
+    PrimaryKey:
+      description: Primary key.
+      type: object
+      properties:
+        cid:
+          description: Column identifier.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/ColId"
+    CompositeKey:
+      description: Composite key.
+      type: object
+      properties:
+        cids:
+          description: Composite key identifiers.
+          type: array
+          minItems: 2
+          items:
+            type: object
+            allOf:
+            - $ref: "#/components/schemas/ColId"
+    ForeignKey:
+      description: Foreign key.
+      type: object
+      properties:
+        cid:
+          description: Column identifier.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/ColId"
+        columnTo:
+          description: Column that the foreign key points at.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/ColId"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    DataRanges:
+      type: object
+      required:
+      - tables
+      properties:
+        tables:
+          type: array
+          items:
+            $ref: "#/components/schemas/TableRange"
+    TableRange:
+      type: object
+      required:
+      - table
+      - columns
+      properties:
+        table:
+          type: string
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ColumnRange"
+    SynthDataStatsHist:
+      type: object
+      properties:
+        counts:
+          type: array
+          items:
+            type: integer
+            format: int64
+        labels:
+          type: array
+          items:
+            type: string
+    OutputFileExtension:
+      enum:
+      - csv
+      - csv.gz
+      - parquet
+      - avro
+      - sas7bdat
+    RowCountValidator:
+      description: Row count validator.
+      type: object
+      properties:
+        score:
+          allOf:
+          - $ref: "#/components/schemas/ValidationScore"
+        tables:
+          type: array
+          description: Validation row counts for each table.
+          items:
+            $ref: "#/components/schemas/TableRowCountValidator"
+    ValidationScore:
+      enum:
+      - pass
+      - warn
+      - fail
+    TableRowCountValidator:
+      type: object
+      properties:
+        table:
+          type: string
+          title: Table name
+        sourceRows:
+          type: number
+          format: int64
+        syntheticRows:
+          type: number
+          format: int64
+        expectedSyntheticRows:
+          type: number
+          format: int64
+  examples:
+    errorResponse:
+      summary: Error Response
+      description: >
+        This example shows the error response
+        returned when the Data Maker API encounters an error.
+      value: {"message": "An error has occurred", "remediation": "Do this to fix the\
+          \ error", "errorCode": 12345, "errors": [], "links": [], "version": 2}
+    getDataMakerRootResponse:
+      summary: Get the root level links for Data Maker
+      description: This is an example GET response to retrieve the Data Maker root
+        level links.
+      value: {"version": 1, "links": []}
