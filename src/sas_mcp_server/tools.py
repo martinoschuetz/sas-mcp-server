@@ -2078,8 +2078,17 @@ def register_tools(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]])
         return await get_iot_analysis(analysis_id, token)
 
     @mcp.tool()
-    async def create_iot_analysis_tool(name: str, model_name: str, data_selection_id: str, 
-                                       ctx: Context, folder_id: str = None) -> dict:
+    async def create_iot_analysis_tool(
+        name: str,
+        model_name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        parent_instance_id: str = None,
+        parent_step_id: str = None,
+        subset_group_name: str = None,
+        filter_criteria: list = None
+    ) -> dict:
         """
         Creates a new IoT analysis instance.
 
@@ -2088,10 +2097,17 @@ def register_tools(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]])
             model_name (str): Name of the analysis model (e.g., 'EXPLORATION_ASSET').
             data_selection_id (str): ID of the data selection to associate.
             folder_id (str): Optional ID of the project folder to create the analysis in.
+            parent_instance_id (str): Optional parent analysis instance ID for hierarchical linking.
+            parent_step_id (str): Optional parent analysis step ID for hierarchical linking.
+            subset_group_name (str): Optional subset group name (required if parent linking is used).
+            filter_criteria (list): Optional filter criteria list (required if parent linking is used).
         """
         logger.info(f"--- TOOL USED: create_iot_analysis ({name}) ---")
         token = await get_token(ctx)
-        return await create_iot_analysis(name, model_name, data_selection_id, token, folder_id)
+        return await create_iot_analysis(
+            name, model_name, data_selection_id, token, folder_id,
+            parent_instance_id, parent_step_id, subset_group_name, filter_criteria
+        )
 
     @mcp.tool()
     async def delete_iot_analysis_tool(analysis_id: str, ctx: Context) -> str:
@@ -4481,5 +4497,591 @@ def register_tools(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]])
                 "message": f"Failed to reload table. Log: {res.get('log')}"
             }
 
+    @mcp.tool()
+    async def remediate_high_cardinality_tool(
+        caslib_name: str,
+        table_name: str,
+        column_name: str,
+        strategy: str,
+        ctx: Context,
+        target_column: str | None = None,
+    ) -> dict[str, Any]:
+        """Remediates high-cardinality columns in a CAS table to make them suitable for standard analyses.
+
+        Supports three strategies:
+        - 'binning': Groups the top 10 values by frequency and bins the rest as -99 ('OTHER').
+        - 'temporal': Extracts Year-Month and relative age offsets (requires target_column representing inservice_date).
+        - 'target_encoding': Calculates target encoding using the mean of target_column.
+
+        Args:
+            caslib_name: Name of the caslib containing the table.
+            table_name: Name of the CAS table.
+            column_name: Name of the high-cardinality column to remediate.
+            strategy: Remediation strategy ('binning', 'temporal', or 'target_encoding').
+            target_column: Name of the target variable for target encoding or target inservice_date for temporal.
+        """
+        logger.info(f"--- TOOL USED: remediate_high_cardinality ({caslib_name}.{table_name}.{column_name}) ---")
+        token = await get_token(ctx)
+        
+        column_name = column_name.upper()
+        table_name = table_name.upper()
+        caslib_name = caslib_name.upper()
+        if target_column:
+            target_column = target_column.upper()
+            
+        strategy = strategy.lower()
+        if strategy not in ["binning", "temporal", "target_encoding"]:
+            return {
+                "status": "failed",
+                "message": f"Unsupported strategy '{strategy}'. Use 'binning', 'temporal', or 'target_encoding'."
+            }
+            
+        code = f"""
+        cas mySession;
+        libname mycas CAS sessref=mySession caslib="{caslib_name}";
+        """
+        
+        new_col = ""
+        new_desc = ""
+        new_label = ""
+        new_type = 3
+        
+        if strategy == "binning":
+            new_col = f"{column_name}_BINNED"
+            new_desc = f"Binned {column_name} (Top 10 + Other)"
+            new_label = f"Binned {column_name}"
+            new_type = 3
+            
+            code += f"""
+            proc freq data=mycas.{table_name} order=freq;
+                tables {column_name} / out=work.freq_out;
+            run;
+            
+            data mycas.freq_out_top10;
+                set work.freq_out(obs=10);
+            run;
+            
+            proc fedsql sessref=mySession;
+                create table {caslib_name}.{table_name}_new as
+                select t1.*, 
+                       case when t2.{column_name} is not null then t1.{column_name}
+                            else -99
+                       end as {new_col}
+                from {caslib_name}.{table_name} as t1
+                left join {caslib_name}.freq_out_top10 as t2
+                on t1.{column_name} = t2.{column_name};
+            quit;
+            
+            proc cas;
+                table.dropTable / caslib="{caslib_name}" name="freq_out_top10" quiet=true;
+                table.dropTable / caslib="{caslib_name}" name="{table_name}" quiet=true;
+                table.promote / caslib="{caslib_name}" name="{table_name}_new" target="{table_name}";
+            quit;
+            """
+            
+        elif strategy == "temporal":
+            if not target_column:
+                return {
+                    "status": "failed",
+                    "message": "Strategy 'temporal' requires 'target_column' (the inservice_date column name)."
+                }
+            new_col = f"{column_name}_AGE_MONTHS"
+            new_desc = f"Age in Months from {target_column} to {column_name}"
+            new_label = "Age in Months"
+            new_type = 4
+            
+            code += f"""
+            data mycas.{table_name}_new(promote=yes);
+                set mycas.{table_name};
+                length {new_col} 8;
+                if {column_name} ne . and {target_column} ne . then do;
+                    {new_col} = ({column_name} - {target_column}) / 30.4375;
+                end;
+                else do;
+                    {new_col} = .;
+                end;
+            run;
+            
+            proc cas;
+                table.dropTable / caslib="{caslib_name}" name="{table_name}" quiet=true;
+                table.promote / caslib="{caslib_name}" name="{table_name}_new" target="{table_name}";
+            quit;
+            """
+            
+        elif strategy == "target_encoding":
+            if not target_column:
+                return {
+                    "status": "failed",
+                    "message": "Strategy 'target_encoding' requires 'target_column' (the dependent/target variable)."
+                }
+            new_col = f"{column_name}_TE"
+            new_desc = f"Target encoded {column_name} against {target_column}"
+            new_label = f"Target encoded {column_name}"
+            new_type = 4
+            
+            code += f"""
+            proc summary data=mycas.{table_name} nway;
+                class {column_name};
+                var {target_column};
+                output out=work.te_lookup(drop=_type_ _freq_) mean=te_val;
+            run;
+            
+            data mycas.te_lookup;
+                set work.te_lookup;
+            run;
+            
+            proc fedsql sessref=mySession;
+                create table {caslib_name}.{table_name}_new as
+                select t1.*, coalesce(t2.te_val, 0) as {new_col}
+                from {caslib_name}.{table_name} as t1
+                left join {caslib_name}.te_lookup as t2
+                on t1.{column_name} = t2.{column_name};
+            quit;
+            
+            proc cas;
+                table.dropTable / caslib="{caslib_name}" name="te_lookup" quiet=true;
+                table.dropTable / caslib="{caslib_name}" name="{table_name}" quiet=true;
+                table.promote / caslib="{caslib_name}" name="{table_name}_new" target="{table_name}";
+            quit;
+            """
+
+        code += f"""
+        libname metapg CAS caslib="AIoTPgMeta" sessref=mySession;
+        %macro update_metadata;
+            %if %sysfunc(exist(metapg.TABLECOLUMN_META_PG)) and
+                %sysfunc(exist(metapg.TABLECOLUMN_ATTRIBUTES_PG))
+                %then %do;
+                
+                /* 1. Copy promoted tables to local WORK tables */
+                data work.table_meta_temp;
+                    set metapg.TABLECOLUMN_META_PG;
+                run;
+                data work.table_attr_temp;
+                    set metapg.TABLECOLUMN_ATTRIBUTES_PG;
+                run;
+                
+                /* 2. Perform deletes and inserts on local WORK tables */
+                proc sql;
+                    delete from work.table_meta_temp where column_id = "{new_col}_F999";
+                    insert into work.table_meta_temp
+                    (column_id, column_nm, table_id, column_data_type_cd,
+                     column_desc, column_label_txt, solution_cd, column_fmt_nm)
+                    values ("{new_col}_F999", "{new_col}", "{table_name}",
+                            {new_type}, "{new_desc}", "{new_label}", "FQA", "");
+                    
+                    delete from work.table_attr_temp where column_id = "{new_col}_F999";
+                    insert into work.table_attr_temp
+                    (tablecolumn_attr_id, column_id, attribute_nm, attribute_val, attribute_data_type_cd)
+                    values ("{new_col}_F999_RV", "{new_col}_F999", "REQVAR", "Y", 2);
+                    insert into work.table_attr_temp
+                    (tablecolumn_attr_id, column_id, attribute_nm, attribute_val, attribute_data_type_cd)
+                    values (
+                        "{new_col}_F999_AV", 
+                        "{new_col}_F999", 
+                        "REPORTVAR", 
+                        "CROSSTAB,DETAIL,MULTIVARIATE,PARETO,STATDRIVER,TEXTANALYSIS", 
+                        2
+                    );
+                    insert into work.table_attr_temp
+                    (tablecolumn_attr_id, column_id, attribute_nm, attribute_val, attribute_data_type_cd)
+                    values ("{new_col}_F999_FT", "{new_col}_F999", "FACT_TABLE", "{table_name}", 2);
+                    insert into work.table_attr_temp
+                    (tablecolumn_attr_id, column_id, attribute_nm, attribute_val, attribute_data_type_cd)
+                    values ("{new_col}_F999_FC", "{new_col}_F999", "FACT_COLUMN", "{new_col}", 2);
+                quit;
+                
+                /* 3. Upload modified WORK tables to CAS session-scope */
+                data metapg.TABLECOLUMN_META_PG_new;
+                    set work.table_meta_temp;
+                run;
+                data metapg.TABLECOLUMN_ATTRIBUTES_PG_new;
+                    set work.table_attr_temp;
+                run;
+                
+                /* 4. Drop old promoted tables and promote new ones */
+                proc cas;
+                    table.dropTable / 
+                        caslib="AIoTPgMeta" 
+                        name="TABLECOLUMN_META_PG" 
+                        quiet=true;
+                    table.dropTable / 
+                        caslib="AIoTPgMeta" 
+                        name="TABLECOLUMN_ATTRIBUTES_PG" 
+                        quiet=true;
+                    table.promote / 
+                        caslib="AIoTPgMeta" 
+                        name="TABLECOLUMN_META_PG_new" 
+                        target="TABLECOLUMN_META_PG";
+                    table.promote / 
+                        caslib="AIoTPgMeta" 
+                        name="TABLECOLUMN_ATTRIBUTES_PG_new" 
+                        target="TABLECOLUMN_ATTRIBUTES_PG";
+                quit;
+            %end;
+        %mend update_metadata;
+        %update_metadata;
+        """
+        
+        res = await run_one_snippet(code, "remediate", token)
+        if res.get("state") == "completed":
+            return {
+                "status": "success",
+                "message": (
+                    f"Successfully remediated column {column_name} in "
+                    f"{caslib_name}.{table_name} using strategy "
+                    f"'{strategy}'. Created column {new_col}."
+                ),
+                "log": res.get("log")[:1000]
+            }
+        else:
+            return {
+                "status": "failed",
+                "message": f"Failed to remediate column. Log: {res.get('log')}"
+            }
+
+    @mcp.tool()
+    async def create_child_data_selection_and_launch_tool(
+        parent_data_selection_id: str,
+        new_name: str,
+        new_filters: list[dict],
+        parent_analysis_id: str,
+        ctx: Context,
+        folder_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Creates a child data selection from a parent data selection with new filters and parent links, and launches it in CAS.
+
+        Args:
+            parent_data_selection_id (str): The ID of the parent data selection to copy.
+            new_name (str): Name for the new child data selection.
+            new_filters (list[dict]): List of additional filter criteria to append.
+            parent_analysis_id (str): The ID of the parent Decision Tree or analysis to link this child to.
+            folder_id (str, optional): The ID of the project folder to add this data selection to.
+        """
+        import uuid
+        async with viya_session("create_child_data_selection_and_launch", ctx) as client:
+            logger.info(f"Copying parent data selection {parent_data_selection_id} to '{new_name}'")
+            copy_url = f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{parent_data_selection_id}/copies?name={new_name}"
+            resp_copy = await client.post(copy_url)
+            resp_copy.raise_for_status()
+            new_ds = resp_copy.json()
+            new_ds_id = new_ds["id"]
+            
+            resp_get = await client.get(
+                f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{new_ds_id}",
+                headers={"Accept": "application/vnd.sas.data.selection+json"}
+            )
+            resp_get.raise_for_status()
+            ds_details = resp_get.json()
+            etag = resp_get.headers.get("ETag", "")
+            
+            filter_criteria = ds_details.get("filterCriteria", {})
+            group_0 = filter_criteria.get("0", [])
+            
+            for f in new_filters:
+                new_f = {
+                    "id": str(uuid.uuid4()),
+                    "criteriaGroupId": new_ds_id,
+                    "columnName": f.get("columnName"),
+                    "operatorCode": f.get("operatorCode", "IN"),
+                    "excludeFlag": f.get("excludeFlag", False),
+                    "componentTypeCode": f.get("componentTypeCode", f.get("component", "PRODUCT")),
+                    "component": f.get("component", "PRODUCT"),
+                    "filterAttributeId": f.get("filterAttributeId", f"{f.get('columnName')}_{f.get('component', 'PRODUCT')}"),
+                    "groupId": "0",
+                    "uiDisplay": False,
+                    "values": f.get("values", [])
+                }
+                group_0.append(new_f)
+            
+            ds_details["filterCriteria"] = {"0": group_0}
+            ds_details["additionalAttributes"] = [
+                {"name": "parentAnalysisId", "value": parent_analysis_id},
+                {"name": "PARENT_ANALYSIS_ID", "value": parent_analysis_id}
+            ]
+            
+            headers_put = {
+                "Content-Type": "application/vnd.sas.data.selection+json",
+                "Accept": "application/vnd.sas.data.selection+json",
+                "If-Match": etag
+            }
+            resp_put = await client.put(
+                f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{new_ds_id}",
+                json=ds_details,
+                headers=headers_put
+            )
+            resp_put.raise_for_status()
+            
+            cols = [
+                {"columnName": "PRODUCTION_DATE", "columnNameLabel": "Production Date", "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "SELLING_DEALER_COUNTRY_CD", "columnNameLabel": "Selling Dealer Country", "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "MODEL_CD", "columnNameLabel": "Model Code", "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "SELLING_DEALER_CD", "columnNameLabel": "Selling Dealer Code", "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "INSERVICE_DATE", "columnNameLabel": "In Service Date", "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "CSTMR_STATE_CD", "columnNameLabel": "Customer State", "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "PRIM_REPL_PART_CD", "columnNameLabel": "Primary Part Code", "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
+                {"columnName": "CLAIMCOST", "columnNameLabel": "Total Claim Cost", "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
+                {"columnName": "PRIM_LABOR_CD", "columnNameLabel": "Primary Labor Code", "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
+                {"columnName": "EVENT_SUBMIT_DATE", "columnNameLabel": "Claim Submit Date", "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
+                {"columnName": "REPL_PART_CD", "columnNameLabel": "Replaced Part Code", "columnTableName": "PART", "columnTableNameLabel": "Parts"}
+            ]
+            
+            launch_body = {
+                "tableName": f"DS_{new_ds_id.replace('-', '_')[:24]}",
+                "launchAppName": "CAS",
+                "transposeFlag": 0,
+                "launchKeyDim": "PRODUCT",
+                "launchColumnTables": ["CLAIM", "PART", "PRODUCT"],
+                "launchColumns": cols
+            }
+            
+            resp_launch = await client.post(
+                f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{new_ds_id}/launches",
+                json=launch_body,
+                headers={
+                    "Content-Type": "application/vnd.sas.data.selection.launch+json",
+                    "Accept": "application/vnd.sas.data.selection.launch+json"
+                }
+            )
+            resp_launch.raise_for_status()
+            launch_id = resp_launch.json()["id"]
+            
+            import asyncio
+            while True:
+                resp_status = await client.get(
+                    f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{new_ds_id}/launches/{launch_id}",
+                    headers={"Accept": "application/vnd.sas.data.selection.launch+json"}
+                )
+                launch_status = resp_status.json().get("status", "")
+                if launch_status == "COMPLETED":
+                    break
+                elif launch_status in ("FAILED", "ERROR"):
+                    raise RuntimeError(f"Data selection launch failed with status {launch_status}")
+                await asyncio.sleep(5)
+                
+            if folder_id:
+                member_body = {
+                    "name": new_name,
+                    "uri": f"/dataSelection/dataSelections/{new_ds_id}",
+                    "contentType": "application/vnd.sas.data.selection",
+                    "type": "reference"
+                }
+                await client.post(
+                    f"{VIYA_ENDPOINT}/folders/folders/{folder_id}/members",
+                    json=member_body,
+                    headers={
+                        "Content-Type": "application/vnd.sas.drive.member+json",
+                        "Accept": "application/vnd.sas.drive.member+json"
+                    }
+                )
+            
+            return {
+                "status": "success",
+                "data_selection_id": new_ds_id,
+                "launch_id": launch_id,
+                "message": f"Successfully created and launched child data selection '{new_name}' (ID: {new_ds_id})"
+            }
+
+    @mcp.tool()
+    async def create_child_analysis_and_run_tool(
+        name: str,
+        model_name: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str | None = None,
+        parameter_overrides: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        """Creates a child analysis instance, configures step parameters with overrides, runs the job, and links it in a project folder.
+
+        Args:
+            name (str): The name for the new analysis instance.
+            model_name (str): The type of analysis model (e.g. `DETAIL_PRODUCT`, `PARETO_PRODUCT`).
+            data_selection_id (str): The ID of the data selection to run the analysis on.
+            folder_id (str, optional): The ID of the project folder to add this analysis to.
+            parameter_overrides (dict, optional): Parameter overrides to update in the analysis step.
+        """
+        async with viya_session("create_child_analysis_and_run", ctx) as client:
+            logger.info(f"Creating new analysis '{name}' on data selection {data_selection_id}")
+            analysis_body = {
+                "name": name,
+                "modelName": model_name,
+                "dataSelectionId": data_selection_id
+            }
+            if folder_id:
+                analysis_body["folderID"] = folder_id
+                
+            collection_body = {
+                "name": "analysis",
+                "items": [analysis_body]
+            }
+            
+            resp_create = await client.post(
+                f"{VIYA_ENDPOINT}/iotAnalysis/analyses",
+                json=collection_body,
+                headers={"Accept": "application/json", "Content-Type": "application/json"}
+            )
+            resp_create.raise_for_status()
+            created_analysis = resp_create.json()["items"][0]
+            analysis_id = created_analysis["id"]
+            
+            resp_full = await client.get(
+                f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{analysis_id}",
+                headers={"Accept": "application/vnd.sas.iot.analysis+json"}
+            )
+            resp_full.raise_for_status()
+            full_analysis = resp_full.json()
+            analysis_etag = resp_full.headers.get("ETag", "")
+            
+            steps = full_analysis.get("steps", [])
+            if not steps:
+                raise RuntimeError("No steps found in the created analysis details")
+            step = steps[0]
+            step_id = step["id"]
+            
+            if parameter_overrides:
+                params = step.get("inputParameters", [])
+                for p in params:
+                    pname = p.get("parameterName")
+                    if pname in parameter_overrides:
+                        p["parameterValue"] = parameter_overrides[pname]
+                step["inputParameters"] = params
+                full_analysis["steps"] = [step]
+                
+                resp_put = await client.put(
+                    f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{analysis_id}",
+                    json=full_analysis,
+                    headers={
+                        "Content-Type": "application/vnd.sas.iot.analysis+json",
+                        "Accept": "application/vnd.sas.iot.analysis+json",
+                        "If-Match": analysis_etag
+                    }
+                )
+                resp_put.raise_for_status()
+                
+            logger.info("Submitting step run job...")
+            resp_run = await client.post(
+                f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{analysis_id}/steps/{step_id}/jobs",
+                headers={"Accept": "application/json"}
+            )
+            resp_run.raise_for_status()
+            job_link = resp_run.json()["links"][0]["href"]
+            
+            import asyncio
+            while True:
+                resp_job = await client.get(f"{VIYA_ENDPOINT}{job_link}")
+                job_status = resp_job.json().get("state", "")
+                if job_status == "completed":
+                    break
+                elif job_status in ("failed", "error", "canceled"):
+                    try:
+                        log_resp = await client.get(f"{VIYA_ENDPOINT}{job_link}/log?limit=1000")
+                        log_lines = [item.get("line") for item in log_resp.json().get("items", [])]
+                        logger.error(f"Job log output:\n" + "\n".join(log_lines))
+                    except Exception:
+                        pass
+                    raise RuntimeError(f"Analysis job failed with status {job_status}")
+                await asyncio.sleep(5)
+                
+            if folder_id:
+                member_body = {
+                    "name": name,
+                    "uri": f"/iotAnalysis/analyses/{analysis_id}",
+                    "contentType": "application/vnd.sas.iot.analysis",
+                    "type": "reference"
+                }
+                await client.post(
+                    f"{VIYA_ENDPOINT}/folders/folders/{folder_id}/members",
+                    json=member_body,
+                    headers={
+                        "Content-Type": "application/vnd.sas.drive.member+json",
+                        "Accept": "application/vnd.sas.drive.member+json"
+                    }
+                )
+                
+            return {
+                "status": "success",
+                "analysis_id": analysis_id,
+                "step_id": step_id,
+                "message": f"Successfully created and ran child analysis '{name}' (ID: {analysis_id})"
+            }
 
 
+
+
+
+    # ------------------------------------------------------------------
+    # Visual Forecasting Tools
+    # ------------------------------------------------------------------
+
+    @mcp.tool()
+    async def list_forecasting_data_definitions(limit: int = 10, start: int = 0, ctx: Context = None) -> dict:
+        """List Visual Forecasting data definitions."""
+        async with viya_session("list_forecasting_data_definitions", ctx) as client:
+            return await get_paged_items(client, "/dataDefinitions", limit, start)
+
+    @mcp.tool()
+    async def get_forecasting_data_definition(data_definition_id: str, ctx: Context = None) -> dict:
+        """Get details of a specific Visual Forecasting data definition."""
+        async with viya_session("get_forecasting_data_definition", ctx) as client:
+            return await get_json(client, f"/dataDefinitions/{data_definition_id}")
+
+    @mcp.tool()
+    async def create_forecasting_data_definition(body: str, ctx: Context = None) -> dict:
+        """Create a new Visual Forecasting data definition (pass configuration as a JSON string)."""
+        async with viya_session("create_forecasting_data_definition", ctx) as client:
+            return await post_json(client, "/dataDefinitions", json.loads(body))
+
+    @mcp.tool()
+    async def delete_forecasting_data_definition(data_definition_id: str, ctx: Context = None) -> str:
+        """Delete a Visual Forecasting data definition."""
+        async with viya_session("delete_forecasting_data_definition", ctx) as client:
+            await delete_resource(client, f"/dataDefinitions/{data_definition_id}")
+            return f"Deleted data definition {data_definition_id}"
+
+    @mcp.tool()
+    async def run_final_forecast(data_definition_id: str, ctx: Context = None) -> dict:
+        """Run the final forecast for a data definition."""
+        async with viya_session("run_final_forecast", ctx) as client:
+            return await post_json(client, f"/dataDefinitions/{data_definition_id}/finalForecast", {})
+
+    @mcp.tool()
+    async def list_forecasting_filters(limit: int = 10, start: int = 0, ctx: Context = None) -> dict:
+        """List Visual Forecasting filters."""
+        async with viya_session("list_forecasting_filters", ctx) as client:
+            return await get_paged_items(client, "/filters", limit, start)
+
+    @mcp.tool()
+    async def get_forecasting_filter(filter_id: str, ctx: Context = None) -> dict:
+        """Get details of a specific Visual Forecasting filter."""
+        async with viya_session("get_forecasting_filter", ctx) as client:
+            return await get_json(client, f"/filters/{filter_id}")
+
+
+    @mcp.tool()
+    async def get_forecasting_pipeline_results(pipeline_id: str, component_id: str, ctx: Context = None) -> dict:
+        """Get the results of a specific component within a forecasting pipeline."""
+        async with viya_session("get_forecasting_pipeline_results", ctx) as client:
+            return await get_json(client, f"/pipelines/{pipeline_id}/components/{component_id}/results")
+
+    @mcp.tool()
+    async def run_forecasting_comparison(body: str, ctx: Context = None) -> dict:
+        """Run a forecasting pipeline comparison (pass configuration as a JSON string)."""
+        async with viya_session("run_forecasting_comparison", ctx) as client:
+            return await post_json(client, "/comparison", json.loads(body))
+
+    @mcp.tool()
+    async def get_forecasting_comparison_results(ctx: Context = None) -> dict:
+        """Get forecasting comparison results."""
+        async with viya_session("get_forecasting_comparison_results", ctx) as client:
+            return await get_json(client, "/comparison/results")
+
+    @mcp.tool()
+    async def generate_forecasting_timeseries_plot(body: str, ctx: Context = None) -> dict:
+        """Generate a time series plot for exploration (pass configuration as a JSON string)."""
+        async with viya_session("generate_forecasting_timeseries_plot", ctx) as client:
+            return await post_json(client, "/timeSeriesPlot", json.loads(body))
+
+    @mcp.tool()
+    async def generate_forecast_plot(body: str, ctx: Context = None) -> dict:
+        """Generate a forecast plot for exploration (pass configuration as a JSON string)."""
+        async with viya_session("generate_forecast_plot", ctx) as client:
+            return await post_json(client, "/forecastPlot", json.loads(body))

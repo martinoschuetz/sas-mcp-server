@@ -1053,6 +1053,56 @@ async def test_drop_and_reload_table_workflow(integration_mcp_server):
         )
 
 
+async def test_remediate_high_cardinality_workflow(integration_mcp_server):
+    """Test remediate_high_cardinality_tool."""
+    async with Client(integration_mcp_server) as client:
+        table_name = "INTEG_HC_TEMP"
+        await client.call_tool(
+            "execute_sas_code",
+            {
+                "sas_code": f"""
+                cas mySession;
+                caslib _all_ assign;
+                proc cas;
+                  table.dropTable / caslib="CASUSER" name="{table_name}" quiet=true;
+                quit;
+                data CASUSER.{table_name}(promote=yes);
+                  length x 8;
+                  do i = 1 to 100;
+                    x = mod(i, 15);
+                    output;
+                  end;
+                run;
+                """
+            }
+        )
+        
+        try:
+            res = (await client.call_tool(
+                "remediate_high_cardinality_tool",
+                {
+                    "caslib_name": "CASUSER",
+                    "table_name": table_name,
+                    "column_name": "x",
+                    "strategy": "binning",
+                }
+            )).data
+            assert res.get("status") == "success"
+        finally:
+            await client.call_tool(
+                "execute_sas_code",
+                {
+                    "sas_code": f"""
+                    cas mySession;
+                    proc cas;
+                      table.dropTable / caslib="CASUSER" name="{table_name}" quiet=true;
+                    quit;
+                    """
+                }
+            )
+
+
+
 # -----------------------------------------------------------------------
 # Prompt templates — rendered through the live-connected server
 # -----------------------------------------------------------------------
@@ -1347,6 +1397,7 @@ TOOL_COVERAGE = {
     "run_reliability_analysis_tool": "test_fqa_analysis_tools",
     "drop_table_from_memory": "test_drop_and_reload_table_workflow",
     "reload_table_to_memory": "test_drop_and_reload_table_workflow",
+    "remediate_high_cardinality_tool": "test_remediate_high_cardinality_workflow",
 }
 
 

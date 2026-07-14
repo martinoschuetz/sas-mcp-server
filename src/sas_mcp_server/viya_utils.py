@@ -28,7 +28,7 @@ import httpx
 from cachetools import TTLCache
 
 from .config import CONTEXT_NAME, SSL_VERIFY, VIYA_ENDPOINT
-from .viya_client import logger, make_client
+from .viya_client import logger, make_client, SharedAsyncClient
 
 # Caching for performance
 # Cache data selection lists for 60 seconds, max 100 different filter combinations
@@ -264,7 +264,7 @@ async def wait_job(
         state = resp.text.strip()
         if state in ("completed", "error", "warning", "canceled"):
             # Fetch log
-            log_url = f"{VIYA_ENDPOINT}/compute/sessions/{session_id}/jobs/{job_id}/log"
+            log_url = f"{VIYA_ENDPOINT}/compute/sessions/{session_id}/jobs/{job_id}/log?limit=10000"
             log_resp = await client.get(log_url)
             log = log_resp.json()
             lines = [item["line"] for item in log.get("items", [])]
@@ -322,10 +322,18 @@ async def run_one_snippet(
 # Generic API helpers (used by IoT/CAS tools)
 # ---------------------------------------------------------------------------
 
+_utils_client_cache = {}
+
 def _make_client(token):
-    """Create an httpx.AsyncClient with auth headers for Viya API calls."""
+    """Create or return a cached SharedAsyncClient with auth headers for Viya API calls."""
     if not token.startswith("Bearer "):
         token = f"Bearer {token}"
+        
+    if token in _utils_client_cache:
+        cached_client = _utils_client_cache[token]
+        if not cached_client.is_closed:
+            return cached_client
+            
     headers = {"Authorization": token, "Content-Type": "application/json"}
     
     # Use permissive context if SSL_VERIFY is False
@@ -333,7 +341,9 @@ def _make_client(token):
     if not SSL_VERIFY:
         verify_param = _permissive_ssl_context
 
-    return httpx.AsyncClient(headers=headers, verify=verify_param, timeout=300.0)
+    client = SharedAsyncClient(headers=headers, verify=verify_param, timeout=300.0)
+    _utils_client_cache[token] = client
+    return client
 
 
 async def _get_json(url, client, params=None, accept="application/json"):
@@ -509,7 +519,11 @@ async def create_iot_analysis(
     model_name: str,
     data_selection_id: str,
     token: str,
-    folder_id: str = None
+    folder_id: str = None,
+    parent_instance_id: str = None,
+    parent_step_id: str = None,
+    subset_group_name: str = None,
+    filter_criteria: list = None
 ) -> dict:
     """Creates a new IoT analysis instance."""
     async with _make_client(token) as client:
@@ -520,6 +534,14 @@ async def create_iot_analysis(
         }
         if folder_id:
             body["folderID"] = folder_id
+        if parent_instance_id:
+            body["parentInstanceId"] = parent_instance_id
+        if parent_step_id:
+            body["parentStepId"] = parent_step_id
+        if subset_group_name:
+            body["subsetGroupName"] = subset_group_name
+        if filter_criteria:
+            body["filterCriteria"] = filter_criteria
         
         # Wrapped in a collection for this particular endpoint
         collection_body = {
@@ -539,11 +561,18 @@ async def create_and_run_analysis(
     token: str,
     folder_id: str = None,
     parameter_updates: dict = None,
-    wait_for_completion: bool = True
+    wait_for_completion: bool = True,
+    parent_instance_id: str = None,
+    parent_step_id: str = None,
+    subset_group_name: str = None,
+    filter_criteria: list = None
 ) -> dict:
     """Creates a new IoT analysis instance, updates its parameters, and runs it."""
     # 1. Create analysis
-    creation_res = await create_iot_analysis(name, model_name, data_selection_id, token, folder_id)
+    creation_res = await create_iot_analysis(
+        name, model_name, data_selection_id, token, folder_id,
+        parent_instance_id, parent_step_id, subset_group_name, filter_criteria
+    )
     items = creation_res.get("items", [])
     if not items:
         return creation_res
