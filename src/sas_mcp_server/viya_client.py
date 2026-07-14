@@ -89,14 +89,38 @@ async def delete_resource(url: str, client: httpx.AsyncClient) -> None:
     resp.raise_for_status()
 
 
+class SharedAsyncClient(httpx.AsyncClient):
+    """Subclass of httpx.AsyncClient that prevents closing connection pool during exit."""
+    async def __aenter__(self) -> "SharedAsyncClient":
+        from httpx._client import ClientState
+        if self._state == ClientState.UNOPENED:
+            await super().__aenter__()
+        return self
+
+    async def aclose(self) -> None:
+        pass
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        pass
+
+_client_cache: dict[str, SharedAsyncClient] = {}
+
 def make_client(token: str) -> httpx.AsyncClient:
-    """Create an :class:`httpx.AsyncClient` with auth headers for Viya API calls."""
+    """Create or return a cached SharedAsyncClient with auth headers for Viya API calls."""
     if not token.startswith("Bearer "):
         token = f"Bearer {token}"
+    
+    if token in _client_cache:
+        cached_client = _client_cache[token]
+        if not cached_client.is_closed:
+            return cached_client
+            
     headers = {"Authorization": token}
-    return httpx.AsyncClient(
+    client = SharedAsyncClient(
         headers=headers, verify=SSL_VERIFY, timeout=_CLIENT_TIMEOUT
     )
+    _client_cache[token] = client
+    return client
 
 
 def return_items(
