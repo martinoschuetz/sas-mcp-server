@@ -4498,6 +4498,60 @@ def register_tools(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]])
             }
 
     @mcp.tool()
+    async def reload_fqa_metadata_tool(
+        fqa_base_path: str,
+        ctx: Context
+    ) -> dict[str, Any]:
+        """
+        Reloads the FQA metadata configuration (e.g., column_parameters.csv, analysis_param.csv) 
+        into the SAS Analytics for IoT Postgres database without reloading the underlying CAS data.
+        This is useful after modifying FQA configuration files.
+        Note: This tool may take several minutes to run and could exceed standard tool timeouts, 
+        but it will successfully trigger the load in the background.
+        
+        Args:
+            fqa_base_path (str): The absolute Linux path on the CAS server where the FQA Demo_Data_transformed directory resides 
+                                 (e.g., "/export/sas-viya/homes/germsz/AIoT/FQA/Demo_Data_transformed").
+        """
+        logger.info(f"--- TOOL USED: reload_fqa_metadata_tool ({fqa_base_path}) ---")
+        token = await get_token(ctx)
+        
+        code = f"""
+        /* Ensure etl=N so we don't wipe data and only load config */
+        data _null_;
+          infile '{fqa_base_path}/Load_Demo_Data_params.txt' truncover;
+          file '{fqa_base_path}/Load_Demo_Data_params.tmp';
+          input line $32767.;
+          if index(line, 'etl=Y') > 0 or index(line, 'etl = Y') > 0 then line = 'etl=N';
+          put line;
+        run;
+
+        data _null_;
+          infile '{fqa_base_path}/Load_Demo_Data_params.tmp' truncover;
+          file '{fqa_base_path}/Load_Demo_Data_params.txt';
+          input line $32767.;
+          put line;
+        run;
+
+        /* Execute the dataload macro */
+        %include '{fqa_base_path}/Load_Demo_Data.sas';
+        """
+        
+        res = await run_one_snippet(code, "reload_fqa_metadata", token)
+        
+        if res.get("state") == "completed":
+            return {
+                "status": "success",
+                "message": "FQA Metadata configuration successfully reloaded.",
+                "log": res.get("log")
+            }
+        else:
+            return {
+                "status": "failed",
+                "message": f"Failed to reload FQA metadata. Log: {res.get('log')}"
+            }
+
+    @mcp.tool()
     async def remediate_high_cardinality_tool(
         caslib_name: str,
         table_name: str,
