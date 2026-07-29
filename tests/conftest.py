@@ -43,6 +43,9 @@ def mock_env_vars(monkeypatch):
     monkeypatch.setenv("HOST_PORT", "8134")
     monkeypatch.setenv("MCP_SIGNING_KEY", "test-key")
     monkeypatch.setenv("COMPUTE_CONTEXT_NAME", "Test Context")
+    monkeypatch.setenv("VIYA_AUTH", "true")
+    monkeypatch.setenv("MCP_TIERS", "")
+    monkeypatch.setenv("COMPUTE_SESSION_ID", "")
 
 
 @pytest.fixture
@@ -189,14 +192,20 @@ def mcp_server_with_mock_client():
     mock_client.put.return_value = put_resp
     mock_client.delete.return_value = delete_resp
 
-    with patch("sas_mcp_server.tools.make_client", return_value=mock_client):
+    # make_client is imported into the shared session factory (tools._common)
+    # and into the compute tier (reset_compute_session calls it directly); patch
+    # both so every tool's client resolves to the mock.
+    with (
+        patch("sas_mcp_server.tools._common.make_client", return_value=mock_client),
+        patch("sas_mcp_server.tools.compute.make_client", return_value=mock_client),
+    ):
         mcp = FastMCP("Payload Test Server")
 
         async def mock_get_token(ctx):
             return "test-token"
 
         from sas_mcp_server.tools import register_tools
-        register_tools(mcp, mock_get_token)
+        register_tools(mcp, mock_get_token, tiers="")
         yield mcp, mock_client
 
 
@@ -253,7 +262,12 @@ def integration_mcp_server(viya_token):
         return _token
 
     from sas_mcp_server.prompts import register_prompts
+    from sas_mcp_server.telemetry import install_telemetry
     from sas_mcp_server.tools import register_tools
+    # Mirror the production HTTP server so integration runs exercise telemetry
+    # when COLLECTION_MODE is enabled. No-op (adds no middleware) when off, so
+    # the default suite is byte-identical.
+    install_telemetry(mcp, "http")
     register_tools(mcp, real_get_token)
     register_prompts(mcp)
     return mcp
