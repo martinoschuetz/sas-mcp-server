@@ -36,6 +36,10 @@ tags:
   description: The operations to unquarantine the file.
 - name: Settings
   description: The operations to return configuration settings information.
+- name: Transfer
+  description: The operations to export and import file resources for transfer workflows.
+- name: Catalog
+  description: The operations to retrieve catalog metadata for file resources.
 paths:
   /:
     get:
@@ -113,14 +117,14 @@ paths:
           0.
         schema:
           type: integer
-          format: int64
+          format: int32
       - name: limit
         in: query
         description: The maximum number of members to return. The default value is
           10.
         schema:
           type: integer
-          format: int64
+          format: int32
       - name: filter
         in: query
         description: The filter criteria to apply to the returned member collection.
@@ -156,6 +160,19 @@ paths:
               examples:
                 collectionErrResp:
                   $ref: '#/components/examples/headFileNotFoundErrResp'
+    head:
+      summary: Check if file resources endpoint is available
+      description: Determines whether the files collection endpoint is available.
+      tags:
+      - Files
+      operationId: headersForFiles
+      responses:
+        "200":
+          description: The request succeeded. The files collection endpoint is available.
+          headers:
+            Content-Type:
+              schema:
+                type: string
     delete:
       summary: Delete file resources
       description: "Deletes file resources for the specified parentUri. If the user\
@@ -258,7 +275,7 @@ paths:
         description: An indicator specifying if a file is searchable or not. Defaulted
           to 'true' indicating file is searchable.
         schema:
-          type: string
+          type: boolean
       - name: typeDefName
         in: query
         description: 'The type definition name of the file. If the file is associated
@@ -403,7 +420,7 @@ paths:
         description: An indicator specifying if a file is searchable or not. Defaulted
           to 'true' indicating file is searchable.
         schema:
-          type: string
+          type: boolean
       - name: typeDefName
         in: query
         description: 'The type definition name of the file. If the file is associated
@@ -524,6 +541,70 @@ paths:
               examples:
                 uploadConlictErrResp:
                   $ref: '#/components/examples/postUploadConflictErrResp'
+  /files#transferImport:
+    post:
+      summary: Create a file resource from a transfer object
+      description: Creates a file resource from a transfer object payload used by
+        transfer workflows.
+      tags:
+      - Transfer
+      operationId: createFileFromTransferObject
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              transferImportRequest:
+                summary: Create a file from transfer payload
+                value:
+                  version: 2
+                  summary:
+                    id: "7d6a8d8d-2fd1-4f66-b2cd-2bf90a0f71f1"
+                    name: "simpleText.txt"
+                    description: "Test Transfer Description"
+                    createdBy: "sasdemo"
+                    creationTimeStamp: "2026-07-01T09:12:31.000Z"
+                    modifiedBy: "sasdemo"
+                    modifiedTimeStamp: "2026-07-01T09:12:31.000Z"
+                  content: "eyJmaWxlUmVzb3VyY2UiOnsibmFtZSI6InNpbXBsZVRleHQudHh0IiwiY29udGVudFR5cGUiOiJ0ZXh0L3BsYWluIiwicGFyZW50VXJpIjoiL3Rlc3QvcGFyZW50LzEyMyJ9LCJjb250ZW50IjoiU0dWc2JHOGdWMjl5YkdRaCJ9"
+                  connectors:
+                  - version: 2
+                    uri: "/test/parent/123"
+                    name: "simpleText.txt"
+                    contentType: "text/plain"
+                    type: "parent"
+                    forceMapping: false
+      responses:
+        "201":
+          description: The request succeeded. The file resource was created from the
+            transfer object.
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/fileResourceSummary"
+              examples:
+                transferImportCreated:
+                  summary: Created file summary
+                  value:
+                    id: "2bd7c66d-4e30-4cc1-8d9f-9e2b8b8e6ef1"
+                    name: "simpleText.txt"
+                    description: "Test Transfer Description"
+                    createdBy: "sasdemo"
+                    creationTimeStamp: "2026-07-01T09:13:11.000Z"
+                    modifiedBy: "sasdemo"
+                    modifiedTimeStamp: "2026-07-01T09:13:11.000Z"
+                    version: 2
+        "400":
+          description: The request was not valid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                transferImportBadRequestErrResp:
+                  $ref: '#/components/examples/transferImportBadRequestErrResp'
   /files#fetchFilesForMultipleParentUri:
     post:
       summary: Get file resources for multiple parentUris
@@ -632,14 +713,14 @@ paths:
         description: The offset of the first member to return. The default is 0.
         schema:
           type: integer
-          format: int64
+          format: int32
       - name: limit
         in: query
         description: The maximum number of members to return. The default value is
           10.
         schema:
           type: integer
-          format: int64
+          format: int32
       responses:
         "200":
           description: "The request succeeded. If files are found for the specified\
@@ -695,14 +776,14 @@ paths:
           0.
         schema:
           type: integer
-          format: int64
+          format: int32
       - name: limit
         in: query
         description: The maximum number of members to return. The default value is
           10.
         schema:
           type: integer
-          format: int64
+          format: int32
       - name: filter
         in: query
         description: The filter criteria to apply to the returned member collection.
@@ -1198,6 +1279,59 @@ paths:
               examples:
                 fileNotFoundErrResp:
                   $ref: '#/components/examples/fileNotFoundRrrResponse'
+  "/files/{fileId}#getTransferRepresentation":
+    get:
+      summary: Get a file transfer representation
+      description: Retrieves a transfer representation of a file resource by specifying
+        a fileId.
+      tags:
+      - Transfer
+      operationId: getFileTransferObject
+      parameters:
+      - name: fileId
+        in: path
+        description: The identifier of the file resource.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. The transfer representation is returned
+            in the response body.
+          content:
+            application/vnd.sas.transfer.object+json:
+              schema:
+                $ref: "#/components/schemas/transferObject"
+              examples:
+                transferExportResponse:
+                  summary: Export file as transfer object
+                  value:
+                    version: 2
+                    summary:
+                      id: "7d6a8d8d-2fd1-4f66-b2cd-2bf90a0f71f1"
+                      name: "simpleText.txt"
+                      description: "Test Transfer Description"
+                      createdBy: "sasdemo"
+                      creationTimeStamp: "2026-07-01T09:12:31.000Z"
+                      modifiedBy: "sasdemo"
+                      modifiedTimeStamp: "2026-07-01T09:12:31.000Z"
+                    content: "eyJmaWxlUmVzb3VyY2UiOnsiaWQiOiI3ZDZhOGQ4ZC0yZmQxLTRmNjYtYjJjZC0yYmY5MGEwZjcxZjEiLCJuYW1lIjoic2ltcGxlVGV4dC50eHQifSwiY29udGVudCI6IlNHVnNiRzhnVjI5eWJHUWgifQ=="
+                    connectors:
+                    - version: 2
+                      uri: "/test/parent/123"
+                      name: "simpleText.txt"
+                      contentType: "text/plain"
+                      type: "parent"
+                      forceMapping: false
+        "404":
+          description: No file resource exists for the specified identifier.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                transferGetFileNotFoundErrResp:
+                  $ref: '#/components/examples/transferGetFileNotFoundErrResp'
   "/files/{fileId}/content":
     get:
       summary: Get file resource content
@@ -1514,6 +1648,81 @@ paths:
               examples:
                 copyConlictErrResp:
                   $ref: '#/components/examples/postUploadConflictErrResp'
+  "/files/{fileId}#updateTransferRepresentation":
+    put:
+      summary: Update a file resource from a transfer object
+      description: Updates a file resource using a transfer object payload.
+      tags:
+      - Transfer
+      operationId: updateFileFromTransferObject
+      parameters:
+      - name: fileId
+        in: path
+        description: The identifier of the file resource to update.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.transfer.object+json:
+            schema:
+              $ref: "#/components/schemas/transferObject"
+            examples:
+              transferUpdateRequest:
+                summary: Update file from transfer payload
+                value:
+                  version: 2
+                  summary:
+                    id: "7d6a8d8d-2fd1-4f66-b2cd-2bf90a0f71f1"
+                    name: "simpleText.txt"
+                    description: "Updated from transfer"
+                  content: "eyJmaWxlUmVzb3VyY2UiOnsiaWQiOiI3ZDZhOGQ4ZC0yZmQxLTRmNjYtYjJjZC0yYmY5MGEwZjcxZjEiLCJuYW1lIjoic2ltcGxlVGV4dC50eHQifSwiY29udGVudCI6IlZVcEVRVlJGUkY5R1NVeEZJRU5QVGxSRlRsUSJ9"
+                  connectors:
+                  - version: 2
+                    uri: "/test/parent/123"
+                    name: "simpleText.txt"
+                    contentType: "text/plain"
+                    type: "parent"
+                    forceMapping: false
+      responses:
+        "200":
+          description: The request succeeded. The file resource was updated from the
+            transfer object.
+          content:
+            application/vnd.sas.summary+json:
+              schema:
+                $ref: "#/components/schemas/fileResourceSummary"
+              examples:
+                transferUpdateResponse:
+                  summary: Updated file summary
+                  value:
+                    id: "7d6a8d8d-2fd1-4f66-b2cd-2bf90a0f71f1"
+                    name: "simpleText.txt"
+                    description: "Updated from transfer"
+                    createdBy: "sasdemo"
+                    creationTimeStamp: "2026-07-01T09:12:31.000Z"
+                    modifiedBy: "sasdemo"
+                    modifiedTimeStamp: "2026-07-01T09:16:42.000Z"
+                    version: 2
+        "400":
+          description: The request was not valid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                transferUpdateBadRequestErrResp:
+                  $ref: '#/components/examples/transferUpdateBadRequestErrResp'
+        "404":
+          description: No file resource exists for the specified identifier.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                transferUpdateFileNotFoundErrResp:
+                  $ref: '#/components/examples/transferUpdateFileNotFoundErrResp'
   "/files/{fileId}/version/{fileVersion}":
     head:
       summary: Check if a file resource exists for given fileVersion
@@ -1715,14 +1924,14 @@ paths:
           0.
         schema:
           type: integer
-          format: int64
+          format: int32
       - name: limit
         in: query
         description: The maximum number of members to return. The default value is
           10.
         schema:
           type: integer
-          format: int64
+          format: int32
       responses:
         "200":
           description: "The request succeeded. If files are found for the specified\
@@ -1867,6 +2076,46 @@ paths:
               examples:
                 ifMatchErrResp:
                   $ref: '#/components/examples/ifMatchFoundErrResp'
+  "/commons/catalog/files/{id}":
+    get:
+      operationId: getMetadataArchive
+      summary: Get metadata archive for a file resource
+      description: Returns metadata archive details for the specified file resource
+        identifier.
+      tags:
+      - Catalog
+      parameters:
+      - name: id
+        in: path
+        description: The identifier of the file resource.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.metadata.archive+json:
+              schema:
+                $ref: "#/components/schemas/metadataArchive"
+              examples:
+                metadataArchiveResp:
+                  $ref: '#/components/examples/getMetadataArchiveResp'
+            application/json:
+              schema:
+                $ref: "#/components/schemas/metadataArchive"
+              examples:
+                metadataArchiveResp:
+                  $ref: '#/components/examples/getMetadataArchiveResp'
+        "404":
+          description: No file resource exists for the specified identifier.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                catalogFileNotFoundErrResp:
+                  $ref: '#/components/examples/catalogFileNotFoundErrResp'
   "/commons/settings":
     get:
       operationId: getSettings
@@ -2208,6 +2457,95 @@ components:
         version:
           type: integer
           description: The version of the media type.
+    transferObject:
+      title: Transfer Object
+      description: Transfer object representation used for export and import operations.
+      properties:
+        id:
+          type: string
+        mcId:
+          type: string
+        summary:
+          $ref: "#/components/schemas/fileResourceSummary"
+        content:
+          type: string
+          description: Encoded file transfer payload.
+        fileServiceContent:
+          type: string
+          description: URI reference to file service content used for transfer.
+        state:
+          type: string
+        contentSourceLocation:
+          type: string
+        connectors:
+          type: array
+          items:
+            $ref: "#/components/schemas/transferObjectConnector"
+        substitutions:
+          type: object
+          additionalProperties:
+            type: string
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+    transferObjectConnector:
+      title: Transfer Object Connector
+      description: Connector details that describe transfer relationships to related
+        resources.
+      properties:
+        id:
+          type: string
+        uri:
+          type: string
+        relatedUris:
+          type: array
+          items:
+            type: string
+        name:
+          type: string
+        contentType:
+          type: string
+        type:
+          type: string
+        hints:
+          type: object
+          additionalProperties:
+            type: string
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        forceMapping:
+          type: boolean
+        version:
+          type: integer
+    metadataArchive:
+      title: Metadata Archive
+      description: Catalog metadata archive for a file resource.
+      properties:
+        anchor:
+          type: object
+          additionalProperties: true
+        classifications:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        entities:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        relationships:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        version:
+          type: integer
     api:
       description: The list of links to top-level resources and operations available
         from the root of the API.
@@ -2514,6 +2852,12 @@ components:
       value: {"errorCode": 124010, "message": "The file could not be found.", "details": [
           "traceId: f3b531793fdb7e81", "path: /files/files/123"], "links": [], "version": 2,
         "httpStatusCode": 404}
+    fileNotFoundErrResp:
+      summary: error response.
+      description: error response when the specified file is not present in the system.
+      value: {"errorCode": 124010, "message": "The file could not be found.", "details": [
+          "traceId: f3b531793fdb7e81", "path: /files/files/7d6a8d8d-2fd1-4f66-b2cd-2bf90a0f71f1"],
+        "links": [], "version": 2, "httpStatusCode": 404}
     ifMatchFoundErrResp:
       summary: error response.
       description: "One of the following request header fields is required: \"If-Match\"\
@@ -2889,3 +3233,45 @@ components:
         "attributes": {"blockedTypes": ["application/x-msdownload, application/x-ms-installer"],
           "maxFileSizeMB": 100, "allowedFileNameCharactersRegex": "If file name contains\
             \ bad characters then files service will return bad request."}}
+    getMetadataArchiveResp:
+      summary: metadata archive response.
+      description: sample metadata archive response for catalog endpoint.
+      value: {"anchor": {"uri": "/files/files/7d6a8d8d-2fd1-4f66-b2cd-2bf90a0f71f1"},
+        "entities": [{"uri": "/files/files/7d6a8d8d-2fd1-4f66-b2cd-2bf90a0f71f1",
+            "type": "file", "attributes": {"name": ["simpleText.txt"], "contentType": [
+                "text/plain"], "searchable": [true], "quarantine": [false], "extractedText": [
+                "This is extracted text content."]}}], "classifications": [], "relationships": [],
+        "version": 1}
+    transferImportBadRequestErrResp:
+      summary: transfer import bad request error response.
+      description: error response when transfer import request payload is invalid.
+      value: {"errorCode": 124001, "message": "The request was not valid.", "details": [
+          "traceId: 61d7d4af8f11f061", "path: /files/files#transferImport"], "links": [],
+        "version": 2, "httpStatusCode": 400}
+    transferGetFileNotFoundErrResp:
+      summary: transfer export file not found error response.
+      description: error response when transfer export is requested for a non-existent
+        file id.
+      value: {"errorCode": 124010, "message": "The file could not be found.", "details": [
+          "traceId: 8f63a63c4cbe1ec2", "path: /files/files/7d6a8d8d-2fd1-4f66-b2cd-2bf90a0f71f9"],
+        "links": [], "version": 2, "httpStatusCode": 404}
+    transferUpdateBadRequestErrResp:
+      summary: transfer update bad request error response.
+      description: error response when transfer update payload is invalid.
+      value: {"errorCode": 124001, "message": "The request was not valid.", "details": [
+          "traceId: 4a8f9ae1fb40d8d3", "path: /files/files/7d6a8d8d-2fd1-4f66-b2cd-2bf90a0f71f1#updateTransferRepresentation"],
+        "links": [], "version": 2, "httpStatusCode": 400}
+    transferUpdateFileNotFoundErrResp:
+      summary: transfer update file not found error response.
+      description: error response when transfer update is requested for a non-existent
+        file id.
+      value: {"errorCode": 124010, "message": "The file could not be found.", "details": [
+          "traceId: f73f19e203d14f0a", "path: /files/files/d4f7f083-adc5-4d55-8fd5-1d6c78811iii"],
+        "links": [], "version": 2, "httpStatusCode": 404}
+    catalogFileNotFoundErrResp:
+      summary: catalog file not found error response.
+      description: error response when metadata archive is requested for a non-existent
+        file id.
+      value: {"errorCode": 124010, "message": "The file could not be found.", "details": [
+          "traceId: a013f9cb58f54f97", "path: /files/commons/catalog/files/7d6a8d8d-2fd1-4f66-b2cd-2bf90a0f71f9"],
+        "links": [], "version": 2, "httpStatusCode": 404}

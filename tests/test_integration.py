@@ -1664,6 +1664,21 @@ TOOL_COVERAGE = {
     "drop_table_from_memory": "test_drop_and_reload_table_workflow",
     "reload_table_to_memory": "test_drop_and_reload_table_workflow",
     "remediate_high_cardinality_tool": "test_remediate_high_cardinality_workflow",
+    "create_child_analysis_and_run_tool": "test_iot_workflow",
+    "create_child_data_selection_and_launch_tool": "test_iot_workflow",
+    "create_forecasting_data_definition": "test_iot_workflow",
+    "delete_forecasting_data_definition": "test_iot_workflow",
+    "generate_forecast_plot": "test_iot_workflow",
+    "generate_forecasting_timeseries_plot": "test_iot_workflow",
+    "get_forecasting_comparison_results": "test_iot_workflow",
+    "get_forecasting_data_definition": "test_iot_workflow",
+    "get_forecasting_filter": "test_iot_workflow",
+    "get_forecasting_pipeline_results": "test_iot_workflow",
+    "list_forecasting_data_definitions": "test_iot_workflow",
+    "list_forecasting_filters": "test_iot_workflow",
+    "reload_fqa_metadata_tool": "test_iot_workflow",
+    "run_final_forecast": "test_iot_workflow",
+    "run_forecasting_comparison": "test_iot_workflow",
 }
 
 
@@ -1848,7 +1863,7 @@ async def test_iot_workflow(integration_mcp_server):
         }
     ]
 
-    with patch("sas_mcp_server.tools.run_one_snippet", mock_run):
+    with patch("sas_mcp_server.tools.iot.run_one_snippet", mock_run):
         async with Client(integration_mcp_server) as client:
             # Call all tools to get coverage
             await client.call_tool("list_data_selections_tool", {})

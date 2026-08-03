@@ -1033,27 +1033,82 @@ components:
             type: string
       title: Data Definition Status
       description: Data definition status
-    api:
-      title: API
-      description: The list of links to top-level resources and operations available
-        from the root of the API.
+    pipeline:
+      title: Pipeline
+      description: A process flow for analytic components. Pipelines group individual
+        components into a higher-level workflow
       x-sas-media-type:
-        name: application/vnd.sas.api
-        version: 1
-      required:
-      - version
-      - links
-      properties:
-        version:
-          type: integer
-          description: The version number of the API representation. This is version
-            1.
-          minimum: 1
-        links:
-          description: The API's top-level links.
-          type: array
-          items:
-            $ref: "#/components/schemas/link"
+        name: application/vnd.sas.analytics.pipeline
+        version: 3
+      allOf:
+      - $ref: "#/components/schemas/pipelineSummary"
+      - type: object
+        properties:
+          revision:
+            type: integer
+            description: A revision number that is incremented on every update to
+              the pipeline.
+            format: int64
+          componentType:
+            description: Media type for pipeline components.
+            type: string
+            default: application/vnd.sas.summary
+            enum:
+            - application/vnd.sas.summary
+            - application/vnd.sas.analytics.component.summary
+            - application/vnd.sas.analytics.component
+          swimLanes:
+            type: array
+            description: The pipeline's swim lanes, ordered as they are defined in
+              the pipeline policy. A swim lane is a container for components with
+              the same policy constraints.
+            items:
+              properties:
+                name:
+                  type: string
+                  description: A unique, descriptive identifier for the swim lane.
+                orderConstraints:
+                  type: array
+                  description: Display order constraints for components in a swim
+                    lane. Each predecessor/successor pair is a hint for the preferred
+                    display order for components. These constraints do not affect
+                    execution order.
+                  items:
+                    properties:
+                      predecessor:
+                        type: string
+                        description: The id of the predecessor component. For added
+                          components, this is a placeholder id.
+                      successor:
+                        type: string
+                        description: The id of the successor component. For added
+                          components, this is a placeholder id.
+                orderedComponentIds:
+                  type: array
+                  description: Ids for each component in the swim lane in display
+                    order. The defined connections and display order contraints contribute
+                    to this ordering.
+                  items:
+                    type: string
+                components:
+                  type: object
+                  description: The swim lane's components, indexed by id.
+                  additionalProperties:
+                    $ref: "#/components/schemas/analyticsComponentSummary"
+          connections:
+            type: object
+            description: The pipeline's component connections, indexed by connection
+              id. Connections add sequential execution constraints to pairs of components.
+            additionalProperties:
+              $ref: "#/components/schemas/pipelineComponentConnection"
+          version:
+            type: integer
+            format: int32
+            description: The version number of this representation schema.  This representation
+              is version 3.
+          annotation:
+            type: string
+            description: A user specified annotation for the pipeline.
     tableReference:
       title: Table Reference
       description: A reference to a data table.
@@ -1073,86 +1128,6 @@ components:
           type: integer
           format: int32
           description: The version number of this representation schema.
-    error2:
-      title: Error
-      type: object
-      description: The representation of an error.
-      x-sas-media-type:
-        name: application/vnd.sas.error
-        version: 2
-      required:
-      - httpStatusCode
-      - version
-      properties:
-        message:
-          type: string
-          description: The message for the error.
-        id:
-          type: string
-          description: The string ID for the error.
-        errorCode:
-          type: integer
-          description: The numeric ID for the error.
-        httpStatusCode:
-          type: integer
-          description: The HTTP status code for the error.
-        details:
-          type: array
-          description: Messages that provide additional details about the cause of
-            the error.
-          items:
-            type: string
-        remediation:
-          type: string
-          description: A message that describes how to resolve the error.
-        errors:
-          type: array
-          description: Any additional errors that occurred.
-          items:
-            $ref: "#/components/schemas/error2"
-        links:
-          type: array
-          description: The links that apply to the error.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the error representation. This representation
-            is version 2.
-    baseCollection2:
-      title: Base Collection
-      description: This is a base schema used to define paginated collections of resources.
-        This base schema is extended by other schemas in APIs by adding an 'items'
-        array property. These extensions define the application/vnd.sas.collection
-        media type (version 2)
-      properties:
-        name:
-          type: string
-          description: The name of the collection.
-        start:
-          type: integer
-          description: The zero-based index of the first item in the collection.
-          format: int64
-        limit:
-          type: integer
-          description: The number of items that were requested for the collection.
-        count:
-          type: integer
-          description: If populated indicates the number of items in the collection.
-          format: int64
-        accept:
-          type: string
-          description: A space-delimited list of media types from which an `Accept`
-            header may be constructed.
-        links:
-          type: array
-          description: The links that apply to the collection.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the collection representation. This representation
-            is version 2.
     report:
       title: Analytics Report
       description: An analytics report consisting of rows of data and associated metadata
@@ -1227,6 +1202,170 @@ components:
           description: A revision number that is incremented on every update to the
             analytics report.
           format: int64
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    dataTable:
+      title: Table
+      description: The table.
+      x-sas-media-type:
+        name: application/vnd.sas.data.table
+        version: 1
+      properties:
+        providerId:
+          type: string
+          description: The table provider name.
+        dataSourceId:
+          type: string
+          description: The parent source name.
+        name:
+          type: string
+          description: The unique name of the table.
+        label:
+          type: string
+          description: The user visible name of this table. This value might vary
+            depending on the Accept-Language header.
+        type:
+          type: string
+          description: The type of this table.
+        createdBy:
+          description: userid of the user who created/submitted the job
+          type: string
+        modifiedBy:
+          description: userid of the user who last modified the job
+          type: string
+        attributes:
+          type: object
+          description: Additional provider specific attributes.
+        creationTimeStamp:
+          description: creation date (date job was submitted), in yyyy-MM-ddTHH:mm:ss.SSSZ
+            format.
+          type: string
+        modifiedTimeStamp:
+          description: date of last modification, in yyyy-MM-ddTHH:mm:ss.SSSZ format.
+          type: string
+        version:
+          description: The table schema version.
+          type: integer
+        links:
+          type: array
+          description: zero or more link objects
+          items:
+            $ref: "#/components/schemas/link"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
     analyticsComponentTemplate:
       title: Analytics Component Template
       description: A template from which new components can be created. A component
@@ -1305,166 +1444,43 @@ components:
           description: This media type's schema version number. This representation
             is version 2.
           minimum: 0
-    link:
-      title: Link
-      type: object
-      description: A link to a related operation or resource.
-      required:
-      - rel
-      properties:
-        method:
-          type: string
-          description: The HTTP method for the link.
-        rel:
-          type: string
-          description: The relationship of the link to the resource.
-        uri:
-          type: string
-          description: The relative URI for the link.
-        href:
-          type: string
-          description: The URL for the link.
-        title:
-          type: string
-          description: The title for the link.
-        type:
-          type: string
-          description: The media type or link type for the link.
-        itemType:
-          type: string
-          description: If this is a link to a container, `itemType` is the media type
-            or link type for the items in the container.
-        responseType:
-          type: string
-          description: The media type or link type of the response body for a `PUT`,
-            `POST`, or `PATCH` operation.
-        responseItemType:
-          type: string
-          description: The media type or link type of the items in the response body
-            for a `PUT`, `POST`, or `PATCH` operation.
-    pipeline:
-      title: Pipeline
-      description: A process flow for analytic components. Pipelines group individual
-        components into a higher-level workflow
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
       x-sas-media-type:
-        name: application/vnd.sas.analytics.pipeline
-        version: 3
-      allOf:
-      - $ref: "#/components/schemas/pipelineSummary"
-      - type: object
-        properties:
-          revision:
-            type: integer
-            description: A revision number that is incremented on every update to
-              the pipeline.
-            format: int64
-          componentType:
-            description: Media type for pipeline components.
-            type: string
-            default: application/vnd.sas.summary
-            enum:
-            - application/vnd.sas.summary
-            - application/vnd.sas.analytics.component.summary
-            - application/vnd.sas.analytics.component
-          swimLanes:
-            type: array
-            description: The pipeline's swim lanes, ordered as they are defined in
-              the pipeline policy. A swim lane is a container for components with
-              the same policy constraints.
-            items:
-              properties:
-                name:
-                  type: string
-                  description: A unique, descriptive identifier for the swim lane.
-                orderConstraints:
-                  type: array
-                  description: Display order constraints for components in a swim
-                    lane. Each predecessor/successor pair is a hint for the preferred
-                    display order for components. These constraints do not affect
-                    execution order.
-                  items:
-                    properties:
-                      predecessor:
-                        type: string
-                        description: The id of the predecessor component. For added
-                          components, this is a placeholder id.
-                      successor:
-                        type: string
-                        description: The id of the successor component. For added
-                          components, this is a placeholder id.
-                orderedComponentIds:
-                  type: array
-                  description: Ids for each component in the swim lane in display
-                    order. The defined connections and display order contraints contribute
-                    to this ordering.
-                  items:
-                    type: string
-                components:
-                  type: object
-                  description: The swim lane's components, indexed by id.
-                  additionalProperties:
-                    $ref: "#/components/schemas/analyticsComponentSummary"
-          connections:
-            type: object
-            description: The pipeline's component connections, indexed by connection
-              id. Connections add sequential execution constraints to pairs of components.
-            additionalProperties:
-              $ref: "#/components/schemas/pipelineComponentConnection"
-          version:
-            type: integer
-            format: int32
-            description: The version number of this representation schema.  This representation
-              is version 3.
-          annotation:
-            type: string
-            description: A user specified annotation for the pipeline.
-    dataTable:
-      title: Table
-      description: The table.
-      x-sas-media-type:
-        name: application/vnd.sas.data.table
+        name: application/vnd.sas.api
         version: 1
+      required:
+      - version
+      - links
       properties:
-        providerId:
-          type: string
-          description: The table provider name.
-        dataSourceId:
-          type: string
-          description: The parent source name.
-        name:
-          type: string
-          description: The unique name of the table.
-        label:
-          type: string
-          description: The user visible name of this table. This value might vary
-            depending on the Accept-Language header.
-        type:
-          type: string
-          description: The type of this table.
-        createdBy:
-          description: userid of the user who created/submitted the job
-          type: string
-        modifiedBy:
-          description: userid of the user who last modified the job
-          type: string
-        attributes:
-          type: object
-          description: Additional provider specific attributes.
-        creationTimeStamp:
-          description: creation date (date job was submitted), in yyyy-MM-ddTHH:mm:ss.SSSZ
-            format.
-          type: string
-        modifiedTimeStamp:
-          description: date of last modification, in yyyy-MM-ddTHH:mm:ss.SSSZ format.
-          type: string
         version:
-          description: The table schema version.
           type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
         links:
+          description: The API's top-level links.
           type: array
-          description: zero or more link objects
           items:
             $ref: "#/components/schemas/link"
+    pipelineComponentConnection:
+      title: Pipeline Component Connection
+      description: A representation of a connection between two pipeline components.
+        Connected components are executed sequentially.
+      properties:
+        id:
+          type: string
+          description: A unique identifier for the connection.
+        from:
+          type: string
+          description: The id of the connection source component. This component must
+            complete execution before the target component can execute.
+        to:
+          type: string
+          description: The id of the connection target component. This component can
+            begin execution only after the source component completes.
     analyticsComponent:
       title: Analytics Component
       description: An analytics component.
@@ -1505,23 +1521,97 @@ components:
               component execution.
           validationModel:
             $ref: "#/components/schemas/validationModel"
-    dataRow:
-      title: Data Row
-      description: A row of data.
-      required:
-      - dataMap
-      - rowNumber
+    pipelineSummary:
+      title: Pipeline Summary
+      description: A summary of a pipeline representation
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.pipeline.summary
+        version: 2
       properties:
-        dataMap:
-          type: object
-          description: 'Map of parameter name to associated value.'
-        header:
+        createdBy:
           type: string
-          description: 'Optional title. May be localized.'
-        rowNumber:
+          description: The user who created the pipeline.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the pipeline.
+        creationTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            pipeline was created.
+          format: date-time
+        modifiedTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            pipeline was last modified.
+          format: date-time
+        id:
+          type: string
+          description: A unique identifier for the pipeline.
+        name:
+          type: string
+          description: The pipeline name.
+        description:
+          type: string
+          description: The pipeline description.
+        systemAttributes:
+          type: object
+          additionalProperties: true
+          description: Client-defined attributes used to control pipeline update and
+            execution.
+        version:
           type: integer
           format: int32
-          description: 'The index of this row in the collection.'
+          description: The version number of the pipeline representation. This representation
+            is version 2.
+        links:
+          description: The links that apply to the pipeline.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        pipelineType:
+          type: string
+          description: The provider assigned pipeline type.
+          default: default
+    parameter:
+      title: Parameter
+      description: Metadata describing a particular variable.
+      required:
+      - parameter
+      - type
+      - values
+      properties:
+        label:
+          type: string
+          description: 'The display name. May be localized.'
+        length:
+          type: integer
+          format: int32
+          description: 'The maximum width among this parameter''s values.'
+        order:
+          type: integer
+          format: int32
+          description: 'The index of this parameter in the collection.'
+        parameter:
+          type: string
+          description: 'The parameter name. Should not be localized.'
+        preformatted:
+          type: boolean
+          description: 'Indicates whether this parameter''s values have already been
+            formatted.'
+        type:
+          type: string
+          description: 'The data type of this parameter''s values.'
+          enum:
+          - undefined
+          - num
+          - char
+          - report
+        values:
+          type: array
+          description: 'Keys used to associate this parameter with values in the rows
+            of data.'
+          items:
+            type: string
     analyticsComponentSummary:
       title: Analytics Component Summary
       description: A summary of an analytics component representation.  It omits revision,
@@ -1609,113 +1699,23 @@ components:
           format: int32
           description: This media type's schema version number. This representation
             is version 2.
-    parameter:
-      title: Parameter
-      description: Metadata describing a particular variable.
+    dataRow:
+      title: Data Row
+      description: A row of data.
       required:
-      - parameter
-      - type
-      - values
+      - dataMap
+      - rowNumber
       properties:
-        label:
-          type: string
-          description: 'The display name. May be localized.'
-        length:
-          type: integer
-          format: int32
-          description: 'The maximum width among this parameter''s values.'
-        order:
-          type: integer
-          format: int32
-          description: 'The index of this parameter in the collection.'
-        parameter:
-          type: string
-          description: 'The parameter name. Should not be localized.'
-        preformatted:
-          type: boolean
-          description: 'Indicates whether this parameter''s values have already been
-            formatted.'
-        type:
-          type: string
-          description: 'The data type of this parameter''s values.'
-          enum:
-          - undefined
-          - num
-          - char
-          - report
-        values:
-          type: array
-          description: 'Keys used to associate this parameter with values in the rows
-            of data.'
-          items:
-            type: string
-    pipelineComponentConnection:
-      title: Pipeline Component Connection
-      description: A representation of a connection between two pipeline components.
-        Connected components are executed sequentially.
-      properties:
-        id:
-          type: string
-          description: A unique identifier for the connection.
-        from:
-          type: string
-          description: The id of the connection source component. This component must
-            complete execution before the target component can execute.
-        to:
-          type: string
-          description: The id of the connection target component. This component can
-            begin execution only after the source component completes.
-    pipelineSummary:
-      title: Pipeline Summary
-      description: A summary of a pipeline representation
-      x-sas-media-type:
-        name: application/vnd.sas.analytics.pipeline.summary
-        version: 2
-      properties:
-        createdBy:
-          type: string
-          description: The user who created the pipeline.
-        modifiedBy:
-          type: string
-          description: The user who most recently modified the pipeline.
-        creationTimeStamp:
-          type: string
-          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
-            pipeline was created.
-          format: date-time
-        modifiedTimeStamp:
-          type: string
-          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
-            pipeline was last modified.
-          format: date-time
-        id:
-          type: string
-          description: A unique identifier for the pipeline.
-        name:
-          type: string
-          description: The pipeline name.
-        description:
-          type: string
-          description: The pipeline description.
-        systemAttributes:
+        dataMap:
           type: object
-          additionalProperties: true
-          description: Client-defined attributes used to control pipeline update and
-            execution.
-        version:
+          description: 'Map of parameter name to associated value.'
+        header:
+          type: string
+          description: 'Optional title. May be localized.'
+        rowNumber:
           type: integer
           format: int32
-          description: The version number of the pipeline representation. This representation
-            is version 2.
-        links:
-          description: The links that apply to the pipeline.
-          type: array
-          items:
-            $ref: "#/components/schemas/link"
-        pipelineType:
-          type: string
-          description: The provider assigned pipeline type.
-          default: default
+          description: 'The index of this row in the collection.'
     validationModel:
       title: Validation Model
       description: The validation rules applied to a map of properties.
@@ -1855,6 +1855,29 @@ components:
           type: integer
           format: int32
           description: The version number of this representation schema.
+    validationConstraint:
+      title: Validation Constraint
+      description: A description of the valid values for a property.
+      discriminator:
+        propertyName: type
+      properties:
+        type:
+          type: string
+          description: The constraint type.
+          enum:
+          - range
+          - choicelist
+        enabledWhen:
+          type: string
+          description: An expression describing when the constraint is enabled.
+          maximum: 1000
+        enabledWhenValue:
+          type: boolean
+          description: An indication of whether or not this item is enabled for a
+            given set of property values. It is an evaluation of the enabledWhen expression
+            over the property values.
+        overrideLink:
+          $ref: "#/components/schemas/link"
     validationItem:
       title: Validation Item
       description: A member of a validation model.
@@ -1907,29 +1930,6 @@ components:
           description: An indication of whether or not this item is enabled for a
             given set of property values. It is an evaluation of the enabledWhen expression
             over property values, when available.
-    validationConstraint:
-      title: Validation Constraint
-      description: A description of the valid values for a property.
-      discriminator:
-        propertyName: type
-      properties:
-        type:
-          type: string
-          description: The constraint type.
-          enum:
-          - range
-          - choicelist
-        enabledWhen:
-          type: string
-          description: An expression describing when the constraint is enabled.
-          maximum: 1000
-        enabledWhenValue:
-          type: boolean
-          description: An indication of whether or not this item is enabled for a
-            given set of property values. It is an evaluation of the enabledWhen expression
-            over the property values.
-        overrideLink:
-          $ref: "#/components/schemas/link"
     property:
       title: Property
       description: A pair consisting of a string name and a string value. This is
@@ -2433,6 +2433,107 @@ components:
     preConditionRequired:
       description: An example response content with 428 status code.
       value: {"version": 2, "httpStatusCode": 428, "message": "Precondition Required"}
+    cmpPipelinesForChamp:
+      description: An example response to compare the given pipelines to determine
+        which one has the most accurate results.
+      value: {"name": "Pipeline 2", "description": "The second pipeline.", "links": [
+          {"method": "GET", "rel": "self", "href": "/analyticsPipelines/pipelines/efgh-2345...",
+            "uri": "/analyticsPipelines/pipelines/efgh-2345...", "type": "application/vnd.sas.analytics.pipeline"},
+          {"method": "GET", "rel": "derivedfrom", "href": "/analyticsPipelines/templates/dm.empty.template",
+            "uri": "/analyticsPipelines/templates/dm.empty.template", "type": "application/vnd.sas.analytics.pipeline.template"},
+          {"method": "GET", "rel": "policy", "href": "/analyticsPipelines/policies/dm.policy",
+            "uri": "/analyticsPipelines/policies/dm.policy", "type": "application/vnd.sas.analytics.pipeline.policy"}],
+        "version": 3}
+    pipelineResults:
+      description: An example to publish forecasts for the selected pipeline. | Describes
+        a table of data. Does not embed the table's content but does provide links
+        to columns and rows. See the [dataTables](http://localhost/apis/dataTables/v3/apidoc.html)
+        service for more details.
+      value: {"creationTimeStamp": "2022-02-03T19:19:10.882Z", "createdBy": "sasiom5",
+        "modifiedTimeStamp": "2022-02-03T19:19:10.885Z", "version": 2, "name": "PDATA\
+          \ PIPELINE 1 OUTPUT DATA", "providerId": "cas", "dataSourceId": "Public",
+        "type": "dataTable", "attributes": {"caslibId": "Public", "characterSet": "UTF8",
+          "columnCount": 11, "encoding": "utf-8", "lastAccessed": "2022-02-03T19:19:10.884Z",
+          "rowCount": 1224, "scope": "global", "serverId": "cas-shared-default", "sessionId": "05765b1d-c4ac-2c4f-a7dd-475452be5d0e",
+          "sourceCaslibName": "Public", "sourceTableLastModified": "0001-01-01T00:00:00Z",
+          "sourceTableName": "", "state": "loaded"}, "links": [{"method": "GET", "rel": "up",
+            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"},
+          {"method": "GET", "rel": "self", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
+            "type": "application/vnd.sas.data.table"}, {"method": "GET", "rel": "alternate",
+            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
+            "type": "application/vnd.sas.data.table.summary"}, {"method": "GET", "rel": "connectionAttributes",
+            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
+            "type": "application/vnd.sas.attributes"}, {"method": "GET", "rel": "rows",
+            "href": "/rowSets/tables/cas~fs~cas-shared-default~fs~Public~fs~PDATA%20PIPELINE%201%20OUTPUT%20DATA/rows",
+            "uri": "/rowSets/tables/cas~fs~cas-shared-default~fs~Public~fs~PDATA%20PIPELINE%201%20OUTPUT%20DATA/rows",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.row"},
+          {"method": "GET", "rel": "columns", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/columns",
+            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/columns",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.column.summary"},
+          {"method": "GET", "rel": "provider", "href": "/dataSources/providers/cas",
+            "uri": "/dataSources/providers/cas", "type": "application/vnd.sas.data.provider"},
+          {"method": "GET", "rel": "dataSource", "href": "/dataSources/providers/cas/sources/cas-shared-default~fs~Public",
+            "uri": "/dataSources/providers/cas/sources/cas-shared-default~fs~Public",
+            "type": "application/vnd.sas.data.source"}, {"method": "PUT", "rel": "updateState",
+            "href": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state",
+            "uri": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state",
+            "responseType": "text/plain"}, {"method": "PUT", "rel": "load", "href": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state?value=loaded",
+            "uri": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state?value=loaded",
+            "responseType": "application/json,text/plain"}, {"method": "PUT", "rel": "unload",
+            "href": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state?value=unloaded",
+            "uri": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state?value=unloaded",
+            "responseType": "application/json,text/plain"}]}
+    componentResultsByID:
+      description: An example of a specific component result for @codeReport delegate.
+      value: {"creationTimeStamp": "0001-01-01T00:00:00Z", "modifiedTimeStamp": "0001-01-01T00:00:00Z",
+        "revision": 0, "version": 1, "order": 1, "type": "codeEditor", "parameterMap": {
+          "code": {"order": 1, "parameter": "code", "preformatted": false, "type": "char",
+            "values": ["code"]}, "type": {"order": 1, "parameter": "type", "preformatted": false,
+            "type": "char", "values": ["type"]}}, "data": [{"dataMap": {"code": "*request\
+                \ ODS output outInfo and name it as sforecast_outInformation;\nods\
+                \ output OutInfo = sforecast_outInformation;\n*run TSMODEL to generate\
+                \ forecasts;\nproc tsmodel data = inlib.\"_ACCUMULATED_TS\"n logcontrol\
+                \ = (error = keep warning = keep) outobj = ( outfor = outlib.\"92bbc07d._OUTFOR\"\
+                n outstat = outlib.\"92bbc07d._OUTSTAT\"n outSelect = outlib.\"92bbc07d._OUTSELECT\"\
+                n outmodelinfo = outlib.\"92bbc07d._OUTMODELINFO\"n ) outlog = outlib.\"\
+                92bbc07d._OUTLOG\"n errorstop = YES ;\n*define time series ID variable\
+                \ and the time interval;\nid 'DATE'n interval = WEEK setmissing =\
+                \ MISSING trimid = LEFT;\n*define time series and the corresponding\
+                \ accumulation methods;\nvar 'sales'n/ acc =TOTAL setmiss =MISSING;\n\
+                ;\n*define the by variables if exist;\nby 'location'n 'sku'n ;\n*using\
+                \ the ATSM (Automatic Time Series Model) package;\nrequire atsm;\n\
+                *starting user script;\nsubmit;\ndeclare object dataFrame(tsdf);\n\
+                declare object diagnose(diagnose);\ndeclare object diagSpec(diagspec);\n\
+                declare object inselect(selspec);\ndeclare object FORECAST(foreng);\n\
+                rc = dataFrame.initialize();\nrc = dataFrame.addY('sales'n);\n*add\
+                \ independent variables to the tsdf object if there is any;\nrc =\
+                \ diagSpec.open();\nrc = diagSpec.setESM('method', 'BEST');\nrc =\
+                \ diagSpec.setARIMAX('identify', 'BOTH');\nrc = diagSpec.setIDM('intermittent',\
+                \ 2);\nrc = diagSpec.setIDM('METHOD', \"BEST\");\nrc = diagSpec.close();\n\
+                rc = diagnose.initialize(dataFrame);\nrc = diagnose.setSpec(diagSpec);\n\
+                rc = diagnose.setOption('holdout',0);\nrc = diagnose.setOption('back',0);\n\
+                rc = diagnose.setOption('criterion','MAPE');\nrc = diagnose.setOption('minobs.trend',2);\n\
+                rc = diagnose.setOption('minobs.season',2);\nrc = diagnose.Run();\n\
+                ndiag = diagnose.nmodels();\nrc = inselect.Open(ndiag);\nrc = inselect.AddFrom(diagnose);\n\
+                rc = inselect.close();\nrc = forecast.initialize(dataFrame);\nrc =\
+                \ forecast.AddFrom(inselect);\nrc = forecast.setOption('holdout',0);\n\
+                rc = forecast.setOption('back',0);\nrc = forecast.setOption('criterion','MAPE');\n\
+                rc = forecast.setOption('minobs.trend',2);\nrc = forecast.setOption('minobs.season',2);\n\
+                rc = forecast.setOption('minobs.mean',2);\nrc = forecast.setOption('fcst.bd.lower',0);\n\
+                rc = forecast.setOption('horizon',20169);\nrc = forecast.setOption('alpha',0.05);\n\
+                rc = forecast.setOption('lead',12);\nrc = forecast.Run();\ndeclare\
+                \ object outFor(outFor);\ndeclare object outStat(outStat);\ndeclare\
+                \ object outSelect(outSelect);\ndeclare object outModelInfo(outModelInfo);\n\
+                rc = outFor.collect(forecast);\nrc = outStat.collect(forecast);\n\
+                rc = outSelect.collect(forecast);\nrc = outModelInfo.collect(forecast);\n\
+                endsubmit;\nquit;\n*generate outinformation CAS table;\ndata outlib.\"\
+                92bbc07d._OUTINFORMATION\"n;\nset work.sforecast_outInformation;\n\
+                run;\n", "type": "SAS"}, "rowNumber": 1}], "xInteger": false, "yInteger": false}
     componentResults:
       description: An example of a component results."
       value: {"links": [{"method": "GET", "rel": "self", "href": "/analyticsGateway/projects/8def.../pipelines/b5b0.../components/ccb7.../results",
@@ -2584,52 +2685,43 @@ components:
                 "uri": "/analyticsGateway/projects/8def.../pipelines/b5b0.../components/ccb7.../results",
                 "responseType": "application/vnd.sas.collection", "itemType": "application/vnd.sas.analytics.report"}]}],
         "version": 2}
-    componentResultsByID:
-      description: An example of a specific component result for @codeReport delegate.
-      value: {"creationTimeStamp": "0001-01-01T00:00:00Z", "modifiedTimeStamp": "0001-01-01T00:00:00Z",
-        "revision": 0, "version": 1, "order": 1, "type": "codeEditor", "parameterMap": {
-          "code": {"order": 1, "parameter": "code", "preformatted": false, "type": "char",
-            "values": ["code"]}, "type": {"order": 1, "parameter": "type", "preformatted": false,
-            "type": "char", "values": ["type"]}}, "data": [{"dataMap": {"code": "*request\
-                \ ODS output outInfo and name it as sforecast_outInformation;\nods\
-                \ output OutInfo = sforecast_outInformation;\n*run TSMODEL to generate\
-                \ forecasts;\nproc tsmodel data = inlib.\"_ACCUMULATED_TS\"n logcontrol\
-                \ = (error = keep warning = keep) outobj = ( outfor = outlib.\"92bbc07d._OUTFOR\"\
-                n outstat = outlib.\"92bbc07d._OUTSTAT\"n outSelect = outlib.\"92bbc07d._OUTSELECT\"\
-                n outmodelinfo = outlib.\"92bbc07d._OUTMODELINFO\"n ) outlog = outlib.\"\
-                92bbc07d._OUTLOG\"n errorstop = YES ;\n*define time series ID variable\
-                \ and the time interval;\nid 'DATE'n interval = WEEK setmissing =\
-                \ MISSING trimid = LEFT;\n*define time series and the corresponding\
-                \ accumulation methods;\nvar 'sales'n/ acc =TOTAL setmiss =MISSING;\n\
-                ;\n*define the by variables if exist;\nby 'location'n 'sku'n ;\n*using\
-                \ the ATSM (Automatic Time Series Model) package;\nrequire atsm;\n\
-                *starting user script;\nsubmit;\ndeclare object dataFrame(tsdf);\n\
-                declare object diagnose(diagnose);\ndeclare object diagSpec(diagspec);\n\
-                declare object inselect(selspec);\ndeclare object FORECAST(foreng);\n\
-                rc = dataFrame.initialize();\nrc = dataFrame.addY('sales'n);\n*add\
-                \ independent variables to the tsdf object if there is any;\nrc =\
-                \ diagSpec.open();\nrc = diagSpec.setESM('method', 'BEST');\nrc =\
-                \ diagSpec.setARIMAX('identify', 'BOTH');\nrc = diagSpec.setIDM('intermittent',\
-                \ 2);\nrc = diagSpec.setIDM('METHOD', \"BEST\");\nrc = diagSpec.close();\n\
-                rc = diagnose.initialize(dataFrame);\nrc = diagnose.setSpec(diagSpec);\n\
-                rc = diagnose.setOption('holdout',0);\nrc = diagnose.setOption('back',0);\n\
-                rc = diagnose.setOption('criterion','MAPE');\nrc = diagnose.setOption('minobs.trend',2);\n\
-                rc = diagnose.setOption('minobs.season',2);\nrc = diagnose.Run();\n\
-                ndiag = diagnose.nmodels();\nrc = inselect.Open(ndiag);\nrc = inselect.AddFrom(diagnose);\n\
-                rc = inselect.close();\nrc = forecast.initialize(dataFrame);\nrc =\
-                \ forecast.AddFrom(inselect);\nrc = forecast.setOption('holdout',0);\n\
-                rc = forecast.setOption('back',0);\nrc = forecast.setOption('criterion','MAPE');\n\
-                rc = forecast.setOption('minobs.trend',2);\nrc = forecast.setOption('minobs.season',2);\n\
-                rc = forecast.setOption('minobs.mean',2);\nrc = forecast.setOption('fcst.bd.lower',0);\n\
-                rc = forecast.setOption('horizon',20169);\nrc = forecast.setOption('alpha',0.05);\n\
-                rc = forecast.setOption('lead',12);\nrc = forecast.Run();\ndeclare\
-                \ object outFor(outFor);\ndeclare object outStat(outStat);\ndeclare\
-                \ object outSelect(outSelect);\ndeclare object outModelInfo(outModelInfo);\n\
-                rc = outFor.collect(forecast);\nrc = outStat.collect(forecast);\n\
-                rc = outSelect.collect(forecast);\nrc = outModelInfo.collect(forecast);\n\
-                endsubmit;\nquit;\n*generate outinformation CAS table;\ndata outlib.\"\
-                92bbc07d._OUTINFORMATION\"n;\nset work.sforecast_outInformation;\n\
-                run;\n", "type": "SAS"}, "rowNumber": 1}], "xInteger": false, "yInteger": false}
+    cmpTableResp:
+      description: |
+        An example of a table that can be used to compare pipelines side-by-side.
+        The columns are various summary statistics and there is a row for each pipeline contained in the given parent project.
+        Analytics reports are designed to aid in client-side rendering of charts and tables.
+        Each analytics report has a type with a consistent set of parameters (e.g. "barChart" with "binX" and "binY").
+      value: {"id": "PipelineComparisonTable", "description": "Table of summary statistics",
+        "revision": 0, "order": 1, "type": "table", "parameterMap": {"MAE": {"parameter": "MAE",
+            "type": "num", "label": "MAE", "length": 8, "order": 16, "values": ["MAE"],
+            "preformatted": false}, "MASE": {"parameter": "MASE", "type": "num", "label": "MASE",
+            "length": 8, "order": 20, "values": ["MASE"], "preformatted": false},
+          "MAPE": {"parameter": "MAPE", "type": "num", "label": "MAPE", "length": 8,
+            "order": 17, "values": ["MAPE"], "preformatted": false}, "RMSE": {"parameter": "RMSE",
+            "type": "num", "label": "RMSE", "length": 8, "order": 45, "values": [
+              "RMSE"], "preformatted": false}, "isChampion": {"parameter": "isChampion",
+            "type": "char", "label": "Champion", "order": 1, "values": ["isChampion"],
+            "preformatted": false}, "PIPELINE_NAME": {"parameter": "PIPELINE_NAME",
+            "type": "char", "label": "Pipeline", "order": 2, "values": ["PIPELINE_NAME"],
+            "preformatted": false}, "id": {"parameter": "id", "type": "char", "label": "ID",
+            "values": ["id"], "preformatted": false}}, "data": [{"dataMap": {"AADJRSQ": "0.6654170418525",
+              "ADJRSQ": "0.66845870510838", "AIC": "1786.75085213448", "AICC": "1786.75085213448",
+              "APC": "3.71127854207468E7", "GMAPE": "4.60173896737934", "GMAPES": "22.9967005494472",
+              "GMAPPE": "4.56210321771693", "GMASPE": "4.58808776574771", "GMRAE": "1.08153078133596",
+              "MAE": "3494.1985697643", "MAPE": "9.62158535103505", "MAPES": "37.9012124903157",
+              "MAPPE": "7.80217378351529", "MASE": "0.91243712391527", "MAXAPES": "215.500527799363",
+              "MAXERR": "17175.7705037723", "MAXPE": "23.6827594954332", "MAXPPE": "57.4749577938374",
+              "MAXRE": "111.565575004001", "MAXSPE": "30.1765439870764", "MDAPE": "5.70977662058945",
+              "MDAPES": "28.0034964674932", "MDAPPE": "5.6096847046575", "MDASPE": "5.71220326809445",
+              "MDRAE": "1.04411009614964", "ME": "-57.7627472973794", "MINAPES": "0.43885581408188",
+              "MINERR": "-16183.6708028848", "MINPE": "-156.008297118566", "MINPPE": "-32.8613767312036",
+              "MINRE": "-101.544335803617", "MINSPE": "-52.369544869907", "MPE": "-3.38439602541708",
+              "MPPE": "0.40894599137131", "MRAE": "4.5598398657789", "MRE": "0.74210276980468",
+              "MSE": "3.71127854207468E7", "MSPE": "-0.8504436463857", "RMSE": "4882.70094869364",
+              "RSQUARE": "0.6654170418525", "RWRSQ": "0.27672107698241", "SBC": "1786.75085213448",
+              "SMAPE": "7.69012553175035", "UMSE": "3.71127854207468E7", "URMSE": "4882.70094869364",
+              "isChampion": "true", "PIPELINE_NAME": "Pipeline 1", "id": "b5b0..."},
+            "rowNumber": 1}], "xInteger": false, "yInteger": false, "version": 1}
     cmpPipelines:
       description: An example of pipeline comparison results returned as a collection
         of analytics reports.
@@ -2681,95 +2773,3 @@ components:
               {"dataMap": {"desc": "Number of forecasts above 300%", "value": "10"},
                 "rowNumber": 9}], "xInteger": false, "yInteger": false}], "start": 0,
         "limit": 0}
-    pipelineResults:
-      description: An example to publish forecasts for the selected pipeline. | Describes
-        a table of data. Does not embed the table's content but does provide links
-        to columns and rows. See the [dataTables](http://localhost/apis/dataTables/v3/apidoc.html)
-        service for more details.
-      value: {"creationTimeStamp": "2022-02-03T19:19:10.882Z", "createdBy": "sasiom5",
-        "modifiedTimeStamp": "2022-02-03T19:19:10.885Z", "version": 2, "name": "PDATA\
-          \ PIPELINE 1 OUTPUT DATA", "providerId": "cas", "dataSourceId": "Public",
-        "type": "dataTable", "attributes": {"caslibId": "Public", "characterSet": "UTF8",
-          "columnCount": 11, "encoding": "utf-8", "lastAccessed": "2022-02-03T19:19:10.884Z",
-          "rowCount": 1224, "scope": "global", "serverId": "cas-shared-default", "sessionId": "05765b1d-c4ac-2c4f-a7dd-475452be5d0e",
-          "sourceCaslibName": "Public", "sourceTableLastModified": "0001-01-01T00:00:00Z",
-          "sourceTableName": "", "state": "loaded"}, "links": [{"method": "GET", "rel": "up",
-            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables",
-            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables",
-            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.table"},
-          {"method": "GET", "rel": "self", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
-            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
-            "type": "application/vnd.sas.data.table"}, {"method": "GET", "rel": "alternate",
-            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
-            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
-            "type": "application/vnd.sas.data.table.summary"}, {"method": "GET", "rel": "connectionAttributes",
-            "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
-            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA",
-            "type": "application/vnd.sas.attributes"}, {"method": "GET", "rel": "rows",
-            "href": "/rowSets/tables/cas~fs~cas-shared-default~fs~Public~fs~PDATA%20PIPELINE%201%20OUTPUT%20DATA/rows",
-            "uri": "/rowSets/tables/cas~fs~cas-shared-default~fs~Public~fs~PDATA%20PIPELINE%201%20OUTPUT%20DATA/rows",
-            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.row"},
-          {"method": "GET", "rel": "columns", "href": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/columns",
-            "uri": "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/columns",
-            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.data.column.summary"},
-          {"method": "GET", "rel": "provider", "href": "/dataSources/providers/cas",
-            "uri": "/dataSources/providers/cas", "type": "application/vnd.sas.data.provider"},
-          {"method": "GET", "rel": "dataSource", "href": "/dataSources/providers/cas/sources/cas-shared-default~fs~Public",
-            "uri": "/dataSources/providers/cas/sources/cas-shared-default~fs~Public",
-            "type": "application/vnd.sas.data.source"}, {"method": "PUT", "rel": "updateState",
-            "href": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state",
-            "uri": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state",
-            "responseType": "text/plain"}, {"method": "PUT", "rel": "load", "href": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state?value=loaded",
-            "uri": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state?value=loaded",
-            "responseType": "application/json,text/plain"}, {"method": "PUT", "rel": "unload",
-            "href": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state?value=unloaded",
-            "uri": "/casManagement/servers/cas-shared-default/caslibs/Public/tables/PDATA%20PIPELINE%201%20OUTPUT%20DATA/state?value=unloaded",
-            "responseType": "application/json,text/plain"}]}
-    cmpPipelinesForChamp:
-      description: An example response to compare the given pipelines to determine
-        which one has the most accurate results.
-      value: {"name": "Pipeline 2", "description": "The second pipeline.", "links": [
-          {"method": "GET", "rel": "self", "href": "/analyticsPipelines/pipelines/efgh-2345...",
-            "uri": "/analyticsPipelines/pipelines/efgh-2345...", "type": "application/vnd.sas.analytics.pipeline"},
-          {"method": "GET", "rel": "derivedfrom", "href": "/analyticsPipelines/templates/dm.empty.template",
-            "uri": "/analyticsPipelines/templates/dm.empty.template", "type": "application/vnd.sas.analytics.pipeline.template"},
-          {"method": "GET", "rel": "policy", "href": "/analyticsPipelines/policies/dm.policy",
-            "uri": "/analyticsPipelines/policies/dm.policy", "type": "application/vnd.sas.analytics.pipeline.policy"}],
-        "version": 3}
-    cmpTableResp:
-      description: |
-        An example of a table that can be used to compare pipelines side-by-side.
-        The columns are various summary statistics and there is a row for each pipeline contained in the given parent project.
-        Analytics reports are designed to aid in client-side rendering of charts and tables.
-        Each analytics report has a type with a consistent set of parameters (e.g. "barChart" with "binX" and "binY").
-      value: {"id": "PipelineComparisonTable", "description": "Table of summary statistics",
-        "revision": 0, "order": 1, "type": "table", "parameterMap": {"MAE": {"parameter": "MAE",
-            "type": "num", "label": "MAE", "length": 8, "order": 16, "values": ["MAE"],
-            "preformatted": false}, "MASE": {"parameter": "MASE", "type": "num", "label": "MASE",
-            "length": 8, "order": 20, "values": ["MASE"], "preformatted": false},
-          "MAPE": {"parameter": "MAPE", "type": "num", "label": "MAPE", "length": 8,
-            "order": 17, "values": ["MAPE"], "preformatted": false}, "RMSE": {"parameter": "RMSE",
-            "type": "num", "label": "RMSE", "length": 8, "order": 45, "values": [
-              "RMSE"], "preformatted": false}, "isChampion": {"parameter": "isChampion",
-            "type": "char", "label": "Champion", "order": 1, "values": ["isChampion"],
-            "preformatted": false}, "PIPELINE_NAME": {"parameter": "PIPELINE_NAME",
-            "type": "char", "label": "Pipeline", "order": 2, "values": ["PIPELINE_NAME"],
-            "preformatted": false}, "id": {"parameter": "id", "type": "char", "label": "ID",
-            "values": ["id"], "preformatted": false}}, "data": [{"dataMap": {"AADJRSQ": "0.6654170418525",
-              "ADJRSQ": "0.66845870510838", "AIC": "1786.75085213448", "AICC": "1786.75085213448",
-              "APC": "3.71127854207468E7", "GMAPE": "4.60173896737934", "GMAPES": "22.9967005494472",
-              "GMAPPE": "4.56210321771693", "GMASPE": "4.58808776574771", "GMRAE": "1.08153078133596",
-              "MAE": "3494.1985697643", "MAPE": "9.62158535103505", "MAPES": "37.9012124903157",
-              "MAPPE": "7.80217378351529", "MASE": "0.91243712391527", "MAXAPES": "215.500527799363",
-              "MAXERR": "17175.7705037723", "MAXPE": "23.6827594954332", "MAXPPE": "57.4749577938374",
-              "MAXRE": "111.565575004001", "MAXSPE": "30.1765439870764", "MDAPE": "5.70977662058945",
-              "MDAPES": "28.0034964674932", "MDAPPE": "5.6096847046575", "MDASPE": "5.71220326809445",
-              "MDRAE": "1.04411009614964", "ME": "-57.7627472973794", "MINAPES": "0.43885581408188",
-              "MINERR": "-16183.6708028848", "MINPE": "-156.008297118566", "MINPPE": "-32.8613767312036",
-              "MINRE": "-101.544335803617", "MINSPE": "-52.369544869907", "MPE": "-3.38439602541708",
-              "MPPE": "0.40894599137131", "MRAE": "4.5598398657789", "MRE": "0.74210276980468",
-              "MSE": "3.71127854207468E7", "MSPE": "-0.8504436463857", "RMSE": "4882.70094869364",
-              "RSQUARE": "0.6654170418525", "RWRSQ": "0.27672107698241", "SBC": "1786.75085213448",
-              "SMAPE": "7.69012553175035", "UMSE": "3.71127854207468E7", "URMSE": "4882.70094869364",
-              "isChampion": "true", "PIPELINE_NAME": "Pipeline 1", "id": "b5b0..."},
-            "rowNumber": 1}], "xInteger": false, "yInteger": false, "version": 1}

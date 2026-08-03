@@ -1908,80 +1908,6 @@ components:
         count:
           type: integer
           description: number of available thumbnails.
-    api:
-      title: API
-      description: The list of links to top-level resources and operations available
-        from the root of the API.
-      x-sas-media-type:
-        name: application/vnd.sas.api
-        version: 1
-      required:
-      - version
-      - links
-      properties:
-        version:
-          type: integer
-          description: The version number of the API representation. This is version
-            1.
-          minimum: 1
-        links:
-          description: The API's top-level links.
-          type: array
-          items:
-            $ref: "#/components/schemas/link"
-    thumbnailJob:
-      title: Thumbnail Job
-      description: The representation of a thumbnail job.
-      x-sas-media-type:
-        name: application/vnd.sas.thumbnails.job
-        version: 1
-      required:
-      - id
-      - state
-      - links
-      - version
-      properties:
-        id:
-          type: string
-          description: The generated id for this job.
-        state:
-          type: string
-          description: The state of this job.
-          enum:
-          - pending
-          - running
-          - completed
-          - failed
-        thumbnails:
-          type: array
-          description: Thumbnail objects, typically 1 unless paging had been requested.
-          items:
-            $ref: "#/components/schemas/thumbnail"
-        error:
-          $ref: "#/components/schemas/error2"
-        duration:
-          type: number
-          format: float
-          description: duration, in seconds, of the job.
-        defaultThumbnailSasThemesIconKey:
-          type: string
-          description: >
-            A number of fully themed "icons" are available within SAS Clients. If
-            provided, this is that representation and
-            should be used in preference to the the image specified by link relation
-            "defaultThumbnailImage".
-        pagingState:
-          $ref: "#/components/schemas/pagingState"
-        links:
-          type: array
-          description: Link relations for this job. Expect 'self' and 'defaultThumbnailImage'.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          format: int32
-          description: The version number of the thumbnail job. This representation
-            is version 1.
     thumbnailRequest:
       title: Thumbnail Request
       description: A request to create a new job that creates or delivers a thumbnail.
@@ -2042,17 +1968,80 @@ components:
           format: int32
           description: The version number of the thumbnail representation. This representation
             is version 1.
-    accessibilityOptions:
-      title: Accessibility Options
-      description: This object describes accessibility requests; providers are not
-        required to honor this
-      type: object
+    thumbnailJob:
+      title: Thumbnail Job
+      description: The representation of a thumbnail job.
+      x-sas-media-type:
+        name: application/vnd.sas.thumbnails.job
+        version: 1
+      required:
+      - id
+      - state
+      - links
+      - version
       properties:
-        highContrast:
-          type: boolean
-          default: false
-          description: indicates whether "high contrast" visual adjustments are desired.
-            (default is false)
+        id:
+          type: string
+          description: The generated id for this job.
+        state:
+          type: string
+          description: The state of this job.
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+        thumbnails:
+          type: array
+          description: Thumbnail objects, typically 1 unless paging had been requested.
+          items:
+            $ref: "#/components/schemas/thumbnail"
+        error:
+          $ref: "#/components/schemas/error2"
+        duration:
+          type: number
+          format: float
+          description: duration, in seconds, of the job.
+        defaultThumbnailSasThemesIconKey:
+          type: string
+          description: >
+            A number of fully themed "icons" are available within SAS Clients. If
+            provided, this is that representation and
+            should be used in preference to the the image specified by link relation
+            "defaultThumbnailImage".
+        pagingState:
+          $ref: "#/components/schemas/pagingState"
+        links:
+          type: array
+          description: Link relations for this job. Expect 'self' and 'defaultThumbnailImage'.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: The version number of the thumbnail job. This representation
+            is version 1.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
     thumbnail:
       title: Thumbnail
       description: Information for retrieving a thumbnail.
@@ -2115,7 +2104,113 @@ components:
           type: integer
           description: if a table or other CSV presentation is returned, the maximum
             number of rows to return.
+    accessibilityOptions:
+      title: Accessibility Options
+      description: This object describes accessibility requests; providers are not
+        required to honor this
+      type: object
+      properties:
+        highContrast:
+          type: boolean
+          default: false
+          description: indicates whether "high contrast" visual adjustments are desired.
+            (default is false)
   examples:
+    jobNotFound:
+      description: >
+        the job was not found.
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 22012, "message": "record\
+          \ not found", "details": ["jobId: dd062f55-de56-4af2-8a8d-5cc99f017eae",
+          "path: /reportImages/jobs/dd062f55-de56-4af2-8a8d-5cc99f017eae", "correlator:\
+            \ 0368adb8-8d72-471b-9929-f78f77c1a3cb"]}
+    getViaPost_reportSummary:
+      description: >
+        Report Summary from supplied BIRD (likely from a report being edited). The
+        summary is often an empty string (reports don't have a report summary by default).
+      value: This report calculates kumquats per acre.
+    thumbnailsReportNotFound:
+      description: >
+        Thumbnails request failed, error follows the thumbnails provider contract
+        (note
+        "defaultThumbnailSasThemesIconKey" and link "defaultThumbnailImage".
+      value: {"id": "5a4d7128-bb67-49e8-b353-1f03db5f86b9", "state": "failed", "error": {
+          "version": 2, "httpStatusCode": 400, "errorCode": 22010, "message": "Failed\
+            \ reading report, status: 404.", "details": ["correlator: 9f57a9d5-ca67-45bc-919f-100e6178e691"]},
+        "duration": 0.033, "defaultThumbnailSasThemesIconKey": "sas.icons.HC.TILEZEROSTATE",
+        "version": 1, "links": [{"method": "GET", "rel": "self", "href": "/reportImages/jobs/5a4d7128-bb67-49e8-b353-1f03db5f86b9",
+            "uri": "/reportImages/jobs/5a4d7128-bb67-49e8-b353-1f03db5f86b9", "type": "application/vnd.sas.thumbnails.job"},
+          {"method": "GET", "rel": "defaultThumbnailImage", "href": "/reportImages/defaultReportThumbnail.svg",
+            "uri": "/reportImages/defaultReportThumbnail.svg", "type": "image/svg+xml"}]}
+    reportUriMissing:
+      description: >
+        Bad request, required parameter 'reportUri' is missing.
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 22015, "message": "report\
+          \ uri is missing", "details": ["path: /reportImages/...", "correlator: 6436e29d-9f56-4371-9e9a-23fa07cb4aa5"]}
+    rootLinks:
+      description: >
+        Root links
+      value: {"links": [{"method": "POST", "rel": "createJob", "href": "/reportImages/jobs",
+            "uri": "/reportImages/jobs", "type": "application/vnd.sas.report.images.job.request",
+            "responseType": "application/vnd.sas.report.images.job"}, {"method": "POST",
+            "rel": "createJobWithParameters", "href": "/reportImages/jobs", "uri": "/reportImages/jobs",
+            "responseType": "application/vnd.sas.report.images.job"}, {"method": "POST",
+            "rel": "createJobReportBody", "href": "/reportImages/jobs", "uri": "/reportImages/jobs",
+            "type": "application/vnd.sas.report.content", "responseType": "application/vnd.sas.report.images.job"},
+          {"method": "DELETE", "rel": "deleteForReport", "href": "/reportImages/images?reportUri={reportUri}",
+            "uri": "/reportImages/images?reportUri={reportUri}"}, {"method": "DELETE",
+            "rel": "deleteAll", "href": "/reportImages/images", "uri": "/reportImages/images"},
+          {"method": "GET", "rel": "settings", "href": "/reportImages/commons/settings",
+            "uri": "/reportImages/commons/settings", "type": "application/vnd.sas.attributes"},
+          {"method": "GET", "rel": "reportSummary", "href": "/reportImages/reportSummary?reportUri={reportUri}",
+            "uri": "/reportImages/reportSummary?reportUri={reportUri}", "type": "text/plain"}],
+        "version": 1}
+    jobRequestBody:
+      description: >
+        job request body
+      value: {"reportUri": "/reports/reports/24b7d0a7-a0a0-493b-8fcb-afbf92c8a017",
+        "layoutType": "thumbnail", "imageType": "svg", "selectionType": "report",
+        "size": "176x99", "version": 1, "refresh": false}
+    thumbJobResponseAccepted:
+      description: >
+        The response body for a "thumbnails" job which is not complete and is running
+        asynchronously.  Note that
+        the "state" can be "pending" or "running", it will not be "complete" or "error".
+      value: {"id": "b1300cd4-f6df-4de8-9031-f303cbb3f78b", "state": "pending", "defaultThumbnailSasThemesIconKey": "sas.icons.HC.TILEZEROSTATE",
+        "version": 1, "links": [{"method": "GET", "rel": "self", "href": "/reportImages/jobs/b1300cd4-f6df-4de8-9031-f303cbb3f78b",
+            "uri": "/reportImages/jobs/b1300cd4-f6df-4de8-9031-f303cbb3f78b", "type": "application/vnd.sas.thumbnails.job"},
+          {"method": "GET", "rel": "defaultThumbnailImage", "href": "/reportImages/defaultReportThumbnail.svg",
+            "uri": "/reportImages/defaultReportThumbnail.svg", "type": "image/svg+xml"}]}
+    reportSummary:
+      description: >
+        Correct response from a /reportSummary request. This is often an empty string
+        (reports don't have a report summary by default).
+      value: This report calculates kumquats per acre.
+    thumbJobResponseComplete:
+      description: >
+        The response body for a "thumbnails" job which has completed.
+      value: {"id": "41619853-9db4-477a-b7fe-39618c92b75c", "state": "completed",
+        "thumbnails": [{"state": "completed", "modifiedTimeStamp": "2023-11-02T17:19:55.994599312Z",
+            "links": [{"method": "GET", "rel": "thumbnail", "href": "/reportImages/images/U2760400494C2036456495.svg",
+                "uri": "/reportImages/images/U2760400494C2036456495.svg", "type": "image/svg+xml"}]}],
+        "duration": 2.009, "defaultThumbnailSasThemesIconKey": "sas.icons.HC.TILEZEROSTATE",
+        "version": 1, "links": [{"method": "GET", "rel": "self", "href": "/reportImages/jobs/41619853-9db4-477a-b7fe-39618c92b75c",
+            "uri": "/reportImages/jobs/41619853-9db4-477a-b7fe-39618c92b75c", "type": "application/vnd.sas.thumbnails.job"},
+          {"method": "GET", "rel": "defaultThumbnailImage", "href": "/reportImages/defaultReportThumbnail.svg",
+            "uri": "/reportImages/defaultReportThumbnail.svg", "type": "image/svg+xml"}]}
+    thumbJobRequestBody:
+      description: >
+        The request body for a "thumbnails" job (this is what SAS Drive uses and is
+        the most typical use).
+      value: {"acceptItem": "image/*,text/plain,text/csv,*/*;0.8", "resourceUri": "/reports/reports/24b7d0a7-a0a0-493b-8fcb-afbf92c8a017",
+        "resourceType": "report", "returnMultiple": false, "detail": "low", "scope": "element",
+        "sizingOptions": {"viewWidth": 268, "viewHeight": 151, "devicePixelRatio": 1.1,
+          "maxTextCharacters": 100, "maxTableColumns": 3, "maxTableRows": 5}, "accessibilityOptions": {
+          "highContrast": true}, "refresh": false}
+    jobState:
+      description: >
+        The state of the job, as plain/text.  There are no known uses of this at this
+        time.
+      value: completed
     jobResponseAccepted:
       description: >
         The response body for a "report images" (not "thumbnails") job which is not
@@ -2128,23 +2223,6 @@ components:
           {"method": "GET", "rel": "state", "href": "/reportImages/jobs/dd062f55-de56-4af2-8a8d-5cc99f017eaf/state",
             "uri": "/reportImages/jobs/dd062f55-de56-4af2-8a8d-5cc99f017eaf/state",
             "type": "text/plain"}]}
-    reportUriMissing:
-      description: >
-        Bad request, required parameter 'reportUri' is missing.
-      value: {"version": 2, "httpStatusCode": 400, "errorCode": 22015, "message": "report\
-          \ uri is missing", "details": ["path: /reportImages/...", "correlator: 6436e29d-9f56-4371-9e9a-23fa07cb4aa5"]}
-    jobRequestBody:
-      description: >
-        job request body
-      value: {"reportUri": "/reports/reports/24b7d0a7-a0a0-493b-8fcb-afbf92c8a017",
-        "layoutType": "thumbnail", "imageType": "svg", "selectionType": "report",
-        "size": "176x99", "version": 1, "refresh": false}
-    reportNotFound:
-      description: >
-        Bad request, the report cannot be read.
-      value: {"version": 2, "httpStatusCode": 400, "errorCode": 22010, "message": "Failed\
-          \ reading report, status: 404.", "details": ["path: /reportImages/...",
-          "correlator: 99921b54-a671-4a4d-882a-911ef7dc66b2"]}
     deleteNotAuthorized:
       description: >
         This operation requires being an administrator and the user is not.  403 (Not
@@ -2168,6 +2246,12 @@ components:
           {"method": "GET", "rel": "state", "href": "/reportImages/jobs/dd062f55-de56-4af2-8a8d-5cc99f017eaf/state",
             "uri": "/reportImages/jobs/dd062f55-de56-4af2-8a8d-5cc99f017eaf/state",
             "type": "text/plain"}]}
+    reportNotFound:
+      description: >
+        Bad request, the report cannot be read.
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 22010, "message": "Failed\
+          \ reading report, status: 404.", "details": ["path: /reportImages/...",
+          "correlator: 99921b54-a671-4a4d-882a-911ef7dc66b2"]}
     pickupImageNotFound:
       description: >
         The pickup image was not found. This is unusual because in the primary use
@@ -2177,87 +2261,3 @@ components:
       value: {"version": 2, "httpStatusCode": 400, "errorCode": 22015, "message": "record\
           \ not found", "details": ["pickup Record", "path: /reportImages/images/U2760400494C425435426.svg",
           "correlator: a1fdd596-dce0-4dcc-acad-8e1487436e08"]}
-    jobNotFound:
-      description: >
-        the job was not found.
-      value: {"version": 2, "httpStatusCode": 404, "errorCode": 22012, "message": "record\
-          \ not found", "details": ["jobId: dd062f55-de56-4af2-8a8d-5cc99f017eae",
-          "path: /reportImages/jobs/dd062f55-de56-4af2-8a8d-5cc99f017eae", "correlator:\
-            \ 0368adb8-8d72-471b-9929-f78f77c1a3cb"]}
-    jobState:
-      description: >
-        The state of the job, as plain/text.  There are no known uses of this at this
-        time.
-      value: completed
-    getViaPost_reportSummary:
-      description: >
-        Report Summary from supplied BIRD (likely from a report being edited). The
-        summary is often an empty string (reports don't have a report summary by default).
-      value: This report calculates kumquats per acre.
-    rootLinks:
-      description: >
-        Root links
-      value: {"links": [{"method": "POST", "rel": "createJob", "href": "/reportImages/jobs",
-            "uri": "/reportImages/jobs", "type": "application/vnd.sas.report.images.job.request",
-            "responseType": "application/vnd.sas.report.images.job"}, {"method": "POST",
-            "rel": "createJobWithParameters", "href": "/reportImages/jobs", "uri": "/reportImages/jobs",
-            "responseType": "application/vnd.sas.report.images.job"}, {"method": "POST",
-            "rel": "createJobReportBody", "href": "/reportImages/jobs", "uri": "/reportImages/jobs",
-            "type": "application/vnd.sas.report.content", "responseType": "application/vnd.sas.report.images.job"},
-          {"method": "DELETE", "rel": "deleteForReport", "href": "/reportImages/images?reportUri={reportUri}",
-            "uri": "/reportImages/images?reportUri={reportUri}"}, {"method": "DELETE",
-            "rel": "deleteAll", "href": "/reportImages/images", "uri": "/reportImages/images"},
-          {"method": "GET", "rel": "settings", "href": "/reportImages/commons/settings",
-            "uri": "/reportImages/commons/settings", "type": "application/vnd.sas.attributes"},
-          {"method": "GET", "rel": "reportSummary", "href": "/reportImages/reportSummary?reportUri={reportUri}",
-            "uri": "/reportImages/reportSummary?reportUri={reportUri}", "type": "text/plain"}],
-        "version": 1}
-    thumbJobResponseComplete:
-      description: >
-        The response body for a "thumbnails" job which has completed.
-      value: {"id": "41619853-9db4-477a-b7fe-39618c92b75c", "state": "completed",
-        "thumbnails": [{"state": "completed", "modifiedTimeStamp": "2023-11-02T17:19:55.994599312Z",
-            "links": [{"method": "GET", "rel": "thumbnail", "href": "/reportImages/images/U2760400494C2036456495.svg",
-                "uri": "/reportImages/images/U2760400494C2036456495.svg", "type": "image/svg+xml"}]}],
-        "duration": 2.009, "defaultThumbnailSasThemesIconKey": "sas.icons.HC.TILEZEROSTATE",
-        "version": 1, "links": [{"method": "GET", "rel": "self", "href": "/reportImages/jobs/41619853-9db4-477a-b7fe-39618c92b75c",
-            "uri": "/reportImages/jobs/41619853-9db4-477a-b7fe-39618c92b75c", "type": "application/vnd.sas.thumbnails.job"},
-          {"method": "GET", "rel": "defaultThumbnailImage", "href": "/reportImages/defaultReportThumbnail.svg",
-            "uri": "/reportImages/defaultReportThumbnail.svg", "type": "image/svg+xml"}]}
-    thumbJobResponseAccepted:
-      description: >
-        The response body for a "thumbnails" job which is not complete and is running
-        asynchronously.  Note that
-        the "state" can be "pending" or "running", it will not be "complete" or "error".
-      value: {"id": "b1300cd4-f6df-4de8-9031-f303cbb3f78b", "state": "pending", "defaultThumbnailSasThemesIconKey": "sas.icons.HC.TILEZEROSTATE",
-        "version": 1, "links": [{"method": "GET", "rel": "self", "href": "/reportImages/jobs/b1300cd4-f6df-4de8-9031-f303cbb3f78b",
-            "uri": "/reportImages/jobs/b1300cd4-f6df-4de8-9031-f303cbb3f78b", "type": "application/vnd.sas.thumbnails.job"},
-          {"method": "GET", "rel": "defaultThumbnailImage", "href": "/reportImages/defaultReportThumbnail.svg",
-            "uri": "/reportImages/defaultReportThumbnail.svg", "type": "image/svg+xml"}]}
-    reportSummary:
-      description: >
-        Correct response from a /reportSummary request. This is often an empty string
-        (reports don't have a report summary by default).
-      value: This report calculates kumquats per acre.
-    thumbJobRequestBody:
-      description: >
-        The request body for a "thumbnails" job (this is what SAS Drive uses and is
-        the most typical use).
-      value: {"acceptItem": "image/*,text/plain,text/csv,*/*;0.8", "resourceUri": "/reports/reports/24b7d0a7-a0a0-493b-8fcb-afbf92c8a017",
-        "resourceType": "report", "returnMultiple": false, "detail": "low", "scope": "element",
-        "sizingOptions": {"viewWidth": 268, "viewHeight": 151, "devicePixelRatio": 1.1,
-          "maxTextCharacters": 100, "maxTableColumns": 3, "maxTableRows": 5}, "accessibilityOptions": {
-          "highContrast": true}, "refresh": false}
-    thumbnailsReportNotFound:
-      description: >
-        Thumbnails request failed, error follows the thumbnails provider contract
-        (note
-        "defaultThumbnailSasThemesIconKey" and link "defaultThumbnailImage".
-      value: {"id": "5a4d7128-bb67-49e8-b353-1f03db5f86b9", "state": "failed", "error": {
-          "version": 2, "httpStatusCode": 400, "errorCode": 22010, "message": "Failed\
-            \ reading report, status: 404.", "details": ["correlator: 9f57a9d5-ca67-45bc-919f-100e6178e691"]},
-        "duration": 0.033, "defaultThumbnailSasThemesIconKey": "sas.icons.HC.TILEZEROSTATE",
-        "version": 1, "links": [{"method": "GET", "rel": "self", "href": "/reportImages/jobs/5a4d7128-bb67-49e8-b353-1f03db5f86b9",
-            "uri": "/reportImages/jobs/5a4d7128-bb67-49e8-b353-1f03db5f86b9", "type": "application/vnd.sas.thumbnails.job"},
-          {"method": "GET", "rel": "defaultThumbnailImage", "href": "/reportImages/defaultReportThumbnail.svg",
-            "uri": "/reportImages/defaultReportThumbnail.svg", "type": "image/svg+xml"}]}

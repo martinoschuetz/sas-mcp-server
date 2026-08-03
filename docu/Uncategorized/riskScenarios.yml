@@ -940,7 +940,8 @@ paths:
               example:
                 $ref: "#/components/examples/expandedFormat/value"
         "404":
-          description: No scenario exists at the requested path.
+          description: No scenario exists at the requested path, or the scenario is
+            not a member of any scenario sets.
           content:
             application/vnd.sas.error+json:
               schema:
@@ -1064,6 +1065,87 @@ paths:
                 $ref: "#/components/schemas/error2"
               example:
                 $ref: "#/components/examples/error/value"
+  /scenarios/{scenarioId}/scenarioSets:
+    parameters:
+    - name: scenarioId
+      in: path
+      schema:
+        type: string
+      required: true
+      description: The unique identifier for the scenario.
+    get:
+      summary: Get scenario sets for a scenario
+      description: Returns the collection of scenario sets that include the specified
+        scenario id.
+      operationId: getScenarioSetsForScenarioId
+      tags:
+      - Scenario
+      parameters:
+      - name: Accept-Item
+        in: header
+        description: Select the desired item representation.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.risk.scenario.set+json
+      - name: searchString
+        in: query
+        schema:
+          type: string
+        description: when fully or partially matching this string in any tags of this
+          scenario set or its attributes (name, description, createdBy, modifiedBy,
+          etc.), it will be included in the results.
+      - name: stressTypes
+        in: query
+        schema:
+          type: string
+        description: possible values are instantaneous_risk_factor | instrument_variable
+          | temporal_shock.
+      - name: horizonsOfRiskFactorStresses
+        in: query
+        schema:
+          type: string
+        description: possible values are date_based | interval_based.
+      - name: systemGenerator
+        in: query
+        schema:
+          type: string
+        description: filter by systemGenerator, currently the possible non-empty value
+          is irrbb.
+      - name: requireSameHorizon
+        in: query
+        schema:
+          type: boolean
+        description: Whether all scenarios in the returned sets must have the same
+          horizons.
+      - $ref: "#/components/parameters/sortBy"
+      - $ref: "#/components/parameters/pagingStart"
+      - $ref: "#/components/parameters/pagingLimit"
+      - $ref: "#/components/parameters/filter"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/scenarioSetCollection"
+              example:
+                json:
+                  $ref: "#/components/examples/scenarioSetCollection/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioSetCollection"
+              example:
+                json:
+                  $ref: "#/components/examples/scenarioSetCollection/value"
+        "404":
+          description: No scenario exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
   /scenarios/{scenarioId}/locked:
     parameters:
     - name: scenarioId
@@ -1179,6 +1261,7 @@ paths:
           type: boolean
         description: Whether all scenarios in the returned sets must have the same
           horizons.
+      - $ref: "#/components/parameters/sortBy"
       - $ref: "#/components/parameters/pagingStart"
       - $ref: "#/components/parameters/pagingLimit"
       - $ref: "#/components/parameters/filter"
@@ -1294,6 +1377,75 @@ paths:
                 $ref: "#/components/examples/error/value"
         "409":
           description: A locked scenario set was to be deleted.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+  "/scenarioSets#import":
+    post:
+      summary: Import Scenario Sets/Shock Sets
+      description: Creates or updates one or more scenario sets and/or shock sets
+        from a resource collection of scenario sets/shock sets.  The /scenarios endpoint
+        handles both scenarios and scenario sets in all other forms and from all other
+        locations (ie, non-json document types either uploaded or read from a server
+        location).  Scenario Sets that already exist in the system by name and as
+        of date will be updated in place only if the user is authorized to do so.
+      operationId: importScenarioSets
+      tags:
+      - ScenarioSets
+      parameters:
+      - name: Content-Type
+        in: header
+        required: false
+        description: Describes the posted request body.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.collection+json
+      - name: Accept
+        in: header
+        required: false
+        description: Describes the requested return body.
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.risk.scenario.creation.report+json
+          - application/json
+      requestBody:
+        description: The scenario sets to be created or updated
+        required: true
+        content:
+          application/vnd.sas.collection:
+            schema:
+              $ref: "#/components/schemas/importScenarioSetsCollection"
+            example:
+              $ref: "#/components/examples/importScenarioSetsCollection/value"
+      responses:
+        "200":
+          description: All of the scenario sets were imported or updated.
+          content:
+            application/vnd.sas.risk.scenario.creation.report+json:
+              schema:
+                $ref: "#/components/schemas/scenarioCreationReport"
+              example:
+                $ref: "#/components/examples/scenarioCreationReport/value"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/scenarioCreationReport"
+              example:
+                $ref: "#/components/examples/scenarioCreationReport/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
+        "409":
+          description: A locked scenario set was to be updated.
           content:
             application/vnd.sas.error+json:
               schema:
@@ -2020,6 +2172,32 @@ paths:
                 $ref: "#/components/schemas/error2"
               example:
                 $ref: "#/components/examples/error/value"
+  /util/config:
+    get:
+      summary: Get utility configuration
+      description: Returns the current effective upload limits. `maxFileSizeBytes`
+        is calculated from `maxFileSize` and `maxRequestSizeBytes` is calculated from
+        `maxRequestSize` using the service size parser.
+      operationId: getUtilityConfig
+      tags:
+      - Utility
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/utilityConfig"
+              example:
+                $ref: "#/components/examples/utilityConfig/value"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              example:
+                $ref: "#/components/examples/error/value"
   /util/intervals/{intervalType}:
     get:
       summary: Compute intervals
@@ -2113,6 +2291,12 @@ components:
       in: query
       description: "The criteria for filtering the items in a collection. See [SAS\
         \ REST APIs&colon; Filtering](https://developer.sas.com/rest-apis/riskScenarios-v7/docs/getting-started/usage-notes#filtering)."
+      schema:
+        type: string
+    sortBy:
+      name: sortBy
+      in: query
+      description: Comma-separated sort criteria, where each criterion is `field[:ascending|descending]`.
       schema:
         type: string
     locationType:
@@ -2363,6 +2547,32 @@ components:
             items:
               type: string
               format: date
+    utilityConfig:
+      description: The current effective upload limits.
+      type: object
+      properties:
+        maxFileSize:
+          type: string
+          description: Effective configured maximum file upload size string (for example,
+            `150MB`).
+        maxFileSizeBytes:
+          type: integer
+          format: int64
+          description: Byte value parsed from `maxFileSize`; not independently configured.
+        maxRequestSize:
+          type: string
+          description: Effective configured maximum request size string (for example,
+            `150MB`).
+        maxRequestSizeBytes:
+          type: integer
+          format: int64
+          description: Byte value parsed from `maxRequestSize`; not independently
+            configured.
+      required:
+      - maxFileSize
+      - maxFileSizeBytes
+      - maxRequestSize
+      - maxRequestSizeBytes
     expandedFormat:
       title: Expanded Format
       description: The default table format for scenarios, based on SAS High-Performance
@@ -2503,6 +2713,17 @@ components:
             type: array
             items:
               $ref: "#/components/schemas/createScenario"
+    importScenarioSetsCollection:
+      description: A collection of scenario sets to be created/updated
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            description: The array of `application/vnd.sas.risk.scenario.set` representations.
+            type: array
+            items:
+              $ref: "#/components/schemas/createScenarioSet"
     jsonPatch:
       description: A [JSON Patch](https://tools.ietf.org/html/rfc6902) resource.
       type: array
@@ -3215,43 +3436,40 @@ components:
           type: string
           description: Name associated with the ruleType field that indicates how
             the perturbation is applied to the portfolio
-    link:
-      title: Link
-      type: object
-      description: A link to a related operation or resource.
-      required:
-      - rel
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
       properties:
-        method:
+        name:
           type: string
-          description: The HTTP method for the link.
-        rel:
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
           type: string
-          description: The relationship of the link to the resource.
-        uri:
-          type: string
-          description: The relative URI for the link.
-        href:
-          type: string
-          description: The URL for the link.
-        title:
-          type: string
-          description: The title for the link.
-        type:
-          type: string
-          description: The media type or link type for the link.
-        itemType:
-          type: string
-          description: If this is a link to a container, `itemType` is the media type
-            or link type for the items in the container.
-        responseType:
-          type: string
-          description: The media type or link type of the response body for a `PUT`,
-            `POST`, or `PATCH` operation.
-        responseItemType:
-          type: string
-          description: The media type or link type of the items in the response body
-            for a `PUT`, `POST`, or `PATCH` operation.
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
     error2:
       title: Error
       type: object
@@ -3298,6 +3516,43 @@ components:
           type: integer
           description: The version number of the error representation. This representation
             is version 2.
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
     api:
       title: API
       description: The list of links to top-level resources and operations available
@@ -3319,40 +3574,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/link"
-    baseCollection2:
-      title: Base Collection
-      description: This is a base schema used to define paginated collections of resources.
-        This base schema is extended by other schemas in APIs by adding an 'items'
-        array property. These extensions define the application/vnd.sas.collection
-        media type (version 2)
-      properties:
-        name:
-          type: string
-          description: The name of the collection.
-        start:
-          type: integer
-          description: The zero-based index of the first item in the collection.
-          format: int64
-        limit:
-          type: integer
-          description: The number of items that were requested for the collection.
-        count:
-          type: integer
-          description: If populated indicates the number of items in the collection.
-          format: int64
-        accept:
-          type: string
-          description: A space-delimited list of media types from which an `Accept`
-            header may be constructed.
-        links:
-          type: array
-          description: The links that apply to the collection.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the collection representation. This representation
-            is version 2.
   examples:
     combinedFormat:
       description: A simplfied scenario table format
@@ -3455,6 +3676,14 @@ components:
         items:
         - "2020-01-01"
         - "2020-03-01"
+    utilityConfig:
+      description: Current utility configuration, including bytes derived from configured
+        size strings.
+      value:
+        maxFileSize: 150MB
+        maxFileSizeBytes: 157286400
+        maxRequestSize: 150MB
+        maxRequestSizeBytes: 157286400
     error:
       value:
         message: An error message
@@ -3539,6 +3768,16 @@ components:
             perturbations:
             - 3.9
             - 4.1
+    importScenarioSetsCollection:
+      description: A collection of scenario sets to be created/updated.
+      value:
+        items:
+        - name: Sample Set
+          asOfDate: "2020-01-01"
+          alignment: "S"
+          shockSet: false
+          scenarios:
+          - scenarioId: d04da0d8-30d1-42e1-a8c4-b52a3804e888
     jsonPatch:
       description: Patch delete scenarios
       value:
@@ -3667,11 +3906,6 @@ components:
           uri: /riskScenarios/scenarioSets
           type: application/vnd.sas.risk.scenario.set
           responseType: application/vnd.sas.risk.scenario.set
-        - method: POST
-          rel: materializedScenarioData
-          href: /riskScenarios/scenarioSets/materializedScenarioData
-          uri: /riskScenarios/scenarioSets/materializedScenarioData
-          type: application/vnd.sas.risk.scenario.materialized.data.request
         version: 1
     scenario:
       description: A fully specified scenario

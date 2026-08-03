@@ -93,11 +93,20 @@ async def download_all_specs():
             print("ACTION REQUIRED:")
             print("1. In the opened browser window, log in using your Google account (martin.schuetz@sas.com).")
             print("2. Confirm you can see your logged-in profile in the top-right corner.")
-            print("3. Press ENTER here in this console window to start the download process.")
+            print("3. Waiting automatically for you to log in...")
             print("="*80 + "\n")
             
-            # Wait for user input in console
-            await asyncio.get_event_loop().run_in_executor(None, input)
+            while not has_session:
+                await page.wait_for_timeout(3000)
+                try:
+                    resp = await page.request.get("https://developer.sas.com/api/auth/get-session")
+                    if resp.status == 200:
+                        session_info = await resp.json()
+                        if session_info.get("user"):
+                            print(f"Active session verified! Logged in as {session_info['user'].get('email')}.")
+                            has_session = True
+                except Exception:
+                    pass
             
             # Save storage state for future runs
             await context.storage_state(path=storage_path)
@@ -198,7 +207,7 @@ async def download_all_specs():
                 for v in versions:
                     for c_entry in v.get("cadences", []):
                         c_name = c_entry.get("cadence", {}).get("name") if c_entry.get("cadence") else None
-                        if c_name == "2026.06":
+                        if c_name == "2026.07":
                             target_version = v
                             break
                     if target_version:
@@ -208,7 +217,7 @@ async def download_all_specs():
                     target_version = versions[0]
                     v_source = f"fallback to {target_version.get('apiId')}"
                 else:
-                    v_source = f"2026.06 version {target_version.get('apiId')}"
+                    v_source = f"2026.07 version {target_version.get('apiId')}"
                     
                 api_id = target_version.get("apiId")
                 spec_url = f"https://developer.sas.com/api/apis/{api_id}/specifications/openapi.yml"

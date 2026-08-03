@@ -229,7 +229,8 @@ paths:
                 subscriptionRespBody:
                   $ref: "#/components/examples/subscriptionResponseBody"
         "400":
-          description: The input is not valid.
+          description: The input is invalid, or the report was not found or is inaccessible
+            to the caller.
           content:
             application/vnd.sas.error+json:
               schema:
@@ -237,12 +238,16 @@ paths:
               examples:
                 invalidInput:
                   $ref: "#/components/examples/invalidInput"
+                reportNotFoundOrInaccessible:
+                  $ref: "#/components/examples/reportNotFoundOrInaccessible"
             application/json:
               schema:
                 $ref: "#/components/schemas/error2"
               examples:
                 invalidInput:
                   $ref: "#/components/examples/invalidInput"
+                reportNotFoundOrInaccessible:
+                  $ref: "#/components/examples/reportNotFoundOrInaccessible"
           headers:
             Content-Type:
               schema:
@@ -429,7 +434,8 @@ paths:
                 subscriptionRespBody:
                   $ref: "#/components/examples/subscriptionResponseBody"
         "400":
-          description: The input subscription is not valid.
+          description: The input subscription is invalid, or the report was not found
+            or is inaccessible to the caller.
           content:
             application/vnd.sas.error+json:
               schema:
@@ -437,12 +443,16 @@ paths:
               examples:
                 invalidInput:
                   $ref: "#/components/examples/invalidInput"
+                reportNotFoundOrInaccessible:
+                  $ref: "#/components/examples/reportNotFoundOrInaccessible"
             application/json:
               schema:
                 $ref: "#/components/schemas/error2"
               examples:
                 invalidInput:
                   $ref: "#/components/examples/invalidInput"
+                reportNotFoundOrInaccessible:
+                  $ref: "#/components/examples/reportNotFoundOrInaccessible"
           headers:
             Content-Type:
               schema:
@@ -535,6 +545,8 @@ paths:
               examples:
                 inputValidation:
                   $ref: "#/components/examples/inputValidation"
+                reportNotFoundOrInaccessible:
+                  $ref: "#/components/examples/reportNotFoundOrInaccessible"
           headers:
             Content-Type:
               schema:
@@ -1342,9 +1354,8 @@ paths:
                 subscribeRespBody:
                   $ref: "#/components/examples/subscriberResponseBody"
         "400":
-          description: The request was invalid.  This can happen for a variety of
-            reasons, and the actual cause is specified in the error object by error
-            code.
+          description: The request was invalid, or the report was not found or is
+            inaccessible to the caller.
           content:
             application/vnd.sas.error+json:
               schema:
@@ -1352,12 +1363,16 @@ paths:
               examples:
                 inputValidation:
                   $ref: "#/components/examples/inputValidation"
+                reportNotFoundOrInaccessible:
+                  $ref: "#/components/examples/reportNotFoundOrInaccessible"
             application/json:
               schema:
                 $ref: "#/components/schemas/error2"
               examples:
                 inputValidation:
                   $ref: "#/components/examples/inputValidation"
+                reportNotFoundOrInaccessible:
+                  $ref: "#/components/examples/reportNotFoundOrInaccessible"
           headers:
             Content-Type:
               schema:
@@ -1674,7 +1689,8 @@ paths:
                   $ref: "#/components/examples/subscriberResponseBody"
         "400":
           description: Input error, such as the userId field of the request subscriber
-            object not matching the userId path parameter.
+            object not matching the userId path parameter, or the report was not found
+            or is inaccessible to the caller.
           headers:
             Content-Type:
               schema:
@@ -1686,12 +1702,16 @@ paths:
               examples:
                 userIdNotMatch:
                   $ref: "#/components/examples/userIdNotMatch"
+                reportNotFoundOrInaccessible:
+                  $ref: "#/components/examples/reportNotFoundOrInaccessible"
             application/json:
               schema:
                 $ref: "#/components/schemas/error2"
               examples:
                 userIdNotMatch:
                   $ref: "#/components/examples/userIdNotMatch"
+                reportNotFoundOrInaccessible:
+                  $ref: "#/components/examples/reportNotFoundOrInaccessible"
         "404":
           description: No subscriber exists at the requested path.
           headers:
@@ -1783,6 +1803,26 @@ paths:
       responses:
         "204":
           description: No content. The subscriber was deleted.  Nothing is returned.
+        "400":
+          description: The request was invalid, or the report was not found or is
+            inaccessible to the caller.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFoundOrInaccessible:
+                  $ref: "#/components/examples/reportNotFoundOrInaccessible"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                reportNotFoundOrInaccessible:
+                  $ref: "#/components/examples/reportNotFoundOrInaccessible"
 servers:
 - url: "http://example.com/reportAlerts"
   description: The alerts API server.
@@ -2170,43 +2210,6 @@ components:
           description: Links that apply to this object.
           items:
             $ref: "#/components/schemas/link"
-    link:
-      title: Link
-      type: object
-      description: A link to a related operation or resource.
-      required:
-      - rel
-      properties:
-        method:
-          type: string
-          description: The HTTP method for the link.
-        rel:
-          type: string
-          description: The relationship of the link to the resource.
-        uri:
-          type: string
-          description: The relative URI for the link.
-        href:
-          type: string
-          description: The URL for the link.
-        title:
-          type: string
-          description: The title for the link.
-        type:
-          type: string
-          description: The media type or link type for the link.
-        itemType:
-          type: string
-          description: If this is a link to a container, `itemType` is the media type
-            or link type for the items in the container.
-        responseType:
-          type: string
-          description: The media type or link type of the response body for a `PUT`,
-            `POST`, or `PATCH` operation.
-        responseItemType:
-          type: string
-          description: The media type or link type of the items in the response body
-            for a `PUT`, `POST`, or `PATCH` operation.
     api:
       title: API
       description: The list of links to top-level resources and operations available
@@ -2245,40 +2248,43 @@ components:
             type: array
             description: Array consisting API resource representations, normally a
               page worth.
-    baseCollection2:
-      title: Base Collection
-      description: This is a base schema used to define paginated collections of resources.
-        This base schema is extended by other schemas in APIs by adding an 'items'
-        array property. These extensions define the application/vnd.sas.collection
-        media type (version 2)
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
       properties:
-        name:
+        method:
           type: string
-          description: The name of the collection.
-        start:
-          type: integer
-          description: The zero-based index of the first item in the collection.
-          format: int64
-        limit:
-          type: integer
-          description: The number of items that were requested for the collection.
-        count:
-          type: integer
-          description: If populated indicates the number of items in the collection.
-          format: int64
-        accept:
+          description: The HTTP method for the link.
+        rel:
           type: string
-          description: A space-delimited list of media types from which an `Accept`
-            header may be constructed.
-        links:
-          type: array
-          description: The links that apply to the collection.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the collection representation. This representation
-            is version 2.
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
     error2:
       title: Error
       type: object
@@ -2325,47 +2331,70 @@ components:
           type: integer
           description: The version number of the error representation. This representation
             is version 2.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
   examples:
-    invalidCondition:
+    subscriptionResponseBody:
       description: >
-        invalid alertable condition
-      value: {"version": 2, "httpStatusCode": 400, "errorCode": 27804, "message": "The\
-          \ alertable condition name requested is invalid: ..", "details": ["path:\
-            \ /reportAlerts/conditions", "correlator: 070b768e-0e4d-4745-9f1d-cb17e5faae36"]}
-    conditionResponseBody:
+        subscription response body
+      value: {"id": "6cde2eda-0fb6-4057-a04c-3eb337f7aab7", "creationTimeStamp": "2023-11-08T16:09:45.024488471Z",
+        "createdBy": "sasdemo", "modifiedTimeStamp": "2023-11-08T16:09:45.024488471Z",
+        "modifiedBy": "sasdemo", "alertableConditionName": "as42", "report": {"uri": "/reports/reports/d7b26fc7-c7d7-4c88-b554-4382bd0b84b9",
+          "name": "Report for Testing Alert Conditions"}, "evaluation": {"interval": 10,
+          "intervalUnit": "minutes", "intervalControl": "fixedInterval"}, "notification": {
+          "interval": 1, "intervalUnit": "days", "intervalControl": "fixedInterval"},
+        "version": 1, "subscribers": [{"userId": "SASAdministrators", "group": true,
+            "sendEmail": false, "sendSms": false, "retainNotification": true, "version": 1},
+          {"userId": "sasuser", "group": false, "sendEmail": true, "sendSms": true,
+            "retainNotification": true, "version": 1}], "links": [{"method": "GET",
+            "rel": "self", "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "type": "application/vnd.sas.report.alert.subscription"}, {"method": "GET",
+            "rel": "alternate", "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "type": "application/vnd.sas.summary+json"}, {"method": "DELETE", "rel": "deleteSubscription",
+            "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7"},
+          {"method": "PUT", "rel": "updateSubscription", "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+            "type": "application/vnd.sas.report.alert.subscription"}]}
+    subscriberRequestBody:
       description: >
-        condition collection
-      value: {"id": "23f0ce6b-8c67-482f-a787-76d87364b16a", "version": 1, "alertableState": "as42",
-        "report": {"uri": "/reports/reports/d7b26fc7-c7d7-4c88-b554-4382bd0b84b9",
-          "name": "Test Report for Alert Subscriptions"}, "expression": "gt(${bi1},200)",
-        "clauseName": "cc43", "visualElementName": "ve32", "dataItemNames": ["bi38"],
-        "defaultEvaluation": {"interval": 10, "intervalUnit": "minutes", "intervalControl": "fixedInterval"},
-        "defaultNotification": {"interval": 1, "intervalUnit": "days", "intervalControl": "fixedInterval"},
-        "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
-            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
-            "type": "application/vnd.sas.report.alert.condition"}, {"method": "GET",
-            "rel": "getReportContent", "href": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
-            "uri": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
-            "type": "application/vnd.sas.report.content", "title": "Get BIRD Content\
-              \ of Report"}, {"method": "GET", "rel": "getReportConditions", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
-            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
-            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.condition"},
-          {"method": "GET", "rel": "getSubscribers", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
-            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
-            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.subscriber"}]}
-    eTagNotProvided:
-      description: >
-        eTag is missing
-      value: {"version": 2, "httpStatusCode": 428, "errorCode": 27821, "message": 'The
-          header field "If-Match" is missing or does not have a value.', "details": [
-          "path: /reportAlerts/...", "correlator: c9656b50-2d9c-43a8-872d-026b1fb78e24"],
-        "remediation": "Specify the resource's entity tag."}
-    subscriptionNotFound:
-      description: >
-        subscription not found
-      value: {"version": 2, "httpStatusCode": 404, "errorCode": 27802, "message": "record\
-          \ not found", "details": ["subscription not found for id=...", "path: /reportAlerts/subscriptions/...",
-          "correlator: 7c47391d-5d61-4c97-b464-a0cc11b97295"]}
+        subscriber request body
+      value: {"userId": "sasdemo", "group": false, "sendEmail": true, "sendSms": false,
+        "retainNotification": true}
     subscriptionRequestBody:
       description: >
         subscription request body
@@ -2376,6 +2405,11 @@ components:
         "subscribers": [{"userId": "SASAdministrators", "group": true, "sendEmail": false,
             "sendSms": false, "retainNotification": true}, {"userId": "sasuser", "group": false,
             "sendEmail": true, "sendSms": true, "retainNotification": true}]}
+    invalidMediaType:
+      description: >
+        no matched media type found
+      value: {"version": 2, "httpStatusCode": 406, "message": "no match found", "details": [
+          "path: /reportAlerts/subscriptions", "correlator: e1ae18c7-f099-4698-9d1e-3fef18bf3ee5"]}
     conditionCollectionItems:
       description: >
         condition collection items
@@ -2397,43 +2431,49 @@ components:
             {"method": "GET", "rel": "getSubscribers", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
               "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
               "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.subscriber"}]}]
-    userIdNotMatch:
+    eTagNotProvided:
       description: >
-        input error; userId not match the path parameter
-      value: {"version": 2, "httpStatusCode": 400, "message": "user id must match\
-          \ the subscriber in the body of the request", "details": ["path: /reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
-          "correlator: a7c712b8-f052-4682-aff9-1636284b6478"]}
-    invalidInput:
+        eTag is missing
+      value: {"version": 2, "httpStatusCode": 428, "errorCode": 27821, "message": 'The
+          header field "If-Match" is missing or does not have a value.', "details": [
+          "path: /reportAlerts/...", "correlator: c9656b50-2d9c-43a8-872d-026b1fb78e24"],
+        "remediation": "Specify the resource's entity tag."}
+    subscriberNotExist:
       description: >
-        invalid input
-      value: {"version": 2, "httpStatusCode": 400, "errorCode": 27805, "message": "the\
-          \ input is not valid", "details": ["path: /reportAlerts/...", "correlator:\
-            \ 1af7bdcb-7fde-4dab-b756-b013b64c3c64"]}
-    userConflict:
+        no subscriber exists at the requested path.
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 27807, "message": "cannot\
+          \ update if the subscriber is not already subscribed to the subscription",
+        "details": ["path: /reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo1",
+          "correlator: 36aa84d3-e0d1-42bd-92cf-b2494425557f"]}
+    invalidCondition:
       description: >
-        conflict; user already exists.
-      value: {"version": 2, "httpStatusCode": 409, "errorCode": 27806, "message": "User\
-          \ sasdemo is already subscribed to alertable condition as28 of report 7f844d15-6c14-47f5-a746-c9f830cb534e.",
-        "details": ["path: /reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/",
-          "correlator: 0187b50e-e4a7-4d0e-9e04-34c7d14fdfe1"]}
-    subscriberResponseBody:
+        invalid alertable condition
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 27804, "message": "The\
+          \ alertable condition name requested is invalid: ..", "details": ["path:\
+            \ /reportAlerts/conditions", "correlator: 070b768e-0e4d-4745-9f1d-cb17e5faae36"]}
+    subscriptionCandidateCollection:
       description: >
-        subscriber response body
-      value: {"userId": "sasdemo", "group": false, "sendEmail": true, "sendSms": false,
-        "retainNotification": true, "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
-            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
-            "type": "application/vnd.sas.report.alert.subscriber"}, {"method": "DELETE",
-            "rel": "deleteSubscriber", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
-            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo"},
-          {"method": "PUT", "rel": "updateSubscriber", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
-            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
-            "type": "application/vnd.sas.report.alert.subscriber"}, {"method": "GET",
-            "rel": "up", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
-            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
-            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.subscriber"},
-          {"method": "GET", "rel": "getSubscription", "href": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
-            "uri": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
-            "type": "application/vnd.sas.report.alert.subscription"}], "version": 1}
+        subscription candidates collection
+      value: [{"id": "ac64cdca-b404-43b9-8621-0eb937c76fbc", "lastQueriedTimeStamp": "2023-11-08T16:38:11.584Z",
+          "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
+              "uri": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
+              "type": "application/vnd.sas.report.alert.subscription"}], "version": 1},
+        {"id": "6cde2eda-0fb6-4057-a04c-3eb337f7aab7", "lastQueriedTimeStamp": "2023-11-08T16:38:11.584Z",
+          "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+              "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
+              "type": "application/vnd.sas.report.alert.subscription"}], "version": 1}]
+    invalidParameterValue:
+      description: >
+        invalid parameter
+      value: {"httpStatusCode": 400, "errorCode": 1125, "message": "The input parameter\
+          \ is not valid.", "details": ["path: /reportAlerts/subscriptions", "correlator:\
+            \ 30ca221b-81a0-4651-99fb-b475102c538b"]}
+    subscriptionNotFound:
+      description: >
+        subscription not found
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 27802, "message": "record\
+          \ not found", "details": ["subscription not found for id=...", "path: /reportAlerts/subscriptions/...",
+          "correlator: 7c47391d-5d61-4c97-b464-a0cc11b97295"]}
     subscriptionCollection:
       description: >
         subscription collection
@@ -2458,73 +2498,6 @@ components:
             {"method": "PUT", "rel": "updateSubscription", "href": "/reportAlerts/subscriptions/cbeac3b5-729c-4e77-ad6a-f8f05540a54d",
               "uri": "/reportAlerts/subscriptions/cbeac3b5-729c-4e77-ad6a-f8f05540a54d",
               "type": "application/vnd.sas.report.alert.subscription"}], "version": 1}]
-    subscriberNotExist:
-      description: >
-        no subscriber exists at the requested path.
-      value: {"version": 2, "httpStatusCode": 404, "errorCode": 27807, "message": "cannot\
-          \ update if the subscriber is not already subscribed to the subscription",
-        "details": ["path: /reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo1",
-          "correlator: 36aa84d3-e0d1-42bd-92cf-b2494425557f"]}
-    inputValidation:
-      description: >
-        input validation error
-      value: {"version": 2, "httpStatusCode": 400, "errorCode": 27811, "message": "one\
-          \ or more invalid parameters", "details": ["path: /reportAlerts/...", "correlator:\
-            \ 92409ce3-a03a-4487-a94d-17259c184877"]}
-    conditionCollection:
-      description: >
-        condition collection
-      value: {"version": 2, "accept": "application/vnd.sas.report.alert.condition",
-        "count": 1, "start": 0, "limit": 10, "name": "items", "items": [{"id": "23f0ce6b-8c67-482f-a787-76d87364b16a",
-            "version": 1, "alertableState": "as42", "report": {"uri": "/reports/reports/d7b26fc7-c7d7-4c88-b554-4382bd0b84b9",
-              "name": "Test Report for Alert Subscriptions"}, "expression": "gt(${bi1},200)",
-            "clauseName": "cc43", "visualElementName": "ve32", "dataItemNames": [
-              "bi38"], "defaultEvaluation": {"interval": 10, "intervalUnit": "minutes",
-              "intervalControl": "fixedInterval"}, "defaultNotification": {"interval": 1,
-              "intervalUnit": "days", "intervalControl": "fixedInterval"}, "links": [
-              {"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
-                "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
-                "type": "application/vnd.sas.report.alert.condition"}, {"method": "GET",
-                "rel": "getReportContent", "href": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
-                "uri": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
-                "type": "application/vnd.sas.report.content", "title": "Get BIRD Content\
-                  \ of Report"}, {"method": "GET", "rel": "getReportConditions", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
-                "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
-                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.condition"},
-              {"method": "GET", "rel": "getSubscribers", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
-                "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
-                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.subscriber"}]}],
-        "links": [{"method": "GET", "rel": "collection", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions",
-            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions",
-            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.condition"},
-          {"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions",
-            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions",
-            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.condition"}]}
-    invalidParameterValue:
-      description: >
-        invalid parameter
-      value: {"httpStatusCode": 400, "errorCode": 1125, "message": "The input parameter\
-          \ is not valid.", "details": ["path: /reportAlerts/subscriptions", "correlator:\
-            \ 30ca221b-81a0-4651-99fb-b475102c538b"]}
-    reportNotFound:
-      description: >
-        report not found
-      value: {"version": 2, "httpStatusCode": 404, "errorCode": 27801, "message": "the\
-          \ report was not found", "details": ["path: /reportAlerts/...", "correlator:\
-            \ 14341210-8ab3-45f0-80c7-5856675388d8"]}
-    rootLinks:
-      description: >
-        root links
-      value: {"version": 1, "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts",
-            "uri": "/reportAlerts", "responseType": "application/vnd.sas.api+json"},
-          {"method": "GET", "rel": "subscriptions", "href": "/reportAlerts/subscriptions",
-            "uri": "/reportAlerts/subscriptions", "type": "application/vnd.sas.collection",
-            "itemType": "application/vnd.sas.summary+json"}, {"method": "POST", "rel": "createSubscription",
-            "href": "/reportAlerts/subscriptions", "uri": "/reportAlerts/subscriptions",
-            "type": "application/vnd.sas.report.alert.subscription", "responseType": "application/vnd.sas.report.alert.subscription"},
-          {"method": "GET", "rel": "conditions", "href": "/reportAlerts/conditions/?reportUri={reportUri}",
-            "uri": "/reportAlerts/conditions/?reportUri={reportUri}", "responseType": "application/vnd.sas.collection",
-            "responseItemType": "application/vnd.sas.report.alert.condition"}]}
     subscriberCollection:
       description: >
         subscriber collection
@@ -2554,35 +2527,45 @@ components:
             "rel": "getSubscription", "href": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
             "uri": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
             "type": "application/vnd.sas.report.alert.subscription"}]}
-    subscriberRequestBody:
+    conditionResponseBody:
       description: >
-        subscriber request body
-      value: {"userId": "sasdemo", "group": false, "sendEmail": true, "sendSms": false,
-        "retainNotification": true}
-    subscriptionResponseBody:
+        condition collection
+      value: {"id": "23f0ce6b-8c67-482f-a787-76d87364b16a", "version": 1, "alertableState": "as42",
+        "report": {"uri": "/reports/reports/d7b26fc7-c7d7-4c88-b554-4382bd0b84b9",
+          "name": "Test Report for Alert Subscriptions"}, "expression": "gt(${bi1},200)",
+        "clauseName": "cc43", "visualElementName": "ve32", "dataItemNames": ["bi38"],
+        "defaultEvaluation": {"interval": 10, "intervalUnit": "minutes", "intervalControl": "fixedInterval"},
+        "defaultNotification": {"interval": 1, "intervalUnit": "days", "intervalControl": "fixedInterval"},
+        "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+            "type": "application/vnd.sas.report.alert.condition"}, {"method": "GET",
+            "rel": "getReportContent", "href": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
+            "uri": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
+            "type": "application/vnd.sas.report.content", "title": "Get BIRD Content\
+              \ of Report"}, {"method": "GET", "rel": "getReportConditions", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.condition"},
+          {"method": "GET", "rel": "getSubscribers", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.subscriber"}]}
+    invalidInput:
       description: >
-        subscription response body
-      value: {"id": "6cde2eda-0fb6-4057-a04c-3eb337f7aab7", "creationTimeStamp": "2023-11-08T16:09:45.024488471Z",
-        "createdBy": "sasdemo", "modifiedTimeStamp": "2023-11-08T16:09:45.024488471Z",
-        "modifiedBy": "sasdemo", "alertableConditionName": "as42", "report": {"uri": "/reports/reports/d7b26fc7-c7d7-4c88-b554-4382bd0b84b9",
-          "name": "Report for Testing Alert Conditions"}, "evaluation": {"interval": 10,
-          "intervalUnit": "minutes", "intervalControl": "fixedInterval"}, "notification": {
-          "interval": 1, "intervalUnit": "days", "intervalControl": "fixedInterval"},
-        "version": 1, "subscribers": [{"userId": "SASAdministrators", "group": true,
-            "sendEmail": false, "sendSms": false, "retainNotification": true, "version": 1},
-          {"userId": "sasuser", "group": false, "sendEmail": true, "sendSms": true,
-            "retainNotification": true, "version": 1}], "links": [{"method": "GET",
-            "rel": "self", "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
-            "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
-            "type": "application/vnd.sas.report.alert.subscription"}, {"method": "GET",
-            "rel": "alternate", "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
-            "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
-            "type": "application/vnd.sas.summary+json"}, {"method": "DELETE", "rel": "deleteSubscription",
-            "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
-            "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7"},
-          {"method": "PUT", "rel": "updateSubscription", "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
-            "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
-            "type": "application/vnd.sas.report.alert.subscription"}]}
+        invalid input
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 27805, "message": "the\
+          \ input is not valid", "details": ["path: /reportAlerts/...", "correlator:\
+            \ 1af7bdcb-7fde-4dab-b756-b013b64c3c64"]}
+    reportNotFound:
+      description: >
+        report not found
+      value: {"version": 2, "httpStatusCode": 404, "errorCode": 27801, "message": "the\
+          \ report was not found", "details": ["path: /reportAlerts/...", "correlator:\
+            \ 14341210-8ab3-45f0-80c7-5856675388d8"]}
+    userIdNotMatch:
+      description: >
+        input error; userId not match the path parameter
+      value: {"version": 2, "httpStatusCode": 400, "message": "user id must match\
+          \ the subscriber in the body of the request", "details": ["path: /reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+          "correlator: a7c712b8-f052-4682-aff9-1636284b6478"]}
     eTagNotMatch:
       description: >
         eTag not match
@@ -2590,19 +2573,82 @@ components:
           header field "If-Match" has a value that is different from the entity tag
           for the resource. (The specified values are ... and ..., respectively.)',
         "details": ["path: /reportAlerts/...", "correlator: 7b14e794-16eb-4296-86f5-ab7008f20a6e"]}
-    invalidMediaType:
+    inputValidation:
       description: >
-        no matched media type found
-      value: {"version": 2, "httpStatusCode": 406, "message": "no match found", "details": [
-          "path: /reportAlerts/subscriptions", "correlator: e1ae18c7-f099-4698-9d1e-3fef18bf3ee5"]}
-    subscriptionCandidateCollection:
+        input validation error
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 27811, "message": "one\
+          \ or more invalid parameters", "details": ["path: /reportAlerts/...", "correlator:\
+            \ 92409ce3-a03a-4487-a94d-17259c184877"]}
+    reportNotFoundOrInaccessible:
       description: >
-        subscription candidates collection
-      value: [{"id": "ac64cdca-b404-43b9-8621-0eb937c76fbc", "lastQueriedTimeStamp": "2023-11-08T16:38:11.584Z",
-          "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
-              "uri": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
-              "type": "application/vnd.sas.report.alert.subscription"}], "version": 1},
-        {"id": "6cde2eda-0fb6-4057-a04c-3eb337f7aab7", "lastQueriedTimeStamp": "2023-11-08T16:38:11.584Z",
-          "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
-              "uri": "/reportAlerts/subscriptions/6cde2eda-0fb6-4057-a04c-3eb337f7aab7",
-              "type": "application/vnd.sas.report.alert.subscription"}], "version": 1}]
+        The requested report was not found or is not accessible to the caller.
+      value: {"version": 2, "httpStatusCode": 400, "errorCode": 27801, "message": "report\
+          \ was not found or is not accessible", "details": ["path: /reportAlerts/...",
+          "correlator: 14341210-8ab3-45f0-80c7-5856675388d8"]}
+    conditionCollection:
+      description: >
+        condition collection
+      value: {"version": 2, "accept": "application/vnd.sas.report.alert.condition",
+        "count": 1, "start": 0, "limit": 10, "name": "items", "items": [{"id": "23f0ce6b-8c67-482f-a787-76d87364b16a",
+            "version": 1, "alertableState": "as42", "report": {"uri": "/reports/reports/d7b26fc7-c7d7-4c88-b554-4382bd0b84b9",
+              "name": "Test Report for Alert Subscriptions"}, "expression": "gt(${bi1},200)",
+            "clauseName": "cc43", "visualElementName": "ve32", "dataItemNames": [
+              "bi38"], "defaultEvaluation": {"interval": 10, "intervalUnit": "minutes",
+              "intervalControl": "fixedInterval"}, "defaultNotification": {"interval": 1,
+              "intervalUnit": "days", "intervalControl": "fixedInterval"}, "links": [
+              {"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+                "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+                "type": "application/vnd.sas.report.alert.condition"}, {"method": "GET",
+                "rel": "getReportContent", "href": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
+                "uri": "/reports/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/content",
+                "type": "application/vnd.sas.report.content", "title": "Get BIRD Content\
+                  \ of Report"}, {"method": "GET", "rel": "getReportConditions", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+                "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.condition"},
+              {"method": "GET", "rel": "getSubscribers", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+                "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+                "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.subscriber"}]}],
+        "links": [{"method": "GET", "rel": "collection", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.condition"},
+          {"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.condition"}]}
+    subscriberResponseBody:
+      description: >
+        subscriber response body
+      value: {"userId": "sasdemo", "group": false, "sendEmail": true, "sendSms": false,
+        "retainNotification": true, "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+            "type": "application/vnd.sas.report.alert.subscriber"}, {"method": "DELETE",
+            "rel": "deleteSubscriber", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo"},
+          {"method": "PUT", "rel": "updateSubscriber", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/sasdemo",
+            "type": "application/vnd.sas.report.alert.subscriber"}, {"method": "GET",
+            "rel": "up", "href": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+            "uri": "/reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers",
+            "type": "application/vnd.sas.collection", "itemType": "application/vnd.sas.report.alert.subscriber"},
+          {"method": "GET", "rel": "getSubscription", "href": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
+            "uri": "/reportAlerts/subscriptions/ac64cdca-b404-43b9-8621-0eb937c76fbc",
+            "type": "application/vnd.sas.report.alert.subscription"}], "version": 1}
+    userConflict:
+      description: >
+        conflict; user already exists.
+      value: {"version": 2, "httpStatusCode": 409, "errorCode": 27806, "message": "User\
+          \ sasdemo is already subscribed to alertable condition as28 of report 7f844d15-6c14-47f5-a746-c9f830cb534e.",
+        "details": ["path: /reportAlerts/reports/7f844d15-6c14-47f5-a746-c9f830cb534e/conditions/as28/subscribers/",
+          "correlator: 0187b50e-e4a7-4d0e-9e04-34c7d14fdfe1"]}
+    rootLinks:
+      description: >
+        root links
+      value: {"version": 1, "links": [{"method": "GET", "rel": "self", "href": "/reportAlerts",
+            "uri": "/reportAlerts", "responseType": "application/vnd.sas.api+json"},
+          {"method": "GET", "rel": "subscriptions", "href": "/reportAlerts/subscriptions",
+            "uri": "/reportAlerts/subscriptions", "type": "application/vnd.sas.collection",
+            "itemType": "application/vnd.sas.summary+json"}, {"method": "POST", "rel": "createSubscription",
+            "href": "/reportAlerts/subscriptions", "uri": "/reportAlerts/subscriptions",
+            "type": "application/vnd.sas.report.alert.subscription", "responseType": "application/vnd.sas.report.alert.subscription"},
+          {"method": "GET", "rel": "conditions", "href": "/reportAlerts/conditions/?reportUri={reportUri}",
+            "uri": "/reportAlerts/conditions/?reportUri={reportUri}", "responseType": "application/vnd.sas.collection",
+            "responseItemType": "application/vnd.sas.report.alert.condition"}]}

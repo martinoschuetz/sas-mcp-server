@@ -76,6 +76,13 @@ components:
           nullable: true
           title: Numdocs
           type: integer
+        numDocsInfopack:
+          default: 10
+          description: Specifies the number of info-pack documents to retrieve from
+            the info-pack index.
+          nullable: true
+          title: Numdocsinfopack
+          type: integer
         temperature:
           default: 0.7
           description: Specifies the temperature
@@ -250,22 +257,21 @@ components:
           title: Isused
           type: boolean
         productIds:
-          description: The product ids that this chunk relates to, but only including
-            those in the user request.
+          description: The product ids that this chunk relates to, filtered to those
+            matching the request.
           items:
             type: string
           title: Productids
           type: array
         productTitles:
-          description: The product titles that this chunk relates to, but only including
-            those in the user request.
+          description: The product titles that this chunk relates to, filtered to
+            those matching the request.
           items:
             type: string
           title: Producttitles
           type: array
         searchScore:
-          description: The relevance score assigned to this chunk based on the user
-            query.
+          description: The relevance score assigned to this chunk based on the query.
           title: Searchscore
           type: number
         sourceUrl:
@@ -273,7 +279,7 @@ components:
           title: Sourceurl
           type: string
         title:
-          description: The title of the file that this chunk is derrived from.
+          description: The title of the file that this chunk is derived from.
           title: Title
           type: string
       required:
@@ -299,6 +305,131 @@ components:
       - copilotResponse
       title: ResponseType
       type: string
+    retrievalDocumentChunk:
+      description: Schema for a single document chunk returned by a direct retrieval
+        request.
+      properties:
+        chunk:
+          description: The chunk's content.
+          title: Chunk
+          type: string
+        chunkId:
+          description: The chunk id in the search index.
+          format: uuid
+          title: Chunkid
+          type: string
+        productIds:
+          description: The product ids that this chunk relates to, filtered to those
+            matching the request.
+          items:
+            type: string
+          title: Productids
+          type: array
+        productTitles:
+          description: The product titles that this chunk relates to, filtered to
+            those matching the request.
+          items:
+            type: string
+          title: Producttitles
+          type: array
+        searchScore:
+          description: The relevance score assigned to this chunk based on the query.
+          title: Searchscore
+          type: number
+        sourceUrl:
+          description: The source URL to find the chunk content in the SAS documentation.
+          title: Sourceurl
+          type: string
+        title:
+          description: The title of the file that this chunk is derived from.
+          title: Title
+          type: string
+      required:
+      - chunkId
+      - productTitles
+      - productIds
+      - sourceUrl
+      - title
+      - chunk
+      - searchScore
+      title: retrievalDocumentChunk
+      type: object
+    searchRequest:
+      description: Generic search request routed to a module based on the context's
+        index field.
+      properties:
+        context:
+          description: Index-specific search context including filters and score thresholds.
+          discriminator:
+            mapping:
+              viya4: '#/components/schemas/viya4SearchContext'
+            propertyName: index
+          oneOf:
+          - $ref: '#/components/schemas/viya4SearchContext'
+          title: Context
+        limit:
+          default: 10
+          description: 'Maximum number of items to return. Must be > 0. Values above
+            100 are clamped to 100. Default: 10.'
+          title: Limit
+          type: integer
+        searchText:
+          description: The text query used to perform hybrid (vector + keyword) search.
+          title: Searchtext
+          type: string
+        start:
+          default: 0
+          description: 'Zero-based starting index into the result collection (offset
+            pagination). If start exceeds the collection size, an empty items array
+            is returned. Default: 0.'
+          title: Start
+          type: integer
+      required:
+      - searchText
+      - context
+      title: searchRequest
+      type: object
+    searchResponse:
+      description: Schema for a search response returned by the docs/search endpoint.
+      properties:
+        count:
+          description: The number of items in the underlying collection.
+          title: Count
+          type: integer
+        items:
+          description: The retrieved document chunks. Present when querying a documentation
+            index.
+          items:
+            $ref: '#/components/schemas/retrievalDocumentChunk'
+          nullable: true
+          title: Items
+          type: array
+        limit:
+          description: The number of items to return in each page.
+          title: Limit
+          type: integer
+        name:
+          description: The abstract name of the collection; describes what the items
+            represent.
+          title: Name
+          type: string
+        start:
+          description: The index of the first item in this collection view, 0-based.
+          title: Start
+          type: integer
+        version:
+          default: 2
+          description: This media type's schema version number. This representation
+            is version 2.
+          title: Version
+          type: integer
+      required:
+      - name
+      - count
+      - start
+      - limit
+      title: searchResponse
+      type: object
     userRequest:
       description: Schema for specifying a user request to the RAG server.
       properties:
@@ -328,6 +459,70 @@ components:
       - context
       title: userRequest
       type: object
+    viya4IndexFilters:
+      description: 'Encapsulates the available filter dimensions for the doc search
+        index.
+
+
+        At least one of ``productIds`` or ``productTitles`` must be supplied.
+
+        Both may be provided together - results matching any one of the valid filters
+        across both fields are returned.'
+      properties:
+        productIds:
+          description: CDC alias identifiers to scope the search. Prefer this over
+            productTitles where possible.
+          items:
+            type: string
+          title: Productids
+          type: array
+        productTitles:
+          description: 'Human-readable CDC product names to scope the search. '
+          items:
+            type: string
+          title: Producttitles
+          type: array
+      title: viya4IndexFilters
+      type: object
+    viya4SearchContext:
+      description: Context for searching the Viya 4 documentation index.
+      properties:
+        documentScoreThreshold:
+          default: -1.0
+          description: Specifies the document score threshold for the retrieved documents.
+            Documents below this threshold will not be returned.
+          title: Documentscorethreshold
+          type: number
+        filters:
+          $ref: '#/components/schemas/viya4IndexFilters'
+        index:
+          description: The search index to query.
+          enum:
+          - viya4
+          title: Index
+          type: string
+      required:
+      - index
+      - filters
+      title: viya4SearchContext
+      type: object
+    collection2:
+      title: Collection
+      description: A collection of zero or more resource representations. Collections
+        are often paginated and the items array contains one page of representations.
+      required:
+      - items
+      x-sas-media-type:
+        name: application/vnd.sas.collection
+        version: 2
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: Array consisting API resource representations, normally a
+              page worth.
     error2:
       title: Error
       type: object
@@ -411,6 +606,40 @@ components:
           type: string
           description: The media type or link type of the items in the response body
             for a `PUT`, `POST`, or `PATCH` operation.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
 info:
   contact:
     email: devex@sas.com
@@ -448,7 +677,7 @@ paths:
         schema:
           description: The application where the user prompt is being sent from.
           nullable: true
-          title: Sas Application Name
+          title: Sas-Application-Name
           type: string
       - description: ID of the chat session.
         in: header
@@ -457,7 +686,7 @@ paths:
         schema:
           description: ID of the chat session.
           nullable: true
-          title: Sas Chat Id
+          title: Sas-Chat-Id
           type: string
       - description: The unique ID of the message.
         in: header
@@ -466,7 +695,7 @@ paths:
         schema:
           description: The unique ID of the message.
           nullable: true
-          title: Sas Message Id
+          title: Sas-Message-Id
           type: string
       - description: The type of message that is being sent.
         in: header
@@ -475,7 +704,7 @@ paths:
         schema:
           description: The type of message that is being sent.
           nullable: true
-          title: Sas Message Type
+          title: Sas-Message-Type
           type: string
       - description: The platform key.
         in: header
@@ -484,7 +713,7 @@ paths:
         schema:
           description: The platform key.
           nullable: true
-          title: Sas Platform Key
+          title: Sas-Platform-Key
           type: string
       - description: Unique identifier for customer deployment.
         in: header
@@ -493,7 +722,7 @@ paths:
         schema:
           description: Unique identifier for customer deployment.
           nullable: true
-          title: Sas Site Number
+          title: Sas-Site-Number
           type: string
       - description: 'Version of the Viya application that the user prompt is being
           sent from. '
@@ -504,7 +733,7 @@ paths:
           description: 'Version of the Viya application that the user prompt is being
             sent from. '
           nullable: true
-          title: Sas Application Version
+          title: Sas-Application-Version
           type: string
       - description: The name of the copilot.
         in: header
@@ -513,7 +742,7 @@ paths:
         schema:
           description: The name of the copilot.
           nullable: true
-          title: Sas Copilot Name
+          title: Sas-Copilot-Name
           type: string
       - description: The secret order id.
         in: header
@@ -522,7 +751,7 @@ paths:
         schema:
           description: The secret order id.
           nullable: true
-          title: Sas Order Secret Id
+          title: Sas-Order-Secret-Id
           type: string
       - description: SAS proxy version.
         in: header
@@ -533,7 +762,7 @@ paths:
           description: SAS proxy version.
           enum:
           - v2
-          title: Sas Proxy Version
+          title: Sas-Proxy-Version
           type: string
       requestBody:
         content:
@@ -627,6 +856,225 @@ paths:
       summary: Rag Query
       tags:
       - Completion
+  /copilots/ragServer/v1/docs/search:
+    post:
+      description: Search document chunks directly from a search index using hybrid
+        (vector + keyword) search. No LLM generation is performed. The `index` field
+        in the request context determines which index is queried. Supports offset
+        pagination via `start` and `limit`.
+      operationId: createDocSearch
+      parameters:
+      - description: The application where the user prompt is being sent from.
+        in: header
+        name: sas-application-name
+        required: false
+        schema:
+          description: The application where the user prompt is being sent from.
+          nullable: true
+          title: Sas-Application-Name
+          type: string
+      - description: ID of the chat session.
+        in: header
+        name: sas-chat-id
+        required: false
+        schema:
+          description: ID of the chat session.
+          nullable: true
+          title: Sas-Chat-Id
+          type: string
+      - description: The unique ID of the message.
+        in: header
+        name: sas-message-id
+        required: false
+        schema:
+          description: The unique ID of the message.
+          nullable: true
+          title: Sas-Message-Id
+          type: string
+      - description: The type of message that is being sent.
+        in: header
+        name: sas-message-type
+        required: false
+        schema:
+          description: The type of message that is being sent.
+          nullable: true
+          title: Sas-Message-Type
+          type: string
+      - description: The platform key.
+        in: header
+        name: sas-platform-key
+        required: false
+        schema:
+          description: The platform key.
+          nullable: true
+          title: Sas-Platform-Key
+          type: string
+      - description: Unique identifier for customer deployment.
+        in: header
+        name: sas-site-number
+        required: false
+        schema:
+          description: Unique identifier for customer deployment.
+          nullable: true
+          title: Sas-Site-Number
+          type: string
+      - description: 'Version of the Viya application that the user prompt is being
+          sent from. '
+        in: header
+        name: sas-application-version
+        required: false
+        schema:
+          description: 'Version of the Viya application that the user prompt is being
+            sent from. '
+          nullable: true
+          title: Sas-Application-Version
+          type: string
+      - description: The name of the copilot.
+        in: header
+        name: sas-copilot-name
+        required: false
+        schema:
+          description: The name of the copilot.
+          nullable: true
+          title: Sas-Copilot-Name
+          type: string
+      - description: The secret order id.
+        in: header
+        name: sas-order-secret-id
+        required: false
+        schema:
+          description: The secret order id.
+          nullable: true
+          title: Sas-Order-Secret-Id
+          type: string
+      - description: SAS proxy version.
+        in: header
+        name: sas-proxy-version
+        required: false
+        schema:
+          default: v2
+          description: SAS proxy version.
+          enum:
+          - v2
+          title: Sas-Proxy-Version
+          type: string
+      requestBody:
+        content:
+          application/json:
+            examples:
+              defaultRequest:
+                summary: Example Viya 4 documentation search request.
+                value:
+                  context:
+                    filters:
+                      productIds:
+                      - capcdc
+                    index: viya4
+                  limit: 10
+                  searchText: What is the imputation node?
+                  start: 0
+            schema:
+              $ref: '#/components/schemas/searchRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              examples:
+                successfulSearch:
+                  summary: Example search response.
+                  value:
+                    count: 1
+                    items:
+                    - chunk: The imputation node fills in missing values...
+                      chunkId: 00000000-0000-0000-0000-000000000001
+                      productIds:
+                      - capcdc
+                      productTitles:
+                      - SAS Model Studio
+                      searchScore: 0.3
+                      sourceUrl: https://documentation.sas.com/...
+                      title: Imputation Node
+                    limit: 10
+                    name: documentChunks
+                    start: 0
+                    version: 2
+              schema:
+                $ref: '#/components/schemas/searchResponse'
+            application/vnd.sas.collection+json:
+              examples:
+                successfulSearch:
+                  summary: Example search response.
+                  value:
+                    count: 1
+                    items:
+                    - chunk: The imputation node fills in missing values...
+                      chunkId: 00000000-0000-0000-0000-000000000001
+                      productIds:
+                      - capcdc
+                      productTitles:
+                      - SAS Model Studio
+                      searchScore: 0.3
+                      sourceUrl: https://documentation.sas.com/...
+                      title: Imputation Node
+                    limit: 10
+                    name: documentChunks
+                    start: 0
+                    version: 2
+              schema:
+                $ref: "#/components/schemas/collection2"
+          description: Successful search response.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        '400':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                invalidRequestBody:
+                  summary: Example invalid request body error.
+                  value:
+                    details:
+                    - 'body -> message: Field required'
+                    httpStatusCode: 400
+                    message: Invalid request body.
+                    version: 2
+              schema:
+                $ref: "#/components/schemas/error2"
+          description: Invalid request body.
+        '422':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                validationError:
+                  summary: Example validation error.
+                  value:
+                    details:
+                    - A validation error occurred while processing the request.
+                    httpStatusCode: 422
+                    message: Validation error.
+                    version: 2
+              schema:
+                $ref: "#/components/schemas/error2"
+          description: Validation error.
+        '500':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                internalServerError:
+                  summary: Example internal server error.
+                  value:
+                    details: []
+                    httpStatusCode: 500
+                    message: Internal Server Error
+                    version: 2
+              schema:
+                $ref: "#/components/schemas/error2"
+          description: Internal Server Error.
+      summary: Search Documents
+      tags:
+      - Search
 servers:
 - description: The URL to a target host.
   url: https://example.com
@@ -636,3 +1084,5 @@ tags:
   name: Root
 - description: Endpoints related to RAG query completions.
   name: Completion
+- description: Endpoints for direct document search without LLM generation.
+  name: Search

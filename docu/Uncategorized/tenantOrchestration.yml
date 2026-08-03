@@ -1197,7 +1197,8 @@ paths:
         type: string
         format: uuid
         pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-      description: Unique identifier for the state transition (UUID).
+      description: Unique identifier for the state transition (UUID) or the delegate
+        string '@currentTransition'.
     get:
       operationId: getTenantStateTransition
       summary: Get a specific state transition
@@ -1352,12 +1353,13 @@ paths:
         type: string
         format: uuid
         pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-      description: Unique identifier for the state transition (UUID).
+      description: Unique identifier for the state transition (UUID) or the delegate
+        string '@currentTransition'.
     get:
       operationId: getTenantStateTransitionSteps
       summary: Get steps for a state transition
       description: Returns a paginated list of tenant steps for the specified state
-        transition, with optional filtering by state, service, or execution URI. Steps
+        transition, with optional filtering by state, service, and step type. Steps
         are pre-created by TenantOrch at transition start and include base onboarding,
         per-service work, and known extended-tenant-job templates.
       tags:
@@ -1373,7 +1375,7 @@ paths:
       - name: transitionId
         in: path
         required: true
-        description: The id of the state transition.
+        description: The id of the state transition or the delegate string '@currentTransition'..
         schema:
           type: string
           format: uuid
@@ -1413,7 +1415,13 @@ paths:
         description: Filter steps by service (only shows service-specific steps).
         schema:
           type: string
-          format: uuid
+      - name: stepType
+        in: query
+        required: false
+        description: Filter steps by step type.
+        schema:
+          type: string
+          enum: [identityZone, tenantJob, restartPod, contentLoading, extendedJob]
       - name: state
         in: query
         required: false
@@ -1490,18 +1498,21 @@ paths:
                   value:
                     items:
                     - id: "f2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e"
+                      stepType: "identityZone"
                       name: "Create Identity Zone"
                       state: "success"
                       creationTimestamp: "2026-02-02T12:00:30Z"
                       modifiedTimestamp: "2026-02-02T12:05:30Z"
                       stateTransitionId: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
                     - id: "f1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
-                      name: "Generate Secrets"
+                      stepType: "contentLoading"
+                      name: "Content Loading of Service sas-files"
                       state: "success"
                       creationTimestamp: "2026-02-02T11:00:45Z"
                       modifiedTimestamp: "2026-02-02T11:05:45Z"
                       stateTransitionId: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
                     - id: "f0a1b2c3-d4e5-4f6a-7b8c-9d0e1f2a3b4c"
+                      stepType: "tenantJob"
                       name: "Initialize Tenant"
                       state: "success"
                       creationTimestamp: "2026-02-02T10:00:15Z"
@@ -1512,7 +1523,8 @@ paths:
                   value:
                     items:
                     - id: "f3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f"
-                      name: "Generate Secrets"
+                      stepType: "contentLoading"
+                      name: "Content Loading of Service sas-files"
                       state: "failed"
                       failureDetails: "Encryption key unavailable in secrets vault"
                       creationTimestamp: "2026-02-02T10:00:45Z"
@@ -1550,7 +1562,7 @@ paths:
       - name: transitionId
         in: path
         required: true
-        description: The id of the state transition.
+        description: The id of the state transition or the delegate string '@currentTransition'..
         schema:
           type: string
           format: uuid
@@ -1590,7 +1602,13 @@ paths:
         description: Filter steps by service (only shows service-specific steps).
         schema:
           type: string
-          format: uuid
+      - name: stepType
+        in: query
+        required: false
+        description: Filter steps by step type.
+        schema:
+          type: string
+          enum: [identityZone, tenantJob, restartPod, contentLoading, extendedJob]
       - name: state
         in: query
         required: false
@@ -1674,20 +1692,21 @@ paths:
         type: string
         format: uuid
         pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-      description: Unique identifier for the state transition (UUID).
+      description: Unique identifier for the state transition (UUID) or the delegate
+        string '@currentTransition'..
     - name: stepId
       in: path
       required: true
       schema:
         type: string
-        format: uuid
-        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-      description: Unique identifier for the step (UUID).
+      description: Step identifier. Provide a step UUID or use `@item` with `filter`
+        to resolve a single step.
     get:
       operationId: getTenantStateTransitionStep
       summary: Get a specific step
       description: Returns details of a specific step within a state transition for
-        the specified tenant.
+        the specified tenant. Supports `stepId=@item` with `filter` when the filter
+        resolves to exactly one step.
       tags:
       - Tenants
       parameters:
@@ -1697,6 +1716,14 @@ paths:
         required: false
         schema:
           type: string
+      - name: filter
+        in: query
+        required: false
+        description: Optional filter expression used with `stepId=@item`. The filter
+          must resolve to exactly one step.
+        schema:
+          type: string
+        example: 'and(eq(serviceId,"sas-files"),eq(stepType,"contentLoading"))'
       - name: If-Modified-Since
         in: header
         description: Return the resource only if it has been modified since the specified
@@ -1731,6 +1758,7 @@ paths:
                   summary: Successfully completed step
                   value:
                     id: "f0a1b2c3-d4e5-4f6a-7b8c-9d0e1f2a3b4c"
+                    stepType: "tenantJob"
                     name: "Initialize Tenant"
                     description: "Initialize tenant resources and configuration"
                     state: "success"
@@ -1744,8 +1772,9 @@ paths:
                   summary: Failed step with error details
                   value:
                     id: "f3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f"
-                    name: "Generate Secrets"
-                    description: "Generate encryption keys and secrets for tenant"
+                    stepType: "contentLoading"
+                    name: "Content Loading of Service sas-files"
+                    description: "Load tenant content for service sas-files"
                     state: "failed"
                     failureDetails: "Encryption key unavailable in secrets vault"
                     creationTimestamp: "2026-02-02T10:00:45Z"
@@ -1798,6 +1827,14 @@ paths:
         required: false
         schema:
           type: string
+      - name: filter
+        in: query
+        required: false
+        description: Optional filter expression used with `stepId=@item`. The filter
+          must resolve to exactly one step.
+        schema:
+          type: string
+        example: 'and(eq(serviceId,"sas-files"),eq(stepType,"contentLoading"))'
       - name: If-Modified-Since
         in: header
         description: Only include resources that have been modified since the specified
@@ -1842,15 +1879,15 @@ paths:
         type: string
         format: uuid
         pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-      description: Unique identifier for the state transition (UUID).
+      description: Unique identifier for the state transition (UUID) or the delegate
+        string '@currentTransition'..
     - name: stepId
       in: path
       required: true
       schema:
         type: string
-        format: uuid
-        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-      description: Unique identifier for the step (UUID).
+      description: Step identifier. Provide a step UUID or use `@item` with `filter`
+        to resolve a single step.
     get:
       operationId: getTenantStateTransitionStepState
       summary: Get the state of a specific step
@@ -1859,6 +1896,8 @@ paths:
         This lightweight endpoint is used by step executors for idempotency checks before
         updating step state. If the step is already in a terminal state (success or failed),
         the update can be safely skipped, which is particularly useful in retry scenarios.
+        Supports `stepId=@item` with `filter` when the filter resolves
+        to exactly one step.
       tags:
       - Tenants
       parameters:
@@ -1868,6 +1907,14 @@ paths:
         required: false
         schema:
           type: string
+      - name: filter
+        in: query
+        required: false
+        description: Optional filter expression used with `stepId=@item`. The filter
+          must resolve to exactly one step.
+        schema:
+          type: string
+        example: 'and(eq(serviceId,"sas-files"),eq(stepType,"contentLoading"))'
       - name: If-Modified-Since
         in: header
         description: Return the resource only if it has been modified since the specified
@@ -1902,21 +1949,25 @@ paths:
                   summary: Step not yet started
                   value:
                     state: "pending"
+                    stepId: "b2bbce6f-820f-4458-bed2-0bd67610c6e2"
                     failureDetails:
                 runningStep:
                   summary: Step currently executing
                   value:
                     state: "running"
+                    stepId: "b2bbce6f-820f-4458-bed2-0bd67610c6e2"
                     failureDetails:
                 successStep:
                   summary: Step completed successfully
                   value:
                     state: "success"
+                    stepId: "b2bbce6f-820f-4458-bed2-0bd67610c6e2"
                     failureDetails:
                 failedStep:
                   summary: Step that failed
                   value:
                     state: "failed"
+                    stepId: "b2bbce6f-820f-4458-bed2-0bd67610c6e2"
                     failureDetails: "Encryption key unavailable in secrets vault"
         "304":
           description: Not modified - resource has not changed since the specified
@@ -1987,7 +2038,7 @@ paths:
       - name: transitionId
         in: path
         required: true
-        description: The id of the state transition.
+        description: The id of the state transition or the delegate string '@currentTransition'..
         schema:
           type: string
           format: uuid
@@ -2053,6 +2104,7 @@ paths:
                 $ref: "#/components/schemas/tenantStepState"
               example:
                 state: "running"
+                stepId: "b2bbce6f-820f-4458-bed2-0bd67610c6e2"
         "400":
           description: Bad request. The state transition is invalid (e.g., success
             → running) or failureDetails is missing for a failed transition.
@@ -2143,6 +2195,14 @@ paths:
         description: Return the resource only if the ETag does not match.
         schema:
           type: string
+      - name: filter
+        in: query
+        required: false
+        description: Optional filter expression used with `stepId=@item`. The filter
+          must resolve to exactly one step.
+        schema:
+          type: string
+        example: 'and(eq(serviceId,"sas-files"),eq(stepType,"contentLoading"))'
       - name: If-Modified-Since
         in: header
         required: false
@@ -2405,6 +2465,7 @@ components:
       type: object
       required:
       - id
+      - stepType
       - name
       - state
       - creationTimestamp
@@ -2416,6 +2477,10 @@ components:
           format: uuid
           description: Unique identifier for this step.
           pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        stepType:
+          type: string
+          description: Logical category for this step.
+          enum: [identityZone, tenantJob, restartPod, contentLoading, extendedJob]
         name:
           type: string
           description: Human-readable name of the step (e.g., 'Initialize Tenant',
@@ -2481,11 +2546,17 @@ components:
       type: object
       required:
       - state
+      - stepId
       properties:
         state:
           type: string
           description: Current execution state of the step.
           enum: [pending, running, success, failed]
+        stepId:
+          type: string
+          format: uuid
+          description: UUID of the state transition step.
+          pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
         failureDetails:
           type: string
           description: Error or failure information if state is 'failed'. Null otherwise.

@@ -8,7 +8,7 @@ info:
     url: https://developer.sas.com
     email: devex@sas.com
   description: The Annotations API allows users to associate annotations with resources
-    that other decoupled API manage.  An annotation augments a target resource, which
+    that other decoupled APIs manage.  An annotation augments a target resource, which
     is typically a column or table, with information that extends beyond its physical
     properties.  This information might include categorization (such as `email` and
     `address`), role (such as `categorical` and `primary key`), or other descriptive
@@ -334,11 +334,11 @@ paths:
   /annotations#batchCreate:
     post:
       summary: Create multiple annotations
-      description: Multi-POST. This operation is used to add multiple annotation that
-        do not exists. All successfully created annotations will be returned in the
-        response body in the same order that they were provided in the request body.
-        For any annotation that failed to be created, the collection returned will
-        contain an application/vnd.sas.error object in place of application/vnd.sas.annotation
+      description: Multi-POST. This operation is used to add multiple annotations
+        that do not exist. All successfully created annotations will be returned in
+        the response body in the same order that they were provided in the request
+        body. For any annotation that failed to be created, the collection returned
+        will contain an application/vnd.sas.error object in place of application/vnd.sas.annotation
         object.
       operationId: createMultipleAnnotations
       tags:
@@ -483,7 +483,15 @@ paths:
           type: string
       - name: If-Match
         in: header
+        required: false
         description: The Etag that was returned from a GET, POST, or PUT of this annotation.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        required: false
+        description: The timestamp that was returned from the most recent GET, POST,
+          or PUT of this annotation. This is ignored when If-Match is specified.
         schema:
           type: string
       requestBody:
@@ -505,6 +513,32 @@ paths:
       responses:
         "200":
           description: The annotation was updated.
+          headers:
+            Last-Modified:
+              description: The ISO8601 date string that represents the timestamp of
+                the last update to this annotation.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.annotation+json:
+              schema:
+                $ref: "#/components/schemas/annotation"
+              examples:
+                json:
+                  $ref: "#/components/examples/updateAnnotationResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/annotation"
+              examples:
+                json:
+                  $ref: "#/components/examples/updateAnnotationResponse"
+        "201":
+          description: Created when the target resource does not exist and is created
+            by this PUT request.
           headers:
             Last-Modified:
               description: The ISO8601 date string that represents the timestamp of
@@ -632,7 +666,15 @@ paths:
           type: string
       - name: If-Match
         in: header
+        required: false
         description: The Etag that was returned from a GET, POST, or PUT of this annotation.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        required: false
+        description: The timestamp that was returned from the most recent GET, POST,
+          or PUT of this annotation. This is ignored when If-Match is specified.
         schema:
           type: string
       requestBody:
@@ -648,6 +690,32 @@ paths:
       responses:
         "200":
           description: The annotation was updated.
+          headers:
+            Last-Modified:
+              description: The ISO8601 date string that represents the timestamp of
+                the last update to this annotation.
+              schema:
+                type: string
+            Etag:
+              description: A tag that identifies this revision of this object.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.annotation+json:
+              schema:
+                $ref: "#/components/schemas/annotation"
+              examples:
+                json:
+                  $ref: "#/components/examples/annotation"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/annotation"
+              examples:
+                json:
+                  $ref: "#/components/examples/annotation"
+        "201":
+          description: Created when the target resource does not exist and is created
+            by this PUT request.
           headers:
             Last-Modified:
               description: The ISO8601 date string that represents the timestamp of
@@ -889,7 +957,8 @@ paths:
                   $ref: "#/components/examples/memberNotFoundError"
     post:
       summary: Create an annotation member
-      description: Creates an annotation member from the provided request.
+      description: Creates an annotation member from the provided request. The annotationId
+        in the request body must match the annotationId in the URI.
       operationId: createMember
       tags:
       - Members
@@ -915,7 +984,8 @@ paths:
               json:
                 $ref: "#/components/examples/createMember"
         description: The member to create.  Valid fields are annotationId, value,
-          resourceType, and resourceUri.  All other fields are ignored.
+          resourceType, and resourceUri. The annotationId in the request body must
+          match the annotationId in the URI. All other fields are ignored.
         required: true
       responses:
         "201":
@@ -1124,7 +1194,15 @@ paths:
           type: string
       - name: If-Match
         in: header
+        required: false
         description: The Etag that was returned from a GET, POST, or PUT of this annotation.
+        schema:
+          type: string
+      - name: If-Unmodified-Since
+        in: header
+        required: false
+        description: The timestamp that was returned from the most recent GET, POST,
+          or PUT of this annotation. This is ignored when If-Match is specified.
         schema:
           type: string
       requestBody:
@@ -1296,14 +1374,7 @@ paths:
             examples:
               json:
                 $ref: "#/components/examples/membersList"
-          application/json:
-            schema:
-              $ref: "#/components/schemas/selection"
-            examples:
-              json:
-                $ref: "#/components/examples/membersList"
-        description: Selects annotationIds for which associated members are to be
-          found.
+        description: Identifies the annotation IDs used to query for associated members.
         required: true
       responses:
         "200":
@@ -1346,8 +1417,8 @@ paths:
     post:
       summary: Create multiple members
       description: Multi-POST. It takes map of annotationIds to list of members and
-        creates the members if they don't exists. This operation is used to create
-        members that  will be associated with an annotation. All successfully created
+        creates the members if they don't exist. This operation is used to create
+        members that will be associated with an annotation. All successfully created
         members will be returned in the response body in the order that they were
         provided in the request body. For any members that failed to be created, the
         collection returned will contain an application/vnd.sas.error object in place
@@ -1419,10 +1490,10 @@ components:
           description: The description.
         createdBy:
           type: string
-          description: The user who created this annotation member.
+          description: The user who created this annotation.
         modifiedBy:
           type: string
-          description: The last user to modify this annotation member.
+          description: The last user to modify this annotation.
         creationTimeStamp:
           type: string
           description: The formatted timestamp when the annotation member was created,
@@ -1440,6 +1511,8 @@ components:
       title: Create Annotation
       type: object
       description: Create Annotation
+      required:
+      - name
       properties:
         domain:
           type: string
@@ -1458,6 +1531,8 @@ components:
       title: Update Annotation
       description: The API exposes endpoint for updating an existing annotation.
       type: object
+      required:
+      - id
       properties:
         version:
           type: number
@@ -1480,10 +1555,10 @@ components:
           description: The description of the annotation.
         createdBy:
           type: string
-          description: The user who created this annotation member.
+          description: The user who created this annotation.
         modifiedBy:
           type: string
-          description: The last user to modify this annotation member.
+          description: The last user to modify this annotation.
         creationTimeStamp:
           type: string
           description: The formatted timestamp when the annotation member was created,
@@ -1543,13 +1618,16 @@ components:
           description: The annotation ID that is associated with the member.
         resourceUri:
           type: string
-          description: The URI of the object that is associated with the member.
+          description: The URI of the object associated with this member. Example
+            /folders/folders/{folderId} or /files/files/{fileId}.
         resourceType:
           type: string
-          description: The object type that is associated with the member.
+          description: The object type associated with the member. Common values include
+            folder, file and report.
         value:
           type: string
-          description: The member value.
+          description: Optional metadata value for this member. Free text (max 1000
+            characters).
         createdBy:
           type: string
           description: The user who created this annotation member.
@@ -1573,25 +1651,32 @@ components:
       title: Create Member
       type: object
       description: Information about the external object that is associated with the
-        annotation.
+        annotation. The annotationId in the request body must match the annotationId
+        in the URI for single-member create requests.
       properties:
         annotationId:
           type: string
           description: The annotation ID that is associated with the member.
         resourceUri:
           type: string
-          description: The URI of the object that is associated with the member.
+          description: The URI of the object associated with this member. Example
+            /folders/folders/{folderId} or /files/files/{fileId}.
         resourceType:
           type: string
-          description: The object type that is associated with the member.
+          description: The object type associated with the member. Common values include
+            folder, file and report.
         value:
           type: string
-          description: The member value.
+          description: Optional metadata value for this member. Free text (max 1000
+            characters).
     updateMember:
       title: Update Member
       type: object
       description: Information about the external object that is associated with the
         annotation.
+      required:
+      - id
+      - annotationId
       properties:
         id:
           type: string
@@ -1601,13 +1686,16 @@ components:
           description: The annotation ID that is associated with the member.
         resourceUri:
           type: string
-          description: The URI of the object that is associated with the member.
+          description: The URI of the object associated with this member. Example
+            /folders/folders/{folderId} or /files/files/{fileId}.
         resourceType:
           type: string
-          description: The object type that is associated with the member.
+          description: The object type associated with the member. Common values include
+            folder, file and report.
         value:
           type: string
-          description: The member value.
+          description: Optional metadata value for this member. Free text (max 1000
+            characters).
         createdBy:
           type: string
           description: The user who created this annotation member.
@@ -1772,7 +1860,8 @@ components:
             for a `PUT`, `POST`, or `PATCH` operation.
     selection:
       title: Selection
-      description: Identifies a set of resources.
+      description: Identifies a collection of resources for bulk queries. The resources
+        array contains identifiers or URIs, depending on type (id, uri, mixed).
       x-sas-media-type:
         name: application/vnd.sas.selection
         version: 1
@@ -2150,7 +2239,7 @@ components:
       value:
         annotationId: 0782c5ec-7e39-45cc-a103-0ce854c41a72
         resourceType: folder
-        resourceUri: /folders/folders/a0bf029d-802b-4eb2-ba18-0f1f7ddac66d
+        resourceUri: /folders/folders/6afb8039-c43c-4103-9882-b33d76d06f4b
         value: newFolder
     createMemberResponse:
       summary: Create new member
@@ -2171,7 +2260,7 @@ components:
           rel: annotation
           href: /annotations/annotations/2a902411-4f81-4819-9263-203cf0ff29ce
           uri: /annotations/annotations/2a902411-4f81-4819-9263-203cf0ff29ce
-          type: application/vnd.sas.annotation"
+          type: application/vnd.sas.annotation
         - method: GET
           rel: self
           href: /annotations/annotations/2a902411-4f81-4819-9263-203cf0ff29ce/members/04c2d36b-0f7a-4e1b-a546-a80ffbe35bf9
@@ -2457,7 +2546,7 @@ components:
           modifiedTimeStamp: 2018-03-26T19:58:04.918000Z
           createdBy: sasboot
           modifiedBy: sasboot
-          version": 1,
+          version: 1
           id: 04c2d36b-0f7a-4e1b-a546-a80ffbe35bf9
           annotationId: 2a902411-4f81-4819-9263-203cf0ff29ce
           resourceType: type
@@ -2699,7 +2788,7 @@ components:
             href: /annotations/annotations/y8bd5124-418f-4326-86cf-b6d98d57778
             uri: /annotations/annotations/y8bd5124-418f-4326-86cf-b6d98d57778
     batchCreateMembers:
-      summary: Map of anotation IDs to list of members
+      summary: Map of annotation IDs to list of members
       description: Response body for creating members.
       value:
         items:
