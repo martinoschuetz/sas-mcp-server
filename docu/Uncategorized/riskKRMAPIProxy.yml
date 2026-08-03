@@ -15,27 +15,44 @@ info:
     url: https://developer.sas.com
     email: devex@sas.com
 servers:
-- url: /riskKRMAPIProxy
+- url: https://example.com/riskKRMAPIProxy
   description: Base path for the proxy endpoint
 tags:
-- name: proxy
+- name: Proxy
   description: Operations for relaying requests to configured KRM destinations.
 paths:
   /:
     get:
       tags:
-      - proxy
-      operationId: getRoot
+      - Proxy
+      operationId: root
       summary: Root resource for the KRM proxy API
       description: Returns metadata for the proxy API root resource.
       responses:
         "200":
           description: Root resource metadata.
+          headers:
+            ETag:
+              description: Entity tag for conditional requests.
+              schema:
+                type: string
+            Last-Modified:
+              description: Last modification timestamp (HTTP-date, RFC 7231).
+              schema:
+                type: string
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: true
+              example:
+                description: SAS Risk KRM API Proxy root metadata
+            application/vnd.sas.api+json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                description: SAS Risk KRM API Proxy root metadata
         "400":
           $ref: "#/components/responses/400"
         "403":
@@ -43,94 +60,171 @@ paths:
   /{sasKrmApiPath}:
     get:
       tags:
-      - proxy
+      - Proxy
       operationId: getProxyResource
       summary: Relay content from specified destination path
       description: Relay content from a specified destination URL.
       parameters:
       - $ref: "#/components/parameters/restPath"
+      - $ref: "#/components/parameters/ifNoneMatch"
+      - $ref: "#/components/parameters/ifModifiedSince"
       responses:
         "200":
           description: Successful relay response.
+          headers:
+            ETag:
+              description: Entity tag for conditional requests.
+              schema:
+                type: string
+            Last-Modified:
+              description: Last modification timestamp (HTTP-date, RFC 7231).
+              schema:
+                type: string
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: true
-        default:
-          $ref: "#/components/responses/defaultResponse"
+              example:
+                relay: successful
+            application/vnd.sas.api+json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                relay: successful
         "400":
           $ref: "#/components/responses/400"
         "403":
           $ref: "#/components/responses/403"
     head:
       tags:
-      - proxy
-      operationId: headProxyResource
+      - Proxy
+      operationId: headersForProxyResource
       summary: Relay content from specified destination path
       description: Relay content from a specified destination path.
       parameters:
       - $ref: "#/components/parameters/restPath"
+      - $ref: "#/components/parameters/ifNoneMatch"
+      - $ref: "#/components/parameters/ifModifiedSince"
       responses:
         "200":
           description: Successful relay headers.
-        default:
-          $ref: "#/components/responses/defaultResponse"
+          headers:
+            ETag:
+              description: Entity tag for conditional requests.
+              schema:
+                type: string
+            Last-Modified:
+              description: Last modification timestamp (HTTP-date, RFC 7231).
+              schema:
+                type: string
         "400":
           $ref: "#/components/responses/400"
         "403":
           $ref: "#/components/responses/403"
     post:
       tags:
-      - proxy
+      - Proxy
       operationId: createProxyResource
       summary: Relay content from specified destination path
       description: Relay content from a specified destination path.
       parameters:
       - $ref: "#/components/parameters/restPath"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              relay: create
+          application/vnd.sas.api+json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              relay: create
       responses:
         "201":
           description: Destination resource was created.
+          headers:
+            ETag:
+              description: Entity tag for conditional requests.
+              schema:
+                type: string
+            Last-Modified:
+              description: Last modification timestamp (HTTP-date, RFC 7231).
+              schema:
+                type: string
+            Location:
+              description: URI of the created resource.
+              schema:
+                type: string
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: true
-        default:
-          $ref: "#/components/responses/defaultResponse"
+              example:
+                relay: created
+            application/vnd.sas.api+json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                relay: created
         "400":
           $ref: "#/components/responses/400"
         "403":
           $ref: "#/components/responses/403"
     put:
       tags:
-      - proxy
+      - Proxy
       operationId: updateRoot
       summary: Relay content from specified destination path
       description: Relay content from a specified destination path.
       parameters:
       - $ref: "#/components/parameters/restPath"
+      - $ref: "#/components/parameters/ifMatch"
+      - $ref: "#/components/parameters/ifUnmodifiedSince"
       responses:
         "200":
           description: Destination resource was replaced.
+          headers:
+            ETag:
+              description: Entity tag for conditional requests.
+              schema:
+                type: string
+            Last-Modified:
+              description: Last modification timestamp (HTTP-date, RFC 7231).
+              schema:
+                type: string
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: true
+              example:
+                relay: replaced
+            application/vnd.sas.api+json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                relay: replaced
         "412":
           $ref: "#/components/responses/412"
         "428":
           $ref: "#/components/responses/428"
-        default:
-          $ref: "#/components/responses/defaultResponse"
         "400":
           $ref: "#/components/responses/400"
         "403":
           $ref: "#/components/responses/403"
     patch:
       tags:
-      - proxy
+      - Proxy
       operationId: patchRoot
       summary: Relay content from specified destination path
       description: Relay content from a specified destination path.
@@ -144,17 +238,23 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+              example:
+                relay: updated
+            application/vnd.sas.api+json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                relay: updated
         "412":
           $ref: "#/components/responses/412"
-        default:
-          $ref: "#/components/responses/defaultResponse"
         "400":
           $ref: "#/components/responses/400"
         "403":
           $ref: "#/components/responses/403"
     delete:
       tags:
-      - proxy
+      - Proxy
       operationId: deleteRoot
       summary: Relay content from specified destination path
       description: Relay content from a specified destination path.
@@ -163,8 +263,6 @@ paths:
       responses:
         "204":
           description: Destination resource was deleted.
-        default:
-          $ref: "#/components/responses/defaultResponse"
         "400":
           $ref: "#/components/responses/400"
         "403":
@@ -178,6 +276,38 @@ components:
       required: true
       schema:
         type: string
+    ifNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: Return representation only if ETag does not match.
+      schema:
+        type: string
+    ifModifiedSince:
+      name: If-Modified-Since
+      in: header
+      required: false
+      description: Return representation only if modified since this HTTP-date (RFC
+        7231).
+      schema:
+        type: string
+      example: Sun, 06 Nov 1994 08:49:37 GMT
+    ifMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: Apply update only if ETag matches.
+      schema:
+        type: string
+    ifUnmodifiedSince:
+      name: If-Unmodified-Since
+      in: header
+      required: false
+      description: Apply update only if resource has not changed since this HTTP-date
+        (RFC 7231).
+      schema:
+        type: string
+      example: Sun, 06 Nov 1994 08:49:37 GMT
   schemas:
     error:
       $ref: "#/components/schemas/error2"
@@ -265,14 +395,19 @@ components:
           description: The media type or link type of the items in the response body
             for a `PUT`, `POST`, or `PATCH` operation.
   responses:
-    defaultResponse:
-      description: The response code, headers, and content returned by the specified
-        destination path.
     "400":
       description: One or more arguments is invalid.
       headers:
         Content-Type:
           description: application/vnd.sas.error+json
+          schema:
+            type: string
+        ETag:
+          description: Current entity tag.
+          schema:
+            type: string
+        Last-Modified:
+          description: Last modification timestamp (HTTP-date, RFC 7231).
           schema:
             type: string
       content:
@@ -289,6 +424,14 @@ components:
       headers:
         Content-Type:
           description: application/vnd.sas.error+json
+          schema:
+            type: string
+        ETag:
+          description: Current entity tag.
+          schema:
+            type: string
+        Last-Modified:
+          description: Last modification timestamp (HTTP-date, RFC 7231).
           schema:
             type: string
       content:
@@ -311,10 +454,24 @@ components:
           description: application/vnd.sas.error+json
           schema:
             type: string
+        ETag:
+          description: Current entity tag.
+          schema:
+            type: string
+        Last-Modified:
+          description: Last modification timestamp (HTTP-date, RFC 7231).
+          schema:
+            type: string
       content:
         application/vnd.sas.error+json:
           schema:
             $ref: "#/components/schemas/error"
+          example:
+            version: 2
+            httpStatusCode: 412
+            message: Precondition Failed
+            details:
+            - ETag or modification precondition did not match.
     "428":
       description: A required precondition header was missing.
       headers:
@@ -322,7 +479,23 @@ components:
           description: application/vnd.sas.error+json
           schema:
             type: string
+        ETag:
+          description: Current entity tag.
+          schema:
+            type: string
+        Last-Modified:
+          description: Last modification timestamp (HTTP-date, RFC 7231).
+          schema:
+            type: string
       content:
         application/vnd.sas.error+json:
           schema:
             $ref: "#/components/schemas/error"
+          example:
+            version: 2
+            httpStatusCode: 428
+            message: Precondition Required
+            details:
+            - Required conditional header was not provided.
+
+

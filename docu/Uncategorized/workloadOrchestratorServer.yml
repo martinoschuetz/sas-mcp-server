@@ -784,6 +784,28 @@ components:
           readOnly: true
           minimum: 1
           maximum: 1
+    jobInfo:
+      title: Job Information
+      description: Provides information about a job including its request and processing
+        information.
+      type: object
+      properties:
+        id:
+          description: The ID of the job.
+          type: integer
+          readOnly: true
+        request:
+          $ref: "#/components/schemas/jobRequestInfo"
+        processingInfo:
+          $ref: "#/components/schemas/jobProcessingInfo"
+        version:
+          description: Specifies the version number of this representation schema.
+            This is version 1.
+          type: integer
+          format: int32
+          readOnly: true
+          minimum: 1
+          maximum: 1
     loggersLevelInfo:
       title: Host Logger Information
       description: Information about the loggers and their assigned levels for a specific
@@ -794,6 +816,98 @@ components:
           description: The name of the host on which the loggers are located.
           type: string
           example: "myhost"
+        loggers:
+          description: An array of logger-level objects.
+          type: array
+          items:
+            $ref: "#/components/schemas/loggerLevelInfo"
+        version:
+          description: Specifies the version number of this representation schema.
+            This is version 1.
+          type: integer
+          format: int32
+          readOnly: true
+          minimum: 1
+          maximum: 1
+    logsCollection:
+      title: Log Line Object Collection
+      description: Provides an array of log lines (in the SAS collection format) that
+        meet the requested filters.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            description: An array of log line objects.
+            type: array
+            items:
+              $ref: "#/components/schemas/logLine"
+    logsInfo:
+      title: Log Line Object Array
+      description: Provides an array of log lines (in the original SAS Workload Orchestrator
+        format) that meet the requested filters.
+      type: object
+      properties:
+        jobs:
+          description: An array of log line objects.
+          type: array
+          items:
+            $ref: "#/components/schemas/logLine"
+        version:
+          description: Specifies the version number of this representation schema.
+            This is version 1.
+          type: integer
+          format: int32
+          readOnly: true
+          minimum: 1
+          maximum: 1
+    tenantConfig:
+      title: Tenant Configuration
+      description: Provides the configuration of users in the grid configuration for
+        a specific tenant.
+      type: object
+      properties:
+        tenant:
+          description: The name of the tenant.
+          type: string
+          example: "acme"
+        admins:
+          description: An array of tenant administrator user names or group names.
+          type: array
+          items:
+            type: string
+          example: ["tenantAdmin1", "tenantAdmin2"]
+        queues:
+          description: The queues configured for the tenant.
+          type: array
+          items:
+            $ref: "#/components/schemas/tenantQueueConfig"
+        userGroups:
+          description: The user groups configured for the tenant.
+          type: array
+          items:
+            $ref: "#/components/schemas/userGroupConfig"
+        version:
+          description: Specifies the version number of this representation schema.
+            This is version 1.
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1
+    loggersLevelRequest:
+      title: Hosts' Loggers' Level Set Request
+      description: Loggers and their requested levels to set on specific hosts.
+      type: object
+      properties:
+        host:
+          description: An array of host names to set the requested logger level.
+          type: array
+          items:
+            type: string
+          example: ["myhost1", "myhost2"]
         loggers:
           description: An array of logger-level objects.
           type: array
@@ -1044,101 +1158,27 @@ components:
           readOnly: true
           minimum: 1
           maximum: 3
-    loggersLevelRequest:
-      title: Hosts' Loggers' Level Set Request
-      description: Loggers and their requested levels to set on specific hosts.
-      type: object
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
       properties:
-        host:
-          description: An array of host names to set the requested logger level.
-          type: array
-          items:
-            type: string
-          example: ["myhost1", "myhost2"]
-        loggers:
-          description: An array of logger-level objects.
-          type: array
-          items:
-            $ref: "#/components/schemas/loggerLevelInfo"
         version:
-          description: Specifies the version number of this representation schema.
-            This is version 1.
           type: integer
-          format: int32
-          readOnly: true
+          description: The version number of the API representation. This is version
+            1.
           minimum: 1
-          maximum: 1
-    tenantConfig:
-      title: Tenant Configuration
-      description: Provides the configuration of users in the grid configuration for
-        a specific tenant.
-      type: object
-      properties:
-        tenant:
-          description: The name of the tenant.
-          type: string
-          example: "acme"
-        admins:
-          description: An array of tenant administrator user names or group names.
+        links:
+          description: The API's top-level links.
           type: array
           items:
-            type: string
-          example: ["tenantAdmin1", "tenantAdmin2"]
-        queues:
-          description: The queues configured for the tenant.
-          type: array
-          items:
-            $ref: "#/components/schemas/tenantQueueConfig"
-        userGroups:
-          description: The user groups configured for the tenant.
-          type: array
-          items:
-            $ref: "#/components/schemas/userGroupConfig"
-        version:
-          description: Specifies the version number of this representation schema.
-            This is version 1.
-          type: integer
-          format: int32
-          minimum: 1
-          maximum: 1
-    logsCollection:
-      title: Log Line Object Collection
-      description: Provides an array of log lines (in the SAS collection format) that
-        meet the requested filters.
-      type: object
-      allOf:
-      - $ref: "#/components/schemas/baseCollection2"
-      - type: object
-        required:
-        - items
-        properties:
-          items:
-            description: An array of log line objects.
-            type: array
-            items:
-              $ref: "#/components/schemas/logLine"
-    jobInfo:
-      title: Job Information
-      description: Provides information about a job including its request and processing
-        information.
-      type: object
-      properties:
-        id:
-          description: The ID of the job.
-          type: integer
-          readOnly: true
-        request:
-          $ref: "#/components/schemas/jobRequestInfo"
-        processingInfo:
-          $ref: "#/components/schemas/jobProcessingInfo"
-        version:
-          description: Specifies the version number of this representation schema.
-            This is version 1.
-          type: integer
-          format: int32
-          readOnly: true
-          minimum: 1
-          maximum: 1
+            $ref: "#/components/schemas/link"
     error2:
       title: Error
       type: object
@@ -1185,471 +1225,22 @@ components:
           type: integer
           description: The version number of the error representation. This representation
             is version 2.
-    api:
-      title: API
-      description: The list of links to top-level resources and operations available
-        from the root of the API.
-      x-sas-media-type:
-        name: application/vnd.sas.api
-        version: 1
-      required:
-      - version
-      - links
-      properties:
-        version:
-          type: integer
-          description: The version number of the API representation. This is version
-            1.
-          minimum: 1
-        links:
-          description: The API's top-level links.
-          type: array
-          items:
-            $ref: "#/components/schemas/link"
-    logsInfo:
-      title: Log Line Object Array
-      description: Provides an array of log lines (in the original SAS Workload Orchestrator
-        format) that meet the requested filters.
+    tenantAdmin:
+      title: Tenant Administrator
+      description: Provides the list of tenant user names or groups that can be a
+        tenant for a specific group.
       type: object
       properties:
-        jobs:
-          description: An array of log line objects.
-          type: array
-          items:
-            $ref: "#/components/schemas/logLine"
-        version:
-          description: Specifies the version number of this representation schema.
-            This is version 1.
-          type: integer
-          format: int32
-          readOnly: true
-          minimum: 1
-          maximum: 1
-    hostGroupConfig:
-      title: Host Group Configuration
-      description: Provides configuration information about a host group.
-      type: object
-      properties:
-        name:
-          description: The name of host group.
-          type: string
-          example: FastHosts
-        members:
-          description: An array of host names and host groups that are members of
-            this host group.
-          type: array
-          items:
-            type: string
-          example: ["host1", "slowHosts"]
-    link:
-      title: Link
-      type: object
-      description: A link to a related operation or resource.
-      required:
-      - rel
-      properties:
-        method:
-          type: string
-          description: The HTTP method for the link.
-        rel:
-          type: string
-          description: The relationship of the link to the resource.
-        uri:
-          type: string
-          description: The relative URI for the link.
-        href:
-          type: string
-          description: The URL for the link.
-        title:
-          type: string
-          description: The title for the link.
-        type:
-          type: string
-          description: The media type or link type for the link.
-        itemType:
-          type: string
-          description: If this is a link to a container, `itemType` is the media type
-            or link type for the items in the container.
-        responseType:
-          type: string
-          description: The media type or link type of the response body for a `PUT`,
-            `POST`, or `PATCH` operation.
-        responseItemType:
-          type: string
-          description: The media type or link type of the items in the response body
-            for a `PUT`, `POST`, or `PATCH` operation.
-    userGroupConfig:
-      title: User Group Configuration
-      description: Provides configuration information about a user group.
-      type: object
-      properties:
-        name:
-          description: The name of a user group. On the SAS Viya platform it is assumed
-            that the user group is defined in the Identities service.
-          type: string
-          example: NormalQueueAdmin
         tenant:
-          description: >-
-            The name of the tenant in which this user group is a part. If this value
-            is missing, it is assumed that the user group is part
-            of the default-provider tenant.
+          description: The name of tenant.
           type: string
           example: "acme"
-        members:
-          description: >-
-            The list of users or groups that are part of this user group.
-            On the SAS Viya platform user-group membership is handled by the Identities
-            service and this field is ignored.
-          type: array
-          items:
-            type: string
-          example: ["userGroupMember1", "userGroupUser2"]
         admins:
-          description: A list of users or groups that are administrators of this user
-            group.
+          description: An array of tenant administrator user names or group names.
           type: array
           items:
             type: string
-          example: ["userGroup1Admin", "userGroupsAdmins"]
-    logLine:
-      title: Log Line Object
-      description: Contains information about a single log line.
-      type: object
-      properties:
-        logger:
-          description: The logger that generated the line.
-          type: string
-          example: "App.Grid.SGMG.Log.HTTP"
-        level:
-          description: |-
-            The logging level to which the log line was set. The following levels are available:
-            | **Level Name** | **Description** |
-            |----------------|-----------------|
-            | FATAL | Only log FATAL messages. |
-            | ERROR | Only log FATAL and ERROR messages. |
-            | WARN  | Only log FATAL, ERROR, and WARN messages. |
-            | INFO  | Only log FATAL, ERROR, WARN, and INFO messages. |
-            | DEBUG | Only log FATAL, ERROR, WARN, INFO, and DEBUG messages. |
-            | TRACE | Only log FATAL, ERROR, WARN, INFO, DEBUG, and TRACE messages. |
-          type: string
-          enum:
-          - FATAL
-          - ERROR
-          - WARN
-          - INFO
-          - DEBUG
-          - TRACE
-        msg:
-          description: The message text that was output.
-          type: string
-          example: "[00000005] sas - SAS Workload Orchestrator Daemon - Version 4.0\
-            \ (2022-08-01T22:12:01Z)"
-        dateTime:
-          description: The GMT date and time that the message was output by the logger.
-          type: string
-          format: datetime
-          example: "2022-08-08T02:14:28Z"
-    baseCollection2:
-      title: Base Collection
-      description: This is a base schema used to define paginated collections of resources.
-        This base schema is extended by other schemas in APIs by adding an 'items'
-        array property. These extensions define the application/vnd.sas.collection
-        media type (version 2)
-      properties:
-        name:
-          type: string
-          description: The name of the collection.
-        start:
-          type: integer
-          description: The zero-based index of the first item in the collection.
-          format: int64
-        limit:
-          type: integer
-          description: The number of items that were requested for the collection.
-        count:
-          type: integer
-          description: If populated indicates the number of items in the collection.
-          format: int64
-        accept:
-          type: string
-          description: A space-delimited list of media types from which an `Accept`
-            header may be constructed.
-        links:
-          type: array
-          description: The links that apply to the collection.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the collection representation. This representation
-            is version 2.
-    userDefinedResource:
-      title: User Defined Resource
-      description: Provides information about a user-defined resource.
-      type: object
-      properties:
-        name:
-          description: The name of the user-defined resource.
-          type: string
-          example: "SASWORK Size"
-        type:
-          description: |-
-            The type of user-defined resource. The following types are available:
-            | **Type Name**          | **Description** |
-            |------------------------|-----------------|
-            | globalStatic           | (DEPRECATED) A value that is static in the cluster. The value can be compared against a global value by jobs as they are submitted. The resource value is initialized on startup and when the configuration changes. |
-            | globalStaticConsumable | A value that is static in the cluster. The value can be consumed by jobs as they are submitted. The resource value is initialized on startup and when the configuration changes. |
-            | hostStatic             | A value that is static to a host. When jobs are submitted, they compare this value against a host's value. The resource value is initialized on startup and when the manager makes changes. |
-            | hostStaticConsumable   | A value that is static to a host. The value can be consumed by jobs as they are submitted. The resource value is initialized on startup and when the manager makes changes. |
-            | hostDynamic            | A value that is dynamic to a host. The value can be used in the compare order for scheduling jobs, schedule thresholds, and suspension thresholds. The value is updated periodically by the status manager when it updates the predefined-dynamic values. |
-          type: string
-          enum:
-          - globalStatic
-          - globalStaticConsumable
-          - hostStatic
-          - hostStaticConsumable
-          - hostDynamic
-        greaterIsBetter:
-          description: >-
-            A flag that indicates a larger value is better than a smaller value in
-            comparisons.
-            When this resource is used in the compare order, the flag tells us how
-            to use the value in an evaluation.
-          type: boolean
-        scriptFilePath:
-          description: >-
-            The path to the script file that is called to produce the resource's value.
-            The script is passed the name of the resource as a parameter. The script
-            outputs
-            a double value to STDOUT that represents the current value of the resource.
-            The path to the script file must be a mounted path in the sas-workload-orchestrator
-            statefulset and daemonset.
-          type: string
-        value:
-          description: If this is a static resource and scriptFilePath is not specified,
-            a hard-coded value can be used.
-          type: number
-          example: 34.73
-    queueConfig:
-      title: Queue Configuration
-      type: object
-      description: Provides the queue configuration that is used to implement workload-management
-        policy.
-      allOf:
-      - $ref: "#/components/schemas/queueTimeBasedParameters"
-      - type: object
-        properties:
-          name:
-            description: The name of the queue.
-            type: string
-            maxLength: 250
-            example: Priority
-          description:
-            description: The description of the queue.
-            type: string
-            maxLength: 1000
-            example: "Queue for high priority jobs"
-          tenant:
-            description: The tenant associated with this queue. If this is not provided,
-              it is assumed that the queue is for the default provider.
-            type: string
-            maxLength: 250
-            example: "acme"
-          timeBasedOverrides:
-            description: An array of time-based parameter overrides along with the
-              time the overrides take affect.
-            type: array
-            items:
-              $ref: "#/components/schemas/queueTimeBasedOverride"
-          version:
-            description: Specifies the version number of this representation schema.
-              This is version 1.
-            type: integer
-            format: int32
-            readOnly: true
-            minimum: 1
-            maximum: 2
-    jobRequestInfo:
-      title: Job Request Information
-      description: Provides information about a job request.
-      type: object
-      properties:
-        name:
-          description: The name of the job.
-          type: string
-          maxLength: 100
-          example: "End of month processing"
-        queue:
-          description: The name of the queue to which the job is submitted.
-          type: string
-          maxLength: 250
-          example: "priority"
-        project:
-          description: The project to associate with the job.
-          type: string
-          maxLength: 100
-          example: "Accounting"
-        user:
-          description: The user that submitted the job.
-          type: string
-          maxLength: 100
-          example: "user132"
-        tenant:
-          description: The tenant of the user.
-          type: string
-          maxLength: 100
-          example: "acme"
-        startAfter:
-          description: The date-time to wait before releasing the job to scheduling.
-          type: string
-          format: date-time
-          example: "2022-07-28T12:03:14Z"
-        restartable:
-          description: A flag that indicates the job is restartable.
-          type: boolean
-        exchangeCreds:
-          description: A flag that indicates the Kerberos credentials must be exchanged.
-            Only used on Windows. This is not used on the SAS Viya platform.
-          type: boolean
-          deprecated: true
-        type:
-          description: |-
-            The job type.
-            * COMMAND jobs use the cmd, args, and envVars fields. COMMAND jobs are launched by TKELS on an execution host. If the field is not provided, COMMAND is assumed.
-            * KUBERNETESJOB uses the k8sJobDef, k8sNamespace, and k8sSecrets fields. KUBERNETESJOBs are launched as pods in Kubernetes.
-          type: string
-          maxLength: 40
-          enum:
-          - COMMAND
-          - KUBERNETESJOB
-          example: "COMMAND"
-        cmd:
-          description: The command to execute the job for a COMMAND job type.
-          type: string
-          example: "/bin/bash"
-        args:
-          description: The name of the job.
-          type: array
-          items:
-            type: string
-          example: ["-c", "ls", "-al"]
-        envVars:
-          description: The environment variables to set for the process.
-          type: array
-          items:
-            $ref: "#/components/schemas/jobEnvVar"
-        k8sJobDef:
-          description: A Kubernetes PodSpec, PodTemplate, or Job definition in JSON
-            for the pod to be launched.
-          type: string
-        k8sNamespace:
-          description: >-
-            The namespace in which the job must start. The namespace must be set to
-            the current namespace.
-            SAS Workload Orchestrator does not support launching pods in a namespace
-            other than the current namespace.
-          type: string
-          example: "my-namespace"
-        k8sSecrets:
-          description: The list of environment variables in the k8sJobDef that must
-            be presented as secrets instead of environment variables.
-          type: array
-          items:
-            type: string
-          example: ["MY_SPECIAL_TOKEN"]
-        hosts:
-          description: |-
-            The list of host names on which this job is allowed to run. When a job is submitted, SAS Workload Orchestrator determines the hosts
-            on which a job can run by using the following criteria:
-            * If both the job and the queue specify hosts, only the hosts that are in both the job's host list and the queue's host list are used. If no hosts are in both lists, the job does not run.
-            * If the job request specifies hosts, but the queue does not, the job's host list is used.
-            * If the job request does not specify hosts, but the queue does, the queue's host list is used.
-            * If neither the job nor the queue specify hosts, all hosts are used.
-          type: array
-          items:
-            type: string
-          example: ["host1.mycompany.com", "host2.mycompany.com"]
-        requiredTags:
-          description: >-
-            The list of tags required to be on hosts for this job to run. The union
-            of the requiredTags and the queue's requiredTags
-            determine the final list of requiredTags.
-          type: array
-          items:
-            type: string
-          example: ["gpuEnabled", "fastIO"]
-        consumedResources:
-          description: >-
-            An array of consumable static-resources values that must be available
-            on a host before a job is scheduled to that host.
-            After the job is scheduled, the resource values are decremented from the
-            host's total.
-            The maximum value between the job request value and the queue value is
-            used to determine if the job can be scheduled.
-          type: array
-          items:
-            $ref: "#/components/schemas/jobStaticResourceRequirement"
-        requiredResources:
-          description: >-
-            An array of consumable static-resources values that must be available
-            on a host before a job is scheduled to that host.
-            The resource values are not decremented from the host's total.
-            The maximum value between the job request value and the queue value is
-            used to determine if the job can be scheduled.
-          type: array
-          items:
-            $ref: "#/components/schemas/jobStaticResourceRequirement"
-        limits:
-          description: >-
-            An array of consumable static-resources values that must be available
-            on a host before a job is scheduled to that host.
-            The resource values are not decremented from the host's total.
-            The minimum value between the job request value and the queue value is
-            used when the job is run.
-          type: array
-          items:
-            $ref: "#/components/schemas/jobResourceLimit"
-        properties:
-          description: The list of key/value pairs associated with the job.
-          type: array
-          items:
-            type: string
-          example: ["key1=value1", "key2=value2"]
-    loggerLevelInfo:
-      title: Logger Information
-      description: Information about a logger and its assigned level.
-      type: object
-      properties:
-        name:
-          description: The name of the logger.
-          type: string
-          example: App.Grid.SGMG.Log.HTTP
-        level:
-          description: |-
-            The logging level that is currently assigned to the logger. The following levels are available:
-            | **Level Name** | **Description** |
-            |----------------|-----------------|
-            | NONE  | Turn off all logging from this logger. |
-            | FATAL | Only log FATAL messages. |
-            | ERROR | Only log FATAL and ERROR messages. |
-            | WARN  | Only log FATAL, ERROR, and WARN messages. |
-            | INFO  | Only log FATAL, ERROR, WARN, and INFO messages. |
-            | DEBUG | Only log FATAL, ERROR, WARN, INFO, and DEBUG messages. |
-            | TRACE | Only log FATAL, ERROR, WARN, INFO, DEBUG, and TRACE messages. |
-            | ALL   | Log all messages. |
-            | NULL  | Log messages based on the parent-logger setting. |
-          type: string
-          enum:
-          - NONE
-          - FATAL
-          - ERROR
-          - WARN
-          - INFO
-          - DEBUG
-          - TRACE
-          - ALL
-          - "NULL"
-
+          example: ["tenantAdmin1", "tenantAdmin2"]
     jobProcessingInfo:
       title: Job Processing Information
       description: Provides information about a job's processing.
@@ -1901,22 +1492,190 @@ components:
           items:
             type: string
           example: ["This was output by the running process to STDOUT", "So was this"]
-    tenantAdmin:
-      title: Tenant Administrator
-      description: Provides the list of tenant user names or groups that can be a
-        tenant for a specific group.
+    queueConfig:
+      title: Queue Configuration
+      type: object
+      description: Provides the queue configuration that is used to implement workload-management
+        policy.
+      allOf:
+      - $ref: "#/components/schemas/queueTimeBasedParameters"
+      - type: object
+        properties:
+          name:
+            description: The name of the queue.
+            type: string
+            maxLength: 250
+            example: Priority
+          description:
+            description: The description of the queue.
+            type: string
+            maxLength: 1000
+            example: "Queue for high priority jobs"
+          tenant:
+            description: The tenant associated with this queue. If this is not provided,
+              it is assumed that the queue is for the default provider.
+            type: string
+            maxLength: 250
+            example: "acme"
+          timeBasedOverrides:
+            description: An array of time-based parameter overrides along with the
+              time the overrides take affect.
+            type: array
+            items:
+              $ref: "#/components/schemas/queueTimeBasedOverride"
+          version:
+            description: Specifies the version number of this representation schema.
+              This is version 1.
+            type: integer
+            format: int32
+            readOnly: true
+            minimum: 1
+            maximum: 2
+    tenantQueueConfig:
+      title: Tenant Queue Configuration
+      description: Provides the queue configuration that can be modified by a tenant
+        administrator.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/tenantQueueTimeBasedInfo"
+      - type: object
+        properties:
+          name:
+            description: The name of the queue.
+            type: string
+            maxLength: 250
+            example: Priority
+          description:
+            description: The description of the queue.
+            type: string
+            maxLength: 1000
+            example: "Queue for high priority jobs"
+          tenant:
+            description: The name of the tenant.
+            type: string
+            maxLength: 250
+            example: "acme"
+          timeBasedOverrides:
+            description: Time-based overrides for the queue administrators and users.
+            type: array
+            items:
+              $ref: "#/components/schemas/tenantQueueTimeBasedConfig"
+    loggerLevelInfo:
+      title: Logger Information
+      description: Information about a logger and its assigned level.
       type: object
       properties:
-        tenant:
-          description: The name of tenant.
+        name:
+          description: The name of the logger.
           type: string
-          example: "acme"
-        admins:
-          description: An array of tenant administrator user names or group names.
+          example: App.Grid.SGMG.Log.HTTP
+        level:
+          description: |-
+            The logging level that is currently assigned to the logger. The following levels are available:
+            | **Level Name** | **Description** |
+            |----------------|-----------------|
+            | NONE  | Turn off all logging from this logger. |
+            | FATAL | Only log FATAL messages. |
+            | ERROR | Only log FATAL and ERROR messages. |
+            | WARN  | Only log FATAL, ERROR, and WARN messages. |
+            | INFO  | Only log FATAL, ERROR, WARN, and INFO messages. |
+            | DEBUG | Only log FATAL, ERROR, WARN, INFO, and DEBUG messages. |
+            | TRACE | Only log FATAL, ERROR, WARN, INFO, DEBUG, and TRACE messages. |
+            | ALL   | Log all messages. |
+            | NULL  | Log messages based on the parent-logger setting. |
+          type: string
+          enum:
+          - NONE
+          - FATAL
+          - ERROR
+          - WARN
+          - INFO
+          - DEBUG
+          - TRACE
+          - ALL
+          - "NULL"
+
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
           type: array
+          description: The links that apply to the collection.
           items:
-            type: string
-          example: ["tenantAdmin1", "tenantAdmin2"]
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    userDefinedResource:
+      title: User Defined Resource
+      description: Provides information about a user-defined resource.
+      type: object
+      properties:
+        name:
+          description: The name of the user-defined resource.
+          type: string
+          example: "SASWORK Size"
+        type:
+          description: |-
+            The type of user-defined resource. The following types are available:
+            | **Type Name**          | **Description** |
+            |------------------------|-----------------|
+            | globalStatic           | (DEPRECATED) A value that is static in the cluster. The value can be compared against a global value by jobs as they are submitted. The resource value is initialized on startup and when the configuration changes. |
+            | globalStaticConsumable | A value that is static in the cluster. The value can be consumed by jobs as they are submitted. The resource value is initialized on startup and when the configuration changes. |
+            | hostStatic             | A value that is static to a host. When jobs are submitted, they compare this value against a host's value. The resource value is initialized on startup and when the manager makes changes. |
+            | hostStaticConsumable   | A value that is static to a host. The value can be consumed by jobs as they are submitted. The resource value is initialized on startup and when the manager makes changes. |
+            | hostDynamic            | A value that is dynamic to a host. The value can be used in the compare order for scheduling jobs, schedule thresholds, and suspension thresholds. The value is updated periodically by the status manager when it updates the predefined-dynamic values. |
+          type: string
+          enum:
+          - globalStatic
+          - globalStaticConsumable
+          - hostStatic
+          - hostStaticConsumable
+          - hostDynamic
+        greaterIsBetter:
+          description: >-
+            A flag that indicates a larger value is better than a smaller value in
+            comparisons.
+            When this resource is used in the compare order, the flag tells us how
+            to use the value in an evaluation.
+          type: boolean
+        scriptFilePath:
+          description: >-
+            The path to the script file that is called to produce the resource's value.
+            The script is passed the name of the resource as a parameter. The script
+            outputs
+            a double value to STDOUT that represents the current value of the resource.
+            The path to the script file must be a mounted path in the sas-workload-orchestrator
+            statefulset and daemonset.
+          type: string
+        value:
+          description: If this is a static resource and scriptFilePath is not specified,
+            a hard-coded value can be used.
+          type: number
+          example: 34.73
     hostType:
       title: Host Type Configuration
       description: >-
@@ -2019,35 +1778,390 @@ components:
             readOnly: true
             minimum: 1
             maximum: 2
-    tenantQueueConfig:
-      title: Tenant Queue Configuration
-      description: Provides the queue configuration that can be modified by a tenant
-        administrator.
+    jobRequestInfo:
+      title: Job Request Information
+      description: Provides information about a job request.
       type: object
-      allOf:
-      - $ref: "#/components/schemas/tenantQueueTimeBasedInfo"
-      - type: object
+      properties:
+        name:
+          description: The name of the job.
+          type: string
+          maxLength: 100
+          example: "End of month processing"
+        queue:
+          description: The name of the queue to which the job is submitted.
+          type: string
+          maxLength: 250
+          example: "priority"
+        project:
+          description: The project to associate with the job.
+          type: string
+          maxLength: 100
+          example: "Accounting"
+        user:
+          description: The user that submitted the job.
+          type: string
+          maxLength: 100
+          example: "user132"
+        tenant:
+          description: The tenant of the user.
+          type: string
+          maxLength: 100
+          example: "acme"
+        startAfter:
+          description: The date-time to wait before releasing the job to scheduling.
+          type: string
+          format: date-time
+          example: "2022-07-28T12:03:14Z"
+        restartable:
+          description: A flag that indicates the job is restartable.
+          type: boolean
+        exchangeCreds:
+          description: A flag that indicates the Kerberos credentials must be exchanged.
+            Only used on Windows. This is not used on the SAS Viya platform.
+          type: boolean
+          deprecated: true
+        type:
+          description: |-
+            The job type.
+            * COMMAND jobs use the cmd, args, and envVars fields. COMMAND jobs are launched by TKELS on an execution host. If the field is not provided, COMMAND is assumed.
+            * KUBERNETESJOB uses the k8sJobDef, k8sNamespace, and k8sSecrets fields. KUBERNETESJOBs are launched as pods in Kubernetes.
+          type: string
+          maxLength: 40
+          enum:
+          - COMMAND
+          - KUBERNETESJOB
+          example: "COMMAND"
+        cmd:
+          description: The command to execute the job for a COMMAND job type.
+          type: string
+          example: "/bin/bash"
+        args:
+          description: The name of the job.
+          type: array
+          items:
+            type: string
+          example: ["-c", "ls", "-al"]
+        envVars:
+          description: The environment variables to set for the process.
+          type: array
+          items:
+            $ref: "#/components/schemas/jobEnvVar"
+        k8sJobDef:
+          description: A Kubernetes PodSpec, PodTemplate, or Job definition in JSON
+            for the pod to be launched.
+          type: string
+        k8sNamespace:
+          description: >-
+            The namespace in which the job must start. The namespace must be set to
+            the current namespace.
+            SAS Workload Orchestrator does not support launching pods in a namespace
+            other than the current namespace.
+          type: string
+          example: "my-namespace"
+        k8sSecrets:
+          description: The list of environment variables in the k8sJobDef that must
+            be presented as secrets instead of environment variables.
+          type: array
+          items:
+            type: string
+          example: ["MY_SPECIAL_TOKEN"]
+        hosts:
+          description: |-
+            The list of host names on which this job is allowed to run. When a job is submitted, SAS Workload Orchestrator determines the hosts
+            on which a job can run by using the following criteria:
+            * If both the job and the queue specify hosts, only the hosts that are in both the job's host list and the queue's host list are used. If no hosts are in both lists, the job does not run.
+            * If the job request specifies hosts, but the queue does not, the job's host list is used.
+            * If the job request does not specify hosts, but the queue does, the queue's host list is used.
+            * If neither the job nor the queue specify hosts, all hosts are used.
+          type: array
+          items:
+            type: string
+          example: ["host1.mycompany.com", "host2.mycompany.com"]
+        requiredTags:
+          description: >-
+            The list of tags required to be on hosts for this job to run. The union
+            of the requiredTags and the queue's requiredTags
+            determine the final list of requiredTags.
+          type: array
+          items:
+            type: string
+          example: ["gpuEnabled", "fastIO"]
+        consumedResources:
+          description: >-
+            An array of consumable static-resources values that must be available
+            on a host before a job is scheduled to that host.
+            After the job is scheduled, the resource values are decremented from the
+            host's total.
+            The maximum value between the job request value and the queue value is
+            used to determine if the job can be scheduled.
+          type: array
+          items:
+            $ref: "#/components/schemas/jobStaticResourceRequirement"
+        requiredResources:
+          description: >-
+            An array of consumable static-resources values that must be available
+            on a host before a job is scheduled to that host.
+            The resource values are not decremented from the host's total.
+            The maximum value between the job request value and the queue value is
+            used to determine if the job can be scheduled.
+          type: array
+          items:
+            $ref: "#/components/schemas/jobStaticResourceRequirement"
+        limits:
+          description: >-
+            An array of consumable static-resources values that must be available
+            on a host before a job is scheduled to that host.
+            The resource values are not decremented from the host's total.
+            The minimum value between the job request value and the queue value is
+            used when the job is run.
+          type: array
+          items:
+            $ref: "#/components/schemas/jobResourceLimit"
         properties:
-          name:
-            description: The name of the queue.
+          description: The list of key/value pairs associated with the job.
+          type: array
+          items:
             type: string
-            maxLength: 250
-            example: Priority
-          description:
-            description: The description of the queue.
+          example: ["key1=value1", "key2=value2"]
+    userGroupConfig:
+      title: User Group Configuration
+      description: Provides configuration information about a user group.
+      type: object
+      properties:
+        name:
+          description: The name of a user group. On the SAS Viya platform it is assumed
+            that the user group is defined in the Identities service.
+          type: string
+          example: NormalQueueAdmin
+        tenant:
+          description: >-
+            The name of the tenant in which this user group is a part. If this value
+            is missing, it is assumed that the user group is part
+            of the default-provider tenant.
+          type: string
+          example: "acme"
+        members:
+          description: >-
+            The list of users or groups that are part of this user group.
+            On the SAS Viya platform user-group membership is handled by the Identities
+            service and this field is ignored.
+          type: array
+          items:
             type: string
-            maxLength: 1000
-            example: "Queue for high priority jobs"
-          tenant:
-            description: The name of the tenant.
+          example: ["userGroupMember1", "userGroupUser2"]
+        admins:
+          description: A list of users or groups that are administrators of this user
+            group.
+          type: array
+          items:
             type: string
-            maxLength: 250
-            example: "acme"
-          timeBasedOverrides:
-            description: Time-based overrides for the queue administrators and users.
-            type: array
-            items:
-              $ref: "#/components/schemas/tenantQueueTimeBasedConfig"
+          example: ["userGroup1Admin", "userGroupsAdmins"]
+    logLine:
+      title: Log Line Object
+      description: Contains information about a single log line.
+      type: object
+      properties:
+        logger:
+          description: The logger that generated the line.
+          type: string
+          example: "App.Grid.SGMG.Log.HTTP"
+        level:
+          description: |-
+            The logging level to which the log line was set. The following levels are available:
+            | **Level Name** | **Description** |
+            |----------------|-----------------|
+            | FATAL | Only log FATAL messages. |
+            | ERROR | Only log FATAL and ERROR messages. |
+            | WARN  | Only log FATAL, ERROR, and WARN messages. |
+            | INFO  | Only log FATAL, ERROR, WARN, and INFO messages. |
+            | DEBUG | Only log FATAL, ERROR, WARN, INFO, and DEBUG messages. |
+            | TRACE | Only log FATAL, ERROR, WARN, INFO, DEBUG, and TRACE messages. |
+          type: string
+          enum:
+          - FATAL
+          - ERROR
+          - WARN
+          - INFO
+          - DEBUG
+          - TRACE
+        msg:
+          description: The message text that was output.
+          type: string
+          example: "[00000005] sas - SAS Workload Orchestrator Daemon - Version 4.0\
+            \ (2022-08-01T22:12:01Z)"
+        dateTime:
+          description: The GMT date and time that the message was output by the logger.
+          type: string
+          format: datetime
+          example: "2022-08-08T02:14:28Z"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    hostGroupConfig:
+      title: Host Group Configuration
+      description: Provides configuration information about a host group.
+      type: object
+      properties:
+        name:
+          description: The name of host group.
+          type: string
+          example: FastHosts
+        members:
+          description: An array of host names and host groups that are members of
+            this host group.
+          type: array
+          items:
+            type: string
+          example: ["host1", "slowHosts"]
+    jobStaticResourceRequirement:
+      title: Static Resource Requirement
+      description: Provides information for specifying a host static resource required
+        for a job.
+      type: object
+      properties:
+        name:
+          description: >-
+            The name of the resource to check. The name can be a predefined static-resource
+            name or
+            the name of a user-defined globalStatic, globalStaticConsumable, hostStatic,
+            or hostStaticConsumable resource.
+            Predefined resource names include cpuRating, cores, memory, swap, and
+            temp.
+            NOTE: The globalStaticConsumable and hostStaticConsumable resources can
+            be used in either the consumedResources or
+            requiredResources arrays on queues and in job requests. The globalStatic
+            and hostStatic resources can be used
+            in only the requiredResources arrays on queues and in job requests.
+          type: string
+        value:
+          description: The amount of resource to require, consume, or both.
+          type: number
+          format: double
+    jobHostSchedulingInfo:
+      title: Job Host Scheduling Information
+      description: Provides information about a host's ability to be selected during
+        the scheduling process for a specific job.
+      type: object
+      properties:
+        name:
+          description: The name of the host.
+          type: string
+        state:
+          description: |-
+            The resulting host scheduling state for a job during the last scheduling run. The following states are available:
+            | **State Name**                      | **Description** |
+            |-------------------------------------|-----------------|
+            | HOST-STATE-AVAILABLE                | The host can run the job. |
+            | HOST-STATE-FULL                     | The host has reached the maximum number of jobs it is allowed. |
+            | HOST-STATE-NOT-AVAILABLE-CLOSED     | The host is closed. |
+            | HOST-STATE-NOT-AVAILABLE-OVERLOADED | The host is overloaded according to a scheduling threshold. |
+            | HOST-STATE-NOT-AVAILABLE-NO-SLOTS   | The host does not allow jobs to be run on it. |
+            | HOST-STATE-NOT-AVAILABLE-INACTIVE   | The host is in the INACTIVE state. |
+            | HOST-STATE-NOT-AVAILABLE-UNKNOWN    | The host has changed to the UNKNOWN state. |
+            | HOST-STATE-NOT-IN-QUEUE             | The host is not part of the list of hosts for the queue. |
+            | HOST-STATE-NOT-ENOUGH-CON-RES       | The host does not have enough of a consumable resource. |
+            | HOST-STATE-NOT-ENOUGH-REQ-RES       | The host does not have the required resources. |
+            | HOST-STATE-NOT-IN-FINAL-HOST-LIST   | The host is not in the list of hosts required by the job and queue. |
+            | HOST-STATE-MISSING-REQUIRED-TAGS    | The host does not have all of the tags required by the job and queue. |
+            | HOST-STATE-JOB-QUEUE-FULL-HOST      | The job's queue has exceeded the number of jobs it can send to this host. |
+          type: string
+          maxLength: 40
+          enum:
+          - HOST-STATE-AVAILABLE
+          - HOST-STATE-FULL
+          - HOST-STATE-NOT-AVAILABLE-CLOSED
+          - HOST-STATE-NOT-AVAILABLE-OVERLOADED
+          - HOST-STATE-NOT-AVAILABLE-NO-SLOTS
+          - HOST-STATE-NOT-AVAILABLE-INACTIVE
+          - HOST-STATE-NOT-AVAILABLE-UNKNOWN
+          - HOST-STATE-NOT-IN-QUEUE
+          - HOST-STATE-NOT-ENOUGH-CON-RES
+          - HOST-STATE-NOT-ENOUGH-REQ-RES
+          - HOST-STATE-NOT-IN-FINAL-HOST-LIST
+          - HOST-STATE-MISSING-REQUIRED-TAGS
+          - HOST-STATE-JOB-QUEUE-FULL-HOST
+
+    tenantQueueTimeBasedInfo:
+      title: Tenant Queue Time-Based Configuration
+      description: Provides time-based queue configuration information that can be
+        modified by a tenant administrator.
+      type: object
+      properties:
+        admins:
+          description: Tenant users and tenant groups that are the queue's administrators.
+          type: array
+          items:
+            type: string
+          example: ["tenantAdmin1", "tenantAdminGroup"]
+        users:
+          description: Tenant users and tenant groups that can use the queue.
+          type: array
+          items:
+            type: string
+          example: ["tenantUser1", "tenantQueueGroup"]
+    jobResourceLimit:
+      title: Job Resource Limit
+      description: Provides information for specifying a job resource limit.
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of the limit resource to check. The limit names are all predefined. The following names are available:
+            | **Limit Name** | **Description** |
+            |--------------|-----------------|
+            | maxMemory    | Maximum memory that the job can use. |
+            | maxCpuTime   | Maximum CPU seconds that the job can use. |
+            | maxClockTime | Maximum number of seconds that a job can run. |
+            | maxIoTotal   | Maximum number of megabytes of data that the job can read and write. |
+            | maxIoRate    | Maximum number of bytes that the job can read/write in a second. |
+            | maxPageRate  | Maximum number of pages in and pages out that the job can perform in a second. |
+          type: string
+          enum:
+          - maxMemory
+          - maxCpuTime
+          - maxClockTime
+          - maxIoTotal
+          - maxIoRate
+          - maxPageRate
+        value:
+          description: The value of the resource that cannot be exceeded.
+          type: number
+          format: double
     queueTimeBasedParameters:
       title: Queue Time-Based Configuration
       description: Provides the parameters in a queue that can be changed by a time-based
@@ -2206,122 +2320,6 @@ components:
           items:
             type: string
           example: ["batch"]
-    tenantQueueTimeBasedConfig:
-      title: Tenant Queue Time-Based Overrides Configuration
-      description: Provides a time-based queue configuration that can be modified
-        by a tenant administrator.
-      type: object
-      allOf:
-      - $ref: "#/components/schemas/tenantQueueTimeBasedInfo"
-      - type: object
-        properties:
-          name:
-            description: The name of the time-based configuration.
-            readOnly: true
-            example: "Night Time"
-    jobStaticResourceRequirement:
-      title: Static Resource Requirement
-      description: Provides information for specifying a host static resource required
-        for a job.
-      type: object
-      properties:
-        name:
-          description: >-
-            The name of the resource to check. The name can be a predefined static-resource
-            name or
-            the name of a user-defined globalStatic, globalStaticConsumable, hostStatic,
-            or hostStaticConsumable resource.
-            Predefined resource names include cpuRating, cores, memory, swap, and
-            temp.
-            NOTE: The globalStaticConsumable and hostStaticConsumable resources can
-            be used in either the consumedResources or
-            requiredResources arrays on queues and in job requests. The globalStatic
-            and hostStatic resources can be used
-            in only the requiredResources arrays on queues and in job requests.
-          type: string
-        value:
-          description: The amount of resource to require, consume, or both.
-          type: number
-          format: double
-    hostTypeTimeBasedOverride:
-      title: Host Type Time-Based Overrides Configuration
-      description: Provides the parameters in a host type that can be changed by a
-        time-based override.
-      type: object
-      allOf:
-      - $ref: "#/components/schemas/hostTypeTimeBasedParameters"
-      - type: object
-        properties:
-          name:
-            description: The name of this time-based override.
-            type: string
-            example: "night-time"
-          validIntervals:
-            description: The array of time intervals in which the time-based parameters
-              are used.
-            type: array
-            items:
-              $ref: "#/components/schemas/timeBasedIntervals"
-    jobEnvVar:
-      title: Job Environment Variable
-      description: Provides information about an environment variable.
-      type: object
-      properties:
-        name:
-          description: The name of the environment variable.
-          type: string
-          example: SAS_LOG_LEVEL
-        value:
-          description: The value of the environment variable.
-          type: string
-          example: DEBUG
-    jobResourceLimit:
-      title: Job Resource Limit
-      description: Provides information for specifying a job resource limit.
-      type: object
-      properties:
-        name:
-          description: |-
-            The name of the limit resource to check. The limit names are all predefined. The following names are available:
-            | **Limit Name** | **Description** |
-            |--------------|-----------------|
-            | maxMemory    | Maximum memory that the job can use. |
-            | maxCpuTime   | Maximum CPU seconds that the job can use. |
-            | maxClockTime | Maximum number of seconds that a job can run. |
-            | maxIoTotal   | Maximum number of megabytes of data that the job can read and write. |
-            | maxIoRate    | Maximum number of bytes that the job can read/write in a second. |
-            | maxPageRate  | Maximum number of pages in and pages out that the job can perform in a second. |
-          type: string
-          enum:
-          - maxMemory
-          - maxCpuTime
-          - maxClockTime
-          - maxIoTotal
-          - maxIoRate
-          - maxPageRate
-        value:
-          description: The value of the resource that cannot be exceeded.
-          type: number
-          format: double
-    queueTimeBasedOverride:
-      title: Queue Time-Based Overrides Configuration
-      description: Provides the parameters in a queue that can be changed by a time-based
-        override.
-      type: object
-      allOf:
-      - $ref: "#/components/schemas/queueTimeBasedParameters"
-      - type: object
-        properties:
-          name:
-            description: The name of this time-based override.
-            type: string
-            example: "night-time"
-          validIntervals:
-            description: The array of time intervals that the time-based parameters
-              can use.
-            type: array
-            items:
-              $ref: "#/components/schemas/timeBasedIntervals"
     hostTypeTimeBasedParameters:
       title: Host Type Time-Based Configuration
       description: Provides the parameters in a host type that can be changed by a
@@ -2369,82 +2367,70 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/hostTypeThreshold"
-    jobHostSchedulingInfo:
-      title: Job Host Scheduling Information
-      description: Provides information about a host's ability to be selected during
-        the scheduling process for a specific job.
+    tenantQueueTimeBasedConfig:
+      title: Tenant Queue Time-Based Overrides Configuration
+      description: Provides a time-based queue configuration that can be modified
+        by a tenant administrator.
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/tenantQueueTimeBasedInfo"
+      - type: object
+        properties:
+          name:
+            description: The name of the time-based configuration.
+            readOnly: true
+            example: "Night Time"
+    jobEnvVar:
+      title: Job Environment Variable
+      description: Provides information about an environment variable.
       type: object
       properties:
         name:
-          description: The name of the host.
+          description: The name of the environment variable.
           type: string
-        state:
-          description: |-
-            The resulting host scheduling state for a job during the last scheduling run. The following states are available:
-            | **State Name**                      | **Description** |
-            |-------------------------------------|-----------------|
-            | HOST-STATE-AVAILABLE                | The host can run the job. |
-            | HOST-STATE-FULL                     | The host has reached the maximum number of jobs it is allowed. |
-            | HOST-STATE-NOT-AVAILABLE-CLOSED     | The host is closed. |
-            | HOST-STATE-NOT-AVAILABLE-OVERLOADED | The host is overloaded according to a scheduling threshold. |
-            | HOST-STATE-NOT-AVAILABLE-NO-SLOTS   | The host does not allow jobs to be run on it. |
-            | HOST-STATE-NOT-AVAILABLE-INACTIVE   | The host is in the INACTIVE state. |
-            | HOST-STATE-NOT-AVAILABLE-UNKNOWN    | The host has changed to the UNKNOWN state. |
-            | HOST-STATE-NOT-IN-QUEUE             | The host is not part of the list of hosts for the queue. |
-            | HOST-STATE-NOT-ENOUGH-CON-RES       | The host does not have enough of a consumable resource. |
-            | HOST-STATE-NOT-ENOUGH-REQ-RES       | The host does not have the required resources. |
-            | HOST-STATE-NOT-IN-FINAL-HOST-LIST   | The host is not in the list of hosts required by the job and queue. |
-            | HOST-STATE-MISSING-REQUIRED-TAGS    | The host does not have all of the tags required by the job and queue. |
-            | HOST-STATE-JOB-QUEUE-FULL-HOST      | The job's queue has exceeded the number of jobs it can send to this host. |
+          example: SAS_LOG_LEVEL
+        value:
+          description: The value of the environment variable.
           type: string
-          maxLength: 40
-          enum:
-          - HOST-STATE-AVAILABLE
-          - HOST-STATE-FULL
-          - HOST-STATE-NOT-AVAILABLE-CLOSED
-          - HOST-STATE-NOT-AVAILABLE-OVERLOADED
-          - HOST-STATE-NOT-AVAILABLE-NO-SLOTS
-          - HOST-STATE-NOT-AVAILABLE-INACTIVE
-          - HOST-STATE-NOT-AVAILABLE-UNKNOWN
-          - HOST-STATE-NOT-IN-QUEUE
-          - HOST-STATE-NOT-ENOUGH-CON-RES
-          - HOST-STATE-NOT-ENOUGH-REQ-RES
-          - HOST-STATE-NOT-IN-FINAL-HOST-LIST
-          - HOST-STATE-MISSING-REQUIRED-TAGS
-          - HOST-STATE-JOB-QUEUE-FULL-HOST
-
-    tenantQueueTimeBasedInfo:
-      title: Tenant Queue Time-Based Configuration
-      description: Provides time-based queue configuration information that can be
-        modified by a tenant administrator.
+          example: DEBUG
+    queueTimeBasedOverride:
+      title: Queue Time-Based Overrides Configuration
+      description: Provides the parameters in a queue that can be changed by a time-based
+        override.
       type: object
-      properties:
-        admins:
-          description: Tenant users and tenant groups that are the queue's administrators.
-          type: array
-          items:
+      allOf:
+      - $ref: "#/components/schemas/queueTimeBasedParameters"
+      - type: object
+        properties:
+          name:
+            description: The name of this time-based override.
             type: string
-          example: ["tenantAdmin1", "tenantAdminGroup"]
-        users:
-          description: Tenant users and tenant groups that can use the queue.
-          type: array
-          items:
-            type: string
-          example: ["tenantUser1", "tenantQueueGroup"]
-    timeBasedIntervals:
-      title: Time-Based Interval
+            example: "night-time"
+          validIntervals:
+            description: The array of time intervals that the time-based parameters
+              can use.
+            type: array
+            items:
+              $ref: "#/components/schemas/timeBasedIntervals"
+    hostTypeTimeBasedOverride:
+      title: Host Type Time-Based Overrides Configuration
+      description: Provides the parameters in a host type that can be changed by a
+        time-based override.
       type: object
-      description: Provides a start-time expression and end-time expression that specify
-        when the values in this object override the default values.
-      properties:
-        start:
-          description: The CRON expression representing when the time interval begins.
-          type: string
-          example: "* 1 * * *"
-        end:
-          description: The CRON expression representing when the time interval ends.
-          type: string
-          example: "* 2 * * *"
+      allOf:
+      - $ref: "#/components/schemas/hostTypeTimeBasedParameters"
+      - type: object
+        properties:
+          name:
+            description: The name of this time-based override.
+            type: string
+            example: "night-time"
+          validIntervals:
+            description: The array of time intervals in which the time-based parameters
+              are used.
+            type: array
+            items:
+              $ref: "#/components/schemas/timeBasedIntervals"
     hostTypeThreshold:
       title: Host Type Threshold
       type: object
@@ -2509,6 +2495,20 @@ components:
         endValue:
           description: The value to use for the comparison to exit the threshold.
           type: number
+    timeBasedIntervals:
+      title: Time-Based Interval
+      type: object
+      description: Provides a start-time expression and end-time expression that specify
+        when the values in this object override the default values.
+      properties:
+        start:
+          description: The CRON expression representing when the time interval begins.
+          type: string
+          example: "* 1 * * *"
+        end:
+          description: The CRON expression representing when the time interval ends.
+          type: string
+          example: "* 2 * * *"
   responses:
     badHMACResponse:
       description: The request was missing the HMAC header or the HMAC was invalid.
@@ -2631,185 +2631,6 @@ components:
           hostInMemoryPressure: false
           hostInPIDPressure: false
           hostNetworkUnavailable: false
-    loggersLevelInfo:
-      summary: Loggers Information
-      description: Provides loggers and their levels for a specific host.
-      value:
-        version: 1
-        hostName: sas-workload-orchestrator-0
-        loggers:
-        - name: root
-          level: INFO
-        - name: App
-          level: "NULL"
-        - name: Admin
-          level: "NULL"
-    loggersLevelRequest:
-      summary: Loggers Level Request
-      description: Requests to set the loggers to specific levels for specific hosts.
-      value:
-        version: 1
-        hosts:
-        - sas-workload-orchestrator-0
-        - sas-workload-orchestrator-1
-        loggers:
-        - name: root
-          level: INFO
-        - name: App
-          level: "NULL"
-        - name: Admin
-          level: "NULL"
-    logsInfo:
-      summary: Log Line Information Array
-      description: Provides requested log lines in the original SAS Workload Orchestrator
-        format.
-      value:
-        version: 1
-        lines:
-        - logger: App.Grid.SGMG
-          level: INFO
-          msg: "[00000005] sas -  "
-          dateTime: "2022-08-08T02:14:28Z"
-        - logger: App.Grid.SGMG
-          level: INFO
-          msg: "[00000005] sas - SAS Workload Orchestrator Daemon - Version 4.0 (2022-08-01T22:12:01Z)"
-          dateTime: "2022-08-08T02:14:28Z"
-    gridConfig:
-      summary: Grid Configuration
-      description: Provides an operational configuration of the grid.
-      value:
-        version: 3
-        name: ""
-        description: ""
-        jobChangeCmd: ""
-        port: 8080
-        userNamesNoCase: false
-        hostInactiveSecs: 60
-        hostUnknownSecs: 900
-        hostUpdateSecs: 15
-        jobPurgeSecs: 3600
-        jobUpdateSecs: 15
-        jobLifetimeDays: 60
-        jobLifetimeCount: 20000
-        managerUpdateSecs: 15
-        roundRobinSecs: 0
-        schedulerUpdateSecs: 15
-        scalingRequestSecs: 0
-        scalingHostWaitSecs: 600
-        scalingHostUpSecs: 300
-        maxStdOutLines: 50
-        userResources: []
-        compareOrder: []
-        admins:
-        - SASAdministrators
-        tenantAdmins: []
-        hostTypes:
-        - version: 1
-          name: default
-          description: SAS Workload Orchestrator Server Hosts on Kubernetes Nodes
-          role: server
-          scalable: false
-          externalURL: ""
-          hostNames: []
-          hostNamePatterns: []
-          hostIpPatterns: []
-          hostIpRanges: []
-          hostProperties: []
-          maxJobsAllowed: -1
-          minScalableNodes: 0
-          tags: []
-          scheduleThresholds: []
-          suspendThresholds: []
-          timeBasedOverrides: []
-        queues:
-        - name: default
-          description: ""
-          tenant: uaa
-          isDefaultQueue: true
-          willRestartJobs: false
-          exchangeCreds: false
-          priority: 10
-          maxJobs: -1
-          maxJobsPerUser: -1
-          maxJobsPerHost: -1
-          scalingMinJobs: -1
-          scalingMinSecs: -1
-          users: []
-          admins: []
-          hostNames: []
-          hostTypes: []
-          requiredTags: []
-          consumedResources: []
-          requiredResources: []
-          limits: []
-          preempts: []
-          timeBasedOverrides: []
-        userGroups: []
-        hostGroups: []
-    tenantConfig:
-      summary: Tenant Configuration
-      description: Provides a grid configuration specific to a particular tenant.
-      value:
-        version: 1
-        tenant: acme
-        admins:
-        - Acme-Tenant-Admin1
-        - Acme-Tenant-Admin2
-        queues:
-        - name: default
-          description: "Default queue for default provider"
-          tenant: acme
-          users: ["acme-user1", "acme-user2"]
-          admins: []
-          timeBasedOverrides:
-          - name: "Night Time"
-            users:
-            - "acme-user1"
-            - "acme-user2"
-            - "acme-user3"
-            admins: []
-        userGroups:
-        - name: myTenantGroup1
-          tenant: acme
-          admins:
-          - myTenantUserGroup1Admins
-          - acme-user1
-    logsCollection:
-      summary: Log Line Collection
-      description: Provides requested log lines in SAS collection format.
-      value:
-        version: 2
-        accept: application/vnd.sas.sasgrid.log.line
-        name: lines
-        items:
-        - logger: App.Grid.SGMG
-          level: INFO
-          msg: "[00000005] sas -  "
-          dateTime: "2022-08-08T02:14:28Z"
-        - logger: App.Grid.SGMG
-          level: INFO
-          msg: "[00000005] sas - SAS Workload Orchestrator Daemon - Version 4.0 (2022-08-01T22:12:01Z)"
-          dateTime: "2022-08-08T02:14:28Z"
-        count: 2
-        start: 0
-        limit: 30
-        links:
-        - href: "/workloadOrchestrator/logs"
-          method: GET
-          rel: self
-          uri: "/workloadOrchestrator/logs"
-        - href: "/workloadOrchestrator/logs?START=30&LIMIT=30"
-          method: GET
-          rel: next
-          uri: "/workloadOrchestrator/logs?START=30&LIMIT=30"
-        - href: "/workloadOrchestrator/logs?START=0&LIMIT=30"
-          method: GET
-          rel: first
-          uri: "/workloadOrchestrator/logs?START=0&LIMIT=30"
-        - href: "/workloadOrchestrator/logs?START=2&LIMIT=30"
-          method: GET
-          rel: last
-          uri: "/workloadOrchestrator/logs?START=2&LIMIT=30"
     jobInfo:
       summary: Job Information
       description: Provides all information about a job, including job request information
@@ -2906,25 +2727,190 @@ components:
           - name: maxPageRate
             value: 0
           stdOutput: []
+    loggersLevelInfo:
+      summary: Loggers Information
+      description: Provides loggers and their levels for a specific host.
+      value:
+        version: 1
+        hostName: sas-workload-orchestrator-0
+        loggers:
+        - name: root
+          level: INFO
+        - name: App
+          level: "NULL"
+        - name: Admin
+          level: "NULL"
+    gridConfig:
+      summary: Grid Configuration
+      description: Provides an operational configuration of the grid.
+      value:
+        version: 3
+        name: ""
+        description: ""
+        jobChangeCmd: ""
+        port: 8080
+        userNamesNoCase: false
+        hostInactiveSecs: 60
+        hostUnknownSecs: 900
+        hostUpdateSecs: 15
+        jobPurgeSecs: 3600
+        jobUpdateSecs: 15
+        jobLifetimeDays: 60
+        jobLifetimeCount: 20000
+        managerUpdateSecs: 15
+        roundRobinSecs: 0
+        schedulerUpdateSecs: 15
+        scalingRequestSecs: 0
+        scalingHostWaitSecs: 600
+        scalingHostUpSecs: 300
+        maxStdOutLines: 50
+        userResources: []
+        compareOrder: []
+        admins:
+        - SASAdministrators
+        tenantAdmins: []
+        hostTypes:
+        - version: 1
+          name: default
+          description: SAS Workload Orchestrator Server Hosts on Kubernetes Nodes
+          role: server
+          scalable: false
+          externalURL: ""
+          hostNames: []
+          hostNamePatterns: []
+          hostIpPatterns: []
+          hostIpRanges: []
+          hostProperties: []
+          maxJobsAllowed: -1
+          minScalableNodes: 0
+          tags: []
+          scheduleThresholds: []
+          suspendThresholds: []
+          timeBasedOverrides: []
+        queues:
+        - name: default
+          description: ""
+          tenant: uaa
+          isDefaultQueue: true
+          willRestartJobs: false
+          exchangeCreds: false
+          priority: 10
+          maxJobs: -1
+          maxJobsPerUser: -1
+          maxJobsPerHost: -1
+          scalingMinJobs: -1
+          scalingMinSecs: -1
+          users: []
+          admins: []
+          hostNames: []
+          hostTypes: []
+          requiredTags: []
+          consumedResources: []
+          requiredResources: []
+          limits: []
+          preempts: []
+          timeBasedOverrides: []
+        userGroups: []
+        hostGroups: []
+    loggersLevelRequest:
+      summary: Loggers Level Request
+      description: Requests to set the loggers to specific levels for specific hosts.
+      value:
+        version: 1
+        hosts:
+        - sas-workload-orchestrator-0
+        - sas-workload-orchestrator-1
+        loggers:
+        - name: root
+          level: INFO
+        - name: App
+          level: "NULL"
+        - name: Admin
+          level: "NULL"
+    logsCollection:
+      summary: Log Line Collection
+      description: Provides requested log lines in SAS collection format.
+      value:
+        version: 2
+        accept: application/vnd.sas.sasgrid.log.line
+        name: lines
+        items:
+        - logger: App.Grid.SGMG
+          level: INFO
+          msg: "[00000005] sas -  "
+          dateTime: "2022-08-08T02:14:28Z"
+        - logger: App.Grid.SGMG
+          level: INFO
+          msg: "[00000005] sas - SAS Workload Orchestrator Daemon - Version 4.0 (2022-08-01T22:12:01Z)"
+          dateTime: "2022-08-08T02:14:28Z"
+        count: 2
+        start: 0
+        limit: 30
+        links:
+        - href: "/workloadOrchestrator/logs"
+          method: GET
+          rel: self
+          uri: "/workloadOrchestrator/logs"
+        - href: "/workloadOrchestrator/logs?START=30&LIMIT=30"
+          method: GET
+          rel: next
+          uri: "/workloadOrchestrator/logs?START=30&LIMIT=30"
+        - href: "/workloadOrchestrator/logs?START=0&LIMIT=30"
+          method: GET
+          rel: first
+          uri: "/workloadOrchestrator/logs?START=0&LIMIT=30"
+        - href: "/workloadOrchestrator/logs?START=2&LIMIT=30"
+          method: GET
+          rel: last
+          uri: "/workloadOrchestrator/logs?START=2&LIMIT=30"
+    tenantConfig:
+      summary: Tenant Configuration
+      description: Provides a grid configuration specific to a particular tenant.
+      value:
+        version: 1
+        tenant: acme
+        admins:
+        - Acme-Tenant-Admin1
+        - Acme-Tenant-Admin2
+        queues:
+        - name: default
+          description: "Default queue for default provider"
+          tenant: acme
+          users: ["acme-user1", "acme-user2"]
+          admins: []
+          timeBasedOverrides:
+          - name: "Night Time"
+            users:
+            - "acme-user1"
+            - "acme-user2"
+            - "acme-user3"
+            admins: []
+        userGroups:
+        - name: myTenantGroup1
+          tenant: acme
+          admins:
+          - myTenantUserGroup1Admins
+          - acme-user1
+    logsInfo:
+      summary: Log Line Information Array
+      description: Provides requested log lines in the original SAS Workload Orchestrator
+        format.
+      value:
+        version: 1
+        lines:
+        - logger: App.Grid.SGMG
+          level: INFO
+          msg: "[00000005] sas -  "
+          dateTime: "2022-08-08T02:14:28Z"
+        - logger: App.Grid.SGMG
+          level: INFO
+          msg: "[00000005] sas - SAS Workload Orchestrator Daemon - Version 4.0 (2022-08-01T22:12:01Z)"
+          dateTime: "2022-08-08T02:14:28Z"
   parameters:
-    logsLevel:
-      name: level
-      description: The logging level that a log line must have so it can be returned
+    logsLogger:
+      name: logger
+      description: The name of the logger that a log line must have so it can be returned
         in the collection.
-      in: query
-      required: false
-      schema:
-        type: string
-        enum:
-        - TRACE
-        - DEBUG
-        - INFO
-        - WARN
-        - ERROR
-        - FATAL
-    logsStartTime:
-      name: startTime
-      description: The earliest time that a log line must be returned in the collection.
       in: query
       required: false
       schema:
@@ -2951,27 +2937,16 @@ components:
         - WARN
         - ERROR
         - FATAL
-    collectionLimit:
-      name: limit
-      description: The maximum number of items returned in the collection. This is
-        available only when the return type is application/vnd.sas.collection.
-      in: query
-      required: false
-      schema:
-        type: integer
-        default: 10
-        maximum: 1000
-    logsLogger:
-      name: logger
-      description: The name of the logger that a log line must have so it can be returned
-        in the collection.
+    logsEndTime:
+      name: endTime
+      description: The latest time that a log line must be returned in the collection.
       in: query
       required: false
       schema:
         type: string
-    logsEndTime:
-      name: endTime
-      description: The latest time that a log line must be returned in the collection.
+    logsStartTime:
+      name: startTime
+      description: The earliest time that a log line must be returned in the collection.
       in: query
       required: false
       schema:
@@ -2986,3 +2961,34 @@ components:
         type: integer
         default: 0
         minimum: 0
+    collectionLimit:
+      name: limit
+      description: The maximum number of items returned in the collection. This is
+        available only when the return type is application/vnd.sas.collection.
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 10
+        maximum: 1000
+    logsLevel:
+      name: level
+      description: The logging level that a log line must have so it can be returned
+        in the collection.
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+        - TRACE
+        - DEBUG
+        - INFO
+        - WARN
+        - ERROR
+        - FATAL
+
+
+
+
+
+

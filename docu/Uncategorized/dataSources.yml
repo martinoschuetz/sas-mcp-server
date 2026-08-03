@@ -1421,6 +1421,9 @@ paths:
 
         When the Accept header is set to text/plain, the response returns a
         space-separated list of quoted paths suitable for use in SAS code.
+        If a configured path includes substitution variables such as $USER or
+        $(SAS_USER_NAME), those variables are replaced with the current user's ID
+        in the text/plain output.
         Each path is automatically quoted according to SAS quoting rules:
 
         - Paths containing single quotes are wrapped in double quotes
@@ -1431,6 +1434,8 @@ paths:
         - Paths without quotes are wrapped in double quotes for safety
 
         Only paths that the user is authorized to access are included in the response.
+        For JSON responses, substitution variables remain unchanged and are
+        returned exactly as stored.
       tags:
       - Allowed Paths
       parameters:
@@ -1484,6 +1489,8 @@ paths:
                 type: string
                 description: >-
                   A space-separated list of quoted paths suitable for SAS code.
+                  Substitution variables such as $USER and $(SAS_USER_NAME)
+                  are replaced with the current user's ID in this output.
                   Each path is quoted according to SAS quoting rules to handle
                   special characters like quotes. Only paths the user is authorized
                   to access are included.
@@ -1500,6 +1507,10 @@ paths:
                 pathsWithBothQuotes:
                   value: '"/data/user''s/""shared""/files"'
                   summary: Path with both quote types (double quotes escaped by doubling)
+                pathsWithResolvedSubstitutionVariables:
+                  value: '"/data/home/sasjoe/projects" "/data/home/sasjoe/datasets"'
+                  summary: Paths with substitution variables resolved to the current
+                    user ID
         "400":
           description: |
             The request was invalid. Invalid requests occur in the following scenarios:
@@ -1538,7 +1549,9 @@ paths:
       x-sas-since: "4"
       operationId: createAllowedPath
       summary: Create an allowed path
-      description: Creates an allowed path from the provided request.
+      description: >-
+        Creates an allowed path from the provided request. The paths field can
+        include substitution variables such as $USER or $(SAS_USER_NAME).
       tags:
       - Allowed Paths
       parameters:
@@ -1558,7 +1571,8 @@ paths:
               createAllowedPathRequest:
                 $ref: "#/components/examples/createAllowedPathRequest"
         description: Allowed path to create. The paths field is required and specifies
-          the file system paths that users are allowed to access.
+          the file system paths that users are allowed to access. Paths can include
+          substitution variables such as $USER or $(SAS_USER_NAME).
         required: true
       responses:
         "201":
@@ -1698,7 +1712,8 @@ paths:
       operationId: updateAllowedPath
       summary: Update an allowed path
       description: Updates an existing allowed path through a full replacement of
-        the resource. The ID field might not be modified by this operation.
+        the resource. The ID field might not be modified by this operation. The paths
+        field can include substitution variables such as $USER or $(SAS_USER_NAME).
       tags:
       - Allowed Paths
       parameters:
@@ -1719,7 +1734,8 @@ paths:
             examples:
               schemaval:
                 $ref: "#/components/examples/updateAllowedPathRequest"
-        description: The allowed path to update.
+        description: The allowed path to update. Paths can include substitution variables
+          such as $USER or $(SAS_USER_NAME).
         required: true
       responses:
         "200":
@@ -2790,15 +2806,18 @@ components:
     createAllowedPathRequest:
       summary: Create allowed path request
       description: POST /dataSources/providers/Compute/allowedPaths
-      value: {"paths": ["/data/shared/projects", "/data/shared/datasets"]}
+      value: {"paths": ["/data/shared/projects", "/data/shared/datasets", "/data/home/$USER/projects",
+          "/data/home/$(SAS_USER_NAME)/datasets"]}
     updateAllowedPathRequest:
       summary: Update allowed path request
       description: PUT /dataSources/providers/Compute/allowedPaths/{allowedPathId}
-      value: {"id": "f3b4c8a1-5d2e-4a9b-8c7f-1e3d5a7b9c2f", "paths": ["/data/shared/updated-projects"]}
+      value: {"id": "f3b4c8a1-5d2e-4a9b-8c7f-1e3d5a7b9c2f", "paths": ["/data/shared/updated-projects",
+          "/data/home/$USER/updated-projects", "/data/home/$(SAS_USER_NAME)/updated-datasets"]}
     updateAllowedPathResponse:
       summary: Update allowed path response
       description: PUT /dataSources/providers/Compute/allowedPaths/{allowedPathId}
-      value: {"id": "f3b4c8a1-5d2e-4a9b-8c7f-1e3d5a7b9c2f", "paths": ["/data/shared/updated-projects"],
+      value: {"id": "f3b4c8a1-5d2e-4a9b-8c7f-1e3d5a7b9c2f", "paths": ["/data/shared/updated-projects",
+          "/data/home/$USER/updated-projects", "/data/home/$(SAS_USER_NAME)/updated-datasets"],
         "createdBy": "sasjoe", "modifiedBy": "sasjoe", "creationTimeStamp": "2026-02-05T10:30:00.000Z",
         "modifiedTimeStamp": "2026-02-05T11:45:00.000Z", "version": 1, "links": [
           {"method": "GET", "rel": "self", "href": "/dataSources/providers/Compute/allowedPaths/f3b4c8a1-5d2e-4a9b-8c7f-1e3d5a7b9c2f",
@@ -3400,7 +3419,8 @@ components:
       properties:
         paths:
           type: array
-          description: The file system paths that users are allowed to access.
+          description: The file system paths that users are allowed to access. Paths
+            can include substitution variables such as $USER or $(SAS_USER_NAME).
           items:
             type: string
       required:
@@ -3415,7 +3435,8 @@ components:
           description: The unique allowed path identifier (must match path parameter).
         paths:
           type: array
-          description: The file system paths that users are allowed to access.
+          description: The file system paths that users are allowed to access. Paths
+            can include substitution variables such as $USER or $(SAS_USER_NAME).
           items:
             type: string
       required:
@@ -3586,18 +3607,68 @@ components:
           description: The version number of the error representation. This representation
             is version 2.
   parameters:
-    SessionIDPathParam:
-      name: sessionId
-      in: path
-      description: The unique identifier of the session used to access the data service
-        provider's backing service.
+    DataSourceAcceptItemHeader:
+      name: Accept-Item
+      in: header
+      description: |
+        The desired data source representation.
+        If no Accept-Item header is present, the full representation of data sources are returned.
+      schema:
+        type: string
+        enum: [application/vnd.sas.data.source+json, application/vnd.sas.data.source.summary+json]
+        default: "application/vnd.sas.data.source+json"
+    PreserveSessionQueryParam:
+      name: preserveSession
+      in: query
+      description: This only has effect when the sessionId query parameter is not
+        specified. If this is set to true, no sessionId is provided and the session
+        created by the data service provider is not destroyed. All returned links,
+        except the "self" link, have the sessionId query parameter added to their
+        respective URIs. Also, they contain an additional session link to the application/vnd.sas.data.session
+        resource that corresponds to the provided sessionId. If set to false or not
+        specified, the session is destroyed after the request is complete. Defaults
+        to false.
+      schema:
+        type: boolean
+    IfMatchHeader:
+      name: If-Match
+      in: header
+      description: The ETag that was returned from a GET, POST, PUT, PATCH, or HEAD
+        of this object.  If the ETag does not match, the update will fail.
       required: true
       schema:
         type: string
+    SourceDefinitionIDPathParam:
+      name: sourceDefinitionId
+      in: path
+      description: The ID for the source definition.
+      required: true
+      schema:
+        type: string
+    AllowedPathIDPathParam:
+      name: allowedPathId
+      in: path
+      description: The ID for the allowed path.
+      required: true
+      schema:
+        type: string
+    StartQueryParam:
+      name: start
+      in: query
+      description: 0-based Offset of first object to return.  Defaults to 0.
+      schema:
+        type: integer
     SourceIDPathParam:
       name: sourceId
       in: path
       description: The ID for the source.
+      required: true
+      schema:
+        type: string
+    EngineNamePathParam:
+      name: engineName
+      in: path
+      description: The unique name of this engine within its data source.
       required: true
       schema:
         type: string
@@ -3613,6 +3684,20 @@ components:
         that corresponds to the provided sessionId.
       schema:
         type: string
+    SessionIDPathParam:
+      name: sessionId
+      in: path
+      description: The unique identifier of the session used to access the data service
+        provider's backing service.
+      required: true
+      schema:
+        type: string
+    LimitQueryParam:
+      name: limit
+      in: query
+      description: Maximum number of objects to return.  Defaults to 10.
+      schema:
+        type: integer
     ProviderIDPathParam:
       name: providerId
       in: path
@@ -3620,67 +3705,3 @@ components:
       required: true
       schema:
         type: string
-    DataSourceAcceptItemHeader:
-      name: Accept-Item
-      in: header
-      description: |
-        The desired data source representation.
-        If no Accept-Item header is present, the full representation of data sources are returned.
-      schema:
-        type: string
-        enum: [application/vnd.sas.data.source+json, application/vnd.sas.data.source.summary+json]
-        default: "application/vnd.sas.data.source+json"
-    LimitQueryParam:
-      name: limit
-      in: query
-      description: Maximum number of objects to return.  Defaults to 10.
-      schema:
-        type: integer
-    SourceDefinitionIDPathParam:
-      name: sourceDefinitionId
-      in: path
-      description: The ID for the source definition.
-      required: true
-      schema:
-        type: string
-    AllowedPathIDPathParam:
-      name: allowedPathId
-      in: path
-      description: The ID for the allowed path.
-      required: true
-      schema:
-        type: string
-    EngineNamePathParam:
-      name: engineName
-      in: path
-      description: The unique name of this engine within its data source.
-      required: true
-      schema:
-        type: string
-    StartQueryParam:
-      name: start
-      in: query
-      description: 0-based Offset of first object to return.  Defaults to 0.
-      schema:
-        type: integer
-    IfMatchHeader:
-      name: If-Match
-      in: header
-      description: The ETag that was returned from a GET, POST, PUT, PATCH, or HEAD
-        of this object.  If the ETag does not match, the update will fail.
-      required: true
-      schema:
-        type: string
-    PreserveSessionQueryParam:
-      name: preserveSession
-      in: query
-      description: This only has effect when the sessionId query parameter is not
-        specified. If this is set to true, no sessionId is provided and the session
-        created by the data service provider is not destroyed. All returned links,
-        except the "self" link, have the sessionId query parameter added to their
-        respective URIs. Also, they contain an additional session link to the application/vnd.sas.data.session
-        resource that corresponds to the provided sessionId. If set to false or not
-        specified, the session is destroyed after the request is complete. Defaults
-        to false.
-      schema:
-        type: boolean

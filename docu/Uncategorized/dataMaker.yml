@@ -769,8 +769,8 @@ paths:
       requestBody:
         $ref: "#/components/requestBodies/taskUpdate"
       responses:
-        "201":
-          description: The task progress/result was successfully updated.
+        "202":
+          description: The task progress/result update was accepted for processing.
           headers:
             ETag:
               description: ETag for response.
@@ -1282,6 +1282,35 @@ paths:
             application/vnd.sas.error+json:
               schema:
                 $ref: "#/components/schemas/error2"
+  /models/{modelId}/publish:
+    post:
+      operationId: publishModel
+      tags:
+      - CatalogModels
+      summary: Publish a model to the catalog
+      parameters:
+      - name: modelId
+        in: path
+        description: The ID of the model to publish.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        $ref: "#/components/requestBodies/publishModel"
+      responses:
+        "201":
+          description: The model was published.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/catalogModel"
+        "404":
+          description: A model with the specified ID was not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
   /conditions/{conditionId}:
     put:
       operationId: updateCondition
@@ -1528,6 +1557,98 @@ paths:
                 $ref: "#/components/schemas/connectionTestResult"
         "400":
           $ref: "#/components/responses/badRequest"
+  /catalog:
+    get:
+      operationId: getCatalogModels
+      tags:
+      - CatalogModels
+      summary: Get a collection of published catalog models
+      parameters:
+      - name: start
+        in: query
+        description: The zero-based index of the first item to return.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: The maximum number of items to return.
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the collection. See [Sorting in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: The collection of catalog models was retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/catalogModelCollection"
+  /catalog/{catalogModelID}:
+    get:
+      operationId: getCatalogModel
+      tags:
+      - CatalogModels
+      summary: Get a published catalog model by ID
+      parameters:
+      - name: catalogModelID
+        in: path
+        description: The ID of the published model.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: The catalog model was retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/catalogModel"
+        "404":
+          description: A catalog model with the specified ID was not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+    delete:
+      operationId: deleteCatalogModel
+      tags:
+      - CatalogModels
+      summary: Delete and unpublish a published model
+      parameters:
+      - name: catalogModelID
+        in: path
+        description: The ID of the published model to be deleted.
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: The published model was deleted.
+        "400":
+          description: The request to delete a published model is invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "404":
+          description: A published model with the specified ID was not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
 components:
   requestBodies:
     patchTableProperties:
@@ -1677,14 +1798,24 @@ components:
       description: Data Maker condition update request. Only the settings field is
         updateable.
       required: true
-    generateTaskCreate:
+    publishModel:
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/modelPublishRequest"
+            required:
+            - name
+      description: Data Maker publish model request.
+      required: true
+    analysisCreate:
       description: Create an analysis task.
       required: true
       content:
         application/json:
           schema:
             allOf:
-            - $ref: "#/components/schemas/generateParams"
+            - $ref: "#/components/schemas/analysisCreateRequest"
     taskUpdate:
       x-sas-internal: true
       description: Update the progress/result for a specific task.
@@ -1697,14 +1828,14 @@ components:
             - state
             allOf:
             - $ref: "#/components/schemas/TaskResult"
-    analysisCreate:
+    generateTaskCreate:
       description: Create an analysis task.
       required: true
       content:
         application/json:
           schema:
             allOf:
-            - $ref: "#/components/schemas/analysisCreateRequest"
+            - $ref: "#/components/schemas/generateParams"
   responses:
     tablePropertiesUpdated: # 200
       description: The table properties were successfully updated.
@@ -1797,6 +1928,7 @@ components:
       - uploadAPIMaxFileSize
       - SoftwareVersions
       - conditionalGenerationEnabled
+      - modelCatalogEnabled
       properties:
         auth:
           nullable: false
@@ -1819,6 +1951,10 @@ components:
           nullable: false
           type: boolean
           default: false
+        modelCatalogEnabled:
+          nullable: false
+          type: boolean
+          default: false
     AuthInfo:
       x-sas-internal: true
       type: object
@@ -1828,6 +1964,11 @@ components:
           nullable: false
           allOf:
           - $ref: "#/components/schemas/authMethod"
+        orgName:
+          description: The name (not the id, that starts with org_) of the org to
+            log in to.  Empty string if not available.
+          type: string
+          nullable: false
         clientID:
           type: string
           nullable: false
@@ -2097,150 +2238,51 @@ components:
             items:
               $ref: "#/components/schemas/metricSettings"
             nullable: true
-    setTableProperties:
+    sampleSchema:
+      type: array
+      description: Schema with samples
+      items:
+        $ref: "#/components/schemas/sampleColumn"
+    sampleColumn:
       type: object
+      description: Column schema with samples
       properties:
-        name:
+        col:
+          description: Column name
           type: string
-          description: The name of the table
-        props:
-          type: object
-          allOf:
-          - $ref: "#/components/schemas/tableProperties"
-          description: The properties of the table
-      required:
-      - name
-      - props
-      description: Set the properties of a table
-    tableProperties:
-      type: object
-      description: Contains the table properties
-      properties:
-        tableType:
-          allOf:
-          - $ref: "#/components/schemas/TableType"
-        sequentialTable:
-          type: object
-          anyOf:
-          - $ref: "#/components/schemas/SequentialTable"
-          nullable: true
-    TableType:
-      enum:
-      - tabular
-      - sequential
-      - reference
-      title: Table type
-      description: Table types available to define tables in data maker.
-    SequentialTable:
-      type: object
-      description: Data schema definition for a sequential table
-      properties:
-        seqID:
-          type: integer
-          format: int64
-          description: The column used to identify unique sequences.
-          nullable: true
-        sortBy:
+        table:
+          description: Table name
+          type: string
+        dtype:
+          description: Semantic data type
+          type: string
+        entityGroup:
+          description: ID of the entity group. The ID value has no relevance other
+            than to group columns together.
+          type: string
+        samples:
+          description: Column samples
           type: array
           items:
+            type: string
+    catalogModel:
+      type: object
+      description: Representation of a catalog model
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      - type: object
+        properties:
+          ID:
             type: integer
             format: int64
-          description: The columns used to sort the table to set the order of sequences.
-          nullable: true
-    MSTConfig:
-      type: object
-      title: MSTConfig
-      description: MST is an algorithm introduced in 2021 that relies on discretising
-        the data and fitting a differentially private graphical model to low-dimensional
-        marginals in order to allow for efficient data generation.
-      properties:
-        epsilon:
-          $ref: "#/components/schemas/Epsilon"
-        nBins:
-          $ref: "#/components/schemas/NBins"
-        maxCat:
-          $ref: "#/components/schemas/MaxCat"
-        useDifferentialPrivacy:
-          $ref: "#/components/schemas/UseDifferentialPrivacy"
-        delta:
-          title: Delta
-          description: Probability of information accidentally being leaked. Second
-            Differential Privacy Parameter.
-          type: number
-          format: double
-          minimum: 0.0
-          maximum: 1.0
-          default: 1e-5
-          nullable: true
-        nIters:
-          title: Number of iterations
-          description: Number of training iterations.
-          type: integer
-          format: int64
-          minimum: 0
-          default: 1000
-          nullable: true
-        compressDomain:
-          title: Compress domain
-          description: When set to True the domain of the 1-way marginals is compressed
-            according to the available privacy budget.
-          type: boolean
-          default: true
-          nullable: true
-    Epsilon:
-      title: Epsilon
-      description: Privacy budget parameter. Use small values such as 0.01 for extremely
-        high privacy guarantees, around 1-25 for standard privacy guarantees and large
-        values such as 10000 for low privacy but greater accuracy.
-      type: number
-      exclusiveMinimum: true
-      minimum: 0.0
-      format: double
-      default: 1000
-      nullable: true
-    NBins:
-      title: Number of bins
-      description: The number of bins to use when discretizing numerical data.
-      type: integer
-      format: int64
-      minimum: 1.0
-      default: 100
-      nullable: true
-    MaxCat:
-      title: Maximum categories
-      description: Maximum amount of categorical information to preserve in each categorical
-        column.
-      type: integer
-      minimum: 1.0
-      format: int64
-      default: 100
-      nullable: true
-    UseDifferentialPrivacy:
-      type: boolean
-      title: Use differential privacy
-      description: Set to true to turn on differential privacy applying the epsilon
-        privacy budget parameter.
-      default: true
-      nullable: true
-    taskDownloadGeneratedDataResponse:
-      type: object
-      properties:
-        tables:
-          type: object
-          description: Generated data for each table
-          additionalProperties:
-            $ref: "#/components/schemas/GeneratedDataDownloadLinks"
-    GeneratedDataDownloadLinks:
-      description: Download Links for generated data for a table in a generation run
-      type: object
-      properties:
-        downloadURL:
-          description: A Shared Access Signature download URL valid
-          type: string
-        downloadURLExpiry:
-          description: The expiry time of the download url
-          format: date-time
-          type: string
+            description: ID of the catalog model
+          name:
+            description: Catalog model name
+            type: string
+          description:
+            description: Catalog model description
+            type: string
+            nullable: true
     PresenceDisclosureSettings:
       title: Presence disclosure
       description: |
@@ -2287,37 +2329,41 @@ components:
             The name of the table to compute the metric for.
             If null, the metric will be computed for all tables.
           nullable: true
-    PrivBayesConfig:
+    connectionCollection:
+      allOf:
+      - type: object
       properties:
-        nBins:
-          $ref: "#/components/schemas/NBins"
-        maxCat:
-          $ref: "#/components/schemas/MaxCat"
-        epsilon:
-          $ref: "#/components/schemas/Epsilon"
-        useDifferentialPrivacy:
-          $ref: "#/components/schemas/UseDifferentialPrivacy"
-        nParents:
+        items:
+          type: array
+          description: An array that contains Data Maker connection objects.
+          items:
+            $ref: "#/components/schemas/connection"
+      description: A collection of Data Maker connections objects.
+      type: object
+    connection:
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      - $ref: "#/components/schemas/accessControl"
+      type: object
+      description: Data Maker connection representation
+      properties:
+        ID:
           type: integer
-          exclusiveMinimum: true
-          minimum: 1
           format: int64
-          title: Number of parents
-          description: Number of parents per node to use in network building.
-          default: 3
-          nullable: true
-      type: object
-      title: PrivBayesConfig
-    connectionCreateRequest:
-      type: object
-      description: >
-        Representation used to create a Data Maker connection
-      properties:
+          description: ID of the connection.
+        projectIDs:
+          type: array
+          description: A list of project IDs the connection is used by and which are
+            visible to the user.
+          items:
+            type: integer
+            format: int64
+        deletable:
+          type: boolean
+          description: A flag that describes if a connection can be deleted.
         connectionSettings:
           allOf:
           - $ref: "#/components/schemas/connectionSettings"
-      required:
-      - connectionType
     connectionSettings:
       type: object
       description: The connection settings.
@@ -2360,602 +2406,41 @@ components:
         container:
           description: Blob storage container name.
           type: string
-    sampleSchema:
-      type: array
-      description: Schema with samples
-      items:
-        $ref: "#/components/schemas/sampleColumn"
-    sampleColumn:
+    connectionUpdateRequest:
       type: object
-      description: Column schema with samples
+      description: Representation used to update a Data Maker connection
       properties:
-        col:
-          description: Column name
-          type: string
-        table:
-          description: Table name
-          type: string
-        dtype:
-          description: Semantic data type
-          type: string
-        entityGroup:
-          description: ID of the entity group. The ID value has no relevance other
-            than to group columns together.
-          type: string
-        samples:
-          description: Column samples
-          type: array
-          items:
-            type: string
-    modelForkRequest:
-      type: object
-      description: Representation used to fork a Data Maker model
-      properties:
-        name:
-          description: Name of the forked model
-          type: string
-          nullable: true
-    projectCreateRequest:
-      type: object
-      description: >
-        Representation used to create a Data Maker project
-      properties:
-        name:
-          description: Name of the project
-          type: string
-        description:
-          description: a description for the project
-          type: string
-    connectionTestResult:
-      type: object
-      description: The result from testing connection details.
-      properties:
-        valid:
-          description: Whether the connection details are valid or not, or null if
-            undetermined.
-          type: boolean
-          nullable: true
-        error:
-          description: The errors that occured when testing the connection details.
-          type: string
-      required:
-      - valid
-    connectionFileUploadRequest:
-      type: object
-      properties:
-        path:
-          type: string
-        files:
-          type: array
-          items:
-            type: string
-            format: binary
-      required:
-      - path
-      - files
-    connection:
-      allOf:
-      - $ref: "#/components/schemas/trackedResource"
-      - $ref: "#/components/schemas/accessControl"
-      type: object
-      description: Data Maker connection representation
-      properties:
-        ID:
-          type: integer
-          format: int64
-          description: ID of the connection.
-        projectIDs:
-          type: array
-          description: A list of project IDs the connection is used by and which are
-            visible to the user.
-          items:
-            type: integer
-            format: int64
-        deletable:
-          type: boolean
-          description: A flag that describes if a connection can be deleted.
         connectionSettings:
           allOf:
           - $ref: "#/components/schemas/connectionSettings"
-    table:
-      type: object
-      description: Main table object
+    project:
       allOf:
       - $ref: "#/components/schemas/trackedResource"
+      type: object
+      description: Data Maker project representation
       properties:
         id:
           type: integer
           format: int64
+          description: ID of the project.
         name:
           type: string
-        relPath:
+          description: Name of the project.
+        description:
           type: string
-        dbSchemaName:
-          type: string
-        dbTableName:
-          type: string
-        props:
-          type: object
-          allOf:
-          - $ref: "#/components/schemas/tableProperties"
-        keyColumns:
+          description: Description of the project.
+        connections:
           type: array
-          description: An array that contains top level column information.
-          items:
-            $ref: "#/components/schemas/simpleColumn"
-        sizeBytes:
-          type: integer
-          format: int64
-          description: The size of the table in bytes.
-        numRows:
-          type: integer
-          format: int64
-          description: The number of rows in the table.
-      required:
-      - id
-      - name
-    simpleColumn:
-      type: object
-      description: Main column object
-      allOf:
-      - $ref: "#/components/schemas/trackedResource"
-      required:
-      - id
-      - name
-      properties:
-        id:
-          type: integer
-          format: int64
-        name:
-          type: string
-        primaryKey:
-          type: boolean
-        dtype:
-          allOf:
-          - $ref: "#/components/schemas/SemanticType"
-        piiType:
-          allOf:
-          - $ref: "#/components/schemas/PIIType"
-          description: Level of PII sensitivity
-          default: "high"
-        entityID:
-          type: integer
-          format: int64
-          minimum: 0
-          title: Entity ID
-          description: The ID of the entity that this column belongs to.
-          nullable: true
-        foreignKey:
-          type: integer
-          format: int64
-          nullable: true
-        foreignKeyRef:
-          allOf:
-          - $ref: "#/components/schemas/foreignKeyRef"
-          nullable: true
-        dropColumn:
-          type: boolean
-          default: false
-        tableId:
-          type: integer
-          format: int64
-          description: The ID of the table that this column belongs to.
-    foreignKeyRef:
-      type: object
-      description: Foreign key reference
-      properties:
-        colName:
-          type: string
-          description: The column name the foreign key references
-        tableId:
-          type: integer
-          format: int64
-          description: The ID of the table the foreign key references
-    TaskType:
-      description: Type of a task.
-      enum:
-      - train
-      - generate
-      - analyse
-    SequentialConfig:
-      type: object
-      properties:
-        modelType:
-          allOf:
-          - $ref: "#/components/schemas/SequentialModelType"
-        stepSequential:
-          anyOf:
-          - $ref: "#/components/schemas/StepSequentialConfig"
-          nullable: true
-    SequentialModelType:
-      enum:
-      - sequential_basic
-      title: Sequential model type
-      description: Model types available for generating sequential data.
-    StepSequentialConfig:
-      type: object
-      properties:
-        windowSize:
-          type: integer
-          format: int64
-          title: Sequential conditioning window size
-          description: |
-            The number of previous elements in the sequence
-            to condition on during each sequential generation step.
-          default: 5
-          minimum: 1
-          nullable: true
-        nPredict:
-          type: integer
-          format: int64
-          title: Number of elements to predict
-          description: |
-            The number of elements in the sequence to predict
-            at each sequential generation step.
-          default: 2
-          minimum: 1
-          nullable: true
-    TaskResult:
-      description: Task progress or result.
-      type: object
-      properties:
-        taskID:
-          description: Unique identifier for the task.
-          type: integer
-          format: int64
-        taskType:
-          description: Task type.
-          allOf:
-          - $ref: "#/components/schemas/TaskType"
-        state:
-          description: Task state.
-          allOf:
-          - $ref: "#/components/schemas/TaskState"
-        killSignal:
-          description: Signal provided to kill the task.
-          allOf:
-          - $ref: "#/components/schemas/TaskKillSignal"
-          nullable: true
-        progress:
-          description: Task progress.
-          anyOf:
-          - $ref: "#/components/schemas/TaskProgress"
-          nullable: true
-        error:
-          description: Task error.
-          anyOf:
-          - $ref: "#/components/schemas/TaskError"
-          nullable: true
-        performanceMetrics:
-          description: Performance metrics.
-          type: object
-          anyOf:
-          - $ref: "#/components/schemas/PerfMetrics"
-          nullable: true
-        analysisResult:
-          description: Analysis result.
-          anyOf:
-          - $ref: "#/components/schemas/AnalysisResult"
-          nullable: true
-        generationResult:
-          description: Generation result.
-          anyOf:
-          - $ref: "#/components/schemas/GenerationResult"
-          nullable: true
-        trainingResult:
-          description: Training result.
-          anyOf:
-          - $ref: "#/components/schemas/TrainingResult"
-          nullable: true
-    ChartData:
-      type: object
-      properties:
-        chartType:
-          allOf:
-          - $ref: "#/components/schemas/chartType"
-        barChart:
-          allOf:
-          - $ref: "#/components/schemas/BarChart"
-          nullable: true
-        histogram:
-          allOf:
-          - $ref: "#/components/schemas/Histogram"
-          nullable: true
-        heatmap:
-          allOf:
-          - $ref: "#/components/schemas/Heatmap"
-          nullable: true
-        degreeDistributionHistograms:
-          allOf:
-          - $ref: "#/components/schemas/DegreeDistributionHistograms"
-          nullable: true
-    chartType:
-      enum:
-      - bar
-      - hist
-      - heatmap
-      - degree_distribution_histograms
-
-    BarChart:
-      type: object
-      properties:
-        x:
-          type: array
-          items: {}
-        traces:
-          type: array
-          items:
-            $ref: "#/components/schemas/YTrace"
-    Histogram:
-      type: object
-      properties:
-        x:
-          type: array
-          items: {}
-        xType:
-          allOf:
-          - $ref: "#/components/schemas/xType"
-        traces:
-          type: array
-          items:
-            $ref: "#/components/schemas/YTrace"
-    Heatmap:
-      type: object
-      properties:
-        points:
-          type: array
-          items:
-            $ref: "#/components/schemas/HeatmapPoint"
-    DegreeDistributionHistograms:
-      type: object
-      properties:
-        top:
-          description: It will only ever be one of barChart or histogram
-          allOf:
-          - $ref: "#/components/schemas/ChartData"
-        bottom:
-          description: It will only ever be one of barChart or histogram
-          allOf:
-          - $ref: "#/components/schemas/ChartData"
-    YTrace:
-      type: object
-      properties:
-        label:
-          type: string
-          description: Label for the trace
-        y:
-          type: array
-          items:
-            type: number
-            format: double
-    xType:
-      enum:
-      - number
-      - datetime
-      - timedelta_seconds
-
-    HeatmapPoint:
-      type: object
-      properties:
-        x:
-          type: string
-        y:
-          type: string
-        z:
-          type: array
-          items:
-            $ref: "#/components/schemas/ZPoint"
-    ZPoint:
-      type: object
-      properties:
-        label:
-          type: string
-        value:
-          type: number
-          format: double
-    ExportErrorResponse:
-      type: object
-      properties:
-        validationErrors:
-          allOf:
-          - $ref: "#/components/schemas/ValidationErrorTracker"
-    entityUpdateRequest:
-      type: object
-      description: Representation used to set the settings on a Data Maker entity.
-      properties:
-        settings:
-          type: object
-          allOf:
-          - $ref: "#/components/schemas/entitySettings"
-          nullable: true
-        columns:
-          type: array
+          description: List of connection ids for all tables in all models across
+            the project.
           items:
             type: integer
             format: int64
-          nullable: true
-    entitySettings:
-      type: object
-      description: Data Maker entity settings representation
-      properties:
-        entityType:
-          $ref: "#/components/schemas/entityType"
-        personEntitySetting:
+        modelCollection:
+          type: object
+          description: A collection of Data Maker models on the project.
           allOf:
-          - $ref: "#/components/schemas/personEntitySetting"
-          nullable: true
-        locationEntitySetting:
-          allOf:
-          - $ref: "#/components/schemas/locationEntitySetting"
-          nullable: true
-      required:
-      - entityType
-    entityType:
-      title: Entity Type
-      description: Entity types available for creating an entity on a column
-      enum:
-      - person
-      - combination
-      - location
-    TaskConfig:
-      x-sas-internal: true
-      description: Representation of a generic Data Maker task.
-      type: object
-      properties:
-        taskID:
-          description: Unique identifier for the task.
-          type: integer
-          format: int64
-        initiatorID:
-          description: Unique identifier for the user who initiated the task.
-          type: string
-          format: uuid
-        taskType:
-          description: Task type.
-          type: object
-          allOf:
-          - $ref: "#/components/schemas/TaskType"
-        config:
-          description: Task configuration.
-          type: object
-    taskViewGeneratedDataResponse:
-      type: object
-      properties:
-        tables:
-          type: array
-          description: Generated data for each table
-          items:
-            $ref: "#/components/schemas/GeneratedData"
-    GeneratedData:
-      description: Generated data for a table in a generation run
-      type: object
-      properties:
-        name:
-          description: The name of the table
-          type: string
-        filePath:
-          description: Full raw path to file
-          type: string
-        fileSize:
-          description: File size in bytes
-          type: integer
-          format: int64
-    projectUpdateRequest:
-      type: object
-      description: Representation used to update a Data Maker project
-      properties:
-        name:
-          description: the name of the project
-          type: string
-        description:
-          description: a description for the project
-          type: string
-    conditionCreateRequest:
-      type: object
-      description: Representation used to create a Data Maker condition
-      allOf:
-      - $ref: "#/components/schemas/conditionBase"
-    conditionBase:
-      type: object
-      description: Data Maker base condition representation
-      properties:
-        conditionType:
-          $ref: "#/components/schemas/conditionType"
-        tableName:
-          type: string
-          description: Name of the target table
-        columnName:
-          type: string
-          description: Name of the target column
-        marginalDistribution:
-          type: boolean
-          description: Enable to sample from the marginal rather then a uniform distribution
-          default: false
-        nullProportion:
-          description: Proportion of null in the sampled data. By default this is
-            set to the null rate in the source data if marginal distribution is enabled
-            or 0.0 if disabled
-          type: number
-          format: double
-          nullable: true
-        settings:
-          allOf:
-          - $ref: "#/components/schemas/conditionSettings"
-    conditionType:
-      type: string
-      enum:
-      - float
-      - int
-      - date_time
-      - time_delta
-      - category
-    conditionSettings:
-      properties:
-        intCondition:
-          type: object
-          description: A bounded integer condition with a lower and upper bound
-          properties:
-            upper:
-              description: Upper integer bound
-              type: integer
-              format: int64
-              nullable: true
-            lower:
-              description: Lower integer bound
-              type: integer
-              format: int64
-              nullable: true
-          nullable: true
-        floatCondition:
-          type: object
-          description: A bounded float condition with a lower and upper bound
-          properties:
-            upper:
-              description: Upper float bound
-              type: number
-              format: double
-              nullable: true
-            lower:
-              description: Lower float bound
-              type: number
-              format: double
-              nullable: true
-          nullable: true
-        categoryCondition:
-          type: object
-          description: A category condition with a list of categories
-          properties:
-            categories:
-              type: array
-              items:
-                type: string
-          nullable: true
-        datetimeCondition:
-          type: object
-          description: A bounded datetime condition with a lower and upper bound
-          properties:
-            upper:
-              description: Upper datetime bound
-              type: string
-              nullable: true
-            lower:
-              description: Lower datetime bound
-              type: string
-              nullable: true
-          nullable: true
-        timedeltaCondition:
-          type: object
-          description: A bounded timedelta condition with a lower and upper bound
-          properties:
-            upper:
-              description: Upper timedelta bound
-              type: string
-              nullable: true
-            lower:
-              description: Lower timedelta bound
-              type: string
-              nullable: true
-          nullable: true
+          - $ref: "#/components/schemas/modelCollection"
     column:
       type: object
       description: Main column object
@@ -3718,25 +3203,20 @@ components:
       title: Constant data type
       description: Data type to coerce a constant value to. This is used inside a
         formula.
-    condition:
+    connectionTestResult:
       type: object
-      allOf:
-      - $ref: "#/components/schemas/conditionBase"
-      - $ref: "#/components/schemas/trackedResource"
-      - type: object
-        properties:
-          ID:
-            type: integer
-            format: int64
-            description: ID of the condition
-    taskDeleteResponse:
-      type: object
+      description: The result from testing connection details.
       properties:
-        message:
+        valid:
+          description: Whether the connection details are valid or not, or null if
+            undetermined.
+          type: boolean
+          nullable: true
+        error:
+          description: The errors that occured when testing the connection details.
           type: string
-          description: Message indicating the state of the task
-        Task:
-          $ref: "#/components/schemas/Task"
+      required:
+      - valid
     Task:
       description: Representation of a generic Data Maker task.
       allOf:
@@ -3786,6 +3266,12 @@ components:
             anyOf:
             - $ref: "#/components/schemas/PerfMetrics"
             nullable: true
+    TaskType:
+      description: Type of a task.
+      enum:
+      - train
+      - generate
+      - analyse
     TaskState:
       description: State of a task.
       enum:
@@ -3844,17 +3330,355 @@ components:
           description: Error remediation.
           type: string
           nullable: true
-    connectionCollection:
-      allOf:
-      - type: object
-      properties:
-        items:
-          type: array
-          description: An array that contains Data Maker connection objects.
-          items:
-            $ref: "#/components/schemas/connection"
-      description: A collection of Data Maker connections objects.
+    modelCreateRequest:
       type: object
+      description: >
+        Representation used to create a Data Maker model
+      properties:
+        name:
+          description: Name of the model
+          type: string
+          nullable: true
+    setTableProperties:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the table
+        props:
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/tableProperties"
+          description: The properties of the table
+      required:
+      - name
+      - props
+      description: Set the properties of a table
+    tableProperties:
+      type: object
+      description: Contains the table properties
+      properties:
+        tableType:
+          allOf:
+          - $ref: "#/components/schemas/TableType"
+        sequentialTable:
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/SequentialTable"
+          nullable: true
+    TableType:
+      enum:
+      - tabular
+      - sequential
+      - reference
+      title: Table type
+      description: Table types available to define tables in data maker.
+    SequentialTable:
+      type: object
+      description: Data schema definition for a sequential table
+      properties:
+        seqID:
+          type: integer
+          format: int64
+          description: The column used to identify unique sequences.
+          nullable: true
+        sortBy:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: The columns used to sort the table to set the order of sequences.
+          nullable: true
+    ExportErrorResponse:
+      type: object
+      properties:
+        validationErrors:
+          allOf:
+          - $ref: "#/components/schemas/ValidationErrorTracker"
+    DensityDisclosureSettings:
+      title: Density disclosure
+      description: |
+        Estimates the risk of an adversary constructing a mapping from the
+        synthetic data points to the real data points (this concept can also be
+        referred to as “reversibility”).
+      allOf:
+      - $ref: "#/components/schemas/BaseMetricSettings"
+      properties:
+        numRecords:
+          type: integer
+          format: int64
+          title: Number of synthetic data records
+          description: Number of synthetic data records to be sampled for computing
+            the metric.
+          exclusiveMinimum: true
+          minimum: 0
+          default: 10000
+          nullable: true
+    conditionCreateRequest:
+      type: object
+      description: Representation used to create a Data Maker condition
+      allOf:
+      - $ref: "#/components/schemas/conditionBase"
+    conditionBase:
+      type: object
+      description: Data Maker base condition representation
+      properties:
+        conditionType:
+          $ref: "#/components/schemas/conditionType"
+        tableName:
+          type: string
+          description: Name of the target table
+        columnName:
+          type: string
+          description: Name of the target column
+        marginalDistribution:
+          type: boolean
+          description: Enable to sample from the marginal rather then a uniform distribution
+          default: false
+        nullProportion:
+          description: Proportion of null in the sampled data. By default this is
+            set to the null rate in the source data if marginal distribution is enabled
+            or 0.0 if disabled
+          type: number
+          format: double
+          nullable: true
+        settings:
+          allOf:
+          - $ref: "#/components/schemas/conditionSettings"
+    conditionType:
+      type: string
+      enum:
+      - float
+      - int
+      - date_time
+      - time_delta
+      - category
+    conditionSettings:
+      properties:
+        intCondition:
+          type: object
+          description: A bounded integer condition with a lower and upper bound
+          properties:
+            upper:
+              description: Upper integer bound
+              type: integer
+              format: int64
+              nullable: true
+            lower:
+              description: Lower integer bound
+              type: integer
+              format: int64
+              nullable: true
+          nullable: true
+        floatCondition:
+          type: object
+          description: A bounded float condition with a lower and upper bound
+          properties:
+            upper:
+              description: Upper float bound
+              type: number
+              format: double
+              nullable: true
+            lower:
+              description: Lower float bound
+              type: number
+              format: double
+              nullable: true
+          nullable: true
+        categoryCondition:
+          type: object
+          description: A category condition with a list of categories
+          properties:
+            categories:
+              type: array
+              items:
+                type: string
+          nullable: true
+        datetimeCondition:
+          type: object
+          description: A bounded datetime condition with a lower and upper bound
+          properties:
+            upper:
+              description: Upper datetime bound
+              type: string
+              nullable: true
+            lower:
+              description: Lower datetime bound
+              type: string
+              nullable: true
+          nullable: true
+        timedeltaCondition:
+          type: object
+          description: A bounded timedelta condition with a lower and upper bound
+          properties:
+            upper:
+              description: Upper timedelta bound
+              type: string
+              nullable: true
+            lower:
+              description: Lower timedelta bound
+              type: string
+              nullable: true
+          nullable: true
+    condition:
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/conditionBase"
+      - $ref: "#/components/schemas/trackedResource"
+      - type: object
+        properties:
+          ID:
+            type: integer
+            format: int64
+            description: ID of the condition
+    connectionTestRequest:
+      type: object
+      description: Representation used to test connection details
+      properties:
+        connectionSettings:
+          allOf:
+          - $ref: "#/components/schemas/connectionSettings"
+    entity:
+      type: object
+      description: Data Maker entity representation
+      properties:
+        ID:
+          type: integer
+          format: int64
+        tableID:
+          type: integer
+          format: int64
+        entityType:
+          $ref: "#/components/schemas/entityType"
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/column"
+          nullable: true
+        settings:
+          allOf:
+          - $ref: "#/components/schemas/entitySettings"
+          nullable: true
+      required:
+      - ID
+      - tableID
+    entityType:
+      title: Entity Type
+      description: Entity types available for creating an entity on a column
+      enum:
+      - person
+      - combination
+      - location
+    entitySettings:
+      type: object
+      description: Data Maker entity settings representation
+      properties:
+        entityType:
+          $ref: "#/components/schemas/entityType"
+        personEntitySetting:
+          allOf:
+          - $ref: "#/components/schemas/personEntitySetting"
+          nullable: true
+        locationEntitySetting:
+          allOf:
+          - $ref: "#/components/schemas/locationEntitySetting"
+          nullable: true
+      required:
+      - entityType
+    table:
+      type: object
+      description: Main table object
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        relPath:
+          type: string
+        dbSchemaName:
+          type: string
+        dbTableName:
+          type: string
+        props:
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/tableProperties"
+        keyColumns:
+          type: array
+          description: An array that contains top level column information.
+          items:
+            $ref: "#/components/schemas/simpleColumn"
+        sizeBytes:
+          type: integer
+          format: int64
+          description: The size of the table in bytes.
+        numRows:
+          type: integer
+          format: int64
+          description: The number of rows in the table.
+      required:
+      - id
+      - name
+    simpleColumn:
+      type: object
+      description: Main column object
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        primaryKey:
+          type: boolean
+        dtype:
+          allOf:
+          - $ref: "#/components/schemas/SemanticType"
+        piiType:
+          allOf:
+          - $ref: "#/components/schemas/PIIType"
+          description: Level of PII sensitivity
+          default: "high"
+        entityID:
+          type: integer
+          format: int64
+          minimum: 0
+          title: Entity ID
+          description: The ID of the entity that this column belongs to.
+          nullable: true
+        foreignKey:
+          type: integer
+          format: int64
+          nullable: true
+        foreignKeyRef:
+          allOf:
+          - $ref: "#/components/schemas/foreignKeyRef"
+          nullable: true
+        dropColumn:
+          type: boolean
+          default: false
+        tableId:
+          type: integer
+          format: int64
+          description: The ID of the table that this column belongs to.
+    foreignKeyRef:
+      type: object
+      description: Foreign key reference
+      properties:
+        colName:
+          type: string
+          description: The column name the foreign key references
+        tableId:
+          type: integer
+          format: int64
+          description: The ID of the table the foreign key references
     modelArtifacts:
       x-sas-internal: true
       type: object
@@ -3884,31 +3708,6 @@ components:
         sampleSchema:
           allOf:
           - $ref: "#/components/schemas/sampleSchema"
-    patches:
-      type: array
-      items:
-        oneOf:
-        - $ref: "#/components/schemas/patch"
-    patch:
-      type: object
-      description: Used to set column properties
-      properties:
-        op:
-          allOf:
-          - $ref: "#/components/schemas/patchOperationType"
-        path:
-          type: string
-        value: {} # this means any in openapi schema
-      required:
-      - op
-      - path
-    patchOperationType:
-      enum:
-      - replace
-      - add
-      - remove
-      title: Patch operation type
-      description: Semantic types available to define columns as in data maker.
     projectSummaryCollection:
       allOf:
       - $ref: "#/components/schemas/baseCollection2"
@@ -3997,331 +3796,183 @@ components:
           type: integer
           format: int64
           description: Number of successfully trained models
-    entity:
+    connectionFileUploadRequest:
       type: object
-      description: Data Maker entity representation
       properties:
-        ID:
-          type: integer
-          format: int64
-        tableID:
-          type: integer
-          format: int64
-        entityType:
-          $ref: "#/components/schemas/entityType"
-        columns:
+        path:
+          type: string
+        files:
           type: array
-          items:
-            $ref: "#/components/schemas/column"
-          nullable: true
-        settings:
-          allOf:
-          - $ref: "#/components/schemas/entitySettings"
-          nullable: true
-      required:
-      - ID
-      - tableID
-    baseCollection2:
-      title: Base Collection
-      description: This is a base schema used to define paginated collections of resources.
-        This base schema is extended by other schemas in APIs by adding an 'items'
-        array property. These extensions define the application/vnd.sas.collection
-        media type (version 2)
-      properties:
-        name:
-          type: string
-          description: The name of the collection.
-        start:
-          type: integer
-          description: The zero-based index of the first item in the collection.
-          format: int64
-        limit:
-          type: integer
-          description: The number of items that were requested for the collection.
-        count:
-          type: integer
-          description: If populated indicates the number of items in the collection.
-          format: int64
-        accept:
-          type: string
-          description: A space-delimited list of media types from which an `Accept`
-            header may be constructed.
-        links:
-          type: array
-          description: The links that apply to the collection.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the collection representation. This representation
-            is version 2.
-    error2:
-      title: Error
-      type: object
-      description: The representation of an error.
-      x-sas-media-type:
-        name: application/vnd.sas.error
-        version: 2
-      required:
-      - httpStatusCode
-      - version
-      properties:
-        message:
-          type: string
-          description: The message for the error.
-        id:
-          type: string
-          description: The string ID for the error.
-        errorCode:
-          type: integer
-          description: The numeric ID for the error.
-        httpStatusCode:
-          type: integer
-          description: The HTTP status code for the error.
-        details:
-          type: array
-          description: Messages that provide additional details about the cause of
-            the error.
           items:
             type: string
-        remediation:
+            format: binary
+      required:
+      - path
+      - files
+    taskViewGeneratedDataResponse:
+      type: object
+      properties:
+        tables:
+          type: array
+          description: Generated data for each table
+          items:
+            $ref: "#/components/schemas/GeneratedData"
+    GeneratedData:
+      description: Generated data for a table in a generation run
+      type: object
+      properties:
+        name:
+          description: The name of the table
           type: string
-          description: A message that describes how to resolve the error.
-        errors:
-          type: array
-          description: Any additional errors that occurred.
-          items:
-            $ref: "#/components/schemas/error2"
-        links:
-          type: array
-          description: The links that apply to the error.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
+        filePath:
+          description: Full raw path to file
+          type: string
+        fileSize:
+          description: File size in bytes
           type: integer
-          description: The version number of the error representation. This representation
-            is version 2.
-    ModelType:
-      title: Model type
-      description: Model types available for generating synthetic data.
+          format: int64
+    patches:
+      type: array
+      items:
+        oneOf:
+        - $ref: "#/components/schemas/patch"
+    patch:
+      type: object
+      description: Used to set column properties
+      properties:
+        op:
+          allOf:
+          - $ref: "#/components/schemas/patchOperationType"
+        path:
+          type: string
+        value: {} # this means any in openapi schema
+      required:
+      - op
+      - path
+    patchOperationType:
       enum:
-      - smote
-      - priv_bayes
-      - mst
-      - private_evolution
-    DensityDisclosureSettings:
-      title: Density disclosure
-      description: |
-        Estimates the risk of an adversary constructing a mapping from the
-        synthetic data points to the real data points (this concept can also be
-        referred to as “reversibility”).
-      allOf:
-      - $ref: "#/components/schemas/BaseMetricSettings"
-      properties:
-        numRecords:
-          type: integer
-          format: int64
-          title: Number of synthetic data records
-          description: Number of synthetic data records to be sampled for computing
-            the metric.
-          exclusiveMinimum: true
-          minimum: 0
-          default: 10000
-          nullable: true
-    conditionUpdateRequest:
-      type: object
-      description: Representation used to update a Data Maker condition
-      allOf:
-      - $ref: "#/components/schemas/conditionBase"
-      - type: object
-        properties:
-          conditionType:
-            $ref: "#/components/schemas/conditionType"
-          tableName:
-            type: string
-            description: Name of the target table
-            nullable: true
-          columnName:
-            type: string
-            description: Name of the target column
-            nullable: true
-          marginalDistribution:
-            type: boolean
-            description: Enable to sample from the marginal rather then a uniform
-              distribution
-            nullable: true
-          settings:
-            allOf:
-            - $ref: "#/components/schemas/conditionSettings"
-            nullable: true
-    SmoteConfig:
-      properties:
-        kNeighbors:
-          type: integer
-          format: int64
-          title: Number of neighbors
-          description: Number of neighbors to use for interpolation of a new synthetic
-            data point.
-          default: 5
-          minimum: 1
-          nullable: true
-        maxCat:
-          $ref: "#/components/schemas/MaxCat"
-      type: object
-      title: SmoteConfig
-    project:
-      allOf:
-      - $ref: "#/components/schemas/trackedResource"
-      type: object
-      description: Data Maker project representation
-      properties:
-        id:
-          type: integer
-          format: int64
-          description: ID of the project.
-        name:
-          type: string
-          description: Name of the project.
-        description:
-          type: string
-          description: Description of the project.
-        connections:
-          type: array
-          description: List of connection ids for all tables in all models across
-            the project.
-          items:
-            type: integer
-            format: int64
-        modelCollection:
-          type: object
-          description: A collection of Data Maker models on the project.
-          allOf:
-          - $ref: "#/components/schemas/modelCollection"
-    connectionFilesCollection:
-      allOf:
-      - type: object
-      properties:
-        items:
-          type: array
-          description: An array that contains Data Maker connection file objects.
-          items:
-            $ref: "#/components/schemas/connectionFile"
-      description: A collection of Data Maker connection file objects.
-      type: object
-    connectionFile:
-      type: object
-      description: a file that can be read from a connection.
-      properties:
-        name:
-          description: The name of the file.
-          type: string
-        creationTime:
-          description: The time the file was created.
-          type: string
-          format: date-time
-        lastModified:
-          description: The time the file was last modified.
-          type: string
-          format: date-time
-        contentLength:
-          description: The size of the file, in bytes.
-          type: integer
-          format: int64
-        extension:
-          allOf:
-          - $ref: "#/components/schemas/InputFileExtension"
-          readOnly: true
-          nullable: true
-    InputFileExtension:
-      enum:
-      - csv
-      - csv.gz
-      - parquet
-      - avro
-      - sas7bdat
-      - sashdat
-    api:
-      title: API
-      description: The list of links to top-level resources and operations available
-        from the root of the API.
-      x-sas-media-type:
-        name: application/vnd.sas.api
-        version: 1
-      required:
-      - version
-      - links
-      properties:
-        version:
-          type: integer
-          description: The version number of the API representation. This is version
-            1.
-          minimum: 1
-        links:
-          description: The API's top-level links.
-          type: array
-          items:
-            $ref: "#/components/schemas/link"
-    modelCreateRequest:
+      - replace
+      - add
+      - remove
+      title: Patch operation type
+      description: Semantic types available to define columns as in data maker.
+    projectCreateRequest:
       type: object
       description: >
-        Representation used to create a Data Maker model
+        Representation used to create a Data Maker project
       properties:
         name:
-          description: Name of the model
+          description: Name of the project
           type: string
+        description:
+          description: a description for the project
+          type: string
+    ChartData:
+      type: object
+      properties:
+        chartType:
+          allOf:
+          - $ref: "#/components/schemas/chartType"
+        barChart:
+          allOf:
+          - $ref: "#/components/schemas/BarChart"
           nullable: true
-    connectionTestRequest:
-      type: object
-      description: Representation used to test connection details
-      properties:
-        connectionSettings:
+        histogram:
           allOf:
-          - $ref: "#/components/schemas/connectionSettings"
-    connectionUpdateRequest:
-      type: object
-      description: Representation used to update a Data Maker connection
-      properties:
-        connectionSettings:
+          - $ref: "#/components/schemas/Histogram"
+          nullable: true
+        heatmap:
           allOf:
-          - $ref: "#/components/schemas/connectionSettings"
-    MutualInformationSimilaritySettings:
-      title: Mutual information similarity
-      description: |
-        Measures the similarity of the real and synthetic data from an
-        information theoretical point of view.
-      allOf:
-      - $ref: "#/components/schemas/BaseMetricSettings"
-    trackedResource:
-      title: Tracked Resource
-      description: This class is used to provide common attributes and behaviors around
-        tracking who and when objects were created and modified to representation
-        objects.
-      properties:
-        createdBy:
-          type: string
-          description: The username of whoever created the resource.
-        modifiedBy:
-          type: string
-          description: The username of whoever last modified the resource.
-        creationTimeStamp:
-          type: string
-          format: date-time
-          description: The timestamp for when the resource was created.
-        modifiedTimeStamp:
-          type: string
-          format: date-time
-          description: The timestamp for when the resource was last modified.
-    MetricType:
+          - $ref: "#/components/schemas/Heatmap"
+          nullable: true
+        degreeDistributionHistograms:
+          allOf:
+          - $ref: "#/components/schemas/DegreeDistributionHistograms"
+          nullable: true
+    chartType:
       enum:
-      - mutual_information_similarity
-      - histogram_similarity
-      - presence_disclosure
-      - density_disclosure
-      - degree_distribution_similarity
-      - cross_table_mutual_information_similarity
-      - aggregated_sequential_histogram_similarity
-      title: Metric type
-      description: Metric types available for evaluating synthetic data.
+      - bar
+      - hist
+      - heatmap
+      - degree_distribution_histograms
+
+    BarChart:
+      type: object
+      properties:
+        x:
+          type: array
+          items: {}
+        traces:
+          type: array
+          items:
+            $ref: "#/components/schemas/YTrace"
+    Histogram:
+      type: object
+      properties:
+        x:
+          type: array
+          items: {}
+        xType:
+          allOf:
+          - $ref: "#/components/schemas/xType"
+        traces:
+          type: array
+          items:
+            $ref: "#/components/schemas/YTrace"
+    Heatmap:
+      type: object
+      properties:
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/HeatmapPoint"
+    DegreeDistributionHistograms:
+      type: object
+      properties:
+        top:
+          description: It will only ever be one of barChart or histogram
+          allOf:
+          - $ref: "#/components/schemas/ChartData"
+        bottom:
+          description: It will only ever be one of barChart or histogram
+          allOf:
+          - $ref: "#/components/schemas/ChartData"
+    YTrace:
+      type: object
+      properties:
+        label:
+          type: string
+          description: Label for the trace
+        y:
+          type: array
+          items:
+            type: number
+            format: double
+    xType:
+      enum:
+      - number
+      - datetime
+      - timedelta_seconds
+
+    HeatmapPoint:
+      type: object
+      properties:
+        x:
+          type: string
+        y:
+          type: string
+        z:
+          type: array
+          items:
+            $ref: "#/components/schemas/ZPoint"
+    ZPoint:
+      type: object
+      properties:
+        label:
+          type: string
+        value:
+          type: number
+          format: double
     ValidationErrorTracker:
       type: object
       properties:
@@ -4374,6 +4025,673 @@ components:
           type: array
           items:
             type: string
+    modelForkRequest:
+      type: object
+      description: Representation used to fork a Data Maker model
+      properties:
+        name:
+          description: Name of the forked model
+          type: string
+          nullable: true
+    catalogModelCollection:
+      type: object
+      description: A collection of Data Maker catalog model objects.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: An array that contains Data Maker catalog model objects.
+            items:
+              $ref: "#/components/schemas/catalogModel"
+    entityCreateRequest:
+      type: object
+      description: Representation used to create a Data Maker entity.
+      properties:
+        columnID:
+          type: integer
+          format: int64
+          description: The ID of the column to make an entity.
+        entityType:
+          $ref: "#/components/schemas/entityType"
+      required:
+      - columnID
+      - entityType
+    entityCollection:
+      type: object
+      description: A collection of Data Maker entity objects.
+      allOf:
+      - type: object
+        properties:
+          items:
+            type: array
+            description: An array that contains Data Maker entity objects.
+            items:
+              $ref: "#/components/schemas/entity"
+    MutualInformationSimilaritySettings:
+      title: Mutual information similarity
+      description: |
+        Measures the similarity of the real and synthetic data from an
+        information theoretical point of view.
+      allOf:
+      - $ref: "#/components/schemas/BaseMetricSettings"
+    ModelType:
+      title: Model type
+      description: Model types available for generating synthetic data.
+      enum:
+      - smote
+      - priv_bayes
+      - mst
+      - private_evolution
+    TaskConfig:
+      x-sas-internal: true
+      description: Representation of a generic Data Maker task.
+      type: object
+      properties:
+        taskID:
+          description: Unique identifier for the task.
+          type: integer
+          format: int64
+        initiatorID:
+          description: Unique identifier for the user who initiated the task.
+          type: string
+          format: uuid
+        taskType:
+          description: Task type.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/TaskType"
+        config:
+          description: Task configuration.
+          type: object
+    SmoteConfig:
+      properties:
+        kNeighbors:
+          type: integer
+          format: int64
+          title: Number of neighbors
+          description: Number of neighbors to use for interpolation of a new synthetic
+            data point.
+          default: 5
+          minimum: 1
+          nullable: true
+        maxCat:
+          $ref: "#/components/schemas/MaxCat"
+      type: object
+      title: SmoteConfig
+    MaxCat:
+      title: Maximum categories
+      description: Maximum amount of categorical information to preserve in each categorical
+        column.
+      type: integer
+      minimum: 1.0
+      format: int64
+      default: 100
+      nullable: true
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    ColumnRange:
+      type: object
+      required:
+      - col
+      - dtype
+      properties:
+        col:
+          type: string
+        dtype:
+          $ref: "#/components/schemas/conditionType"
+        has_nan:
+          type: boolean
+        categories:
+          type: array
+          uniqueItems: true
+          items:
+            description: Category value. Concrete type depends the underlying data
+              type.
+          description: Present when dtype is category
+        aggregated:
+          type: boolean
+          description: Present when dtype is category
+        lower:
+          description: |
+            Lower bound for the column range.
+            For int: integer
+            For float: number
+            For date_time: ISO 8601 date-time string
+            For time_delta: ISO 8601 duration string
+        upper:
+          description: |
+            Upper bound for the column range.
+            For int: integer
+            For float: number
+            For date_time: ISO 8601 date-time string
+            For time_delta: ISO 8601 duration string
+        marginal:
+          type: object
+          additionalProperties: true
+          description: |
+            Marginal information for the column.
+            Expected shape depends on dtype:
+            - category -> CategoricalMarginal
+            - int -> IntMarginal
+            - float -> FloatMarginal
+            - date_time -> DatetimeMarginal
+            - time_delta -> TimedeltaMarginal
+    modelPublishRequest:
+      type: object
+      description: Representation used to publish a Data Maker catalog model
+      properties:
+        name:
+          description: Name of the catalog model
+          type: string
+          nullable: false
+        description:
+          description: Description of the catalog model
+          type: string
+          nullable: true
+    taskDeleteResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Message indicating the state of the task
+        Task:
+          $ref: "#/components/schemas/Task"
+    HistogramSimilaritySettings:
+      title: Histogram similarity
+      description: Measures the similarity of the marginal distributions in the real
+        and synthetic data.
+      allOf:
+      - $ref: "#/components/schemas/BaseMetricSettings"
+    connectionFilesCollection:
+      allOf:
+      - type: object
+      properties:
+        items:
+          type: array
+          description: An array that contains Data Maker connection file objects.
+          items:
+            $ref: "#/components/schemas/connectionFile"
+      description: A collection of Data Maker connection file objects.
+      type: object
+    connectionFile:
+      type: object
+      description: a file that can be read from a connection.
+      properties:
+        name:
+          description: The name of the file.
+          type: string
+        creationTime:
+          description: The time the file was created.
+          type: string
+          format: date-time
+        lastModified:
+          description: The time the file was last modified.
+          type: string
+          format: date-time
+        contentLength:
+          description: The size of the file, in bytes.
+          type: integer
+          format: int64
+        extension:
+          allOf:
+          - $ref: "#/components/schemas/InputFileExtension"
+          readOnly: true
+          nullable: true
+    InputFileExtension:
+      enum:
+      - csv
+      - csv.gz
+      - parquet
+      - avro
+      - sas7bdat
+      - sashdat
+    PrivBayesConfig:
+      properties:
+        nBins:
+          $ref: "#/components/schemas/NBins"
+        maxCat:
+          $ref: "#/components/schemas/MaxCat"
+        epsilon:
+          $ref: "#/components/schemas/Epsilon"
+        useDifferentialPrivacy:
+          $ref: "#/components/schemas/UseDifferentialPrivacy"
+        nParents:
+          type: integer
+          exclusiveMinimum: true
+          minimum: 1
+          format: int64
+          title: Number of parents
+          description: Number of parents per node to use in network building.
+          default: 3
+          nullable: true
+      type: object
+      title: PrivBayesConfig
+    NBins:
+      title: Number of bins
+      description: The number of bins to use when discretizing numerical data.
+      type: integer
+      format: int64
+      minimum: 1.0
+      default: 100
+      nullable: true
+    Epsilon:
+      title: Epsilon
+      description: Privacy budget parameter. Use small values such as 0.01 for extremely
+        high privacy guarantees, around 1-25 for standard privacy guarantees and large
+        values such as 10000 for low privacy but greater accuracy.
+      type: number
+      exclusiveMinimum: true
+      minimum: 0.0
+      format: double
+      default: 1000
+      nullable: true
+    UseDifferentialPrivacy:
+      type: boolean
+      title: Use differential privacy
+      description: Set to true to turn on differential privacy applying the epsilon
+        privacy budget parameter.
+      default: true
+      nullable: true
+    TaskResult:
+      description: Task progress or result.
+      type: object
+      properties:
+        taskID:
+          description: Unique identifier for the task.
+          type: integer
+          format: int64
+        taskType:
+          description: Task type.
+          allOf:
+          - $ref: "#/components/schemas/TaskType"
+        state:
+          description: Task state.
+          allOf:
+          - $ref: "#/components/schemas/TaskState"
+        killSignal:
+          description: Signal provided to kill the task.
+          allOf:
+          - $ref: "#/components/schemas/TaskKillSignal"
+          nullable: true
+        progress:
+          description: Task progress.
+          anyOf:
+          - $ref: "#/components/schemas/TaskProgress"
+          nullable: true
+        error:
+          description: Task error.
+          anyOf:
+          - $ref: "#/components/schemas/TaskError"
+          nullable: true
+        performanceMetrics:
+          description: Performance metrics.
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/PerfMetrics"
+          nullable: true
+        analysisResult:
+          description: Analysis result.
+          anyOf:
+          - $ref: "#/components/schemas/AnalysisResult"
+          nullable: true
+        generationResult:
+          description: Generation result.
+          anyOf:
+          - $ref: "#/components/schemas/GenerationResult"
+          nullable: true
+        trainingResult:
+          description: Training result.
+          anyOf:
+          - $ref: "#/components/schemas/TrainingResult"
+          nullable: true
+    MetricType:
+      enum:
+      - mutual_information_similarity
+      - histogram_similarity
+      - presence_disclosure
+      - density_disclosure
+      - degree_distribution_similarity
+      - cross_table_mutual_information_similarity
+      - aggregated_sequential_histogram_similarity
+      title: Metric type
+      description: Metric types available for evaluating synthetic data.
+    trackedResource:
+      title: Tracked Resource
+      description: This class is used to provide common attributes and behaviors around
+        tracking who and when objects were created and modified to representation
+        objects.
+      properties:
+        createdBy:
+          type: string
+          description: The username of whoever created the resource.
+        modifiedBy:
+          type: string
+          description: The username of whoever last modified the resource.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for when the resource was created.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for when the resource was last modified.
+    PrivateEvolutionConfig:
+      type: object
+      description: Tab-PE refines a single synthetic dataset by an evolutionary process
+        that leverages APIs to generate variations of the data, privately evaluate
+        them, and retain the highest-quality samples. This model produces the highest
+        utility data for a given privacy budget. Other models outperform when privacy
+        is not a concern. It can only be used for single table problems.
+      properties:
+        epsilon:
+          title: Epsilon
+          description: Privacy budget parameter. Use small values such as 0.01 for
+            extremely high privacy guarantees, around 1-20 for standard privacy guarantees.
+            20.0 is the maximum for this model type. Private evolution tends to produce
+            data with high utility even at this setting.
+          type: number
+          exclusiveMinimum: true
+          minimum: 0.0
+          maximum: 20.0
+          format: double
+          nullable: true
+          default: 10.0
+        maxCat:
+          $ref: "#/components/schemas/MaxCat"
+        useDifferentialPrivacy:
+          $ref: "#/components/schemas/UseDifferentialPrivacy"
+        decayType:
+          allOf:
+          - $ref: "#/components/schemas/PrivateEvolutionDecayType"
+          default: poly
+        variationAPI:
+          allOf:
+          - $ref: "#/components/schemas/VariationAPIType"
+          default: random_walk
+        initialMutationRate:
+          description: The initial mutation rate for the variation API. A larger value
+            means greater early exploration of the space.
+          type: number
+          minimum: 0.1
+          maximum: 0.5
+          format: double
+          nullable: true
+          default: 0.4
+    PrivateEvolutionDecayType:
+      title: Private evolution decay type
+      description: The random walk mutation rate decay method during the training
+        process.
+      enum:
+      - linear
+      - poly
+    VariationAPIType:
+      title: Variation API type
+      description: The variation API takes public data and creates variations. Different
+        methods explore the data domain in different ways.
+      enum:
+      - random_walk
+      - reflected_random_walk
+      - interpolation
+      - interpolation_and_weighted
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    projectUpdateRequest:
+      type: object
+      description: Representation used to update a Data Maker project
+      properties:
+        name:
+          description: the name of the project
+          type: string
+        description:
+          description: a description for the project
+          type: string
+    entityUpdateRequest:
+      type: object
+      description: Representation used to set the settings on a Data Maker entity.
+      properties:
+        settings:
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/entitySettings"
+          nullable: true
+        columns:
+          type: array
+          items:
+            type: integer
+            format: int64
+          nullable: true
+    connectionCreateRequest:
+      type: object
+      description: >
+        Representation used to create a Data Maker connection
+      properties:
+        connectionSettings:
+          allOf:
+          - $ref: "#/components/schemas/connectionSettings"
+      required:
+      - connectionType
+    conditionUpdateRequest:
+      type: object
+      description: Representation used to update a Data Maker condition
+      allOf:
+      - $ref: "#/components/schemas/conditionBase"
+      - type: object
+        properties:
+          conditionType:
+            $ref: "#/components/schemas/conditionType"
+          tableName:
+            type: string
+            description: Name of the target table
+            nullable: true
+          columnName:
+            type: string
+            description: Name of the target column
+            nullable: true
+          marginalDistribution:
+            type: boolean
+            description: Enable to sample from the marginal rather then a uniform
+              distribution
+            nullable: true
+          settings:
+            allOf:
+            - $ref: "#/components/schemas/conditionSettings"
+            nullable: true
+    SequentialConfig:
+      type: object
+      properties:
+        modelType:
+          allOf:
+          - $ref: "#/components/schemas/SequentialModelType"
+        stepSequential:
+          anyOf:
+          - $ref: "#/components/schemas/StepSequentialConfig"
+          nullable: true
+    SequentialModelType:
+      enum:
+      - sequential_basic
+      title: Sequential model type
+      description: Model types available for generating sequential data.
+    StepSequentialConfig:
+      type: object
+      properties:
+        windowSize:
+          type: integer
+          format: int64
+          title: Sequential conditioning window size
+          description: |
+            The number of previous elements in the sequence
+            to condition on during each sequential generation step.
+          default: 5
+          minimum: 1
+          nullable: true
+        nPredict:
+          type: integer
+          format: int64
+          title: Number of elements to predict
+          description: |
+            The number of elements in the sequence to predict
+            at each sequential generation step.
+          default: 2
+          minimum: 1
+          nullable: true
+    taskDownloadGeneratedDataResponse:
+      type: object
+      properties:
+        tables:
+          type: object
+          description: Generated data for each table
+          additionalProperties:
+            $ref: "#/components/schemas/GeneratedDataDownloadLinks"
+    GeneratedDataDownloadLinks:
+      description: Download Links for generated data for a table in a generation run
+      type: object
+      properties:
+        downloadURL:
+          description: A Shared Access Signature download URL valid
+          type: string
+        downloadURLExpiry:
+          description: The expiry time of the download url
+          format: date-time
+          type: string
+    MSTConfig:
+      type: object
+      title: MSTConfig
+      description: MST is an algorithm introduced in 2021 that relies on discretising
+        the data and fitting a differentially private graphical model to low-dimensional
+        marginals in order to allow for efficient data generation.
+      properties:
+        epsilon:
+          $ref: "#/components/schemas/Epsilon"
+        nBins:
+          $ref: "#/components/schemas/NBins"
+        maxCat:
+          $ref: "#/components/schemas/MaxCat"
+        useDifferentialPrivacy:
+          $ref: "#/components/schemas/UseDifferentialPrivacy"
+        delta:
+          title: Delta
+          description: Probability of information accidentally being leaked. Second
+            Differential Privacy Parameter.
+          type: number
+          format: double
+          minimum: 0.0
+          maximum: 1.0
+          default: 1e-5
+          nullable: true
+        nIters:
+          title: Number of iterations
+          description: Number of training iterations.
+          type: integer
+          format: int64
+          minimum: 0
+          default: 1000
+          nullable: true
+        compressDomain:
+          title: Compress domain
+          description: When set to True the domain of the 1-way marginals is compressed
+            according to the available privacy budget.
+          type: boolean
+          default: true
+          nullable: true
     MetricsManifest:
       type: object
       properties:
@@ -4538,132 +4856,6 @@ components:
       - utility
       - privacy
 
-    entityCreateRequest:
-      type: object
-      description: Representation used to create a Data Maker entity.
-      properties:
-        columnID:
-          type: integer
-          format: int64
-          description: The ID of the column to make an entity.
-        entityType:
-          $ref: "#/components/schemas/entityType"
-      required:
-      - columnID
-      - entityType
-    HistogramSimilaritySettings:
-      title: Histogram similarity
-      description: Measures the similarity of the marginal distributions in the real
-        and synthetic data.
-      allOf:
-      - $ref: "#/components/schemas/BaseMetricSettings"
-    ColumnRange:
-      type: object
-      required:
-      - col
-      - dtype
-      properties:
-        col:
-          type: string
-        dtype:
-          $ref: "#/components/schemas/conditionType"
-        has_nan:
-          type: boolean
-        categories:
-          type: array
-          uniqueItems: true
-          items:
-            description: Category value. Concrete type depends the underlying data
-              type.
-          description: Present when dtype is category
-        aggregated:
-          type: boolean
-          description: Present when dtype is category
-        lower:
-          description: |
-            Lower bound for the column range.
-            For int: integer
-            For float: number
-            For date_time: ISO 8601 date-time string
-            For time_delta: ISO 8601 duration string
-        upper:
-          description: |
-            Upper bound for the column range.
-            For int: integer
-            For float: number
-            For date_time: ISO 8601 date-time string
-            For time_delta: ISO 8601 duration string
-        marginal:
-          type: object
-          additionalProperties: true
-          description: |
-            Marginal information for the column.
-            Expected shape depends on dtype:
-            - category -> CategoricalMarginal
-            - int -> IntMarginal
-            - float -> FloatMarginal
-            - date_time -> DatetimeMarginal
-            - time_delta -> TimedeltaMarginal
-    PrivateEvolutionConfig:
-      type: object
-      description: Tab-PE refines a single synthetic dataset by an evolutionary process
-        that leverages APIs to generate variations of the data, privately evaluate
-        them, and retain the highest-quality samples. This model produces the highest
-        utility data for a given privacy budget. Other models outperform when privacy
-        is not a concern. It can only be used for single table problems.
-      properties:
-        epsilon:
-          title: Epsilon
-          description: Privacy budget parameter. Use small values such as 0.01 for
-            extremely high privacy guarantees, around 1-20 for standard privacy guarantees.
-            20.0 is the maximum for this model type. Private evolution tends to produce
-            data with high utility even at this setting.
-          type: number
-          exclusiveMinimum: true
-          minimum: 0.0
-          maximum: 20.0
-          format: double
-          nullable: true
-          default: 10.0
-        maxCat:
-          $ref: "#/components/schemas/MaxCat"
-        useDifferentialPrivacy:
-          $ref: "#/components/schemas/UseDifferentialPrivacy"
-        decayType:
-          allOf:
-          - $ref: "#/components/schemas/PrivateEvolutionDecayType"
-          default: poly
-        variationAPI:
-          allOf:
-          - $ref: "#/components/schemas/VariationAPIType"
-          default: interpolation_and_weighted
-    PrivateEvolutionDecayType:
-      title: Private evolution decay type
-      description: The random walk mutation rate decay method during the training
-        process.
-      enum:
-      - linear
-      - poly
-    VariationAPIType:
-      title: Variation API type
-      description: The variation API takes public data and creates variations. Different
-        methods explore the data domain in different ways.
-      enum:
-      - random_walk
-      - reflected_random_walk
-      - interpolation
-      - interpolation_and_weighted
-    entityCollection:
-      type: object
-      description: A collection of Data Maker entity objects.
-      allOf:
-      - type: object
-        properties:
-          items:
-            type: array
-            description: An array that contains Data Maker entity objects.
-            items:
-              $ref: "#/components/schemas/entity"
     personEntitySetting:
       properties:
         locales:
@@ -4732,360 +4924,6 @@ components:
       - uk_UA
       - zh_CN
       - zh_TW
-    PerfMetrics:
-      description: Collects performance metrics for multiple events.
-      type: object
-      properties:
-        name:
-          description: Name of the performance metrics tracker.
-          type: string
-        logLevel:
-          description: Global log level of the performance metrics tracker.
-          type: object
-          anyOf:
-          - $ref: "#/components/schemas/PerfLogLevel"
-          nullable: true
-        events:
-          description: Event performance metrics.
-          type: array
-          items:
-            $ref: "#/components/schemas/PerfEvent"
-    PerfLogLevel:
-      description: Log level (corresponding to Python standard library logging levels).
-      enum:
-      - notset
-      - debug
-      - info
-      - warning
-      - error
-      - critical
-    PerfEvent:
-      description: Stores runtime and memory metrics for a single event.
-      type: object
-      properties:
-        runtime:
-          description: Runtime measurement for the event.
-          type: object
-          allOf:
-          - $ref: "#/components/schemas/PerfRuntime"
-        memory:
-          description: Memory measurement for the event.
-          type: object
-          allOf:
-          - $ref: "#/components/schemas/PerfMemory"
-        logLevel:
-          description: Log level.
-          type: object
-          anyOf:
-          - $ref: "#/components/schemas/PerfLogLevel"
-          nullable: true
-        state:
-          description: State of the event.
-          type: object
-          allOf:
-          - $ref: "#/components/schemas/PerfEventState"
-        name:
-          description: Name of the event.
-          type: string
-    PerfRuntime:
-      description: Runtime measurement for an event.
-      type: object
-      properties:
-        initial:
-          description: Runtime measurement at the start of the event.
-          type: object
-          allOf:
-          - $ref: "#/components/schemas/PerfRuntimeMeasurement"
-        final:
-          description: Runtime measurement at the end of the event.
-          type: object
-          anyOf:
-          - $ref: "#/components/schemas/PerfRuntimeMeasurement"
-          nullable: true
-        totalSeconds:
-          description: Duration of the event (in seconds).
-          type: number
-          format: double
-          nullable: true
-    PerfMemory:
-      description: Memory measurement for an event.
-      type: object
-      properties:
-        initial:
-          description: Memory measurement at the start of the event.
-          type: object
-          allOf:
-          - $ref: "#/components/schemas/PerfMemoryMeasurement"
-        final:
-          description: Memory measurement at the end of the event.
-          type: object
-          anyOf:
-          - $ref: "#/components/schemas/PerfMemoryMeasurement"
-          nullable: true
-    PerfEventState:
-      description: State of an event.
-      enum:
-      - started
-      - finished
-    PerfRuntimeMeasurement:
-      description: Single runtime measurement.
-      type: object
-      properties:
-        time:
-          description: UTC timestamp.
-          type: string
-        epoch:
-          description: Time elapsed since the UNIX epoch (in seconds).
-          type: number
-          format: double
-    PerfMemoryMeasurement:
-      description: Single memory measurement.
-      type: object
-      properties:
-        peakBytes:
-          description: Peak memory, measured as max RSS (in bytes).
-          type: integer
-          format: int64
-        instBytes:
-          description: Instantaneous memory, measured as current RSS (in bytes).
-          type: integer
-          format: int64
-    TrainingResult:
-      type: object
-      properties:
-        metricsManifest:
-          allOf:
-          - $ref: "#/components/schemas/MetricsManifest"
-          nullable: true
-        dataRanges:
-          allOf:
-          - $ref: "#/components/schemas/DataRanges"
-          nullable: true
-    generateParams:
-      description: Parameters for generating data.
-      type: object
-      properties:
-        magnitude:
-          description: Magnitude of the data to generate. 1 will match the original
-            data size. While 2 means twice as much as the original training data.
-            This has the lowest precedence.
-          type: number
-          format: double
-          default: 1.0
-          nullable: true
-        numRecords:
-          type: integer
-          format: int64
-          title: Number of records
-          description: Number of records to generate can only be used with a single
-            table. This takes precedence over magnitude if both supplied.
-          nullable: true
-        tableNumRecords:
-          allOf:
-          - $ref: "#/components/schemas/tableNumRecords"
-          nullable: true
-        randomState:
-          type: integer
-          format: int64
-          title: Random seed for model
-          description: Random seed for model
-          nullable: true
-        connectionID:
-          type: integer
-          format: int64
-          title: Connection ID
-          description: Unique identifier of the connection to generate data for.
-        fileExtension:
-          title: File extension
-          description: File extension of the generated data.
-          allOf:
-          - $ref: "#/components/schemas/OutputFileExtension"
-        relPath:
-          type: string
-          title: Relative path
-          description: Relative path to store the generated data in the connection.
-            If this is not supplied a random UUID will be used.
-          nullable: true
-        conditionalGenerationIDs:
-          title: Conditions for generation
-          description: List of conditions to apply to the generation.
-          type: array
-          items:
-            type: integer
-            format: int64
-      required:
-      - connectionID
-    tableNumRecords:
-      type: object
-      description: Number of records to generate for a specific table. This takes
-        precedence.
-      properties:
-        table:
-          type: string
-          description: Table name
-        numRecords:
-          type: integer
-          format: int64
-          title: Number of records
-          description: Number of records to generate for the table.
-    analysisCreateRequest:
-      description: Create an analysis task.
-      type: object
-      required:
-      - connectionID
-      - tables
-      properties:
-        connectionID:
-          title: Connection ID
-          description: Unique identifier of the connection to analyse.
-          type: integer
-          format: int64
-        tables:
-          title: Table paths
-          description: Relative paths representing tables from the connection to analyse.
-          type: array
-          uniqueItems: true
-          minItems: 1
-          items:
-            type: string
-    ColumnSummary:
-      description: Summary statistics and examples for a column.
-      type: object
-      properties:
-        stats:
-          description: Summary statistics.
-          type: object
-          nullable: true
-          anyOf:
-          - $ref: "#/components/schemas/ColumnStats"
-        examples:
-          description: Sample data.
-          type: array
-          items:
-            type: string
-          nullable: true
-    ColumnStats:
-      description: Summary statistics and examples for a column.
-      type: object
-      properties:
-        nullCount:
-          description: Number of null values.
-          type: integer
-          format: int64
-          nullable: true
-        cardinality:
-          description: Number of unique values.
-          type: integer
-          format: int64
-          nullable: true
-        min:
-          description: Minimum value for numeric columns.
-          type: string
-          nullable: true
-        max:
-          description: Maximum value for numeric columns.
-          type: string
-          nullable: true
-        median:
-          description: Median value for numeric columns.
-          type: string
-          nullable: true
-        mean:
-          description: Mean value for numeric columns.
-          type: string
-          nullable: true
-    GenerationResult:
-      description: Generation result.
-      type: object
-      properties:
-        validationResult:
-          anyOf:
-          - $ref: "#/components/schemas/ValidationResult"
-          nullable: true
-        stats:
-          anyOf:
-          - $ref: "#/components/schemas/SynthDataStats"
-          nullable: true
-    ValidationResult:
-      description: Validation result.
-      type: object
-      properties:
-        rowCountValidator:
-          anyOf:
-          - $ref: "#/components/schemas/RowCountValidator"
-    SynthDataStats:
-      type: object
-      properties:
-        tables:
-          type: array
-          items:
-            type: object
-            anyOf:
-            - $ref: "#/components/schemas/SynthDataStatsTable"
-    SynthDataStatsTable:
-      type: object
-      properties:
-        name:
-          type: string
-        numRows:
-          type: integer
-          format: int64
-          description: Number of rows in synthetic table.
-        columns:
-          type: array
-          items:
-            anyOf:
-            - $ref: "#/components/schemas/SynthDataStatsColumn"
-    SynthDataStatsColumn:
-      type: object
-      properties:
-        name:
-          type: string
-        histogram:
-          anyOf:
-          - $ref: "#/components/schemas/SynthDataStatsHist"
-          nullable: true
-        dtype:
-          type: string
-          nullable: true
-        rawDType:
-          type: string
-          nullable: true
-        entityGroup:
-          type: string
-          nullable: true
-        samples:
-          type: array
-          items:
-            type: string
-        cardinality:
-          type: integer
-          format: int64
-          nullable: true
-        nullCount:
-          type: integer
-          format: int64
-          nullable: true
-        primaryKey:
-          type: boolean
-        foreignKeyRef:
-          type: object
-          anyOf:
-          - $ref: "#/components/schemas/ColId"
-          nullable: true
-        datetimeFormat:
-          type: string
-          nullable: true
-    ColId:
-      description: Column identifier
-      type: object
-      properties:
-        col:
-          description: Column to be targeted.
-          type: string
-        table:
-          description: Table to be targeted.
-          type: string
     locationEntitySetting:
       properties:
         locales:
@@ -5142,14 +4980,37 @@ components:
       enum:
       - combination
       - asset_sampling
-    accessControl:
+    analysisCreateRequest:
+      description: Create an analysis task.
+      type: object
+      required:
+      - connectionID
+      - tables
+      properties:
+        connectionID:
+          title: Connection ID
+          description: Unique identifier of the connection to analyse.
+          type: integer
+          format: int64
+        tables:
+          title: Table paths
+          description: Relative paths representing tables from the connection to analyse.
+          type: array
+          uniqueItems: true
+          minItems: 1
+          items:
+            type: string
+    TrainingResult:
       type: object
       properties:
-        mutable:
-          description: Whether the connection can be modified by the calling user
-          type: boolean
-      required:
-      - mutable
+        metricsManifest:
+          allOf:
+          - $ref: "#/components/schemas/MetricsManifest"
+          nullable: true
+        dataRanges:
+          allOf:
+          - $ref: "#/components/schemas/DataRanges"
+          nullable: true
     AnalysisResult:
       description: Results of an analysis task.
       type: object
@@ -5287,6 +5148,22 @@ components:
             type: object
             allOf:
             - $ref: "#/components/schemas/ForeignKey"
+    ColumnSummary:
+      description: Summary statistics and examples for a column.
+      type: object
+      properties:
+        stats:
+          description: Summary statistics.
+          type: object
+          nullable: true
+          anyOf:
+          - $ref: "#/components/schemas/ColumnStats"
+        examples:
+          description: Sample data.
+          type: array
+          items:
+            type: string
+          nullable: true
     PrimaryKey:
       description: Primary key.
       type: object
@@ -5322,6 +5199,121 @@ components:
           type: object
           allOf:
           - $ref: "#/components/schemas/ColId"
+    ColumnStats:
+      description: Summary statistics and examples for a column.
+      type: object
+      properties:
+        nullCount:
+          description: Number of null values.
+          type: integer
+          format: int64
+          nullable: true
+        cardinality:
+          description: Number of unique values.
+          type: integer
+          format: int64
+          nullable: true
+        min:
+          description: Minimum value for numeric columns.
+          type: string
+          nullable: true
+        max:
+          description: Maximum value for numeric columns.
+          type: string
+          nullable: true
+        median:
+          description: Median value for numeric columns.
+          type: string
+          nullable: true
+        mean:
+          description: Mean value for numeric columns.
+          type: string
+          nullable: true
+    ColId:
+      description: Column identifier
+      type: object
+      properties:
+        col:
+          description: Column to be targeted.
+          type: string
+        table:
+          description: Table to be targeted.
+          type: string
+    accessControl:
+      type: object
+      properties:
+        mutable:
+          description: Whether the connection can be modified by the calling user
+          type: boolean
+      required:
+      - mutable
+    generateParams:
+      description: Parameters for generating data.
+      type: object
+      properties:
+        magnitude:
+          description: Magnitude of the data to generate. 1 will match the original
+            data size. While 2 means twice as much as the original training data.
+            This has the lowest precedence.
+          type: number
+          format: double
+          default: 1.0
+          nullable: true
+        numRecords:
+          type: integer
+          format: int64
+          title: Number of records
+          description: Number of records to generate can only be used with a single
+            table. This takes precedence over magnitude if both supplied.
+          nullable: true
+        tableNumRecords:
+          allOf:
+          - $ref: "#/components/schemas/tableNumRecords"
+          nullable: true
+        randomState:
+          type: integer
+          format: int64
+          title: Random seed for model
+          description: Random seed for model
+          nullable: true
+        connectionID:
+          type: integer
+          format: int64
+          title: Connection ID
+          description: Unique identifier of the connection to generate data for.
+        fileExtension:
+          title: File extension
+          description: File extension of the generated data.
+          allOf:
+          - $ref: "#/components/schemas/OutputFileExtension"
+        relPath:
+          type: string
+          title: Relative path
+          description: Relative path to store the generated data in the connection.
+            If this is not supplied a random UUID will be used.
+          nullable: true
+        conditionalGenerationIDs:
+          title: Conditions for generation
+          description: List of conditions to apply to the generation.
+          type: array
+          items:
+            type: integer
+            format: int64
+      required:
+      - connectionID
+    tableNumRecords:
+      type: object
+      description: Number of records to generate for a specific table. This takes
+        precedence.
+      properties:
+        table:
+          type: string
+          description: Table name
+        numRecords:
+          type: integer
+          format: int64
+          title: Number of records
+          description: Number of records to generate for the table.
     link:
       title: Link
       type: object
@@ -5359,6 +5351,218 @@ components:
           type: string
           description: The media type or link type of the items in the response body
             for a `PUT`, `POST`, or `PATCH` operation.
+    GenerationResult:
+      description: Generation result.
+      type: object
+      properties:
+        validationResult:
+          anyOf:
+          - $ref: "#/components/schemas/ValidationResult"
+          nullable: true
+        stats:
+          anyOf:
+          - $ref: "#/components/schemas/SynthDataStats"
+          nullable: true
+    ValidationResult:
+      description: Validation result.
+      type: object
+      properties:
+        rowCountValidator:
+          anyOf:
+          - $ref: "#/components/schemas/RowCountValidator"
+    SynthDataStats:
+      type: object
+      properties:
+        tables:
+          type: array
+          items:
+            type: object
+            anyOf:
+            - $ref: "#/components/schemas/SynthDataStatsTable"
+    SynthDataStatsTable:
+      type: object
+      properties:
+        name:
+          type: string
+        numRows:
+          type: integer
+          format: int64
+          description: Number of rows in synthetic table.
+        columns:
+          type: array
+          items:
+            anyOf:
+            - $ref: "#/components/schemas/SynthDataStatsColumn"
+    SynthDataStatsColumn:
+      type: object
+      properties:
+        name:
+          type: string
+        histogram:
+          anyOf:
+          - $ref: "#/components/schemas/SynthDataStatsHist"
+          nullable: true
+        dtype:
+          type: string
+          nullable: true
+        rawDType:
+          type: string
+          nullable: true
+        entityGroup:
+          type: string
+          nullable: true
+        samples:
+          type: array
+          items:
+            type: string
+        cardinality:
+          type: integer
+          format: int64
+          nullable: true
+        nullCount:
+          type: integer
+          format: int64
+          nullable: true
+        primaryKey:
+          type: boolean
+        foreignKeyRef:
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/ColId"
+          nullable: true
+        datetimeFormat:
+          type: string
+          nullable: true
+    PerfMetrics:
+      description: Collects performance metrics for multiple events.
+      type: object
+      properties:
+        name:
+          description: Name of the performance metrics tracker.
+          type: string
+        logLevel:
+          description: Global log level of the performance metrics tracker.
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/PerfLogLevel"
+          nullable: true
+        events:
+          description: Event performance metrics.
+          type: array
+          items:
+            $ref: "#/components/schemas/PerfEvent"
+    PerfLogLevel:
+      description: Log level (corresponding to Python standard library logging levels).
+      enum:
+      - notset
+      - debug
+      - info
+      - warning
+      - error
+      - critical
+    PerfEvent:
+      description: Stores runtime and memory metrics for a single event.
+      type: object
+      properties:
+        runtime:
+          description: Runtime measurement for the event.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/PerfRuntime"
+        memory:
+          description: Memory measurement for the event.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/PerfMemory"
+        logLevel:
+          description: Log level.
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/PerfLogLevel"
+          nullable: true
+        state:
+          description: State of the event.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/PerfEventState"
+        name:
+          description: Name of the event.
+          type: string
+    PerfRuntime:
+      description: Runtime measurement for an event.
+      type: object
+      properties:
+        initial:
+          description: Runtime measurement at the start of the event.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/PerfRuntimeMeasurement"
+        final:
+          description: Runtime measurement at the end of the event.
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/PerfRuntimeMeasurement"
+          nullable: true
+        totalSeconds:
+          description: Duration of the event (in seconds).
+          type: number
+          format: double
+          nullable: true
+    PerfMemory:
+      description: Memory measurement for an event.
+      type: object
+      properties:
+        initial:
+          description: Memory measurement at the start of the event.
+          type: object
+          allOf:
+          - $ref: "#/components/schemas/PerfMemoryMeasurement"
+        final:
+          description: Memory measurement at the end of the event.
+          type: object
+          anyOf:
+          - $ref: "#/components/schemas/PerfMemoryMeasurement"
+          nullable: true
+    PerfEventState:
+      description: State of an event.
+      enum:
+      - started
+      - finished
+    PerfRuntimeMeasurement:
+      description: Single runtime measurement.
+      type: object
+      properties:
+        time:
+          description: UTC timestamp.
+          type: string
+        epoch:
+          description: Time elapsed since the UNIX epoch (in seconds).
+          type: number
+          format: double
+    PerfMemoryMeasurement:
+      description: Single memory measurement.
+      type: object
+      properties:
+        peakBytes:
+          description: Peak memory, measured as max RSS (in bytes).
+          type: integer
+          format: int64
+        instBytes:
+          description: Instantaneous memory, measured as current RSS (in bytes).
+          type: integer
+          format: int64
+    SynthDataStatsHist:
+      type: object
+      properties:
+        counts:
+          type: array
+          items:
+            type: integer
+            format: int64
+        labels:
+          type: array
+          items:
+            type: string
     DataRanges:
       type: object
       required:
@@ -5380,25 +5584,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ColumnRange"
-    SynthDataStatsHist:
-      type: object
-      properties:
-        counts:
-          type: array
-          items:
-            type: integer
-            format: int64
-        labels:
-          type: array
-          items:
-            type: string
-    OutputFileExtension:
-      enum:
-      - csv
-      - csv.gz
-      - parquet
-      - avro
-      - sas7bdat
     RowCountValidator:
       description: Row count validator.
       type: object
@@ -5431,6 +5616,13 @@ components:
         expectedSyntheticRows:
           type: number
           format: int64
+    OutputFileExtension:
+      enum:
+      - csv
+      - csv.gz
+      - parquet
+      - avro
+      - sas7bdat
   examples:
     errorResponse:
       summary: Error Response

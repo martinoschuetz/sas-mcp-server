@@ -515,6 +515,27 @@ components:
             evConfig:
               type: object
               additionalProperties: true
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
     error2:
       title: Error
       type: object
@@ -561,27 +582,6 @@ components:
           type: integer
           description: The version number of the error representation. This representation
             is version 2.
-    api:
-      title: API
-      description: The list of links to top-level resources and operations available
-        from the root of the API.
-      x-sas-media-type:
-        name: application/vnd.sas.api
-        version: 1
-      required:
-      - version
-      - links
-      properties:
-        version:
-          type: integer
-          description: The version number of the API representation. This is version
-            1.
-          minimum: 1
-        links:
-          description: The API's top-level links.
-          type: array
-          items:
-            $ref: "#/components/schemas/link"
     link:
       title: Link
       type: object
@@ -683,6 +683,49 @@ components:
         type: string
       description: The indication the original media type of the resource.
   examples:
+    api:
+      description: Return a list of API Links
+      value: {"version": 1, "links": [{"method": "GET", "rel": "getAPI", "href": "/rfcSolutionConfig",
+            "uri": "/rfcSolutionConfig", "responseType": "application/vnd.sas.api+json"},
+          {"method": "GET", "rel": "getStatus", "href": "/rfcSolutionConfig/status",
+            "uri": "/rfcSolutionConfig/status", "responseType": "application/vnd.sas.config.status+json"},
+          {"method": "GET", "rel": "getSchemas", "href": "/rfcSolutionConfig/status/schemas",
+            "uri": "/rfcSolutionConfig/status/schemas", "responseType": "application/vnd.sas.collection+json"},
+          {"method": "POST", "rel": "layDownManifest", "href": "/rfcSolutionConfig/manifest",
+            "uri": "/rfcSolutionConfig/manifest", "responseType": "text/plain"}, {
+            "method": "GET", "rel": "getMigrationStatuses", "href": "/rfcSolutionConfig/manifest/status",
+            "uri": "/rfcSolutionConfig/manifest/status", "responseType": "application/json"},
+          {"method": "GET", "rel": "getMigrationStatus", "href": "/rfcSolutionConfig/manifest/status/{requestId}",
+            "uri": "/rfcSolutionConfig/manifest/status/{requestId}", "responseType": "application/json"},
+          {"method": "POST", "rel": "migrateToRFCManifest", "href": "/rfcSolutionConfig/migration",
+            "uri": "/rfcSolutionConfig/migration", "responseType": "application/yaml"}]}
+    manifest:
+      description: Yaml Manifest Request
+      value:
+        name: Endpoint Reference Implementation
+        displayName: Endpoint Reference Implementation
+        description: Reference Implementation for Endpoint
+        setinitValues:
+        - RFCSOLUTIONCONFIG
+        configuration:
+          sdaConfig:
+            organizations:
+            - name: SAS_ENDPOINT
+              displayName: SAS Endpoint Organization
+              messageClassificationName: Global
+              roleRelations:
+              - roleId: SDASystemAdmin
+                roleType: Editor
+              schemaRelations:
+              - Payment Fraud
+              projects:
+              - name: SAS Endpoint Project
+                messageClassificationNames:
+                - Global
+                schemaNames:
+                - Payment Fraud
+                roleIds:
+                - SDASystemAdmin
     manifest_status_200:
       description: A successful response containing the manifest status.
       value:
@@ -690,11 +733,29 @@ components:
         message: "running sdaSchema: AQSM"
         durationMs: 8498
         startedAt: "2026-05-21T19:00:36.9659Z"
+    manifest_base64:
+      description: Base64 Manifest Request
+      value: LS0tCmRlc2NyaXB0aW9uOiBZYW1sIE1hbmlmZXN0IFJlcXVlc3QKdmFsdWU6CiAgbmFtZTogRW5kcG9pbnQgUmVmZXJlbmNlIEltcGxlbWVudGF0aW9uCiAgZGlzcGxheU5hbWU6IEVuZHBvaW50IFJlZmVyZW5jZSBJbXBsZW1lbnRhdGlvbgogIGRlc2NyaXB0aW9uOiBSZWZlcmVuY2UgSW1wbGVtZW50YXRpb24gZm9yIEVuZHBvaW50CiAgc2V0aW5pdFZhbHVlczoKICAgIC0gUkZDU09MVVRJT05DT05GSUcKICBjb25maWd1cmF0aW9uOgogICAgc2RhQ29uZmlnOgogICAgICBvcmdhbml6YXRpb25zOgogICAgICAgIC0gbmFtZTogU0FTX0VORFBPSU5UCiAgICAgICAgICBkaXNwbGF5TmFtZTogU0FTIEVuZHBvaW50IE9yZ2FuaXphdGlvbgogICAgICAgICAgbWVzc2FnZUNsYXNzaWZpY2F0aW9uTmFtZTogR2xvYmFsCiAgICAgICAgICByb2xlSWRzOgogICAgICAgICAgICAtIFNEQVN5c3RlbUFkbWluCiAgICAgICAgICBzY2hlbWFSZWxhdGlvbnM6CiAgICAgICAgICAgIC0gUGF5bWVudCBGcmF1ZAogICAgICAgICAgcHJvamVjdHM6CiAgICAgICAgICAgIC0gbmFtZTogU0FTIEVuZHBvaW50IFByb2plY3QKICAgICAgICAgICAgICBtZXNzYWdlQ2xhc3NpZmljYXRpb25OYW1lczoKICAgICAgICAgICAgICAgIC0gR2xvYmFsCiAgICAgICAgICAgICAgc2NoZW1hTmFtZXM6CiAgICAgICAgICAgICAgICAtIFBheW1lbnQgRnJhdWQKICAgICAgICAgICAgICByb2xlSWRzOgogICAgICAgICAgICAgICAgLSBTREFTeXN0ZW1BZG1pbgo=
+    status:
+      description: Return a description of the SFD level and licensed solutions
+      value: {"level": "Premier", "solutions": ["SAS Fraud Decisioning Common", "SAS\
+            \ Fraud Decisioning Card Fraud"]}
     manifest_status_404:
       description: Manifest job was not found.
       value:
         errorCode: 404
         message: "Request ID not found"
+    manifest_status_list_200:
+      description: List of manifest job statuses
+      value:
+      - requestId: "6b81eea7-b97c-444f-a54e-125b0999f1f3"
+        status: RUNNING
+        message: "running sdaSchema: AQSM"
+        durationMs: 8498
+      - requestId: "7e4e00c3-1b6c-4c3d-9b5a-5f3b3f45f9d0"
+        status: DONE
+        message: "Manifest laid down successfully"
+        durationMs: 12422
     service_not_available_error_404:
       description: Service not available 404 Response Example
       value: {"version": 2, "httpStatusCode": 404, "errorCode": 1000000, "message": "Service\
@@ -733,64 +794,3 @@ components:
             "name": "Debit Card", "type": "solution_by_sas", "state": "Deployed",
             "revision": 2, "creationTimeStamp": "2023-05-28T02:37:03.929553Z", "createdBy": "sas.rfcSolutionConfig",
             "modifiedTimeStamp": "2023-05-28T02:37:05.791424Z", "modifiedBy": "sas.rfcSolutionConfig"}]}
-    manifest_base64:
-      description: Base64 Manifest Request
-      value: LS0tCmRlc2NyaXB0aW9uOiBZYW1sIE1hbmlmZXN0IFJlcXVlc3QKdmFsdWU6CiAgbmFtZTogRW5kcG9pbnQgUmVmZXJlbmNlIEltcGxlbWVudGF0aW9uCiAgZGlzcGxheU5hbWU6IEVuZHBvaW50IFJlZmVyZW5jZSBJbXBsZW1lbnRhdGlvbgogIGRlc2NyaXB0aW9uOiBSZWZlcmVuY2UgSW1wbGVtZW50YXRpb24gZm9yIEVuZHBvaW50CiAgc2V0aW5pdFZhbHVlczoKICAgIC0gUkZDU09MVVRJT05DT05GSUcKICBjb25maWd1cmF0aW9uOgogICAgc2RhQ29uZmlnOgogICAgICBvcmdhbml6YXRpb25zOgogICAgICAgIC0gbmFtZTogU0FTX0VORFBPSU5UCiAgICAgICAgICBkaXNwbGF5TmFtZTogU0FTIEVuZHBvaW50IE9yZ2FuaXphdGlvbgogICAgICAgICAgbWVzc2FnZUNsYXNzaWZpY2F0aW9uTmFtZTogR2xvYmFsCiAgICAgICAgICByb2xlSWRzOgogICAgICAgICAgICAtIFNEQVN5c3RlbUFkbWluCiAgICAgICAgICBzY2hlbWFSZWxhdGlvbnM6CiAgICAgICAgICAgIC0gUGF5bWVudCBGcmF1ZAogICAgICAgICAgcHJvamVjdHM6CiAgICAgICAgICAgIC0gbmFtZTogU0FTIEVuZHBvaW50IFByb2plY3QKICAgICAgICAgICAgICBtZXNzYWdlQ2xhc3NpZmljYXRpb25OYW1lczoKICAgICAgICAgICAgICAgIC0gR2xvYmFsCiAgICAgICAgICAgICAgc2NoZW1hTmFtZXM6CiAgICAgICAgICAgICAgICAtIFBheW1lbnQgRnJhdWQKICAgICAgICAgICAgICByb2xlSWRzOgogICAgICAgICAgICAgICAgLSBTREFTeXN0ZW1BZG1pbgo=
-    manifest_status_list_200:
-      description: List of manifest job statuses
-      value:
-      - requestId: "6b81eea7-b97c-444f-a54e-125b0999f1f3"
-        status: RUNNING
-        message: "running sdaSchema: AQSM"
-        durationMs: 8498
-      - requestId: "7e4e00c3-1b6c-4c3d-9b5a-5f3b3f45f9d0"
-        status: DONE
-        message: "Manifest laid down successfully"
-        durationMs: 12422
-    manifest:
-      description: Yaml Manifest Request
-      value:
-        name: Endpoint Reference Implementation
-        displayName: Endpoint Reference Implementation
-        description: Reference Implementation for Endpoint
-        setinitValues:
-        - RFCSOLUTIONCONFIG
-        configuration:
-          sdaConfig:
-            organizations:
-            - name: SAS_ENDPOINT
-              displayName: SAS Endpoint Organization
-              messageClassificationName: Global
-              roleRelations:
-              - roleId: SDASystemAdmin
-                roleType: Editor
-              schemaRelations:
-              - Payment Fraud
-              projects:
-              - name: SAS Endpoint Project
-                messageClassificationNames:
-                - Global
-                schemaNames:
-                - Payment Fraud
-                roleIds:
-                - SDASystemAdmin
-    api:
-      description: Return a list of API Links
-      value: {"version": 1, "links": [{"method": "GET", "rel": "getAPI", "href": "/rfcSolutionConfig",
-            "uri": "/rfcSolutionConfig", "responseType": "application/vnd.sas.api+json"},
-          {"method": "GET", "rel": "getStatus", "href": "/rfcSolutionConfig/status",
-            "uri": "/rfcSolutionConfig/status", "responseType": "application/vnd.sas.config.status+json"},
-          {"method": "GET", "rel": "getSchemas", "href": "/rfcSolutionConfig/status/schemas",
-            "uri": "/rfcSolutionConfig/status/schemas", "responseType": "application/vnd.sas.collection+json"},
-          {"method": "POST", "rel": "layDownManifest", "href": "/rfcSolutionConfig/manifest",
-            "uri": "/rfcSolutionConfig/manifest", "responseType": "text/plain"}, {
-            "method": "GET", "rel": "getMigrationStatuses", "href": "/rfcSolutionConfig/manifest/status",
-            "uri": "/rfcSolutionConfig/manifest/status", "responseType": "application/json"},
-          {"method": "GET", "rel": "getMigrationStatus", "href": "/rfcSolutionConfig/manifest/status/{requestId}",
-            "uri": "/rfcSolutionConfig/manifest/status/{requestId}", "responseType": "application/json"},
-          {"method": "POST", "rel": "migrateToRFCManifest", "href": "/rfcSolutionConfig/migration",
-            "uri": "/rfcSolutionConfig/migration", "responseType": "application/yaml"}]}
-    status:
-      description: Return a description of the SFD level and licensed solutions
-      value: {"level": "Premier", "solutions": ["SAS Fraud Decisioning Common", "SAS\
-            \ Fraud Decisioning Card Fraud"]}

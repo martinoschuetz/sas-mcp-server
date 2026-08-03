@@ -3920,7 +3920,7 @@ paths:
       - $ref: '#/components/parameters/collectionStart'
       - $ref: '#/components/parameters/collectionLimit'
       - $ref: '#/components/parameters/collectionSortBy'
-      - $ref: '#/components/parameters/managementUserDomain'
+      - $ref: '#/components/parameters/managedResourcesDomain'
       - name: Accept-Item
         in: header
         required: false
@@ -5432,15 +5432,17 @@ paths:
       - Alert Operations - External Data
       summary: Query external entity data
       operationId: externalEntities
-      description: Performs an external entity search or query an entity by its ID.
+      description: Performs an external entity search or queries an entity by its
+        ID. Optionally, advanced list data can be requested for entity field values.
       parameters:
       - name: Accept
         in: header
         required: false
         description: The desired external entity representation. The Accept options
           are <ul> <li>application/vnd.sas.collection+json</li> <li>application/vnd.sas.triage.external.entity+json</li>
-          <li>application/json</li> </ul>. If the application/vnd.sas.triage.external.entity+json
-          media type is specified, the query body must refer to a by-ID entity query.
+          <li>application/json</li> </ul>. If the <tt>application/vnd.sas.triage.external.entity+json</tt>
+          media type is specified, the query body must include the identifier of the
+          entity to query.
         schema:
           type: string
           enum:
@@ -5455,12 +5457,18 @@ paths:
             schema:
               anyOf:
               - $ref: '#/components/schemas/externalEntitySearchRequest'
+              - $ref: '#/components/schemas/externalEntitySearchRequestList'
               - $ref: '#/components/schemas/externalEntityByIdRequest'
+              - $ref: '#/components/schemas/externalEntityByIdRequestList'
             examples:
               entity-search:
                 $ref: '#/components/examples/externalEntitySearchRequest'
+              entity-search-list:
+                $ref: '#/components/examples/externalEntitySearchRequestList'
               entity-byId:
                 $ref: '#/components/examples/externalEntityByIdRequest'
+              entity-byId-list:
+                $ref: '#/components/examples/externalEntityByIdRequestList'
       responses:
         '200':
           description: The request succeeded.
@@ -5470,22 +5478,32 @@ paths:
           content:
             application/vnd.sas.collection+json:
               schema:
-                $ref: '#/components/schemas/externalEntitySearchResponse'
+                anyOf:
+                - $ref: '#/components/schemas/externalEntitySearchResponse'
+                - $ref: '#/components/schemas/externalEntitySearchResponseList'
               examples:
                 entity-search:
                   $ref: '#/components/examples/externalEntitySearchResponse'
+                entity-search-list:
+                  $ref: '#/components/examples/externalEntitySearchResponseList'
             application/json:
               schema:
-                $ref: '#/components/schemas/externalEntitySearchResponse'
+                anyOf:
+                - $ref: '#/components/schemas/externalEntitySearchResponse'
+                - $ref: '#/components/schemas/externalEntitySearchResponseList'
               examples:
                 entity-search:
                   $ref: '#/components/examples/externalEntitySearchResponse'
+                entity-search-list:
+                  $ref: '#/components/examples/externalEntitySearchResponseList'
             application/vnd.sas.triage.external.entity+json:
               schema:
                 $ref: '#/components/schemas/externalEntityByIdResponse'
               examples:
                 entity-byId:
                   $ref: '#/components/examples/externalEntityByIdResponse'
+                entity-byId-list:
+                  $ref: '#/components/examples/externalEntityByIdResponseList'
         '403':
           description: The user did not have the necessary permissions.
           headers:
@@ -7093,6 +7111,7 @@ paths:
       - $ref: '#/components/parameters/collectionStart'
       - $ref: '#/components/parameters/collectionLimit'
       - $ref: '#/components/parameters/collectionSortBy'
+      - $ref: '#/components/parameters/managedResourcesQueue'
       - name: Accept-Item
         in: header
         required: false
@@ -8318,7 +8337,7 @@ paths:
       - $ref: '#/components/parameters/collectionStart'
       - $ref: '#/components/parameters/collectionLimit'
       - $ref: '#/components/parameters/collectionSortBy'
-      - $ref: '#/components/parameters/managementUserTriageType'
+      - $ref: '#/components/parameters/managedResourcesTriageType'
       - name: Accept-Item
         in: header
         required: false
@@ -11172,48 +11191,98 @@ components:
       title: External Entity Search Request
       description: Specifies the external entity search request.
       type: object
-      properties:
-        entityQueryDefinitionID:
-          type: string
-          description: Specifies the entity query definition ID.
-        inputs:
-          type: object
-          description: Specifies the inputs for the fields defined in the entity query
-            definition. This is an example, the actual inputs will differ based on
-            the fields specified in the entity query definition.
-          properties:
-            customer_number:
-              type: string
-              description: The customer number to search for.
-            customer_name:
-              type: string
-              description: The customer name to search for.
-            date_of_birth:
-              type: string
-              description: The date of birth to search for.
-        start:
-          type: integer
-          description: Specifies the starting record id (0-based).
-          default: 0
-        limit:
-          type: integer
-          description: Specifies the maximum number record to return.
-          default: 10
-        sortBy:
-          type: string
-          description: Specifies the entity field to sort on. Syntax is field:ascending
-            or field:descending. If not specified, the default sort is ascending.
+      allOf:
+      - type: object
+        required:
+        - entityQueryDefinitionID
+        properties:
+          entityQueryDefinitionID:
+            type: string
+            description: Specifies the entity query definition ID.
+          inputs:
+            type: object
+            description: Specifies the inputs for the fields defined in the entity
+              query definition. This is an example, the actual inputs will differ
+              based on the fields specified in the entity query definition.
+            properties:
+              customer_number:
+                type: string
+                description: The customer number to search for.
+              customer_name:
+                type: string
+                description: The customer name to search for.
+              date_of_birth:
+                type: string
+                description: The date of birth to search for.
+          start:
+            type: integer
+            description: Specifies the starting record id (0-based).
+            default: 0
+          limit:
+            type: integer
+            description: Specifies the maximum number record to return.
+            default: 10
+          sortBy:
+            type: string
+            description: Specifies the entity field to sort on. Syntax is field:ascending
+              or field:descending. If not specified, the default sort is ascending.
     externalEntityByIdRequest:
       title: External Entity By-ID Request
       description: Specifies the external entity request.
       type: object
-      properties:
-        entityQueryDefinitionId:
-          type: string
-          description: Specifies the entity query definition ID.
-        entityId:
-          type: string
-          description: Specifies the ID of the external entity.
+      allOf:
+      - type: object
+        properties:
+          entityQueryDefinitionId:
+            type: string
+            description: Specifies the entity query definition ID.
+          entityId:
+            type: string
+            description: Specifies the ID of the external entity.
+        required:
+        - entityQueryDefinitionId
+        - entityId
+    listMembershipsRequest:
+      title: Query Lists Data
+      description: Query to establish the membership of a field's value on one or
+        more advanced lists.
+      type: object
+      allOf:
+      - type: object
+        properties:
+          listsData:
+            description: An array of list data to query.
+            type: array
+            items:
+              type: object
+              properties:
+                field:
+                  type: string
+                  description: The component field name to query.
+                lists:
+                  type: array
+                  items:
+                    type: string
+                    description: The names of the lists to query for the value of
+                      the given field.
+      - required:
+        - listsData
+    externalEntityByIdRequestList:
+      title: External Entity By-ID Request with Advanced List Data
+      description: Specifies the external entity request that contains advanced list
+        data.
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/externalEntityByIdRequest'
+      - $ref: '#/components/schemas/listMembershipsRequest'
+    externalEntitySearchRequestList:
+      title: External Entity Search Request with Advanced List Data
+      description: Specifies the external entity search request that contains advanced
+        list data.
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/externalEntityByIdRequestList'
+      - $ref: '#/components/schemas/listMembershipsRequest'
     externalEntityResource:
       title: Example External Entity
       description: An external entity. This is an example schema used to describe
@@ -11267,6 +11336,34 @@ components:
             description: An array of external entity objects.
             items:
               $ref: '#/components/schemas/externalEntityResource'
+    externalEntityResourceList:
+      title: External Entity with List Data
+      description: An external entity annotated with advanced list data.
+      allOf:
+      - $ref: '#/components/schemas/externalEntityResource'
+      - type: object
+        properties:
+          listMemberships:
+            type: array
+            items:
+              $ref: '#/components/schemas/listMemberships'
+          listsData:
+            type: array
+            items:
+              $ref: '#/components/schemas/listsData'
+    externalEntitySearchResponseList:
+      title: External Entity Collection with Advanced List Data
+      description: One page of external entities that includes advanced list data.
+      allOf:
+      - $ref: '#/components/schemas/collectionResource'
+      - $ref: '#/components/schemas/listMembershipsRequest'
+      - type: object
+        properties:
+          items:
+            type: array
+            description: An array of external entity objects.
+            items:
+              $ref: '#/components/schemas/externalEntityResourceList'
     externalEntityByIdResponse:
       title: Example External Entity Response
       description: Specifies the external entity get-by-ID response. This is an example
@@ -17736,6 +17833,26 @@ components:
         start: 0
         limit: 50
         sortBy: lastName
+    externalEntitySearchRequestList:
+      summary: Perform an external entity query with advanced list data
+      description: Specifies an example request for an external entity query that
+        contains advanced list data.
+      value:
+        entityQueryDefinitionID: customer-query
+        inputs:
+          customerNumber: '1234'
+          firstName: J
+          lastName: Doe
+        start: 0
+        limit: 50
+        sortBy: lastName
+        listsData:
+        - field: customer_number
+          lists:
+          - VIP Customers
+        - field: messaging.cell_phone
+          lists:
+          - Customer Contact
     externalEntityByIdRequest:
       summary: Perform an external entity-by-ID query
       description: Specifies an example request to perform an external entity query
@@ -17743,6 +17860,20 @@ components:
       value:
         entityQueryDefinitionID: customer-query
         entityID: 57c3e9b6-543c-4690-ae73-92d5e413c3de
+    externalEntityByIdRequestList:
+      summary: Perform an external entity-by-ID query with advanced list data
+      description: Specifies an example request to perform an external entity query
+        that contains advanced list data for a specific entity.
+      value:
+        entityQueryDefinitionID: customer-query
+        entityID: 57c3e9b6-543c-4690-ae73-92d5e413c3de
+        listsData:
+        - field: customer_number
+          lists:
+          - VIP Customers
+        - field: messaging.cell_phone
+          lists:
+          - Customer Contact
     externalEntitySearchResponse:
       summary: Retrieve a list of external entities
       description: Specifies an example response when using POST to retrieve external
@@ -17774,6 +17905,48 @@ components:
           messaging:
             cell_phone: (919)555-1212
             email: example2@example-email.com
+    externalEntitySearchResponseList:
+      summary: Retrieve a list of external entities with advanced list data
+      description: Specifies an example response that contains advanced list data
+        when searching for external entities.
+      value:
+        version: 2
+        name: customers
+        count: 2
+        start: 0
+        limit: 10
+        listsData:
+        - name: VIP Customers
+          label: VIP Customers
+          localizedLabel: VIP Customers
+        - name: Customer Contact
+          label: Customer Contact List
+          localizedLabel: Customer Contact List
+        items:
+        - surrogate_key: 57c3e9b6-543c-4690-ae73-92d5e413c3de
+          customer_number: '12345678'
+          customer_name: John Doe
+          date_of_birth: 01-01-85
+          good_standing: true
+          source: SOR
+          pep: false
+          messaging:
+            cell_phone: (919)555-1212
+            email: example1@example-email.com
+          listMemberships:
+          - field: customer_number
+            memberships:
+            - VIP Customers
+        - surrogate_key: faa56da7-c9f0-4071-8a99-5432c5bcca7d
+          customer_number: '12345679'
+          customer_name: Jane Doe
+          date_of_birth: 01-01-80
+          good_standing: true
+          source: Other
+          pep: true
+          messaging:
+            cell_phone: (919)555-1212
+            email: example2@example-email.com
     externalEntityByIdResponse:
       summary: Query an external entity by ID
       description: Specifies the representation of a single external entity.
@@ -17788,6 +17961,32 @@ components:
         messaging:
           cell_phone: (919)555-1212
           email: example1@example-email.com
+    externalEntityByIdResponseList:
+      summary: Query an external entity by ID with advanced list data
+      description: Specifies the representation of a single external entity that includes
+        advanced list data.
+      value:
+        surrogate_key: 57c3e9b6-543c-4690-ae73-92d5e413c3de
+        customer_number: 1234567xxxx
+        customer_name: John Doe
+        date_of_birth: 01-01-85
+        good_standing: true
+        source: SOR
+        pep: false
+        messaging:
+          cell_phone: (919)555-1212
+          email: example1@example-email.com
+        listsData:
+        - label: VIP Customers
+          localizedLabel: VIP Customers
+          name: VIP Customers
+        - label: Customer Contact List
+          localizedLabel: Customer Contact List
+          name: Customer Contact
+        listMemberships:
+        - field: customer_number
+          memberships:
+          - VIP Customers
     externalEntityInsufficientCapabilitiesResponse:
       summary: Forbidden
       description: The user did not have the necessary permissions.
@@ -21816,22 +22015,32 @@ components:
       schema:
         type: string
         format: sort-criteria
-    managementUserDomain:
-      name: managementUser
+    managedResourcesDomain:
+      name: managedResources
       in: query
-      description: Specifies the criteria for filtering by a group identifier. Returns
-        the list of domains which are associated with any group the user is a member
-        of.
+      description: If set to true, returns the list of domains which are associated
+        with the requesting user. Note that domains will only be returned if the requesting
+        user is a member of the group specified in the managementGroupID property.
       schema:
-        type: string
-    managementUserTriageType:
-      name: managementUser
+        type: boolean
+    managedResourcesQueue:
+      name: managedResources
       in: query
-      description: Specifies the criteria for filtering by a group identifier. Returns
-        the list of triage types which are associated with any group the user is a
-        member of, either on the triage type or the domain.
+      description: If set to true, returns the list of queues which are associated
+        with the requesting user. Note that queues will only be returned if the requesting
+        user is a member of the group specified in the managementGroupID property
+        on either the domain or the triage type.
       schema:
-        type: string
+        type: boolean
+    managedResourcesTriageType:
+      name: managedResources
+      in: query
+      description: If set to true, returns the list of triage types which are associated
+        with the requesting user. Note that triage types will only be returned if
+        the requesting user is a member of the group specified in the managementGroupID
+        property on either the domain or the triage type.
+      schema:
+        type: boolean
   requestBodies:
     collectionFilterByName:
       description: The criteria for filtering the returned items. See [Filtering in

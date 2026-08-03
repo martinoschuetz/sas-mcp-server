@@ -8,7 +8,7 @@ info:
     email: devex@sas.com
   description: The Model Management API provides basic resources for monitoring performance,
     comparing models, and running workflow processes.
-  version: "12"
+  version: "14"
 servers:
 - url: "https://example.com/modelManagement"
   description: "This is an example of a base URL."
@@ -2214,7 +2214,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/kpiCollection"
         "404":
-          description: The project id is not valid
+          description: The project ID is not valid.
           content:
             application/vnd.sas.collection+json:
               schema:
@@ -2260,7 +2260,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/kpiCollection"
         "404":
-          description: The project id is not valid
+          description: The project ID is not valid.
           content:
             application/vnd.sas.collection+json:
               schema:
@@ -2330,7 +2330,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/alertRuleCollection"
         "400":
-          description: The rule definition is not valid
+          description: The rule definition is not valid.
           content:
             application/vnd.sas.collection+json:
               schema:
@@ -2339,7 +2339,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/error2"
         "404":
-          description: The project id is not valid
+          description: The project ID is not valid.
           content:
             application/vnd.sas.collection+json:
               schema:
@@ -2603,7 +2603,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/alertRuleHistory"
         "404":
-          description: The project id is not valid
+          description: The project ID is not valid.
           content:
             application/vnd.sas.models.alert.rule.history+json:
               schema:
@@ -2639,7 +2639,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/executionStatus"
         "404":
-          description: The project id is not valid
+          description: The project ID is not valid.
           content:
             application/json:
               schema:
@@ -2835,6 +2835,110 @@ paths:
               examples:
                 default:
                   $ref: "#/components/examples/notFound"
+  "/models/{modelId}/validSASProgramModelCode":
+    get:
+      summary: Validate SAS program score code for a model
+      operationId: getValidSasProgramScoreCode
+      description: Validates that the SAS program score code for the model contains
+        the required LIBNAME statements and macro variables (&inputlib and &outputlib).
+        Returns a Boolean value that indicates whether the score code is valid.
+      tags:
+      - Code
+      parameters:
+      - name: modelId
+        in: path
+        description: The ID of a model in the common model repository.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. The validation completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isValidSASProgramModelCode:
+                    type: boolean
+                    description: Indicates whether the model score code contains valid
+                      LIBNAME statements and macro variables.
+              examples:
+                default:
+                  $ref: "#/components/examples/getValidSASProgramModelCode"
+        "400":
+          description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: No model exists at the requested path.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
+  "/models/{modelId}/versions/{modelVersionIDOrName}/validSASProgramModelCode":
+    get:
+      summary: Validate SAS program score code for a model version
+      operationId: getValidSasProgramScoreCodeByModelVersion
+      description: Validates that the SAS program score code for a model version contains
+        the required LIBNAME statements and macro variables (&inputlib and &outputlib).
+        Returns a Boolean value that indicates whether the score code is valid.
+      tags:
+      - Code
+      parameters:
+      - name: modelId
+        in: path
+        description: The ID of a model in the common model repository.
+        required: true
+        schema:
+          type: string
+      - name: modelVersionIDOrName
+        in: path
+        description: The ID or name of the model version.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request succeeded. The validation completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isValidSASProgramModelCode:
+                    type: boolean
+                    description: Indicates whether the model score code contains valid
+                      LIBNAME statements and macro variables.
+              examples:
+                default:
+                  $ref: "#/components/examples/getValidSASProgramModelCode"
+        "400":
+          description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/badRequest"
+        "404":
+          description: No model exists at the requested path.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/notFound"
   /reports:
     post:
       operationId: createModelComparisonReport
@@ -3005,7 +3109,7 @@ paths:
                 type: string
                 format: date-time
             Last-Modified:
-              description: The timstamp the job was last modified.
+              description: The timestamp the job was last modified.
               schema:
                 type: string
                 format: date-time
@@ -3225,6 +3329,13 @@ paths:
         required: false
         schema:
           type: string
+      - name: regenerateAssessment
+        in: query
+        description: Indicates whether all assessment files should be regenerated.
+        required: false
+        schema:
+          type: boolean
+          default: false
       responses:
         "201":
           description: The assessment files were created.
@@ -3327,7 +3438,7 @@ paths:
                   $ref: "#/components/examples/notFound"
         "408":
           description: The server did not receive a complete request message within
-            the time that it was prepared to wait.
+            the amount of time that it was prepared to wait.
           content:
             application/json:
               schema:
@@ -5014,126 +5125,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/link"
-    baseCollection2:
-      title: Base Collection
-      description: This is a base schema used to define paginated collections of resources.
-        This base schema is extended by other schemas in APIs by adding an 'items'
-        array property. These extensions define the application/vnd.sas.collection
-        media type (version 2)
-      properties:
-        name:
-          type: string
-          description: The name of the collection.
-        start:
-          type: integer
-          description: The zero-based index of the first item in the collection.
-          format: int64
-        limit:
-          type: integer
-          description: The number of items that were requested for the collection.
-        count:
-          type: integer
-          description: If populated indicates the number of items in the collection.
-          format: int64
-        accept:
-          type: string
-          description: A space-delimited list of media types from which an `Accept`
-            header may be constructed.
-        links:
-          type: array
-          description: The links that apply to the collection.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the collection representation. This representation
-            is version 2.
-    error2:
-      title: Error
-      type: object
-      description: The representation of an error.
-      x-sas-media-type:
-        name: application/vnd.sas.error
-        version: 2
-      required:
-      - httpStatusCode
-      - version
-      properties:
-        message:
-          type: string
-          description: The message for the error.
-        id:
-          type: string
-          description: The string ID for the error.
-        errorCode:
-          type: integer
-          description: The numeric ID for the error.
-        httpStatusCode:
-          type: integer
-          description: The HTTP status code for the error.
-        details:
-          type: array
-          description: Messages that provide additional details about the cause of
-            the error.
-          items:
-            type: string
-        remediation:
-          type: string
-          description: A message that describes how to resolve the error.
-        errors:
-          type: array
-          description: Any additional errors that occurred.
-          items:
-            $ref: "#/components/schemas/error2"
-        links:
-          type: array
-          description: The links that apply to the error.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the error representation. This representation
-            is version 2.
-    scoreCodeGenerationRequest:
-      title: Score Code Generation Request
-      description: Request containing hints to generate mapped code using the Scoring
-        Definition by Score Object.
-      required:
-      - scoreDefinitionId
-      properties:
-        scoreDefinitionId:
-          type: string
-          description: "The score definition ID that is used for generating mapped\
-            \ code."
-        hints:
-          type: object
-          description: Hints for generating mapped code. The mapped code request is
-            forwarded to the score object of the score definition. The score object
-            should understand these hints.
-          additionalProperties:
-            type: string
-        version:
-          type: integer
-          readOnly: true
-          description: This media type's schema version number. This representation
-            is version 2.
-    collection2:
-      title: Collection
-      description: A collection of zero or more resource representations. Collections
-        are often paginated and the items array contains one page of representations.
-      required:
-      - items
-      x-sas-media-type:
-        name: application/vnd.sas.collection
-        version: 2
-      allOf:
-      - $ref: "#/components/schemas/baseCollection2"
-      - type: object
-        properties:
-          items:
-            type: array
-            description: Array consisting API resource representations, normally a
-              page worth.
     mappedCode:
       title: Mapped Code
       description: Executable code generated by a score object using a score definition
@@ -5189,39 +5180,572 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/link"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    collection2:
+      title: Collection
+      description: A collection of zero or more resource representations. Collections
+        are often paginated and the items array contains one page of representations.
+      required:
+      - items
+      x-sas-media-type:
+        name: application/vnd.sas.collection
+        version: 2
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: Array consisting API resource representations, normally a
+              page worth.
+    scoreCodeGenerationRequest:
+      title: Score Code Generation Request
+      description: Request containing hints to generate mapped code using the Scoring
+        Definition by Score Object.
+      required:
+      - scoreDefinitionId
+      properties:
+        scoreDefinitionId:
+          type: string
+          description: "The score definition ID that is used for generating mapped\
+            \ code."
+        hints:
+          type: object
+          description: Hints for generating mapped code. The mapped code request is
+            forwarded to the score object of the score definition. The score object
+            should understand these hints.
+          additionalProperties:
+            type: string
+        version:
+          type: integer
+          readOnly: true
+          description: This media type's schema version number. This representation
+            is version 2.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
   examples:
+    publishModelResponse:
+      description: The information about the published model.
+      value:
+        creationTimeStamp: "2025-04-25T13:53:45.908835Z"
+        createdBy: "sasdemo"
+        modifiedTimeStamp: "2025-04-25T13:53:45.908836Z"
+        modifiedBy: "sasdemo"
+        version: 2
+        id: "ed3d0aea-233a-44a5-97ae-8153a926bf17"
+        name: "QS_Reg1_Nominal"
+        publishName: "QS_Reg1_Nominal"
+        publishType: "container"
+        verified: false
+        principalId: "78286c1c-8ef3-4bfa-93cd-2a4989622ef8"
+        destinationName: "scrAzure"
+        destination:
+          creationTimeStamp: "0001-01-01T00:00:00Z"
+          modifiedTimeStamp: "0001-01-01T00:00:00Z"
+          version: 2
+        codeType: "ds1"
+        analyticStoreUri: []
+        sourceUri: "/modelRepository/models/78286c1c-8ef3-4bfa-93cd-2a4989622ef8/modelVersions/afa96d6a-c4aa-4b3e-be77-11f6163dbe53"
+        projectId: "39f8a892-76ba-4963-ae50-bde0eaf6e4ef"
+        projectVersionId: "c917565a-02d3-4704-abdd-acecb4bded6b"
+        modelId: "78286c1c-8ef3-4bfa-93cd-2a4989622ef8"
+        modelVersionId: "1.0"
+        publishLevel: "model"
+        state: "running"
+        properties: {}
+        errorResponse: {}
+        links:
+        - method: "GET"
+          rel: "up"
+          href: "/modelPublish/models"
+          uri: "/modelPublish/models"
+          type: "application/vnd.sas.collection"
+        - method: "GET"
+          rel: "self"
+          href: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17"
+          uri: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17"
+          type: "application/vnd.sas.models.publishing.publish"
+        - method: "DELETE"
+          rel: "delete"
+          href: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17"
+          uri: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17"
+        - method: "PUT"
+          rel: "update"
+          href: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17"
+          uri: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17"
+          type: "application/vnd.sas.models.publishing.publish"
+        - method: "GET"
+          rel: "publishingLog"
+          href: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17/log"
+          uri: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17/log"
+          type: "application/json"
+    badRequest:
+      description: Bad request.
+      value:
+        httpStatusCode: 400
+        version: 2
+    notFound:
+      description: Not found.
+      value:
+        httpStatusCode: 404
+        version: 2
+    getProcessVariables:
+      description: The details of the variables within a workflow process.
+      value:
+        name: variables
+        accept: application/vnd.sas.workflow.variable
+        items:
+        - scope: local
+          type: string
+          name: Champion_ID
+          localizedName: Champion_ID
+          value: champion id
+          version: 1
+          links:
+          - method: GET
+            rel: self
+            href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
+            uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
+            type: application/vnd.sas.workflow.variable
+          - method: PUT
+            rel: update
+            href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
+            uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
+            responseType: application/vnd.sas.workflow.variable
+        - scope: local
+          type: string
+          name: modelProjectId
+          localizedName: modelProjectId
+          value: a16e2641-cdd9-4e36-8702-b8892e7a3e85
+          version: 1
+          links:
+          - method: GET
+            rel: self
+            href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/modelProjectId
+            uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/modelProjectId
+            type: application/vnd.sas.workflow.variable
+          - method: PUT
+            rel: update
+            href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/modelProjectId
+            uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/modelProjectId
+            responseType: application/vnd.sas.workflow.variable
+    createScoredData:
+      description: The information about the scored data and score execution results.
+      value:
+        codeFileUri: /files/files/fdbff2da-9529-421d-9981-691a88d04311
+        createdBy: sasdemo
+        creationTimeStamp: "2025-06-17T17:34:49.170966Z"
+        id: 694dc467-f4e8-4311-9b0c-5427b1cb960e
+        links:
+        - method: GET
+          rel: up
+          href: /scoreExecution/executions
+          uri: /scoreExecution/executions
+          type: application/vnd.sas.collection
+        - method: GET
+          rel: self
+          href: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e
+          uri: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e
+          type: application/vnd.sas.score.execution
+        - method: GET
+          rel: alternate
+          href: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e
+          uri: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e
+          type: application/vnd.sas.summary
+        - method: DELETE
+          rel: delete
+          href: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e
+          uri: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e
+        - method: GET
+          rel: analyses
+          href: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e/analyses
+          uri: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e/analyses
+        - method: GET
+          rel: state
+          href: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e/state
+          uri: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e/state
+          type: text/plain
+        - method: POST
+          rel: analysisCode
+          href: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e/analysisCode
+          uri: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e/analysisCode
+          type: application/vnd.sas.score.analysis.code.generation.request
+          responseType: application/vnd.sas.score.analysis.code
+        logFileUri: /files/files/01076f95-7b86-4c05-a0c6-a7ff4280ba47
+        modifiedBy: sasdemo
+        modifiedTimeStamp: "2025-06-17T17:34:58.983357Z"
+        outputTable:
+          tableName: _mm_score_table
+          libraryName: PUBLIC
+          serverName: cas-shared-default
+          links:
+          - method: GET
+            rel: self
+            href: /casManagement/servers/cas-shared-default/caslibs/PUBLIC/tables/_mm_score_table
+            uri: /casManagement/servers/cas-shared-default/caslibs/PUBLIC/tables/_mm_score_table
+            type: application/vnd.sas.collection
+        results:
+          COMPUTE_CONTEXT: SAS Model Manager compute context
+          COMPUTE_JOB: F3058003-529A-684D-B223-DCEBF4D4F19C
+          COMPUTE_SESSION: 75ab9470-7a34-4d5e-8e3d-e3cd6824db18-ses0000 ended.
+          F3058003-529A-684D-B223-DCEBF4D4F19C.listing: /files/files/3ea38859-f6d7-4496-a64d-163ddbc349a9
+          F3058003-529A-684D-B223-DCEBF4D4F19C.listing.txt: /files/files/d3b898ff-9ff3-4662-b5aa-47c41e20af94
+          F3058003-529A-684D-B223-DCEBF4D4F19C.log.txt: /files/files/7ce55a7a-aed1-46d5-99bf-2f08beeb0e8a
+          elapsedTime: "10204"
+          jobId: c5d88c19-7be6-4fbc-ad85-6cc9d4f8751d
+        scoreExecutionRequest:
+          version: 1
+          name: Model 1_1706251734
+          hints:
+            InputLibraryName: Public
+            InputTableName: HMEQ_TRAIN
+            ModelName: Model 1 (1.0)
+            ObjectUri: /modelManagement/models/9a8b9396-e864-46d3-aa47-59b971bb6a72
+            asyncMappedCode: "true"
+          type: scoreDefinition
+          jobDefinitionId: c2283c0e-c69c-48cb-b314-84207afe7cb0
+          scoreDefinitionId: 259460ca-9c13-4ba7-8dff-6667252338c3
+        state: completed
+        version: 1
+    notAcceptable:
+      description: Not acceptable.
+      value:
+        httpStatusCode: 406
+        version: 2
+    publishModelRequest:
+      description: The request to publish a model.
+      value:
+        creationTimeStamp: "0001-01-01T00:00:00Z"
+        modifiedTimeStamp: "0001-01-01T00:00:00Z"
+        name: "QS_Reg1_Nominal"
+        modelContents:
+        - creationTimeStamp: "0001-01-01T00:00:00Z"
+          modifiedTimeStamp: "0001-01-01T00:00:00Z"
+          modelName: "QS_Reg1_Nominal"
+          principalID: "268742ce-c433-4cd2-b543-7f2a2754b29b"
+          codeType: "ds2"
+          code: "/* Algorithm: Logistic Regression */ package \"QS_Reg1_Nominal\"\
+            \ / overwrite=yes; dcl double AGE; dcl double INCOME; dcl double BALANCE;\
+            \ dcl double EXPENSE; dcl double RISK; dcl double P_JOBTech having label\
+            \ 'Predicted: JOB=Tech'; dcl double P_JOBClerical having label 'Predicted:\
+            \ JOB=Clerical'; dcl nchar(7) I_JOB having label 'Into: JOB'; dcl double\
+            \ EM_PROBABILITY; method logistic_scoring(); dcl double _LINP1_, _LINP2_,\
+            \ _SUMP_; dcl double _BETA1_[5] = (1.23, -0.014, 0.007, 0.021, -0.0035);\
+            \ dcl double _BETA2_[5] = (0.95, 0.006, -0.018, 0.013, 0.0021); dcl double\
+            \ _X_[5]; _X_ := (AGE, INCOME, BALANCE, EXPENSE, RISK); _LINP1_ = sum(of\
+            \ (_X_ * _BETA1_)); _LINP2_ = sum(of (_X_ * _BETA2_)); _SUMP_ = exp(_LINP1_)\
+            \ + exp(_LINP2_); P_JOBTech = exp(_LINP1_) / _SUMP_; P_JOBClerical = exp(_LINP2_)\
+            \ / _SUMP_; EM_PROBABILITY = max(P_JOBTech, P_JOBClerical); end;"
+          sourceURI: "/modelRepository/models/268742ce-c433-4cd2-b543-7f2a2754b29b"
+          modelVersionID: "1.0"
+          projectID: "ca454df2-4753-41d2-8330-cab53ae11287"
+          projectVersionID: "7c8ca99c-2ff0-47e1-9574-693a036b9879"
+          modelID: "268742ce-c433-4cd2-b543-7f2a2754b29b"
+          publishLevel: "model"
+          variableXML: "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Score><TargetList></TargetList><Producer><Name>SAS\
+            \ Model Manager</Name><Version>15.1</Version></Producer><Input><Variable><Name>\"\
+            BAD\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
+            CLAGE\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
+            CLNO\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
+            DEBTINC\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
+            DELINQ\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
+            DEROG\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
+            LOAN\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
+            MORTDUE\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
+            NINQ\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
+            REASON\"</Name><Type>character</Type></Variable></Input><Input><Variable><Name>\"\
+            VALUE\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
+            YOJ\"</Name><Type>numeric</Type></Variable></Input><Output><Variable><Name>\"\
+            EM_CLASSIFICATION\"</Name><Type>character</Type></Variable></Output><Output><Variable><Name>\"\
+            EM_EVENTPROBABILITY\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
+            EM_PROBABILITY\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
+            I_JOB\"</Name><Type>character</Type></Variable></Output><Output><Variable><Name>\"\
+            P_JOBMgr\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
+            P_JOBOffice\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
+            P_JOBOther\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
+            P_JOBProfExe\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
+            P_JOBSales\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
+            P_JOBSelf\"</Name><Type>numeric</Type></Variable></Output></Score>"
+        destinationName: "maslocal"
+        tags: ["tag1", "tag2"]
+        omitDefaultTags: false
+    workflowObjectProcessResponse:
+      description: The details of a workflow object process.
+      value:
+        creationTimeStamp: "2021-05-06T20:21:04.420Z"
+        createdBy: sasdemo
+        id: WFcd404a82-af5b-4835-9672-9730470a6be8
+        name: wf_demo
+        state: "In Progress"
+        links:
+        - method: GET
+          rel: self
+          href: /modelManagement/workflowProcesses/WFcd404a82-af5b-4835-9672-9730470a6be8
+          uri: /modelManagement/workflowProcesses/WFcd404a82-af5b-4835-9672-9730470a6be8
+        - method: GET
+          rel: alternate
+          href: /workflowHistory/processes/WFcd404a82-af5b-4835-9672-9730470a6be8
+          uri: /workflowHistory/processes/WFcd404a82-af5b-4835-9672-9730470a6be8
+        - method: GET
+          rel: process
+          href: /workflow/processes/WFcd404a82-af5b-4835-9672-9730470a6be8
+          uri: /workflow/processes/WFcd404a82-af5b-4835-9672-9730470a6be8
+        associations:
+        - id: f2e6b321-f2a3-43b0-b39b-89414c51f789
+          processId: WFcd404a82-af5b-4835-9672-9730470a6be8
+          processName: wf_demo
+          solutionObjectType: MM_Project
+          solutionObjectName: sample_project
+          solutionObjectId: ab4ee493-0fe6-4348-8099-3a56ff5affd9
+          solutionObjectUri: /modelRepository/projects/ab4ee493-0fe6-4348-8099-3a56ff5affd9
+          solutionObjectMediaType: application/vnd.sas.models.projects+json
+          creationTimeStamp: "2021-05-06T20:21:04.420Z"
+          createdBy: sasdemo
+          links:
+          - method: GET
+            rel: self
+            href: /modelManagement/workflowAssociations/f2e6b321-f2a3-43b0-b39b-89414c51f789
+            uri: /modelManagement/workflowAssociations/f2e6b321-f2a3-43b0-b39b-89414c51f789
+          - method: GET
+            rel: process
+            href: /modelManagement/workflowProcesses/WFcd404a82-af5b-4835-9672-9730470a6be8
+            uri: /modelManagement/workflowProcesses/WFcd404a82-af5b-4835-9672-9730470a6be8
     getLatestJob:
       description: The response for retrieving the latest performance job.
       value:
-        createdBy": "sasdemo"
-        creationTimeStamp": "2024-11-12T02:55:12.686059Z"
-        dataLibrary": "Public"
-        id": "8aa07cbf-2f20-4aed-857f-1a36064706d0"
-        jobExecutionRequired": true
-        jobReqId": "8e703210-eda6-4dfd-8314-7e73eb0be750"
-        latestModelTable": "HMEQPERF_4_Q4"
-        latestProjectDate": "2024-11-12T02:56:02.585Z"
-        latestProjectTable": "HMEQPERF_4_Q4"
+        createdBy: "sasdemo"
+        creationTimeStamp: "2024-11-12T02:55:12.686059Z"
+        dataLibrary: "Public"
+        id: "8aa07cbf-2f20-4aed-857f-1a36064706d0"
+        jobExecutionRequired: true
+        jobReqId: "8e703210-eda6-4dfd-8314-7e73eb0be750"
+        latestModelTable: "HMEQPERF_4_Q4"
+        latestProjectDate: "2024-11-12T02:56:02.585Z"
+        latestProjectTable: "HMEQPERF_4_Q4"
         links:
         - method: "GET"
           rel: "self"
           href: "/modelManagement/performanceTasks/ab54b494-bdf5-420d-87f7-2810844851cc/performanceJobs/8aa07cbf-2f20-4aed-857f-1a36064706d0"
           uri: "/modelManagement/performanceTasks/ab54b494-bdf5-420d-87f7-2810844851cc/performanceJobs/8aa07cbf-2f20-4aed-857f-1a36064706d0"
-        model": "GLM (Pipeline 1)"
-        modelId": "2ccb17b2-7b3c-41e6-98c1-9b7fba1a44e4"
-        modelVersionName": "1.1"
-        modifiedBy": "sasdemo"
-        modifiedTimeStamp": "2024-11-15T17:24:48.313694Z"
-        prefix": "hmeqperf"
-        projectId": "01fee6ba-dc92-4afb-90e1-be98b217d72f"
-        projectVersion": "Version 1"
-        resultLibrary": "ModelPerformanceData"
-        startTime": "2024-11-12T02:56:05.906Z"
-        state": "completed"
-        stopTime": "2024-11-12T02:56:57.875Z"
-        task": "Project interval bias_Performance"
-        taskId": "ab54b494-bdf5-420d-87f7-2810844851cc"
-        version": 2
+        model: "GLM (Pipeline 1)"
+        modelId: "2ccb17b2-7b3c-41e6-98c1-9b7fba1a44e4"
+        modelVersionName: "1.1"
+        modifiedBy: "sasdemo"
+        modifiedTimeStamp: "2024-11-15T17:24:48.313694Z"
+        prefix: "hmeqperf"
+        projectId: "01fee6ba-dc92-4afb-90e1-be98b217d72f"
+        projectVersion: "Version 1"
+        resultLibrary: "ModelPerformanceData"
+        startTime: "2024-11-12T02:56:05.906Z"
+        state: "completed"
+        stopTime: "2024-11-12T02:56:57.875Z"
+        task: "Project interval bias_Performance"
+        taskId: "ab54b494-bdf5-420d-87f7-2810844851cc"
+        version: 2
+    historyBadRequest:
+      description: The alert rule ID is either missing or an invalid UUID.
+      value:
+        httpStatusCode: 400
+        version: 2
+        message: "Bad Request"
+        details:
+        - "The value specified for the \"alertRuleId\" parameter is either missing\
+          \ or an invalid UUID."
+        - "path: /modelManagement/projects/acaa8f93-ab04-47e9-8396-9f190b7b2c9e/alertRules/a/history"
+        - "correlator: 7a69de8b-ebc8-414e-b290-374e61921d6b"
+    receivedMessageRequest:
+      description: The message to send.
+      value:
+        name: variables
+        version: 1
+        variables:
+        - scope: local
+          type: string
+          name: Champion_ID
+          localizedName: Champion_ID
+          value: champion id
+          version: 1
+          links:
+          - method: GET
+            rel: self
+            href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
+            uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
+            type: application/vnd.sas.workflow.variable
+          - method: PUT
+            rel: update
+            href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
+            uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
+            responseType: application/vnd.sas.workflow.variable
+    getMappedCodeResponse:
+      description: The generated mapped code, type, table and library information.
+      value:
+        version: 1
+        code: "/* Generated Mapped Code */"
+        codeType: datastep
+        outputTableName: Test_2_QS_Reg1_v12_0___latest_2023_08_25_14_22_16_output
+        outputLibraryName: Public
+    historyProjectNotFound:
+      description: The specified project ID could not be found.
+      value:
+        httpStatusCode: 404
+        version: 2
+        errorCode: 21206
+        message: "Not Found"
+        details:
+        - "The value for the \"projectId\" parameter is either missing or invalid."
+        - "path: /modelManagement/projects/34c2a64f-9744-45e7-9f1f-1cd4eb228ae7/alertRules/707c2f62-4870-41f0-9bfd-1b8adc51f3d2/history"
+        - "correlator: 43d6176e-1cc0-4c61-95f6-a5bce394d8cd"
+    getValidSASProgramModelCode:
+      description: A response for valid SAS program model code.
+      value:
+        isValidSASProgramModelCode: true
+    conflict:
+      description: Conflict.
+      value:
+        httpStatusCode: 409
+        version: 2
+    getHealthMetrics:
+      description: The response for retrieving the model performance health metrics.
+      value:
+        items:
+        - category: "ACCURACY"
+          metric: "_RSquared_"
+          value: "0.0249159854"
+          success: true
+          alertRuleName: "R-squared Greater than 0.45678"
+          alertCondition: "greaterThan"
+          alertThreshold: 0.45678
+        - category: "FAIRNESS"
+          metric: "PredictiveParity"
+          value: "0.4292135613"
+          success: true
+          alertRuleName: "Predictive parity: REASON Less than 0.11"
+          alertCondition: "lessThan"
+          alertThreshold: 0.11
+          kpiVariable: "REASON"
+          kpiVariableRole: "SENSITIVE"
+        - category: "FAIRNESS"
+          metric: "PredictiveParity"
+          value: "1.3017658658"
+          success: false
+          alertRuleName: "Predictive parity: JOB Greater than 0.6688"
+          alertCondition: "greaterThan"
+          alertThreshold: 0.6688
+          kpiVariable: "JOB"
+          kpiVariableRole: "SENSITIVE"
+        - category: "MODELDRIFT"
+          metric: "devIndex"
+          value: "0"
+          success: true
+          alertRuleName: "Input variable stability PSI: REASON Greater than 0.2"
+          alertCondition: "greaterThan"
+          alertThreshold: 0.2
+          kpiVariable: "REASON"
+          kpiVariableRole: "INPUT"
+        kpisAvailable: true
+        rulesAvailable: true
+    timeout:
+      description: Timeout.
+      value:
+        httpStatusCode: 408
+        version: 2
+    getProcessVariable:
+      description: The details of the variable within a workflow process.
+      value:
+        scope: local
+        type: string
+        name: Champion_ID
+        localizedName: Champion_ID
+        value: champion id
+        version: 1
+        links:
+        - method: GET
+          rel: self
+          href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
+          uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
+          type: application/vnd.sas.workflow.variable
+        - method: PUT
+          rel: update
+          href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
+          uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
+          responseType: application/vnd.sas.workflow.variable
     createAssessmentFiles:
       description: The information about the assessment files that were created for
         a model.
@@ -5313,371 +5837,6 @@ components:
             rel: delete
             href: /modelRepository/models/12248b47-15ae-4d32-a814-37548d9b4a02/contents/75b32077-0411-48cd-8f20-c3558f1aa8e5
             uri: /modelRepository/models/12248b47-15ae-4d32-a814-37548d9b4a02/contents/75b32077-0411-48cd-8f20-c3558f1aa8e5
-    historyBadRequest:
-      description: The alert rule ID is either missing or an invalid UUID.
-      value:
-        httpStatusCode: 400
-        version: 2
-        message: "Bad Request"
-        details:
-        - "The value specified for the \"alertRuleId\" parameter is either missing\
-          \ or an invalid UUID."
-        - "path: /modelManagement/projects/acaa8f93-ab04-47e9-8396-9f190b7b2c9e/alertRules/a/history"
-        - "correlator: 7a69de8b-ebc8-414e-b290-374e61921d6b"
-    workflowObjectProcessResponse:
-      description: The details of a workflow object process.
-      value:
-        creationTimeStamp: "2021-05-06T20:21:04.420Z"
-        createdBy: sasdemo
-        id: WFcd404a82-af5b-4835-9672-9730470a6be8
-        name: wf_demo
-        state: "In Progress"
-        links:
-        - method: GET
-          rel: self
-          href: /modelManagement/workflowProcesses/WFcd404a82-af5b-4835-9672-9730470a6be8
-          uri: /modelManagement/workflowProcesses/WFcd404a82-af5b-4835-9672-9730470a6be8
-        - method: GET
-          rel: alternate
-          href: /workflowHistory/processes/WFcd404a82-af5b-4835-9672-9730470a6be8
-          uri: /workflowHistory/processes/WFcd404a82-af5b-4835-9672-9730470a6be8
-        - method: GET
-          rel: process
-          href: /workflow/processes/WFcd404a82-af5b-4835-9672-9730470a6be8
-          uri: /workflow/processes/WFcd404a82-af5b-4835-9672-9730470a6be8
-        associations:
-        - id: f2e6b321-f2a3-43b0-b39b-89414c51f789
-          processId: WFcd404a82-af5b-4835-9672-9730470a6be8
-          processName: wf_demo
-          solutionObjectType: MM_Project
-          solutionObjectName: sample_project
-          solutionObjectId: ab4ee493-0fe6-4348-8099-3a56ff5affd9
-          solutionObjectUri: /modelRepository/projects/ab4ee493-0fe6-4348-8099-3a56ff5affd9
-          solutionObjectMediaType: application/vnd.sas.models.projects+json
-          creationTimeStamp: "2021-05-06T20:21:04.420Z"
-          createdBy: sasdemo
-          links:
-          - method: GET
-            rel: self
-            href: /modelManagement/workflowAssociations/f2e6b321-f2a3-43b0-b39b-89414c51f789
-            uri: /modelManagement/workflowAssociations/f2e6b321-f2a3-43b0-b39b-89414c51f789
-          - method: GET
-            rel: process
-            href: /modelManagement/workflowProcesses/WFcd404a82-af5b-4835-9672-9730470a6be8
-            uri: /modelManagement/workflowProcesses/WFcd404a82-af5b-4835-9672-9730470a6be8
-    getHealthMetrics:
-      description: The response for retrieving the model performance health metrics.
-      value:
-        items:
-        - category: "ACCURACY"
-          metric: "_RSquared_"
-          value: "0.0249159854"
-          success: true
-          alertRuleName: "R-squared Greater than 0.45678"
-          alertCondition: "greaterThan"
-          alertThreshold: 0.45678
-        - category: "FAIRNESS"
-          metric: "PredictiveParity"
-          value: "0.4292135613"
-          success: true
-          alertRuleName: "Predictive parity: REASON Less than 0.11"
-          alertCondition: "lessThan"
-          alertThreshold: 0.11
-          kpiVariable: "REASON"
-          kpiVariableRole: "SENSITIVE"
-        - category: "FAIRNESS"
-          metric: "PredictiveParity"
-          value: "1.3017658658"
-          success: false
-          alertRuleName: "Predictive parity: JOB Greater than 0.6688"
-          alertCondition: "greaterThan"
-          alertThreshold: 0.6688
-          kpiVariable: "JOB"
-          kpiVariableRole: "SENSITIVE"
-        - category: "MODELDRIFT"
-          metric: "devIndex"
-          value: "0"
-          success: true
-          alertRuleName: "Input variable stability PSI: REASON Greater than 0.2"
-          alertCondition: "greaterThan"
-          alertThreshold: 0.2
-          kpiVariable: "REASON"
-          kpiVariableRole: "INPUT"
-        kpisAvailable: true
-        rulesAvailable: true
-    publishModelRequest:
-      description: The request to publish a model.
-      value:
-        creationTimeStamp: "0001-01-01T00:00:00Z"
-        modifiedTimeStamp: "0001-01-01T00:00:00Z"
-        name: "QS_Reg1_Nominal"
-        modelContents:
-        - creationTimeStamp: "0001-01-01T00:00:00Z"
-          modifiedTimeStamp: "0001-01-01T00:00:00Z"
-          modelName: "QS_Reg1_Nominal"
-          principalID: "268742ce-c433-4cd2-b543-7f2a2754b29b"
-          codeType: "ds2"
-          code: "/* Algorithm: Logistic Regression */ package \"QS_Reg1_Nominal\"\
-            \ / overwrite=yes; dcl double AGE; dcl double INCOME; dcl double BALANCE;\
-            \ dcl double EXPENSE; dcl double RISK; dcl double P_JOBTech having label\
-            \ 'Predicted: JOB=Tech'; dcl double P_JOBClerical having label 'Predicted:\
-            \ JOB=Clerical'; dcl nchar(7) I_JOB having label 'Into: JOB'; dcl double\
-            \ EM_PROBABILITY; method logistic_scoring(); dcl double _LINP1_, _LINP2_,\
-            \ _SUMP_; dcl double _BETA1_[5] = (1.23, -0.014, 0.007, 0.021, -0.0035);\
-            \ dcl double _BETA2_[5] = (0.95, 0.006, -0.018, 0.013, 0.0021); dcl double\
-            \ _X_[5]; _X_ := (AGE, INCOME, BALANCE, EXPENSE, RISK); _LINP1_ = sum(of\
-            \ (_X_ * _BETA1_)); _LINP2_ = sum(of (_X_ * _BETA2_)); _SUMP_ = exp(_LINP1_)\
-            \ + exp(_LINP2_); P_JOBTech = exp(_LINP1_) / _SUMP_; P_JOBClerical = exp(_LINP2_)\
-            \ / _SUMP_; EM_PROBABILITY = max(P_JOBTech, P_JOBClerical); end;"
-          sourceURI: "/modelRepository/models/268742ce-c433-4cd2-b543-7f2a2754b29b"
-          modelVersionID: "1.0"
-          projectID: "ca454df2-4753-41d2-8330-cab53ae11287"
-          projectVersionID: "7c8ca99c-2ff0-47e1-9574-693a036b9879"
-          modelID: "268742ce-c433-4cd2-b543-7f2a2754b29b"
-          publishLevel: "model"
-          variableXML: "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Score><TargetList></TargetList><Producer><Name>SAS\
-            \ Model Manager</Name><Version>15.1</Version></Producer><Input><Variable><Name>\"\
-            BAD\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
-            CLAGE\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
-            CLNO\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
-            DEBTINC\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
-            DELINQ\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
-            DEROG\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
-            LOAN\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
-            MORTDUE\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
-            NINQ\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
-            REASON\"</Name><Type>character</Type></Variable></Input><Input><Variable><Name>\"\
-            VALUE\"</Name><Type>numeric</Type></Variable></Input><Input><Variable><Name>\"\
-            YOJ\"</Name><Type>numeric</Type></Variable></Input><Output><Variable><Name>\"\
-            EM_CLASSIFICATION\"</Name><Type>character</Type></Variable></Output><Output><Variable><Name>\"\
-            EM_EVENTPROBABILITY\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
-            EM_PROBABILITY\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
-            I_JOB\"</Name><Type>character</Type></Variable></Output><Output><Variable><Name>\"\
-            P_JOBMgr\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
-            P_JOBOffice\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
-            P_JOBOther\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
-            P_JOBProfExe\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
-            P_JOBSales\"</Name><Type>numeric</Type></Variable></Output><Output><Variable><Name>\"\
-            P_JOBSelf\"</Name><Type>numeric</Type></Variable></Output></Score>"
-        destinationName: "maslocal"
-        tags: ["tag1", "tag2"]
-        omitDefaultTags: false
-    notAcceptable:
-      description: Not acceptable.
-      value:
-        httpStatusCode: 406
-        version: 2
-    notFound:
-      description: Not found.
-      value:
-        httpStatusCode: 404
-        version: 2
-    conflict:
-      description: Conflict.
-      value:
-        httpStatusCode: 409
-        version: 2
-    publishModelResponse:
-      description: The information about the published model.
-      value:
-      - creationTimeStamp: "2025-04-25T13:53:45.908835Z"
-      - createdBy: "sasdemo"
-      - modifiedTimeStamp: "2025-04-25T13:53:45.908836Z"
-      - modifiedBy: "sasdemo"
-      - version: 2
-      - id: "ed3d0aea-233a-44a5-97ae-8153a926bf17"
-      - name: "QS_Reg1_Nominal"
-      - publishName: "QS_Reg1_Nominal"
-      - publishType: "container"
-      - verified: false
-      - principalId: "78286c1c-8ef3-4bfa-93cd-2a4989622ef8"
-      - destinationName: "scrAzure"
-      - destination:
-        - creationTimeStamp: "0001-01-01T00:00:00Z"
-        - modifiedTimeStamp: "0001-01-01T00:00:00Z"
-        - version: 2
-      - codeType: "ds1"
-      - analyticStoreUri: []
-      - sourceUri: "/modelRepository/models/78286c1c-8ef3-4bfa-93cd-2a4989622ef8/modelVersions/afa96d6a-c4aa-4b3e-be77-11f6163dbe53"
-      - projectId: "39f8a892-76ba-4963-ae50-bde0eaf6e4ef"
-      - projectVersionId: "c917565a-02d3-4704-abdd-acecb4bded6b"
-      - modelId: "78286c1c-8ef3-4bfa-93cd-2a4989622ef8"
-      - modelVersionId: "1.0"
-      - publishLevel: "model"
-      - state: "running"
-      - properties: {}
-      - errorResponse: {}
-      - links:
-        - method: "GET"
-          rel: "up"
-          href: "/modelPublish/models"
-          uri: "/modelPublish/models"
-          type: "application/vnd.sas.collection"
-        - method: "GET"
-          rel: "self"
-          href: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17"
-          uri: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17"
-          type: "application/vnd.sas.models.publishing.publish"
-        - method: "DELETE"
-          rel: "delete"
-          href: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17"
-          uri: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17"
-        - method: "PUT"
-          rel: "update"
-          href: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17"
-          uri: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17"
-          type: "application/vnd.sas.models.publishing.publish"
-        - method: "GET"
-          rel: "publishingLog"
-          href: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17/log"
-          uri: "/modelPublish/models/ed3d0aea-233a-44a5-97ae-8153a926bf17/log"
-          type: "application/json"
-    createScoredData:
-      description: The information about the scored data and score execution results.
-      value:
-        codeFileUri: /files/files/fdbff2da-9529-421d-9981-691a88d04311
-        createdBy: sasdemo
-        creationTimeStamp: "2025-06-17T17:34:49.170966Z"
-        id: 694dc467-f4e8-4311-9b0c-5427b1cb960e
-        links:
-        - method: GET
-          rel: up
-          href: /scoreExecution/executions
-          uri: /scoreExecution/executions
-          type: application/vnd.sas.collection
-        - method: GET
-          rel: self
-          href: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e
-          uri: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e
-          type: application/vnd.sas.score.execution
-        - method: GET
-          rel: alternate
-          href: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e
-          uri: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e
-          type: application/vnd.sas.summary
-        - method: DELETE
-          rel: delete
-          href: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e
-          uri: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e
-        - method: GET
-          rel: analyses
-          href: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e/analyses
-          uri: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e/analyses
-        - method: GET
-          rel: state
-          href: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e/state
-          uri: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e/state
-          type: text/plain
-        - method: POST
-          rel: analysisCode
-          href: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e/analysisCode
-          uri: /scoreExecution/executions/694dc467-f4e8-4311-9b0c-5427b1cb960e/analysisCode
-          type: application/vnd.sas.score.analysis.code.generation.request
-          responseType: application/vnd.sas.score.analysis.code
-        logFileUri: /files/files/01076f95-7b86-4c05-a0c6-a7ff4280ba47
-        modifiedBy: sasdemo
-        modifiedTimeStamp: "2025-06-17T17:34:58.983357Z"
-        outputTable:
-          tableName: _mm_score_table
-          libraryName: PUBLIC
-          serverName: cas-shared-default
-          links:
-          - method: GET
-            rel: self
-            href: /casManagement/servers/cas-shared-default/caslibs/PUBLIC/tables/_mm_score_table
-            uri: /casManagement/servers/cas-shared-default/caslibs/PUBLIC/tables/_mm_score_table
-            type: application/vnd.sas.collection
-        results:
-          COMPUTE_CONTEXT: SAS Model Manager compute context
-          COMPUTE_JOB: F3058003-529A-684D-B223-DCEBF4D4F19C
-          COMPUTE_SESSION: 75ab9470-7a34-4d5e-8e3d-e3cd6824db18-ses0000 ended.
-          F3058003-529A-684D-B223-DCEBF4D4F19C.listing: /files/files/3ea38859-f6d7-4496-a64d-163ddbc349a9
-          F3058003-529A-684D-B223-DCEBF4D4F19C.listing.txt: /files/files/d3b898ff-9ff3-4662-b5aa-47c41e20af94
-          F3058003-529A-684D-B223-DCEBF4D4F19C.log.txt: /files/files/7ce55a7a-aed1-46d5-99bf-2f08beeb0e8a
-          elapsedTime: "10204"
-          jobId: c5d88c19-7be6-4fbc-ad85-6cc9d4f8751d
-        scoreExecutionRequest:
-          version: 1
-          name: Model 1_1706251734
-          hints:
-            InputLibraryName: Public
-            InputTableName: HMEQ_TRAIN
-            ModelName: Model 1 (1.0)
-            ObjectUri: /modelManagement/models/9a8b9396-e864-46d3-aa47-59b971bb6a72
-            asyncMappedCode: "true"
-          type: scoreDefinition
-          jobDefinitionId: c2283c0e-c69c-48cb-b314-84207afe7cb0
-          scoreDefinitionId: 259460ca-9c13-4ba7-8dff-6667252338c3
-        state: completed
-        version: 1
-    getProcessVariables:
-      description: The details of the variables within a workflow process.
-      value:
-        name: variables
-        accept: application/vnd.sas.workflow.variable
-        items:
-        - scope: local
-          type: string
-          name: Champion_ID
-          localizedName: Champion_ID
-          value: champion id
-          version: 1
-          links:
-          - method: GET
-            rel: self
-            href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
-            uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
-            type: application/vnd.sas.workflow.variable
-          - method: PUT
-            rel: update
-            href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
-            uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
-            responseType: application/vnd.sas.workflow.variable
-        - scope: local
-          type: string
-          name: modelProjectId
-          localizedName: modelProjectId
-          value: a16e2641-cdd9-4e36-8702-b8892e7a3e85
-          version: 1
-          links:
-          - method: GET
-            rel: self
-            href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/modelProjectId
-            uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/modelProjectId
-            type: application/vnd.sas.workflow.variable
-          - method: PUT
-            rel: update
-            href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/modelProjectId
-            uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/modelProjectId
-            responseType: application/vnd.sas.workflow.variable
-    getProcessVariable:
-      description: The details of the variable within a workflow process.
-      value:
-        scope: local
-        type: string
-        name: Champion_ID
-        localizedName: Champion_ID
-        value: champion id
-        version: 1
-        links:
-        - method: GET
-          rel: self
-          href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
-          uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
-          type: application/vnd.sas.workflow.variable
-        - method: PUT
-          rel: update
-          href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
-          uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
-          responseType: application/vnd.sas.workflow.variable
-    getMappedCodeResponse:
-      description: The generated mapped code, type, table and library information.
-      value:
-        version: 1
-        code: "/* Generated Mapped Code */"
-        codeType: datastep
-        outputTableName: Test_2_QS_Reg1_v12_0___latest_2023_08_25_14_22_16_output
-        outputLibraryName: Public
     workflowObjectProcessRequestNoVars:
       description: A workflow object process request with the variables omitted.
       value:
@@ -5687,34 +5846,10 @@ components:
           solutionObjectId: ab4ee493-0fe6-4348-8099-3a56ff5affd9
           solutionObjectUri: /modelRepository/projects/ab4ee493-0fe6-4348-8099-3a56ff5affd9
           solutionObjectMediaType: application/vnd.sas.models.projects+json
-    receivedMessageRequest:
-      description: The message to send.
+    getMappedCodeRequest:
+      description: The request to generate mapped code.
       value:
-        name: variables
-        version: 1
-        variables:
-        - scope: local
-          type: string
-          name: Champion_ID
-          localizedName: Champion_ID
-          value: champion id
-          version: 1
-          links:
-          - method: GET
-            rel: self
-            href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
-            uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
-            type: application/vnd.sas.workflow.variable
-          - method: PUT
-            rel: update
-            href: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
-            uri: /modelManagement/workflow/processes/WFaeec3c84-0064-4e1f-bae5-88801ba33813/variables/Champion_ID
-            responseType: application/vnd.sas.workflow.variable
-    badRequest:
-      description: Bad request.
-      value:
-        httpStatusCode: 400
-        version: 2
+        scoreDefinitionId: "1c9e4704-d153-4b76-b0fb-cc11e99562aa"
     workflowObjectProcessRequestWithVars:
       description: A workflow object process request that contains variables.
       value:
@@ -5731,27 +5866,3 @@ components:
           solutionObjectId: ab4ee493-0fe6-4348-8099-3a56ff5affd9
           solutionObjectUri: /modelRepository/projects/ab4ee493-0fe6-4348-8099-3a56ff5affd9
           solutionObjectMediaType: application/vnd.sas.models.projects+json
-    timeout:
-      description: Timeout.
-      value:
-        httpStatusCode: 408
-        version: 2
-    getMappedCodeRequest:
-      description: The request to generate mapped code.
-      value:
-        scoreDefinitionId: "1c9e4704-d153-4b76-b0fb-cc11e99562aa"
-    historyProjectNotFound:
-      description: The specified project ID could not be found.
-      value:
-        httpStatusCode: 404
-        version: 2
-        errorCode: 21206
-        message: "Not Found"
-        details:
-        - "The value for the \"projectId\" parameter is either missing or invalid."
-        - "path: /modelManagement/projects/34c2a64f-9744-45e7-9f1f-1cd4eb228ae7/alertRules/707c2f62-4870-41f0-9bfd-1b8adc51f3d2/history"
-        - "correlator: 43d6176e-1cc0-4c61-95f6-a5bce394d8cd"
-
-
-
-

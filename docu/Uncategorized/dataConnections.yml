@@ -314,7 +314,7 @@ paths:
                   $ref: "#/components/examples/error404"
     put:
       operationId: updateConnection
-      summary: Get a collection of Connections
+      summary: Update a Connection
       description: Updates an existing connection through a full replacement of the
         resource. The ID field might not be modified by this operation.
       tags:
@@ -2217,6 +2217,86 @@ components:
             1.
           minimum: 1
           type: integer
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
     job:
       title: Job
       description: The execution job.
@@ -2312,86 +2392,6 @@ components:
           description: The links that are associated with the job.
           items:
             $ref: "#/components/schemas/link"
-    baseCollection2:
-      title: Base Collection
-      description: This is a base schema used to define paginated collections of resources.
-        This base schema is extended by other schemas in APIs by adding an 'items'
-        array property. These extensions define the application/vnd.sas.collection
-        media type (version 2)
-      properties:
-        name:
-          type: string
-          description: The name of the collection.
-        start:
-          type: integer
-          description: The zero-based index of the first item in the collection.
-          format: int64
-        limit:
-          type: integer
-          description: The number of items that were requested for the collection.
-        count:
-          type: integer
-          description: If populated indicates the number of items in the collection.
-          format: int64
-        accept:
-          type: string
-          description: A space-delimited list of media types from which an `Accept`
-            header may be constructed.
-        links:
-          type: array
-          description: The links that apply to the collection.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the collection representation. This representation
-            is version 2.
-    error2:
-      title: Error
-      type: object
-      description: The representation of an error.
-      x-sas-media-type:
-        name: application/vnd.sas.error
-        version: 2
-      required:
-      - httpStatusCode
-      - version
-      properties:
-        message:
-          type: string
-          description: The message for the error.
-        id:
-          type: string
-          description: The string ID for the error.
-        errorCode:
-          type: integer
-          description: The numeric ID for the error.
-        httpStatusCode:
-          type: integer
-          description: The HTTP status code for the error.
-        details:
-          type: array
-          description: Messages that provide additional details about the cause of
-            the error.
-          items:
-            type: string
-        remediation:
-          type: string
-          description: A message that describes how to resolve the error.
-        errors:
-          type: array
-          description: Any additional errors that occurred.
-          items:
-            $ref: "#/components/schemas/error2"
-        links:
-          type: array
-          description: The links that apply to the error.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the error representation. This representation
-            is version 2.
     link:
       title: Link
       type: object
@@ -2590,20 +2590,6 @@ components:
           description: An array of link objects
           items:
             $ref: "#/components/schemas/link"
-    property:
-      title: Property
-      description: A pair consisting of a string name and a string value. This is
-        an element of `application/vnd.sas.properties`
-      required:
-      - name
-      - value
-      properties:
-        name:
-          type: string
-          description: The property name.
-        value:
-          type: string
-          description: The property value.
     jobDefinitionParameter:
       title: Job Definition Parameter
       type: object
@@ -2632,15 +2618,27 @@ components:
           type: string
           description: The default value for this parameter, if one is not specified
             at execution time.
+    property:
+      title: Property
+      description: A pair consisting of a string name and a string value. This is
+        an element of `application/vnd.sas.properties`
+      required:
+      - name
+      - value
+      properties:
+        name:
+          type: string
+          description: The property name.
+        value:
+          type: string
+          description: The property value.
   parameters:
-    IfMatchHeader:
-      name: If-Match
-      in: header
-      required: true
-      description: The ETag that was returned from a GET, POST, PUT, PATCH, or HEAD
-        of this object.  If the ETag does not match, the update will fail.
+    StartParam:
+      name: start
+      in: query
+      description: 0-based Offset of first object to return.  Defaults to 0.
       schema:
-        type: string
+        type: integer
     ConnectorTypeIDParam:
       name: connectorTypeId
       in: path
@@ -2648,6 +2646,12 @@ components:
       description: The ID for the connector type.
       schema:
         type: string
+    LimitParam:
+      name: limit
+      in: query
+      description: Maximum number of objects to return.  Defaults to 10.
+      schema:
+        type: integer
     ConnectorTargetIDParam:
       name: connectorTargetId
       in: path
@@ -2655,26 +2659,15 @@ components:
       description: The ID for the connector target.
       schema:
         type: string
-    ComputeSessionIDParam:
-      name: sessionId
+    CodeGenerationMethodParam:
+      name: method
       in: query
-      required: true
-      description: The sessionId to connect to compute server for operations.
+      description: |
+        The connector type method for which code is generated.
+        Example values are "connector", "engine", "engineORC" and "enginePARQUET".
+        When method is not supplied a collection is returned with code for all the methods.
       schema:
         type: string
-    ConnectionIDParam:
-      name: connectionId
-      in: path
-      required: true
-      description: The ID for the connection.
-      schema:
-        type: string
-    StartParam:
-      name: start
-      in: query
-      description: 0-based Offset of first object to return.  Defaults to 0.
-      schema:
-        type: integer
     GenerateCodeAcceptHeader:
       name: Accept
       in: header
@@ -2686,18 +2679,25 @@ components:
         enum: [text/vnd.sas.source.sas, text/vnd.sas.source.casl, application/json,
           application/vnd.sas.collection+json]
         default: "application/vnd.sas.collection+json"
-    LimitParam:
-      name: limit
-      in: query
-      description: Maximum number of objects to return.  Defaults to 10.
+    IfMatchHeader:
+      name: If-Match
+      in: header
+      required: true
+      description: The ETag that was returned from a GET, POST, PUT, PATCH, or HEAD
+        of this object.  If the ETag does not match, the update will fail.
       schema:
-        type: integer
-    CodeGenerationMethodParam:
-      name: method
+        type: string
+    ConnectionIDParam:
+      name: connectionId
+      in: path
+      required: true
+      description: The ID for the connection.
+      schema:
+        type: string
+    ComputeSessionIDParam:
+      name: sessionId
       in: query
-      description: |
-        The connector type method for which code is generated.
-        Example values are "connector", "engine", "engineORC" and "enginePARQUET".
-        When method is not supplied a collection is returned with code for all the methods.
+      required: true
+      description: The sessionId to connect to compute server for operations.
       schema:
         type: string

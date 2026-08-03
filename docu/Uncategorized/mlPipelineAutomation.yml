@@ -4,7 +4,7 @@ info:
   description: The Machine Learning Pipeline Automation (MLPA) API enables CRUD operations
     on automation projects, which automates VDMML project creation, pipeline building
     and training, and the production of champion models.
-  version: "6"
+  version: "7"
   title: Machine Learning Pipeline Automation
   contact:
     name: SAS Developers
@@ -26,8 +26,8 @@ tags:
   description: Contains the operations for managing machine learning pipeline templates.
 - name: Root
   description: Contains the operations for the root resource.
-- name: Generative AI
-  description: Contains the operations for managing generative AI jobs.
+- name: Model Context Protocol
+  description: Contains the operations for model context protocol.
 paths:
   /:
     get:
@@ -89,6 +89,309 @@ paths:
               examples:
                 json:
                   $ref: "#/components/examples/getAlgorithms"
+  /mcp:
+    get:
+      x-sas-internal: true
+      tags:
+      - Model Context Protocol
+      summary: Returns an SSE stream to the MCP server
+      description: >
+        Returns a Server-Sent Events (SSE) stream on the single MCP endpoint, allowing
+        the server to send JSON-RPC requests and notifications to the client without
+        the client first sending data via POST. Part of the MCP Streamable HTTP transport
+        (protocol version 2025-11-25).
+
+        To resume a broken stream, include the `Last-Event-ID` header set to the ID
+        of the last event received. The server may replay missed messages from that
+        point.
+
+        If the server does not offer an SSE stream it returns HTTP 405 Method Not
+        Allowed.
+      operationId: getModelContextProtocolStream
+      parameters:
+      - name: MCP-Session-Id
+        in: header
+        description: >
+          The session ID returned by the server during initialization. The session
+          ID must
+          be included in all requests after the initialize exchange.
+        required: false
+        schema:
+          type: string
+      - name: MCP-Protocol-Version
+        in: header
+        description: >
+          The MCP protocol version negotiated during initialization
+          (for example, `2025-11-25`).
+        required: false
+        schema:
+          type: string
+          example: "2025-11-25"
+      - name: Last-Event-ID
+        in: header
+        description: >
+          The ID of the last SSE event received by the client. When provided, the
+          server may replay events that occurred after that event ID, resuming the
+          stream without message loss.
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: SSE stream successfully opened.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum: [text/event-stream]
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-Sent Events stream
+              examples:
+                sse:
+                  $ref: "#/components/examples/getMCPStreamResponse"
+        "400":
+          description: Bad request. The session ID header is missing or the request
+            is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                badRequest:
+                  $ref: "#/components/examples/getMCP400Response"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                badRequest:
+                  $ref: "#/components/examples/getMCP400Response"
+        "404":
+          description: No session with the provided session ID was found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                notFound:
+                  $ref: "#/components/examples/getMCP404Response"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                notFound:
+                  $ref: "#/components/examples/getMCP404Response"
+        "405":
+          description: Method not allowed. The server does not offer an SSE stream
+            at this endpoint.
+    post:
+      x-sas-internal: true
+      tags:
+      - Model Context Protocol
+      summary: Send a JSON-RPC message to the MCP server
+      description: >
+        Sends a JSON-RPC request, notification, or response to the single MCP endpoint.
+        Part of the MCP Streamable HTTP transport (protocol version 2025-11-25).
+
+        - For JSON-RPC *requests*, the server responds with either
+          `Content-Type: application/json` (single response) or
+          `Content-Type: text/event-stream` (SSE stream). Clients must support both.
+        - For JSON-RPC *notifications* and *responses*, the server returns HTTP 202
+        Accepted
+          with no body if accepted, or an HTTP error status if it cannot accept the
+        input.
+
+        On the initial `initialize` request, the server may return an `MCP-Session-Id`
+        response header. Clients must include this header on all subsequent requests.
+      operationId: createModelContextProtocolMessage
+      parameters:
+      - name: MCP-Session-Id
+        in: header
+        description: >
+          The session ID returned by the server during initialization. The session
+          ID  must be included on all requests after the initialize exchange. Servers
+          that
+          require a session ID should respond with HTTP 400 to requests that omit
+          this
+          header (other than the initialization request).
+        required: false
+        schema:
+          type: string
+      - name: MCP-Protocol-Version
+        in: header
+        description: >
+          The MCP protocol version negotiated during initialization
+          (for example, `2025-11-25`). The version must be included
+          on all requests after the initialize exchange.
+        required: false
+        schema:
+          type: string
+          example: "2025-11-25"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: JSON-RPC message (request, notification, or response)
+            examples:
+              initialize:
+                $ref: "#/components/examples/postMCPRequest"
+              toolsList:
+                $ref: "#/components/examples/postMCPRequestToolsList"
+              toolsCall:
+                $ref: "#/components/examples/postMCPRequestToolsCall"
+      responses:
+        "200":
+          description: >
+            JSON-RPC response returned. For the `initialize` request, the response
+            includes the `MCP-Session-Id` header if the server uses session management.
+          headers:
+            MCP-Session-Id:
+              description: >
+                Session ID assigned by the server during initialization. Clients must
+                include this value in the `MCP-Session-Id` header on all subsequent
+                requests.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                description: JSON-RPC response
+              examples:
+                initializeResponse:
+                  $ref: "#/components/examples/postMCPResponse"
+                toolsListResponse:
+                  $ref: "#/components/examples/postMCPResponseToolsList"
+                toolsCallResponse:
+                  $ref: "#/components/examples/postMCPResponseToolsCall"
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-Sent Events stream with JSON-RPC responses
+              examples:
+                sseResponse:
+                  $ref: "#/components/examples/postMCPSSEResponse"
+        "202":
+          description: Accepted (for notifications and responses).
+        "400":
+          description: Bad request. The request body is malformed, the session ID
+            is missing, or the protocol version is unsupported.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                badRequest:
+                  $ref: "#/components/examples/postMCP400Response"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                badRequest:
+                  $ref: "#/components/examples/postMCP400Response"
+        "404":
+          description: No session with the provided session ID was found. The client
+            must start a new session by sending a new initialize request without a
+            session ID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                notFound:
+                  $ref: "#/components/examples/postMCP404Response"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                notFound:
+                  $ref: "#/components/examples/postMCP404Response"
+    delete:
+      x-sas-internal: true
+      tags:
+      - Model Context Protocol
+      summary: Terminate an MCP session
+      description: >
+        Explicitly terminates an MCP session. Clients that no longer need a session
+        (for example, because the user is leaving the client application) should send
+        this request with the `MCP-Session-Id` header to allow the server to free
+        any resources associated with the session.
+
+        The server may respond with HTTP 405 Method Not Allowed if it does not
+        permit clients to explicitly terminate sessions.
+      operationId: deleteModelContextProtocolStream
+      parameters:
+      - name: MCP-Session-Id
+        in: header
+        description: >
+          The session ID returned by the server during initialization in the
+          `MCP-Session-Id` response header. Must be included to identify the
+          session to terminate.
+        required: true
+        schema:
+          type: string
+      - name: MCP-Protocol-Version
+        in: header
+        description: >
+          The MCP protocol version negotiated during initialization
+          (for example, `2025-11-25`).
+        required: false
+        schema:
+          type: string
+          example: "2025-11-25"
+      responses:
+        "204":
+          description: Session successfully terminated. No content is returned.
+        "400":
+          description: Bad request. The session ID header is missing or malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                badRequest:
+                  $ref: "#/components/examples/deleteMCP400Response"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                badRequest:
+                  $ref: "#/components/examples/deleteMCP400Response"
+        "404":
+          description: No session with the provided session ID was found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                notFound:
+                  $ref: "#/components/examples/deleteMCP404Response"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                notFound:
+                  $ref: "#/components/examples/deleteMCP404Response"
+        "405":
+          description: Method not allowed. The server does not permit clients to explicitly
+            terminate sessions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                methodNotAllowed:
+                  $ref: "#/components/examples/deleteMCP405Response"
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                methodNotAllowed:
+                  $ref: "#/components/examples/deleteMCP405Response"
   /projects:
     get:
       tags:
@@ -610,71 +913,6 @@ paths:
       responses:
         "204":
           description: The project was deleted.
-  /projects/{projectId}/genAiJobs/{jobId}/callback:
-    post:
-      x-sas-internal: true
-      tags:
-      - Generative AI
-      summary: Perform a callback for a GenAI job
-      description: Perform a callback for a GenAI job and update the job state, if
-        necessary.
-      operationId: callbackGenAiJob
-      parameters:
-      - name: projectId
-        in: path
-        description: The project id.
-        required: true
-        schema:
-          type: string
-      - name: jobId
-        in: path
-        description: The JES job id.
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/vnd.sas.data.mining.genai.callback+json:
-            schema:
-              $ref: "#/components/schemas/genAiCallback"
-            examples:
-              default:
-                $ref: "#/components/examples/genAiCallback"
-          application/json:
-            schema:
-              $ref: "#/components/schemas/genAiCallback"
-            examples:
-              default:
-                $ref: "#/components/examples/genAiCallback"
-        description: The generative AI callback schema.
-        required: true
-      responses:
-        '200':
-          description: The GenAI job was marked as completed.
-          headers:
-            Content-Type:
-              description: The content type.
-              schema:
-                type: string
-        '400':
-          description: The information sent in the request body contains an error
-            or is incomplete.
-          content:
-            application/vnd.sas.error+json:
-              schema:
-                $ref: "#/components/schemas/error2"
-              examples:
-                default:
-                  $ref: "#/components/examples/genAiCallbackBadRequest"
-        '404':
-          description: The specified project does not exist.
-          content:
-            application/vnd.sas.error+json:
-              schema:
-                $ref: "#/components/schemas/error2"
-              examples:
-                default:
-                  $ref: "#/components/examples/genAiCallbackNotFound"
   "/projects/{projectId}/reports":
     head:
       tags:
@@ -2805,25 +3043,6 @@ components:
       - id
       - name
       - links
-    genAiCallback:
-      description: The callback schema for Data Mining GenAI jobs.
-      type: object
-      properties:
-        status:
-          type: string
-          description: The job status.
-        details:
-          type: string
-          description: Additional details about the job.
-        passthrough:
-          type: object
-          additionalProperties: true
-          description: Additional information to pass through to the GenAI framework
-            service.
-        version:
-          type: integer
-          format: int32
-          description: Version of the resource. This is version 1.
     shareType:
       title: Project Share Type
       description: The type of access granted by the share
@@ -2929,73 +3148,6 @@ components:
         - count
         - items
 
-    api:
-      title: API
-      description: The list of links to top-level resources and operations available
-        from the root of the API.
-      x-sas-media-type:
-        name: application/vnd.sas.api
-        version: 1
-      required:
-      - version
-      - links
-      properties:
-        version:
-          type: integer
-          description: The version number of the API representation. This is version
-            1.
-          minimum: 1
-        links:
-          description: The API's top-level links.
-          type: array
-          items:
-            $ref: "#/components/schemas/link"
-    error2:
-      title: Error
-      type: object
-      description: The representation of an error.
-      x-sas-media-type:
-        name: application/vnd.sas.error
-        version: 2
-      required:
-      - httpStatusCode
-      - version
-      properties:
-        message:
-          type: string
-          description: The message for the error.
-        id:
-          type: string
-          description: The string ID for the error.
-        errorCode:
-          type: integer
-          description: The numeric ID for the error.
-        httpStatusCode:
-          type: integer
-          description: The HTTP status code for the error.
-        details:
-          type: array
-          description: Messages that provide additional details about the cause of
-            the error.
-          items:
-            type: string
-        remediation:
-          type: string
-          description: A message that describes how to resolve the error.
-        errors:
-          type: array
-          description: Any additional errors that occurred.
-          items:
-            $ref: "#/components/schemas/error2"
-        links:
-          type: array
-          description: The links that apply to the error.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the error representation. This representation
-            is version 2.
     scoreExecution:
       title: Score Execution
       description: Contains details about execution results. This represents application/vnd.sas.score.execution
@@ -3207,6 +3359,73 @@ components:
           description: A revision number that is incremented on every update to the
             analytics report.
           format: int64
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
     outputTable:
       title: Output Table
       description: Output generated by score execution or analysis. This doesn't represent
@@ -3226,6 +3445,23 @@ components:
         serverName:
           type: string
           description: Server where the table is located.
+    dataRow:
+      title: Data Row
+      description: A row of data.
+      required:
+      - dataMap
+      - rowNumber
+      properties:
+        dataMap:
+          type: object
+          description: 'Map of parameter name to associated value.'
+        header:
+          type: string
+          description: 'Optional title. May be localized.'
+        rowNumber:
+          type: integer
+          format: int32
+          description: 'The index of this row in the collection.'
     scoreExecutionRequest:
       title: Score Execution Request
       description: Contains request details about how to generate score. This represents
@@ -3288,23 +3524,6 @@ components:
           readOnly: true
           description: This media type's schema version number. This representation
             is version 1.
-    dataRow:
-      title: Data Row
-      description: A row of data.
-      required:
-      - dataMap
-      - rowNumber
-      properties:
-        dataMap:
-          type: object
-          description: 'Map of parameter name to associated value.'
-        header:
-          type: string
-          description: 'Optional title. May be localized.'
-        rowNumber:
-          type: integer
-          format: int32
-          description: 'The index of this row in the collection.'
     parameter:
       title: Parameter
       description: Metadata describing a particular variable.
@@ -3363,6 +3582,68 @@ components:
             data columns.
           items:
             $ref: "#/components/schemas/termMapping"
+    jobDefinition:
+      title: Job Definition
+      description: The job definition.
+      type: object
+      x-sas-media-type:
+        name: application/vnd.sas.job.definition
+        version: 2
+      required:
+      - code
+      properties:
+        version:
+          type: integer
+          description: The version of the resource. This version is 2.
+        id:
+          type: string
+          description: The unique ID of the resource that is generated by the API.
+        name:
+          type: string
+          description: The name of the job. The maximum length is 100.
+        description:
+          type: string
+          description: A description of the job. The maximum length is 1000.
+          x-sas-attributes:
+            since: '2'
+        type:
+          type: string
+          description: The type of job. This property determines the execution provider
+            that executes this job. The maximum length is 250.
+        code:
+          type: string
+          description: Execution provider specific code to be executed.
+        parameters:
+          type: array
+          description: An array of input parameters to be collected when executing
+            this job definition.
+          items:
+            $ref: "#/components/schemas/jobDefinitionParameter"
+        properties:
+          type: array
+          description: An array of name/value pairs needed to execute a job definition.
+            The maximum length of a name is 100.
+          items:
+            $ref: "#/components/schemas/property"
+        createdBy:
+          type: string
+          description: The user that created this job.
+        modifiedBy:
+          type: string
+          description: The user that modified this job.
+        creationTimeStamp:
+          type: string
+          description: 'The formatted timestamp when the job was created, in the following
+            format: yyyy-mm-ddThh:mm:ssZ.'
+        modifiedTimeStamp:
+          type: string
+          description: 'The formatted timestamp when the job was modified, in the
+            following format: yyyy-mm-ddThh:mm:ssZ.'
+        links:
+          type: array
+          description: An array of link objects
+          items:
+            $ref: "#/components/schemas/link"
     scoreDefinition:
       title: Score Definition
       description: A definition containing details about Input Data, Score Object
@@ -3447,68 +3728,6 @@ components:
           readOnly: true
           description: This media type's schema version number. This representation
             is version 2.
-    jobDefinition:
-      title: Job Definition
-      description: The job definition.
-      type: object
-      x-sas-media-type:
-        name: application/vnd.sas.job.definition
-        version: 2
-      required:
-      - code
-      properties:
-        version:
-          type: integer
-          description: The version of the resource. This version is 2.
-        id:
-          type: string
-          description: The unique ID of the resource that is generated by the API.
-        name:
-          type: string
-          description: The name of the job. The maximum length is 100.
-        description:
-          type: string
-          description: A description of the job. The maximum length is 1000.
-          x-sas-attributes:
-            since: '2'
-        type:
-          type: string
-          description: The type of job. This property determines the execution provider
-            that executes this job. The maximum length is 250.
-        code:
-          type: string
-          description: Execution provider specific code to be executed.
-        parameters:
-          type: array
-          description: An array of input parameters to be collected when executing
-            this job definition.
-          items:
-            $ref: "#/components/schemas/jobDefinitionParameter"
-        properties:
-          type: array
-          description: An array of name/value pairs needed to execute a job definition.
-            The maximum length of a name is 100.
-          items:
-            $ref: "#/components/schemas/property"
-        createdBy:
-          type: string
-          description: The user that created this job.
-        modifiedBy:
-          type: string
-          description: The user that modified this job.
-        creationTimeStamp:
-          type: string
-          description: 'The formatted timestamp when the job was created, in the following
-            format: yyyy-mm-ddThh:mm:ssZ.'
-        modifiedTimeStamp:
-          type: string
-          description: 'The formatted timestamp when the job was modified, in the
-            following format: yyyy-mm-ddThh:mm:ssZ.'
-        links:
-          type: array
-          description: An array of link objects
-          items:
-            $ref: "#/components/schemas/link"
     termMapping:
       title: Mapping
       description: Assigning Input Data column to a variable of the generated Mapped
@@ -3541,48 +3760,6 @@ components:
             mappingType is static then this should be a constant value. If the mappingType
             is expected then this is the expected value of the output and it is always
             constant. Required if the mappingType is datasource.
-    jobDefinitionParameter:
-      title: Job Definition Parameter
-      type: object
-      description: The job definition parameter.
-      required:
-      - name
-      properties:
-        version:
-          type: integer
-          description: The version of the resource. This version is 1.
-        name:
-          type: string
-          description: The name of the parameter. The maximum length is 100.
-        type:
-          type: string
-          description: The type of the parameter (TABLE, NUMERIC, DATE, CHARACTER).
-            The maximum length is 20.
-        label:
-          type: string
-          description: The display value for the name of this parameter. The maximum
-            length is 250.
-        required:
-          type: boolean
-          description: Specifies if the parameter is required for execution.
-        defaultValue:
-          type: string
-          description: The default value for this parameter, if one is not specified
-            at execution time.
-    property:
-      title: Property
-      description: A pair consisting of a string name and a string value. This is
-        an element of `application/vnd.sas.properties`
-      required:
-      - name
-      - value
-      properties:
-        name:
-          type: string
-          description: The property name.
-        value:
-          type: string
-          description: The property value.
     inputData:
       title: Input Data
       description: Input Data that will be scored.  This doesn't represent any top-level
@@ -3619,6 +3796,20 @@ components:
           type: string
           description: Name of the output table that will be generated when the inline
             code is executed. Valid only if the type is Inline.
+    property:
+      title: Property
+      description: A pair consisting of a string name and a string value. This is
+        an element of `application/vnd.sas.properties`
+      required:
+      - name
+      - value
+      properties:
+        name:
+          type: string
+          description: The property name.
+        value:
+          type: string
+          description: The property value.
     objectDescriptor:
       title: Object Descriptor
       description: Descriptor of a Score Object whose logic is used to produce a score
@@ -3636,6 +3827,34 @@ components:
           type: string
           format: uri
           description: Uri to the Score Object.
+    jobDefinitionParameter:
+      title: Job Definition Parameter
+      type: object
+      description: The job definition parameter.
+      required:
+      - name
+      properties:
+        version:
+          type: integer
+          description: The version of the resource. This version is 1.
+        name:
+          type: string
+          description: The name of the parameter. The maximum length is 100.
+        type:
+          type: string
+          description: The type of the parameter (TABLE, NUMERIC, DATE, CHARACTER).
+            The maximum length is 20.
+        label:
+          type: string
+          description: The display value for the name of this parameter. The maximum
+            length is 250.
+        required:
+          type: boolean
+          description: Specifies if the parameter is required for execution.
+        defaultValue:
+          type: string
+          description: The default value for this parameter, if one is not specified
+            at execution time.
   examples:
     MLPipelineProjectRequestBody:
       description: Minimum fields required in for a project request body
@@ -3688,6 +3907,149 @@ components:
             "name": "Ensemble", "description": "Ensemble is supported only when at\
               \ least one other algorithm is set to \"consider\" or \"forceInclude\"\
               .", "defaultBehavior": "consider"}]}
+    getMCPStreamResponse:
+      description: Example of a Server-Sent Events stream from the MCP server
+      value: |
+        event: message
+        data: {"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}}
+    getMCP400Response:
+      description: Example error response when the GET /mcp request is malformed or
+        the session ID is invalid
+      value:
+        httpStatusCode: 400
+        message: "The request could not be processed due to a missing or invalid MCP-Session-Id\
+          \ header."
+        details:
+        - "The MCP-Session-Id header must be included on all requests after the initialize\
+          \ exchange."
+    getMCP404Response:
+      description: Example error response when the session ID provided in GET /mcp
+        is not found
+      value:
+        httpStatusCode: 404
+        message: "No session was found with the provided MCP-Session-Id."
+        details:
+        - "The session may have expired or been terminated. Send a new initialize\
+          \ request without a session ID to start a new session."
+    postMCPRequest:
+      description: Example JSON-RPC request to the MCP server
+      value:
+        jsonrpc: "2.0"
+        id: 1
+        method: "initialize"
+        params:
+        protocolVersion: "2025-11-25"
+        clientInfo:
+          name: "example-client"
+          version: "1.0.0"
+    postMCPRequestToolsList:
+      description: Example JSON-RPC request to discover available tools from the MCP
+        server
+      value:
+        jsonrpc: "2.0"
+        id: 2
+        method: "tools/list"
+    postMCPRequestToolsCall:
+      description: Example JSON-RPC request to call a tool on the MCP server
+      value:
+        jsonrpc: "2.0"
+        id: 3
+        method: "tools/call"
+        params:
+        toolName: "exampleTool"
+        arguments:
+          example_key: "example_value"
+    postMCPResponse:
+      description: Example JSON-RPC response from the MCP server
+      value:
+        jsonrpc: "2.0"
+        id: 1
+        result:
+          protocolVersion: "2025-11-25"
+          capabilities:
+            tools: {}
+          serverInfo:
+            name: "mcp-server"
+            version: "1.0.0"
+    postMCPResponseToolsList:
+      description: Example JSON-RPC response from the MCP server listing available
+        tools
+      value:
+        jsonrpc: "2.0"
+        id: 2
+        result:
+          tools:
+          - name: "example_tool"
+            description: "Description of the example tool"
+            inputSchema:
+              type: "object"
+              properties:
+                example_param1:
+                  type: "string"
+                  description: "Description of the first parameter"
+                example_param2:
+                  type: "string"
+                  description: "Description of the second parameter"
+              required: ["example_param1"]
+    postMCPResponseToolsCall:
+      description: Example JSON-RPC response from tools/call request
+      value:
+        jsonrpc: "2.0"
+        id: 3
+        result:
+          content:
+          - type: "text"
+            text: "Example tool execution result with relevant output data"
+          isError: false
+    postMCPSSEResponse:
+      description: Example of Server-Sent Events stream with JSON-RPC Responses
+      value: |
+        event: message
+        data: {"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": "2025-11-25", "capabilities": {"tools": {}}, "serverInfo": {"name": "mcp-server", "version": "1.0.0"}}}
+    postMCP400Response:
+      description: Example error response when the request is malformed, the session
+        ID is missing, or the protocol version is unsupported
+      value:
+        httpStatusCode: 400
+        message: "The request could not be processed due to invalid input."
+        details:
+        - "Invalid JSON-RPC request format or missing required fields."
+    postMCP404Response:
+      description: Example error response when the session ID provided in POST /mcp
+        is not found
+      value:
+        httpStatusCode: 404
+        message: "No session was found with the provided MCP-Session-Id."
+        details:
+        - "The session may have expired or been terminated. Send a new initialize\
+          \ request without a session ID to start a new session."
+    deleteMCP400Response:
+      description: Example error response when the MCP-Session-Id header is missing
+        or malformed
+      value:
+        httpStatusCode: 400
+        message: "The request could not be processed due to a missing or invalid MCP-Session-Id\
+          \ header."
+        details:
+        - "The MCP-Session-Id header is required to identify the session to terminate."
+    deleteMCP404Response:
+      description: Example error response when the specified MCP session is not found
+      value:
+        httpStatusCode: 404
+        message: "No session was found with the provided MCP-Session-Id."
+        details:
+        - "The session may have already been terminated or the session ID is incorrect."
+    deleteMCP405Response:
+      description: Example error response when the server does not allow clients to
+        explicitly terminate sessions
+      value:
+        httpStatusCode: 405
+        message: "Method not allowed. The server does not permit clients to explicitly\
+          \ terminate sessions."
+        details:
+        - "The server manages session lifecycle internally and does not support client-initiated\
+          \ session termination via DELETE."
+
     getProjects:
       description: List of existing machine learning pipeline automation projects
       value: {"accept": "application/vnd.sas.collection+json", "count": 1, "items": [
@@ -4124,24 +4486,6 @@ components:
       value: {"version": 2, "httpStatusCode": 428, "message": "The header field \"\
           If-Match\" is missing or does not have a value.", "remediation": "Specify\
           \ the resource's entity tag."}
-    genAiCallback:
-      summary: GenAI callback request
-      description: This is an example request body for a GenAI callback.
-      value: {"status:": "success", "details": "The job completed successfully", "passthrough": {
-          "key1": "value1", "key2": 0}, "version": 1}
-    genAiCallbackBadRequest:
-      summary: Invalid genai callback request
-      description: The request to perform a genai callback has a malformed request
-        body.
-      value: {"version": 2, "httpStatusCode": 400, "message": "The body is malformed."}
-    genAiCallbackNotFound:
-      summary: Error response returned when a job cannot be found
-      description: This example shows the error response returned when a job cannot
-        be found.
-      value: {"version": 2, "httpStatusCode": 404, "errorCode": 119309, "message": "The\
-          \ generative AI job (ID {0}) could not be found", "remediation": "Resubmit\
-          \ the request with a valid ID.", "errors": [{"version": 2, "httpStatusCode": 404,
-            "errorCode": 67027, "message": "Job not found for id "}]}
     projectShareRequestBody:
       description: |
         Request body for creating or updating a project share.

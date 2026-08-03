@@ -15,7 +15,7 @@ servers:
 tags:
 - name: Root
   description: The operations for the root resource.
-- name: ValidationModels
+- name: Validation Models
   description: The operations for the validation model resource.
 paths:
   /:
@@ -60,7 +60,7 @@ paths:
   /models:
     get:
       tags:
-      - ValidationModels
+      - Validation Models
       summary: Get a collection of validation models
       description: Returns a collection of models based on the specified pagination,
         filtering, and sorting options. The media type of the items in the collection
@@ -130,7 +130,7 @@ paths:
           headers: {}
     post:
       tags:
-      - ValidationModels
+      - Validation Models
       summary: Create a new validation model
       description: Creates a new validation model based on the representation in the
         request body.
@@ -213,7 +213,7 @@ paths:
   "/models/{validationModelId}":
     get:
       tags:
-      - ValidationModels
+      - Validation Models
       summary: Get a validation model
       description: Returns the requested representation of the specified model.
       operationId: getModel
@@ -350,7 +350,7 @@ paths:
                   $ref: "#/components/examples/AnalyticsValidationGetValidationModelbyIdRequest404Response"
     head:
       tags:
-      - ValidationModels
+      - Validation Models
       summary: Get headers a validation model
       description: Returns the headers that would be returned on a GET of the specified
         model.
@@ -395,7 +395,7 @@ paths:
                   $ref: "#/components/examples/AnalyticsValidationGetValidationModelbyIdRequest404Response"
     put:
       tags:
-      - ValidationModels
+      - Validation Models
       summary: Update or create a validation model
       description: This operation updates an existing model. It also can be used to
         create a new model with a specific id; however, POST is the recommended creation
@@ -549,7 +549,7 @@ paths:
                   $ref: "#/components/examples/AnalyticsValidationPutValidationModelbyIdRequest428Response"
     delete:
       tags:
-      - ValidationModels
+      - Validation Models
       summary: Delete a validation model
       description: Deletes the specified model.
       operationId: deleteTemplate
@@ -585,7 +585,7 @@ paths:
   "/models/{validationModelId}#transfer":
     put:
       tags:
-      - ValidationModels
+      - Validation Models
       summary: Create or update a validation model from a transfer object
       description: Updates a validation model to match the content of the provided
         transfer object. If the validation model does not exist, it is created. This
@@ -706,7 +706,7 @@ paths:
   "/models/{validationModelId}/validationResults":
     post:
       tags:
-      - ValidationModels
+      - Validation Models
       summary: Validate properties
       description: Validates the given property map against a validation model. Any
         constraint violations are returned in an as part of an error array in the
@@ -791,7 +791,7 @@ paths:
   /overrideCache/invalidations:
     post:
       tags:
-      - ValidationModels
+      - Validation Models
       summary: Invalidate constraint override cache
       description: Invalidates entries in the constraint override cache based on the
         representation in the request body.
@@ -955,42 +955,185 @@ components:
               allOf:
               - $ref: "#/components/schemas/validationModelSummary"
               - $ref: "#/components/schemas/validationModel"
-    transferObjectConnector:
-      title: Transfer Object Connector
-      description: Content providers implementing the Transfer Object Provider contract
-        use this media type to provide connection information for the content to be
-        transfered.
+    validationModel:
+      title: Validation Model
+      description: The validation rules applied to a map of properties.
       x-sas-media-type:
-        name: application/vnd.sas.transfer.object.connector
+        name: application/vnd.sas.analytics.validation.model
+        version: 3
+      allOf:
+      - $ref: "#/components/schemas/validationModelSummary"
+      - type: object
+        properties:
+          revision:
+            type: integer
+            description: A revision number that is incremented on every update to
+              the model.
+            format: int64
+          id:
+            type: string
+            description: A unique identifier for the model.
+            maximum: 255
+          name:
+            type: string
+            description: The model name.
+            maximum: 100
+          description:
+            type: string
+            description: The model description.
+            maximum: 500
+          items:
+            type: array
+            description: The top-level validation groups and properties
+            items:
+              anyOf:
+              - $ref: "#/components/schemas/validationProperty"
+              - $ref: "#/components/schemas/validationGroup"
+          version:
+            type: integer
+            format: int32
+            description: The version number of this representation schema.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
+    summary:
+      title: Resource Summary
+      type: object
+      description: The summarized representation of a resource. Often used in collection
+        responses when more specific details aren't needed.
+      x-sas-media-type:
+        name: application/vnd.sas.summary
         version: 1
+      required:
+      - id
+      - links
+      - version
       properties:
         id:
           type: string
-          format: object-id
-          description: unique identifier of the object
+          description: The unique identifier for the resource.
         name:
           type: string
-          description: name of the related object
-        version:
-          type: integer
-          description: transfer object connector version
-        uri:
-          type: string
-          description: the URI of the related object
-        contentType:
-          type: string
-          description: media type of the related object
+          description: The name of the resource.
         type:
           type: string
-          description: type of connection. This can be any value the creator of the
-            connection wants but should be used to determine what to do to reconstitute
-            the relationship.
-        hints:
+          description: The type of the resource.
+        description:
+          type: string
+          description: The description of the resource.
+        createdBy:
+          type: string
+          description: The user who created the resource.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was created.
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the resource.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
+            was last modified.
+        links:
           type: array
-          description: hints that can be used to help find the object to connect to
-            in the target system
+          description: The links that apply to the resource.
           items:
-            type: string
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the resource. This representation is
+            version 1.
+    validationModelSummary:
+      title: Validation Model Summary
+      description: A summary of a validation model representation.
+      x-sas-media-type:
+        name: application/vnd.sas.analytics.validation.model.summary
+        version: 1
+      properties:
+        createdBy:
+          type: string
+          description: The user who created the model.
+          maximum: 255
+        modifiedBy:
+          type: string
+          description: The user who most recently modified the model.
+          maximum: 255
+        creationTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            model was created.
+          format: date-time
+        modifiedTimeStamp:
+          type: string
+          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
+            model was last modified.
+          format: date-time
+        id:
+          type: string
+          description: A unique identifier for the model.
+          maximum: 255
+        name:
+          type: string
+          description: The model name.
+          maximum: 100
+        description:
+          type: string
+          description: The model description.
+          maximum: 500
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          format: int32
+          description: The version number of this representation schema.
     link:
       title: Link
       type: object
@@ -1028,6 +1171,63 @@ components:
           type: string
           description: The media type or link type of the items in the response body
             for a `PUT`, `POST`, or `PATCH` operation.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    transferObjectConnector:
+      title: Transfer Object Connector
+      description: Content providers implementing the Transfer Object Provider contract
+        use this media type to provide connection information for the content to be
+        transfered.
+      x-sas-media-type:
+        name: application/vnd.sas.transfer.object.connector
+        version: 1
+      properties:
+        id:
+          type: string
+          format: object-id
+          description: unique identifier of the object
+        name:
+          type: string
+          description: name of the related object
+        version:
+          type: integer
+          description: transfer object connector version
+        uri:
+          type: string
+          description: the URI of the related object
+        contentType:
+          type: string
+          description: media type of the related object
+        type:
+          type: string
+          description: type of connection. This can be any value the creator of the
+            connection wants but should be used to determine what to do to reconstitute
+            the relationship.
+        hints:
+          type: array
+          description: hints that can be used to help find the object to connect to
+            in the target system
+          items:
+            type: string
     validationItem:
       title: Validation Item
       description: A member of a validation model.
@@ -1080,214 +1280,6 @@ components:
           description: An indication of whether or not this item is enabled for a
             given set of property values. It is an evaluation of the enabledWhen expression
             over property values, when available.
-    summary:
-      title: Resource Summary
-      type: object
-      description: The summarized representation of a resource. Often used in collection
-        responses when more specific details aren't needed.
-      x-sas-media-type:
-        name: application/vnd.sas.summary
-        version: 2
-      required:
-      - id
-      - links
-      - version
-      properties:
-        id:
-          type: string
-          description: The unique identifier for the resource.
-        name:
-          type: string
-          description: The name of the resource.
-        type:
-          type: string
-          description: The type of the resource.
-        description:
-          type: string
-          description: The description of the resource.
-        typeDefName:
-          type: string
-          description: (version 2) The name of the type definition that describes
-            the contents of this resource.
-        iconUri:
-          type: string
-          description: (version 2) The URI of an icon assigned to this resource, overrides
-            default icons for the type.
-        createdBy:
-          type: string
-          description: The user who created the resource.
-        creationTimeStamp:
-          type: string
-          format: date-time
-          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
-            was created.
-        modifiedBy:
-          type: string
-          description: The user who most recently modified the resource.
-        modifiedTimeStamp:
-          type: string
-          format: date-time
-          description: The timestamp in YYYY-MM-DDThh:mm:ss.sssZ format when the resource
-            was last modified.
-        links:
-          type: array
-          description: The links that apply to the resource.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the resource. This representation is
-            version 2.
-    validationModel:
-      title: Validation Model
-      description: The validation rules applied to a map of properties.
-      x-sas-media-type:
-        name: application/vnd.sas.analytics.validation.model
-        version: 3
-      allOf:
-      - $ref: "#/components/schemas/validationModelSummary"
-      - type: object
-        properties:
-          revision:
-            type: integer
-            description: A revision number that is incremented on every update to
-              the model.
-            format: int64
-          id:
-            type: string
-            description: A unique identifier for the model.
-            maximum: 255
-          name:
-            type: string
-            description: The model name.
-            maximum: 100
-          description:
-            type: string
-            description: The model description.
-            maximum: 500
-          items:
-            type: array
-            description: The top-level validation groups and properties
-            items:
-              anyOf:
-              - $ref: "#/components/schemas/validationProperty"
-              - $ref: "#/components/schemas/validationGroup"
-          version:
-            type: integer
-            format: int32
-            description: The version number of this representation schema.
-    validationModelSummary:
-      title: Validation Model Summary
-      description: A summary of a validation model representation.
-      x-sas-media-type:
-        name: application/vnd.sas.analytics.validation.model.summary
-        version: 1
-      properties:
-        createdBy:
-          type: string
-          description: The user who created the model.
-          maximum: 255
-        modifiedBy:
-          type: string
-          description: The user who most recently modified the model.
-          maximum: 255
-        creationTimeStamp:
-          type: string
-          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
-            model was created.
-          format: date-time
-        modifiedTimeStamp:
-          type: string
-          description: The timestamp in `YYYY-MM-DDThh:mm:ss.sssZ` format when the
-            model was last modified.
-          format: date-time
-        id:
-          type: string
-          description: A unique identifier for the model.
-          maximum: 255
-        name:
-          type: string
-          description: The model name.
-          maximum: 100
-        description:
-          type: string
-          description: The model description.
-          maximum: 500
-        links:
-          type: array
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          format: int32
-          description: The version number of this representation schema.
-    api:
-      title: API
-      description: The list of links to top-level resources and operations available
-        from the root of the API.
-      x-sas-media-type:
-        name: application/vnd.sas.api
-        version: 1
-      required:
-      - version
-      - links
-      properties:
-        version:
-          type: integer
-          description: The version number of the API representation. This is version
-            1.
-          minimum: 1
-        links:
-          description: The API's top-level links.
-          type: array
-          items:
-            $ref: "#/components/schemas/link"
-    error2:
-      title: Error
-      type: object
-      description: The representation of an error.
-      x-sas-media-type:
-        name: application/vnd.sas.error
-        version: 2
-      required:
-      - httpStatusCode
-      - version
-      properties:
-        message:
-          type: string
-          description: The message for the error.
-        id:
-          type: string
-          description: The string ID for the error.
-        errorCode:
-          type: integer
-          description: The numeric ID for the error.
-        httpStatusCode:
-          type: integer
-          description: The HTTP status code for the error.
-        details:
-          type: array
-          description: Messages that provide additional details about the cause of
-            the error.
-          items:
-            type: string
-        remediation:
-          type: string
-          description: A message that describes how to resolve the error.
-        errors:
-          type: array
-          description: Any additional errors that occurred.
-          items:
-            $ref: "#/components/schemas/error2"
-        links:
-          type: array
-          description: The links that apply to the error.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the error representation. This representation
-            is version 2.
     baseCollection2:
       title: Base Collection
       description: This is a base schema used to define paginated collections of resources.
@@ -1322,21 +1314,6 @@ components:
           type: integer
           description: The version number of the collection representation. This representation
             is version 2.
-    validationGroup:
-      title: Validation Group
-      description: An aggregate member of a validation model.
-      allOf:
-      - $ref: "#/components/schemas/validationItem"
-      - properties:
-          style:
-            type: string
-            description: Application-defined style information used to render the
-              group in a user interface.
-            maximum: 100
-          items:
-            type: array
-            items:
-              $ref: "#/components/schemas/validationItem"
     property:
       title: Property
       description: A pair consisting of a string name and a string value. This is
@@ -1392,6 +1369,21 @@ components:
             type: array
             items:
               $ref: "#/components/schemas/validationConstraint"
+    validationGroup:
+      title: Validation Group
+      description: An aggregate member of a validation model.
+      allOf:
+      - $ref: "#/components/schemas/validationItem"
+      - properties:
+          style:
+            type: string
+            description: Application-defined style information used to render the
+              group in a user interface.
+            maximum: 100
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/validationItem"
     validationConstraint:
       title: Validation Constraint
       description: A description of the valid values for a property.
@@ -1986,16 +1978,97 @@ components:
             </errors>
             <links></links>
           </error>
-    AnalyticsValidationGetValidationModelsRequest200Response:
-      description: Analytics Validation GET Validation Models request - successful
+    AnalyticsValidationPostCacheInvalidationRequest400Response:
+      description: Analytics Validation POST cache invalidation request - bad request
+        response.
+      value:
+        version: 2
+        httpStatusCode: 400
+        errorCode: 67628
+        message: The specified request body cannot be parsed.
+        details:
+        - 'messageID: analytics-resources-api-icu.cmn.invalid.request.body.msg'
+        - 'path: /analyticsValidation/overrideCache/invalidations'
+        - 'correlator: f7c28804-b3f3-473c-b597-6e9c33d17dd6'
+        errors:
+        - version: 2
+          httpStatusCode: 500
+          message: invalid character '}' looking for beginning of object key string
+    AnalyticsValidationPutValidationModelbyIdRequest400TransferObjectResponse:
+      description: Analytics Validation PUT Validation Model by id transfer object
+        request - bad request response.
+      value:
+        details:
+        - 'pathId: dm.bart.vm2'
+        - 'bodyId: dm.bart.vm4'
+        - 'messageID: analytics-resources-api-icu.cmn.id.mismatch.msg'
+        - 'path: /analyticsValidation/models/{vm-id}2'
+        - 'correlator: 462a2a67-9230-4ce7-8856-c9600d7c24f4'
+        errorCode: 17454
+        httpStatusCode: 400
+        message: The ID in the request body does not match the ID in the URI.
+        version: 2
+    AnalyticsValidationGetValidationModelbyIdRequest200TransferObjectResponse:
+      description: Analytics Validation GET Validation Model by Id transfer object
+        request - successful response.
+      value:
+        content: '{encoded content}'
+        summary:
+          creationTimeStamp: '2024-03-31T02:21:52.949124Z'
+          createdBy: '{creator}'
+          modifiedTimeStamp: '2024-03-31T02:21:52.949124Z'
+          modifiedBy: '{modifier}'
+          version: 2
+          id: '{vm-id}'
+          name: Bayesian Additive Regression Trees
+          description: Fits a Bayesian additive regression trees (BART) model for
+            an interval target.
+          type: application/vnd.sas.analytics.validation.model
+          links:
+          - method: GET
+            rel: self
+            href: /analyticsValidation/models/{vm-id}
+            uri: /analyticsValidation/models/{vm-id}
+            type: application/vnd.sas.analytics.validation.model
+          - method: PUT
+            rel: update
+            href: /analyticsValidation/models/{vm-id}
+            uri: /analyticsValidation/models/{vm-id}
+            type: application/vnd.sas.analytics.validation.model
+            responseType: application/vnd.sas.analytics.validation.model
+          - method: DELETE
+            rel: delete
+            href: /analyticsValidation/models/{vm-id}
+            uri: /analyticsValidation/models/{vm-id}
+          - method: GET
+            rel: transferExport
+            href: /analyticsValidation/models/{vm-id}
+            uri: /analyticsValidation/models/{vm-id}
+            type: application/vnd.sas.transfer.object
+          - method: PUT
+            rel: transferImportUpdate
+            href: /analyticsValidation/models/{vm-id}
+            uri: /analyticsValidation/models/{vm-id}
+            type: application/vnd.sas.transfer.object
+            responseType: application/vnd.sas.summary
+          - method: POST
+            rel: validateProperties
+            href: /analyticsValidation/models/{vm-id}/validationResults
+            uri: /analyticsValidation/models/{vm-id}/validationResults
+            type: application/vnd.sas.analytics.validation.request
+            responseType: application/vnd.sas.analytics.validation.response
+        version: 1
+    AnalyticsValidationPostValidationModelRequest201Response:
+      description: Analytics Validation POST Validation Model request - successful
         response.
       value:
         accept: application/vnd.sas.analytics.validation.model.summary
         items:
         - createdBy: '{creator}'
-          creationTimeStamp: '2024-04-01T08:33:27.532921Z'
+          creationTimeStamp: '2024-03-28T08:40:15.931298Z'
           description: categories.txt
           id: '{vm-id}'
+          itemType: property
           links:
           - method: GET
             rel: self
@@ -2019,42 +2092,11 @@ components:
             uri: /analyticsLocalization/contexts/text.nls
             type: application/vnd.sas.analytics.localization.context
           modifiedBy: '{modifier}'
-          modifiedTimeStamp: '2024-04-01T08:43:21.934998Z'
+          modifiedTimeStamp: '2024-03-28T08:40:15.931298Z'
           name: categories
           type: application/vnd.sas.analytics.validation.model
           version: 1
-        - createdBy: '{creator}'
-          creationTimeStamp: '2024-04-01T08:33:29.134665Z'
-          description: concepts.txt
-          id: text.concepts.vm
-          links:
-          - method: GET
-            rel: self
-            href: /analyticsValidation/models/text.concepts.vm
-            uri: /analyticsValidation/models/text.concepts.vm
-            type: application/vnd.sas.analytics.validation.model
-          - method: GET
-            rel: transferExport
-            href: /analyticsValidation/models/text.concepts.vm
-            uri: /analyticsValidation/models/text.concepts.vm
-            type: application/vnd.sas.transfer.object
-          - method: POST
-            rel: validateProperties
-            href: /analyticsValidation/models/text.concepts.vm/validationResults
-            uri: /analyticsValidation/models/text.concepts.vm/validationResults
-            type: application/vnd.sas.analytics.validation.request
-            responseType: application/vnd.sas.analytics.validation.response
-          - method: GET
-            rel: localizationContext
-            href: /analyticsLocalization/contexts/text.nls
-            uri: /analyticsLocalization/contexts/text.nls
-            type: application/vnd.sas.analytics.localization.context
-          modifiedBy: '{modifier}'
-          modifiedTimeStamp: '2024-04-01T08:43:22.139292Z'
-          name: concepts
-          type: application/vnd.sas.analytics.validation.model
-          version: 1
-        limit: 2
+        limit: 1
         links:
         - method: GET
           rel: collection
@@ -2064,8 +2106,8 @@ components:
           itemType: application/vnd.sas.analytics.validation.model.summary
         - method: GET
           rel: self
-          href: /analyticsValidation/models?start=0&limit=2
-          uri: /analyticsValidation/models?start=0&limit=2
+          href: /analyticsValidation/models?start=0&limit=1
+          uri: /analyticsValidation/models?start=0&limit=1
           type: application/vnd.sas.collection
           itemType: application/vnd.sas.analytics.validation.model.summary
         - method: POST
@@ -2076,67 +2118,48 @@ components:
           responseType: application/vnd.sas.analytics.validation.model
         - method: GET
           rel: next
-          href: /analyticsValidation/models?start=2&limit=2
-          uri: /analyticsValidation/models?start=2&limit=2
+          href: /analyticsValidation/models?start=1&limit=1
+          uri: /analyticsValidation/models?start=1&limit=1
           type: application/vnd.sas.collection
           itemType: application/vnd.sas.analytics.validation.model.summary
         start: 0
         version: 2
-    AnalyticsValidationDeleteValidationModelbyIdRequest404Response:
-      description: Analytics Validation DELETE Validation Model by id request - Not
-        Found response.
+    AnalyticsValidationPutValidationModelbyIdRequest200SasSummaryResponse:
+      description: Analytics Validation PUT Validation Model by Id sas summary request
+        - successful response.
       value:
-        details:
-        - 'id: dm.bart.vm210'
-        - 'messageID: analytics-resources-api-icu.val.model.delete.error.msg'
-        - 'path: /analyticsValidation/models/{vm-id}210'
-        - 'correlator: e07327d6-bb26-45d1-890b-5e479b2e764b'
-        errorCode: 67602
-        errors:
-        - version: 2
-          httpStatusCode: 404
-          errorCode: 67602
-          message: The validation model (ID dm.bart.vm210) cannot be deleted because
-            it does not exist.
-          details:
-          - 'id: dm.bart.vm210'
-          - 'messageID: analytics-resources-api-icu.val.deleted.model.not.found.msg'
-        httpStatusCode: 404
-        message: The validation model (ID dm.bart.vm210) cannot be deleted.
-        version: 2
-    AnalyticsValidationGetRequest200Response:
-      description: Analytics Validation root GET request - successful response.
-      value:
-        version: 1
+        createdBy: '{creator}'
+        creationTimeStamp: '2024-03-28T08:40:38.272632Z'
+        description: Fits a Bayesian additive regression trees (BART) model for an
+          interval target.
+        id: '{vm-id}'
         links:
         - method: GET
           rel: self
-          href: /analyticsValidation
-          uri: /analyticsValidation
-          type: application/vnd.sas.api
+          href: /analyticsValidation/models/{vm-id}
+          uri: /analyticsValidation/models/{vm-id}
+          type: application/vnd.sas.analytics.validation.model
         - method: GET
-          rel: validationModels
-          href: /analyticsValidation/models
-          uri: /analyticsValidation/models
-          type: application/vnd.sas.collection
-          itemType: application/vnd.sas.analytics.validation.model.summary
+          rel: transferExport
+          href: /analyticsValidation/models/{vm-id}
+          uri: /analyticsValidation/models/{vm-id}
+          type: application/vnd.sas.transfer.object
         - method: POST
-          rel: createValidationModel
-          href: /analyticsValidation/models
-          uri: /analyticsValidation/models
-          type: application/vnd.sas.analytics.validation.model
-          responseType: application/vnd.sas.analytics.validation.model
-        - method: PUT
-          rel: createOrUpdateValidationModel
-          href: /analyticsValidation/models/{id}
-          uri: /analyticsValidation/models/{id}
-          type: application/vnd.sas.analytics.validation.model
-          responseType: application/vnd.sas.analytics.validation.model
-        - method: POST
-          rel: invalidateCachedOverrides
-          href: /analyticsValidation/overrideCache/invalidations
-          uri: /analyticsValidation/overrideCache/invalidations
-          type: application/vnd.sas.analytics.override.cache.invalidation
+          rel: validateProperties
+          href: /analyticsValidation/models/{vm-id}/validationResults
+          uri: /analyticsValidation/models/{vm-id}/validationResults
+          type: application/vnd.sas.analytics.validation.request
+          responseType: application/vnd.sas.analytics.validation.response
+        - method: GET
+          rel: localizationContext
+          href: /analyticsLocalization/contexts/{lc-id}
+          uri: /analyticsLocalization/contexts/{lc-id}
+          type: application/vnd.sas.analytics.localization.context
+        modifiedBy: '{modifier}'
+        modifiedTimeStamp: '2024-03-28T08:40:38.272632Z'
+        name: Bayesian Additive Regression Trees
+        type: application/vnd.sas.analytics.validation.model
+        version: 1
     AnalyticsValidationPutValidationModelbyIdRequestBody:
       description: Analytics Validation PUT Validation Model by id request - request
         body.
@@ -2768,890 +2791,111 @@ components:
                 max: '2147483647'
                 includeMin: true
                 includeMax: true
-    AnalyticsValidationPostValidationModelRequest400Response:
-      description: Analytics Validation POST Validation Model request - bad request
+    AnalyticsValidationGetValidationModelsRequest200Response:
+      description: Analytics Validation GET Validation Models request - successful
         response.
       value:
+        accept: application/vnd.sas.analytics.validation.model.summary
+        items:
+        - createdBy: '{creator}'
+          creationTimeStamp: '2024-04-01T08:33:27.532921Z'
+          description: categories.txt
+          id: '{vm-id}'
+          links:
+          - method: GET
+            rel: self
+            href: /analyticsValidation/models/{vm-id}
+            uri: /analyticsValidation/models/{vm-id}
+            type: application/vnd.sas.analytics.validation.model
+          - method: GET
+            rel: transferExport
+            href: /analyticsValidation/models/{vm-id}
+            uri: /analyticsValidation/models/{vm-id}
+            type: application/vnd.sas.transfer.object
+          - method: POST
+            rel: validateProperties
+            href: /analyticsValidation/models/{vm-id}/validationResults
+            uri: /analyticsValidation/models/{vm-id}/validationResults
+            type: application/vnd.sas.analytics.validation.request
+            responseType: application/vnd.sas.analytics.validation.response
+          - method: GET
+            rel: localizationContext
+            href: /analyticsLocalization/contexts/text.nls
+            uri: /analyticsLocalization/contexts/text.nls
+            type: application/vnd.sas.analytics.localization.context
+          modifiedBy: '{modifier}'
+          modifiedTimeStamp: '2024-04-01T08:43:21.934998Z'
+          name: categories
+          type: application/vnd.sas.analytics.validation.model
+          version: 1
+        - createdBy: '{creator}'
+          creationTimeStamp: '2024-04-01T08:33:29.134665Z'
+          description: concepts.txt
+          id: text.concepts.vm
+          links:
+          - method: GET
+            rel: self
+            href: /analyticsValidation/models/text.concepts.vm
+            uri: /analyticsValidation/models/text.concepts.vm
+            type: application/vnd.sas.analytics.validation.model
+          - method: GET
+            rel: transferExport
+            href: /analyticsValidation/models/text.concepts.vm
+            uri: /analyticsValidation/models/text.concepts.vm
+            type: application/vnd.sas.transfer.object
+          - method: POST
+            rel: validateProperties
+            href: /analyticsValidation/models/text.concepts.vm/validationResults
+            uri: /analyticsValidation/models/text.concepts.vm/validationResults
+            type: application/vnd.sas.analytics.validation.request
+            responseType: application/vnd.sas.analytics.validation.response
+          - method: GET
+            rel: localizationContext
+            href: /analyticsLocalization/contexts/text.nls
+            uri: /analyticsLocalization/contexts/text.nls
+            type: application/vnd.sas.analytics.localization.context
+          modifiedBy: '{modifier}'
+          modifiedTimeStamp: '2024-04-01T08:43:22.139292Z'
+          name: concepts
+          type: application/vnd.sas.analytics.validation.model
+          version: 1
+        limit: 2
+        links:
+        - method: GET
+          rel: collection
+          href: /analyticsValidation/models
+          uri: /analyticsValidation/models
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.analytics.validation.model.summary
+        - method: GET
+          rel: self
+          href: /analyticsValidation/models?start=0&limit=2
+          uri: /analyticsValidation/models?start=0&limit=2
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.analytics.validation.model.summary
+        - method: POST
+          rel: create
+          href: /analyticsValidation/models
+          uri: /analyticsValidation/models
+          type: application/vnd.sas.analytics.validation.model
+          responseType: application/vnd.sas.analytics.validation.model
+        - method: GET
+          rel: next
+          href: /analyticsValidation/models?start=2&limit=2
+          uri: /analyticsValidation/models?start=2&limit=2
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.analytics.validation.model.summary
+        start: 0
         version: 2
-        httpStatusCode: 400
-        errorCode: 67624
-        message: The specified request body cannot be parsed.
-        details:
-        - 'messageID: analytics-resources-api-icu.cmn.invalid.request.body.msg'
-        - 'path: /analyticsValidation/models'
-        - 'correlator: f55d3674-11bb-45d9-a3e0-7ae9153bb36d'
-        errors:
-        - version: 2
-          httpStatusCode: 500
-          message: invalid character 'i' looking for beginning of object key string
-    AnalyticsValidationPutValidationModelbyIdRequest200Response:
-      description: Analytics Validation PUT Validation Model by id request - successful
-        response.
+    AnalyticsValidationGetValidationModelbyIdRequest200ValidationModelSummaryResponse:
+      description: Analytics Validation GET Validation Model by id validation model
+        summary request - successful response.
       value:
         createdBy: '{creator}'
-        creationTimeStamp: '2024-03-28T08:40:38.272632Z'
+        creationTimeStamp: '2024-03-31T02:21:52.949124Z'
         description: Fits a Bayesian additive regression trees (BART) model for an
           interval target.
-        eTag: '{e-tag}'
         id: '{vm-id}'
-        items:
-        - id: '{vm-item-id}'
-          array: false
-          enabledWhen: train==true
-          enabledWhenValue: true
-          clientProperties:
-            properties:
-            - name: organizationalGroup
-              value: 'true'
-          itemType: group
-          style: nested
-          items:
-          - id: '{vm-item-property-id}'
-            name: nTrees
-            displayName: Number of trees
-            description: Specifies the number of trees in the sum-of-trees model.
-            array: false
-            enabledWhen: ''
-            enabledWhenValue: true
-            clientProperties:
-              properties: []
-            itemType: property
-            items:
-            type: integer
-            required: true
-            selector: false
-            constraints:
-            - type: range
-              enabledWhen: ''
-              enabledWhenValue: true
-              min: '1'
-              max: '1000'
-              includeMin: true
-              includeMax: true
-              choices:
-          - id: '{vm-item-id}'
-            displayName: Tree-splitting Options
-            array: false
-            enabledWhen: ''
-            enabledWhenValue: true
-            clientProperties:
-              properties:
-              - name: initialState
-                value: collapsed
-            itemType: group
-            style: nested
-            items:
-            - id: '{vm-item-property-id}'
-              name: minLeafSize
-              displayName: Minimum leaf size
-              description: Specifies the smallest number of training observations
-                that a leaf can have.
-              array: false
-              enabledWhen: ''
-              enabledWhenValue: true
-              clientProperties:
-                properties: []
-              itemType: property
-              items:
-              type: integer
-              required: true
-              selector: false
-              constraints:
-              - type: range
-                enabledWhen: ''
-                enabledWhenValue: true
-                min: '1'
-                includeMin: true
-                includeMax: true
-                choices:
-            - id: 18c7df73-17e7-4f40-b209-7a6537e6969b
-              name: missingValues
-              displayName: Missing values
-              description: Specifies how a splitting rule handles an observation with
-                missing values. "Use in search" indicates that missing values are
-                treated as their own level for both nominal and interval inputs. "Use
-                as machine largest" indicates that missing values are used as their
-                own level for nominal inputs and as the largest machine value for
-                interval inputs. "Use as machine smallest" indicates that missing
-                values are used as their own level for nominal inputs and as the smallest
-                machine value for interval inputs. "Ignore" indicates that missing
-                values are not included in the model.
-              array: false
-              enabledWhen: ''
-              enabledWhenValue: true
-              clientProperties:
-                properties: []
-              itemType: property
-              items:
-              type: string
-              required: true
-              selector: false
-              constraints:
-              - type: choicelist
-                enabledWhen: ''
-                enabledWhenValue: true
-                includeMin:
-                includeMax:
-                choices:
-                - value: USEINSEARCH
-                  displayValue: Use in search
-                - value: MACBIG
-                  displayValue: Use as machine largest
-                - value: MACSMALL
-                  displayValue: Use as machine smallest
-                - value: NONE
-                  displayValue: Ignore
-            - id: 1ffb148a-74ad-4727-87d0-c4ec8c0545e8
-              name: intervalBins
-              displayName: Number of interval bins
-              description: Specifies the number of bins in which to bin the interval
-                inputs.
-              array: false
-              enabledWhen: ''
-              enabledWhenValue: true
-              clientProperties:
-                properties: []
-              itemType: property
-              items:
-              type: integer
-              required: true
-              selector: false
-              constraints:
-              - type: range
-                enabledWhen: ''
-                enabledWhenValue: true
-                min: '2'
-                max: '500'
-                includeMin: true
-                includeMax: true
-                choices:
-            - id: 65c686a3-fffc-43c6-9469-b841939bba41
-              name: intBinMethod
-              displayName: Interval bin method
-              description: Specifies the method to use to bin the interval inputs.
-              array: false
-              enabledWhen: ''
-              enabledWhenValue: true
-              clientProperties:
-                properties: []
-              itemType: property
-              items:
-              type: string
-              required: true
-              selector: false
-              constraints:
-              - type: choicelist
-                enabledWhen: ''
-                enabledWhenValue: true
-                includeMin:
-                includeMax:
-                choices:
-                - value: BUCKET
-                  displayValue: Bucket
-                - value: QUANTILE
-                  displayValue: Quantile
-            required:
-            selector: false
-            constraints:
-          - id: '{vm-item-id}'
-            displayName: MCMC Options
-            array: false
-            enabledWhen: ''
-            enabledWhenValue: true
-            clientProperties:
-              properties:
-              - name: initialState
-                value: collapsed
-            itemType: group
-            style: nested
-            items:
-            - id: '{vm-item-property-id}'
-              name: nDistChains
-              displayName: Number of Markov chains
-              description: Specifies the number of separate Markov chains to run in
-                parallel. The fit of a BART model depends on the number of chains
-                that you run. The number cannot exceed the number of worker nodes,
-                and the default value is equal to the number of workers. To use the
-                default value, leave the value as blank. Any value that you specify
-                for this option is ignored if you are in single-machine mode.
-              array: false
-              enabledWhen: ''
-              enabledWhenValue: true
-              clientProperties:
-                properties: []
-              itemType: property
-              items:
-              type: integer
-              required: false
-              selector: false
-              constraints:
-              - type: range
-                enabledWhen: ''
-                enabledWhenValue: true
-                min: '1'
-                includeMin: true
-                includeMax: true
-                choices:
-            - id: '{vm-item-property-id}'
-              name: nIters
-              displayName: Number of iterations
-              description: Specifies the number of MCMC iterations per chain in the
-                main simulation loop. This number excludes the burn-in iterations.
-              array: false
-              enabledWhen: ''
-              enabledWhenValue: true
-              clientProperties:
-                properties: []
-              itemType: property
-              items:
-              type: integer
-              required: true
-              selector: false
-              constraints:
-              - type: range
-                enabledWhen: ''
-                enabledWhenValue: true
-                min: '1'
-                includeMin: true
-                includeMax: true
-                choices:
-            - id: '{vm-item-property-id}'
-              name: burninIters
-              displayName: Number of burn-in iterations
-              description: Specifies the number of initial "burn-in" iterations per
-                chain to discard before samples are saved for prediction and posterior
-                statistics.
-              array: false
-              enabledWhen: ''
-              enabledWhenValue: true
-              clientProperties:
-                properties: []
-              itemType: property
-              items:
-              type: integer
-              required: true
-              selector: false
-              constraints:
-              - type: range
-                enabledWhen: ''
-                enabledWhenValue: true
-                min: '1'
-                includeMin: true
-                includeMax: true
-                choices:
-            - id: '{vm-item-property-id}'
-              name: thinRate
-              displayName: Thinning rate
-              description: Specifies the thinning rate for the simulation. For a thinning
-                rate value of k, the simulation keeps every kth sample per chain for
-                prediction and posterior statistics, and then discards the rest of
-                the samples. Thinning is a strategy that can reduce autocorrelation
-                among posterior samples at the cost of discarding a potentially large
-                number of samples.
-              array: false
-              enabledWhen: ''
-              enabledWhenValue: true
-              clientProperties:
-                properties: []
-              itemType: property
-              items:
-              type: integer
-              required: true
-              selector: false
-              constraints:
-              - type: range
-                enabledWhen: ''
-                enabledWhenValue: true
-                min: '1'
-                includeMin: true
-                includeMax: true
-                choices:
-            - id: '{vm-item-property-id}'
-              name: maxTime
-              displayName: Maximum time (seconds)
-              description: Specifies the maximum time (in seconds) to use to train
-                the model. A value of 0 indicates that no maximum time is set.
-              array: false
-              enabledWhen: ''
-              enabledWhenValue: true
-              clientProperties:
-                properties: []
-              itemType: property
-              items:
-              type: double
-              required: true
-              selector: false
-              constraints:
-              - type: range
-                enabledWhen: ''
-                enabledWhenValue: true
-                min: '0'
-                includeMin: true
-                includeMax: true
-                choices:
-            - id: '{vm-item-property-id}'
-              name: randomSeed
-              displayName: Seed
-              description: Specifies the initial random number seed for model building.
-                The random sampling depends on how the data are distributed across
-                machines and threads. Specifying the same seed across multiple runs
-                might yield different results for each run.
-              array: false
-              enabledWhen: ''
-              enabledWhenValue: true
-              clientProperties:
-                properties: []
-              itemType: property
-              items:
-              type: integer
-              required: true
-              selector: false
-              constraints:
-              - type: range
-                enabledWhen: ''
-                enabledWhenValue: true
-                min: '0'
-                max: '2147483647'
-                includeMin: true
-                includeMax: true
-                choices:
-            required:
-            selector: false
-            constraints:
-          - id: '{vm-item-property-id}'
-            name: exactPctlLift
-            displayName: Use the exact percentile method for lift calculations
-            description: Specifies whether to use the exact percentile method for
-              calculating lift and related assessment measures.  When unchecked, the
-              iterative method is used.  Note that the exact method should be used
-              if there are convergence errors using the iterative method.
-            array: false
-            enabledWhen: ''
-            enabledWhenValue: true
-            clientProperties:
-              properties: []
-            itemType: property
-            items:
-            type: boolean
-            required: true
-            selector: false
-            constraints: []
-          required:
-          selector: false
-          constraints:
-        - id: '{vm-item-id}'
-          displayName: Post-training Properties
-          description: Changing these properties will not retrain the model.
-          array: false
-          enabledWhen: ''
-          enabledWhenValue: true
-          clientProperties:
-            properties:
-            - name: organizationalGroup
-              value: 'true'
-          itemType: group
-          style: nested
-          items:
-          - id: '{vm-item-id}'
-            displayName: Model Interpretability
-            array: false
-            enabledWhen: ''
-            enabledWhenValue: true
-            clientProperties:
-              properties: []
-            itemType: group
-            style: nested
-            items:
-            - id: '{vm-item-id}'
-              displayName: Global Interpretability
-              array: false
-              enabledWhen: ''
-              enabledWhenValue: true
-              clientProperties:
-                properties:
-                - name: initialState
-                  value: collapsed
-              itemType: group
-              style: nested
-              items:
-              - id: '{vm-item-property-id}'
-                name: performVI
-                displayName: Variable importance
-                description: Specifies whether to display a table of relative importance
-                  values for the input variables. The values are calculated using
-                  a one-level decision tree for each input to predict the predicted
-                  value as a global surrogate model. For tree-based supervised learning
-                  models, the variable importance table from the actual model is displayed
-                  as well.
-                array: false
-                enabledWhen: ''
-                enabledWhenValue: true
-                clientProperties:
-                  properties: []
-                itemType: property
-                items:
-                type: boolean
-                required: true
-                selector: false
-                constraints: []
-              - id: '{vm-item-property-id}'
-                name: pdPlots
-                displayName: PD plots
-                description: Specifies whether to display Partial Dependency (PD)
-                  plots that show the relationship between model inputs and their
-                  predictions.
-                array: false
-                enabledWhen: ''
-                enabledWhenValue: true
-                clientProperties:
-                  properties: []
-                itemType: property
-                items:
-                type: boolean
-                required: true
-                selector: false
-                constraints: []
-              required:
-              selector: false
-              constraints:
-            - id: '{vm-item-id}'
-              displayName: Local Interpretability
-              array: false
-              enabledWhen: ''
-              enabledWhenValue: true
-              clientProperties:
-                properties:
-                - name: initialState
-                  value: collapsed
-              itemType: group
-              style: nested
-              items:
-              - id: '{vm-item-property-id}'
-                name: icePlots
-                displayName: ICE plots
-                description: Specifies whether to display Individual Conditional Expectation
-                  (ICE) plots. ICE plots can help reveal interesting subgroups and
-                  interactions between model variables.
-                array: false
-                enabledWhen: ''
-                enabledWhenValue: true
-                clientProperties:
-                  properties: []
-                itemType: property
-                items:
-                type: boolean
-                required: true
-                selector: false
-                constraints: []
-              - id: '{vm-item-property-id}'
-                name: performLime
-                displayName: LIME
-                description: Specifies whether to use the Locally Interpretable Model-Agnostic
-                  Explanation (LIME) method to explain the model predictions.
-                array: false
-                enabledWhen: ''
-                enabledWhenValue: true
-                clientProperties:
-                  properties: []
-                itemType: property
-                items:
-                type: boolean
-                required: true
-                selector: false
-                constraints: []
-              - id: '{vm-item-property-id}'
-                name: performKernelShap
-                displayName: HyperSHAP
-                description: Specifies whether to use the Shapley Explainer (HyperSHAP)
-                  method to explain the model predictions.
-                array: false
-                enabledWhen: ''
-                enabledWhenValue: true
-                clientProperties:
-                  properties: []
-                itemType: property
-                items:
-                type: boolean
-                required: true
-                selector: false
-                constraints: []
-              - id: '{vm-item-property-id}'
-                name: maxNumShapVars
-                displayName: Maximum number of HyperSHAP variables
-                description: Specifies the maximum number of HyperSHAP variables to
-                  plot.
-                array: false
-                enabledWhen: performKernelShap==true
-                enabledWhenValue: true
-                clientProperties:
-                  properties:
-                  - name: hideWhenDisabled
-                    value: 'true'
-                itemType: property
-                items:
-                type: integer
-                required: true
-                selector: false
-                constraints:
-                - type: range
-                  enabledWhen: ''
-                  enabledWhenValue: true
-                  min: '0'
-                  max: '100'
-                  includeMin: false
-                  includeMax: true
-                  choices:
-              - id: '{vm-item-property-id}'
-                name: specifyRows
-                displayName: Specify instances to explain
-                description: Specifies the individual observations to provide explanation.
-                  The "Random" observations option provides explanations for five
-                  randomly selected observations.  The "Specify up to 5" observations
-                  option enables you to provide IDs for the specific observations
-                  in the data. The IDs should be unique values of the variable that
-                  has the role "Key" in the metadata.  If no variable is assigned
-                  the role "Key", then you can use the variable _dmIndex_ to specify
-                  the individual rows.
-                array: false
-                enabledWhen: performLime==true || performKernelShap==true || icePlots==true
-                enabledWhenValue: true
-                clientProperties:
-                  properties: []
-                itemType: property
-                items:
-                type: string
-                required: true
-                selector: false
-                constraints:
-                - type: choicelist
-                  enabledWhen: ''
-                  enabledWhenValue: true
-                  includeMin:
-                  includeMax:
-                  choices:
-                  - value: RANDOM
-                    displayValue: Random
-                  - value: INDIVIDUALROWS
-                    displayValue: Specify up to 5
-              - id: '{vm-item-property-id}'
-                name: indvRow
-                displayName: Individual observation 1
-                description: Specifies an individual observation based on the input
-                  variable that has the role "Key".
-                array: false
-                enabledWhen: (performLime==true || performKernelShap==true || icePlots==true)
-                  && specifyRows=='INDIVIDUALROWS'
-                enabledWhenValue: true
-                clientProperties:
-                  properties:
-                  - name: hideWhenDisabled
-                    value: 'true'
-                itemType: property
-                items:
-                type: string
-                required: false
-                selector: false
-                constraints: []
-              - id: '{vm-item-property-id}'
-                name: indvRow_2
-                displayName: Individual observation 2
-                description: Specifies an individual observation based on the input
-                  variable that has the role "Key".
-                array: false
-                enabledWhen: (performLime==true || performKernelShap==true || icePlots==true)
-                  && specifyRows=='INDIVIDUALROWS'
-                enabledWhenValue: true
-                clientProperties:
-                  properties:
-                  - name: hideWhenDisabled
-                    value: 'true'
-                itemType: property
-                items:
-                type: string
-                required: false
-                selector: false
-                constraints: []
-              - id: '{vm-item-property-id}'
-                name: indvRow_3
-                displayName: Individual observation 3
-                description: Specifies an individual observation based on the input
-                  variable that has the role "Key".
-                array: false
-                enabledWhen: (performLime==true || performKernelShap==true || icePlots==true)
-                  && specifyRows=='INDIVIDUALROWS'
-                enabledWhenValue: true
-                clientProperties:
-                  properties:
-                  - name: hideWhenDisabled
-                    value: 'true'
-                itemType: property
-                items:
-                type: string
-                required: false
-                selector: false
-                constraints: []
-              - id: '{vm-item-property-id}'
-                name: indvRow_4
-                displayName: Individual observation 4
-                description: Specifies an individual observation based on the input
-                  variable that has the role "Key".
-                array: false
-                enabledWhen: (performLime==true || performKernelShap==true || icePlots==true)
-                  && specifyRows=='INDIVIDUALROWS'
-                enabledWhenValue: true
-                clientProperties:
-                  properties:
-                  - name: hideWhenDisabled
-                    value: 'true'
-                itemType: property
-                items:
-                type: string
-                required: false
-                selector: false
-                constraints: []
-              - id: '{vm-item-property-id}'
-                name: indvRow_5
-                displayName: Individual observation 5
-                description: Specifies an individual observation based on the input
-                  variable that has the role "Key".
-                array: false
-                enabledWhen: (performLime==true || performKernelShap==true || icePlots==true)
-                  && specifyRows=='INDIVIDUALROWS'
-                enabledWhenValue: true
-                clientProperties:
-                  properties:
-                  - name: hideWhenDisabled
-                    value: 'true'
-                itemType: property
-                items:
-                type: string
-                required: false
-                selector: false
-                constraints: []
-              - id: '{vm-item-property-id}'
-                displayName: LIME Tables
-                array: false
-                enabledWhen: performLime==true
-                enabledWhenValue: true
-                clientProperties:
-                  properties:
-                  - name: initialState
-                    value: collapsed
-                itemType: group
-                style: nested
-                items:
-                - id: '{vm-item-property-id}'
-                  name: explainInfo
-                  displayName: Explainer Information table
-                  description: Specifies whether the Explainer Information tables
-                    for the LIME method should be included in the node results. The
-                    Explainer Information table contains information about what settings
-                    were used to perform the LIME method.
-                  array: false
-                  enabledWhen: ''
-                  enabledWhenValue: true
-                  clientProperties:
-                    properties: []
-                  itemType: property
-                  items:
-                  type: boolean
-                  required: true
-                  selector: false
-                  constraints: []
-                - id: '{vm-item-property-id}'
-                  name: explainFidelity
-                  displayName: Explainer Fidelity table
-                  description: Specifies whether the Explainer Fidelity tables for
-                    the LIME method should be included in the node results. The Explainer
-                    Fidelity table contains information about how accurate the local
-                    explanation predictions are compared to the black-box machine
-                    learning model.
-                  array: false
-                  enabledWhen: ''
-                  enabledWhenValue: true
-                  clientProperties:
-                    properties: []
-                  itemType: property
-                  items:
-                  type: boolean
-                  required: true
-                  selector: false
-                  constraints: []
-                required:
-                selector: false
-                constraints:
-              required:
-              selector: false
-              constraints:
-            - id: '{vm-item-id}'
-              displayName: PD/ICE Options
-              array: false
-              enabledWhen: pdPlots==true || icePlots==true
-              enabledWhenValue: true
-              clientProperties:
-                properties:
-                - name: initialState
-                  value: collapsed
-              itemType: group
-              style: nested
-              items:
-              - id: '{vm-item-property-id}'
-                name: pdNumImportantInputs
-                displayName: Maximum number of variables
-                description: Specifies the maximum number of input variables to generate
-                  PD and ICE plots. Input variables are selected based on their relative
-                  importance.
-                array: false
-                enabledWhen: ''
-                enabledWhenValue: true
-                clientProperties:
-                  properties: []
-                itemType: property
-                items:
-                type: integer
-                required: true
-                selector: false
-                constraints:
-                - type: range
-                  enabledWhen: ''
-                  enabledWhenValue: true
-                  min: '0'
-                  max: '10'
-                  includeMin: false
-                  includeMax: true
-                  choices:
-              - id: '{vm-item-property-id}'
-                name: pdObsSamples
-                displayName: Number of observations
-                description: Specifies the maximum number of observations to sample
-                  for the PD and ICE plots.
-                array: false
-                enabledWhen: ''
-                enabledWhenValue: true
-                clientProperties:
-                  properties: []
-                itemType: property
-                items:
-                type: integer
-                required: true
-                selector: false
-                constraints:
-                - type: range
-                  enabledWhen: ''
-                  enabledWhenValue: true
-                  min: '100'
-                  max: '1000'
-                  includeMin: false
-                  includeMax: true
-                  choices:
-              - id: '{vm-item-property-id}'
-                name: nBins
-                displayName: Number of tick points
-                description: Specifies the number of tick points for an interval analysis
-                  variable for the PD and ICE plots.
-                array: false
-                enabledWhen: ''
-                enabledWhenValue: true
-                clientProperties:
-                  properties: []
-                itemType: property
-                items:
-                type: integer
-                required: true
-                selector: false
-                constraints:
-                - type: range
-                  enabledWhen: ''
-                  enabledWhenValue: true
-                  min: '2'
-                  max: '100'
-                  includeMin: false
-                  includeMax: true
-                  choices:
-              - id: '{vm-item-property-id}'
-                name: truncateLl
-                displayName: Truncate lower tail
-                description: Specifies under what percentage to discard the values
-                  of the interval analysis variables for the PD and ICE plots.
-                array: false
-                enabledWhen: ''
-                enabledWhenValue: true
-                clientProperties:
-                  properties: []
-                itemType: property
-                items:
-                type: integer
-                required: true
-                selector: false
-                constraints:
-                - type: range
-                  enabledWhen: ''
-                  enabledWhenValue: true
-                  min: '0'
-                  max: '100'
-                  includeMin: true
-                  includeMax: true
-                  choices:
-              - id: '{vm-item-property-id}'
-                name: truncateUl
-                displayName: Truncate upper tail
-                description: Specifies above what percentage to discard the values
-                  of the interval analysis variables for the PD and ICE plots.
-                array: false
-                enabledWhen: ''
-                enabledWhenValue: true
-                clientProperties:
-                  properties: []
-                itemType: property
-                items:
-                type: integer
-                required: true
-                selector: false
-                constraints:
-                - type: range
-                  enabledWhen: ''
-                  enabledWhenValue: true
-                  min: '0'
-                  max: '100'
-                  includeMin: true
-                  includeMax: true
-                  choices:
-              required:
-              selector: false
-              constraints:
-            - id: '{vm-item-property-id}'
-              name: seedId
-              displayName: Seed
-              description: Specifies the seed for generating random numbers. This
-                is used for selecting individual observations to explain, selecting
-                observations to generate partial dependency and ICE plots, simulating
-                data for LIME, and sampling data for HyperSHAP.
-              array: false
-              enabledWhen: performLime==true || performKernelShap==true || pdPlots==true
-                || icePlots==true
-              enabledWhenValue: true
-              clientProperties:
-                properties: []
-              itemType: property
-              items:
-              type: integer
-              required: true
-              selector: false
-              constraints:
-              - type: range
-                enabledWhen: ''
-                enabledWhenValue: true
-                min: '0'
-                max: '2147483647'
-                includeMin: true
-                includeMax: true
-                choices:
-            required:
-            selector: false
-            constraints:
-          required:
-          selector: false
-          constraints:
         links:
         - method: GET
           rel: self
@@ -3675,24 +2919,70 @@ components:
           uri: /analyticsLocalization/contexts/{lc-id}
           type: application/vnd.sas.analytics.localization.context
         modifiedBy: '{modifier}'
-        modifiedTimeStamp: '2024-03-28T08:40:38.272632Z'
+        modifiedTimeStamp: '2024-03-31T02:21:52.949124Z'
         name: Bayesian Additive Regression Trees
-        revision: 0
-        version: 3
-    AnalyticsValidationPutValidationModelbyIdRequest400Response:
-      description: Analytics Validation PUT Validation Model by id request - bad request
+        type: application/vnd.sas.analytics.validation.model
+        version: 1
+    AnalyticsValidationPostValidationModelRequest400Response:
+      description: Analytics Validation POST Validation Model request - bad request
         response.
       value:
-        details:
-        - 'pathId: dm.bart.vm2'
-        - 'bodyId: dm.bart.vm4'
-        - 'messageID: analytics-resources-api-icu.cmn.id.mismatch.msg'
-        - 'path: /analyticsValidation/models/{vm-id}2'
-        - 'correlator: 462a2a67-9230-4ce7-8856-c9600d7c24f4'
-        errorCode: 17454
-        httpStatusCode: 400
-        message: The ID in the request body does not match the ID in the URI.
         version: 2
+        httpStatusCode: 400
+        errorCode: 67624
+        message: The specified request body cannot be parsed.
+        details:
+        - 'messageID: analytics-resources-api-icu.cmn.invalid.request.body.msg'
+        - 'path: /analyticsValidation/models'
+        - 'correlator: f55d3674-11bb-45d9-a3e0-7ae9153bb36d'
+        errors:
+        - version: 2
+          httpStatusCode: 500
+          message: invalid character 'i' looking for beginning of object key string
+    AnalyticsValidationPutValidationModelbyIdRequest403Response:
+      description: Analytics Validation PUT Validation Model by id request - Unauthorized
+        response.
+      value:
+        version: 2
+        httpStatusCode: 403
+        message: Forbidden
+        details:
+        - Unauthorized
+        - 'path: /analyticsValidation/models/{vm-id}209'
+        - 'correlator: a5939bc3-6647-42bf-b64b-5db241ab8bdd'
+    AnalyticsValidationGetRequest200Response:
+      description: Analytics Validation root GET request - successful response.
+      value:
+        version: 1
+        links:
+        - method: GET
+          rel: self
+          href: /analyticsValidation
+          uri: /analyticsValidation
+          type: application/vnd.sas.api
+        - method: GET
+          rel: validationModels
+          href: /analyticsValidation/models
+          uri: /analyticsValidation/models
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.analytics.validation.model.summary
+        - method: POST
+          rel: createValidationModel
+          href: /analyticsValidation/models
+          uri: /analyticsValidation/models
+          type: application/vnd.sas.analytics.validation.model
+          responseType: application/vnd.sas.analytics.validation.model
+        - method: PUT
+          rel: createOrUpdateValidationModel
+          href: /analyticsValidation/models/{id}
+          uri: /analyticsValidation/models/{id}
+          type: application/vnd.sas.analytics.validation.model
+          responseType: application/vnd.sas.analytics.validation.model
+        - method: POST
+          rel: invalidateCachedOverrides
+          href: /analyticsValidation/overrideCache/invalidations
+          uri: /analyticsValidation/overrideCache/invalidations
+          type: application/vnd.sas.analytics.override.cache.invalidation
     AnalyticsValidationGetValidationModelbyIdRequest200Response:
       description: Analytics Validation GET Validation Model by Id request - successful
         response.
@@ -4588,6 +3878,76 @@ components:
         name: Bayesian Additive Regression Trees
         revision: 0
         version: 3
+    AnalyticsValidationGetValidationModelbyIdRequest200SasSummaryResponse:
+      description: Analytics Validation GET Validation Model by Id sas summary request
+        - successful response.
+      value:
+        createdBy: '{creator}'
+        creationTimeStamp: '2024-03-28T08:40:38.272632Z'
+        description: Fits a Bayesian additive regression trees (BART) model for an
+          interval target.
+        id: '{vm-id}'
+        links:
+        - method: GET
+          rel: self
+          href: /analyticsValidation/models/{vm-id}
+          uri: /analyticsValidation/models/{vm-id}
+          type: application/vnd.sas.analytics.validation.model
+        - method: GET
+          rel: transferExport
+          href: /analyticsValidation/models/{vm-id}
+          uri: /analyticsValidation/models/{vm-id}
+          type: application/vnd.sas.transfer.object
+        - method: POST
+          rel: validateProperties
+          href: /analyticsValidation/models/{vm-id}/validationResults
+          uri: /analyticsValidation/models/{vm-id}/validationResults
+          type: application/vnd.sas.analytics.validation.request
+          responseType: application/vnd.sas.analytics.validation.response
+        - method: GET
+          rel: localizationContext
+          href: /analyticsLocalization/contexts/{lc-id}
+          uri: /analyticsLocalization/contexts/{lc-id}
+          type: application/vnd.sas.analytics.localization.context
+        modifiedBy: '{modifier}'
+        modifiedTimeStamp: '2024-03-28T08:40:38.272632Z'
+        name: Bayesian Additive Regression Trees
+        type: application/vnd.sas.analytics.validation.model
+        version: 1
+    AnalyticsValidationGetValidationModelbyIdRequest403Response:
+      description: Analytics Validation GET Validation Model by id request - Unauthorized
+        response.
+      value:
+        version: 2
+        httpStatusCode: 403
+        message: Forbidden
+        details:
+        - Unauthorized
+        - 'path: /analyticsValidation/models/{vm-id}209'
+        - 'correlator: a5939bc3-6647-42bf-b64b-5db241ab8bdd'
+    AnalyticsValidationPutValidationModelbyIdRequest428Response:
+      description: Analytics Validation PUT Validation Model by id request - precondition
+        required response.
+      value:
+        details:
+        - 'fieldName2: If-Unmodified-Since'
+        - 'fieldName1: If-Match'
+        - 'messageID: analytics-resources-api-icu.cmn.header.requires.either.of.two.fields.msg'
+        - 'path: /analyticsValidation/models/{vm-id}2'
+        - 'correlator: 261211e8-72b5-435f-88a1-43613a2e4514'
+        errorCode: 17433
+        errors:
+        - version: 2
+          httpStatusCode: 428
+          message: The header requires a value for either the field "If-Match" or
+            the field "If-Unmodified-Since", but a value was not specified for either
+            field.
+          remediation: Specify either the resource's entity tag or the resource's
+            last-modified timestamp.
+        httpStatusCode: 428
+        message: The header requires a value for either the field "If-Match" or the
+          field "If-Unmodified-Since", but a value was not specified for either field.
+        version: 2
     AnalyticsValidationPutValidationModelbyIdTransferObjectRequestBody:
       description: Analytics Validation PUT Validation Model by Id transfer object
         request body.
@@ -4638,180 +3998,9 @@ components:
             type: application/vnd.sas.analytics.validation.request
             responseType: application/vnd.sas.analytics.validation.response
         version: 1
-    AnalyticsValidationPostValidationModelRequest201Response:
-      description: Analytics Validation POST Validation Model request - successful
+    AnalyticsValidationPutValidationModelbyIdRequest400Response:
+      description: Analytics Validation PUT Validation Model by id request - bad request
         response.
-      value:
-        accept: application/vnd.sas.analytics.validation.model.summary
-        items:
-        - createdBy: '{creator}'
-          creationTimeStamp: '2024-03-28T08:40:15.931298Z'
-          description: categories.txt
-          id: '{vm-id}'
-          itemType: property
-          links:
-          - method: GET
-            rel: self
-            href: /analyticsValidation/models/{vm-id}
-            uri: /analyticsValidation/models/{vm-id}
-            type: application/vnd.sas.analytics.validation.model
-          - method: GET
-            rel: transferExport
-            href: /analyticsValidation/models/{vm-id}
-            uri: /analyticsValidation/models/{vm-id}
-            type: application/vnd.sas.transfer.object
-          - method: POST
-            rel: validateProperties
-            href: /analyticsValidation/models/{vm-id}/validationResults
-            uri: /analyticsValidation/models/{vm-id}/validationResults
-            type: application/vnd.sas.analytics.validation.request
-            responseType: application/vnd.sas.analytics.validation.response
-          - method: GET
-            rel: localizationContext
-            href: /analyticsLocalization/contexts/text.nls
-            uri: /analyticsLocalization/contexts/text.nls
-            type: application/vnd.sas.analytics.localization.context
-          modifiedBy: '{modifier}'
-          modifiedTimeStamp: '2024-03-28T08:40:15.931298Z'
-          name: categories
-          type: application/vnd.sas.analytics.validation.model
-          version: 1
-        limit: 1
-        links:
-        - method: GET
-          rel: collection
-          href: /analyticsValidation/models
-          uri: /analyticsValidation/models
-          type: application/vnd.sas.collection
-          itemType: application/vnd.sas.analytics.validation.model.summary
-        - method: GET
-          rel: self
-          href: /analyticsValidation/models?start=0&limit=1
-          uri: /analyticsValidation/models?start=0&limit=1
-          type: application/vnd.sas.collection
-          itemType: application/vnd.sas.analytics.validation.model.summary
-        - method: POST
-          rel: create
-          href: /analyticsValidation/models
-          uri: /analyticsValidation/models
-          type: application/vnd.sas.analytics.validation.model
-          responseType: application/vnd.sas.analytics.validation.model
-        - method: GET
-          rel: next
-          href: /analyticsValidation/models?start=1&limit=1
-          uri: /analyticsValidation/models?start=1&limit=1
-          type: application/vnd.sas.collection
-          itemType: application/vnd.sas.analytics.validation.model.summary
-        start: 0
-        version: 2
-    AnalyticsValidationGetValidationModelbyIdRequest200TransferObjectResponse:
-      description: Analytics Validation GET Validation Model by Id transfer object
-        request - successful response.
-      value:
-        content: '{encoded content}'
-        summary:
-          creationTimeStamp: '2024-03-31T02:21:52.949124Z'
-          createdBy: '{creator}'
-          modifiedTimeStamp: '2024-03-31T02:21:52.949124Z'
-          modifiedBy: '{modifier}'
-          version: 2
-          id: '{vm-id}'
-          name: Bayesian Additive Regression Trees
-          description: Fits a Bayesian additive regression trees (BART) model for
-            an interval target.
-          type: application/vnd.sas.analytics.validation.model
-          links:
-          - method: GET
-            rel: self
-            href: /analyticsValidation/models/{vm-id}
-            uri: /analyticsValidation/models/{vm-id}
-            type: application/vnd.sas.analytics.validation.model
-          - method: PUT
-            rel: update
-            href: /analyticsValidation/models/{vm-id}
-            uri: /analyticsValidation/models/{vm-id}
-            type: application/vnd.sas.analytics.validation.model
-            responseType: application/vnd.sas.analytics.validation.model
-          - method: DELETE
-            rel: delete
-            href: /analyticsValidation/models/{vm-id}
-            uri: /analyticsValidation/models/{vm-id}
-          - method: GET
-            rel: transferExport
-            href: /analyticsValidation/models/{vm-id}
-            uri: /analyticsValidation/models/{vm-id}
-            type: application/vnd.sas.transfer.object
-          - method: PUT
-            rel: transferImportUpdate
-            href: /analyticsValidation/models/{vm-id}
-            uri: /analyticsValidation/models/{vm-id}
-            type: application/vnd.sas.transfer.object
-            responseType: application/vnd.sas.summary
-          - method: POST
-            rel: validateProperties
-            href: /analyticsValidation/models/{vm-id}/validationResults
-            uri: /analyticsValidation/models/{vm-id}/validationResults
-            type: application/vnd.sas.analytics.validation.request
-            responseType: application/vnd.sas.analytics.validation.response
-        version: 1
-    AnalyticsValidationGetValidationModelbyIdRequest404Response:
-      description: Analytics Validation GET Validation Model by id request - Not Found
-        response.
-      value:
-        details:
-        - 'id: dm.bart.vm209'
-        - 'messageID: analytics-resources-api-icu.val.model.read.error.msg'
-        - 'path: /analyticsValidation/models/{vm-id}209'
-        - 'correlator: 26c11138-3f47-4589-a63a-9755671164e1'
-        errorCode: 67602
-        errors:
-        - version: 2
-          httpStatusCode: 404
-          errorCode: 67602
-          message: The validation model (ID dm.bart.vm209) cannot be found.
-          details:
-          - 'id: dm.bart.vm209'
-          - 'messageID: analytics-resources-api-icu.val.model.not.found.msg'
-        httpStatusCode: 404
-        message: The validation model (ID dm.bart.vm209) cannot be retrieved.
-        version: 2
-    AnalyticsValidationGetValidationModelbyIdRequest403Response:
-      description: Analytics Validation GET Validation Model by id request - Unauthorized
-        response.
-      value:
-        version: 2
-        httpStatusCode: 403
-        message: Forbidden
-        details:
-        - Unauthorized
-        - 'path: /analyticsValidation/models/{vm-id}209'
-        - 'correlator: a5939bc3-6647-42bf-b64b-5db241ab8bdd'
-    AnalyticsValidationPutValidationModelbyIdRequest428Response:
-      description: Analytics Validation PUT Validation Model by id request - precondition
-        required response.
-      value:
-        details:
-        - 'fieldName2: If-Unmodified-Since'
-        - 'fieldName1: If-Match'
-        - 'messageID: analytics-resources-api-icu.cmn.header.requires.either.of.two.fields.msg'
-        - 'path: /analyticsValidation/models/{vm-id}2'
-        - 'correlator: 261211e8-72b5-435f-88a1-43613a2e4514'
-        errorCode: 17433
-        errors:
-        - version: 2
-          httpStatusCode: 428
-          message: The header requires a value for either the field "If-Match" or
-            the field "If-Unmodified-Since", but a value was not specified for either
-            field.
-          remediation: Specify either the resource's entity tag or the resource's
-            last-modified timestamp.
-        httpStatusCode: 428
-        message: The header requires a value for either the field "If-Match" or the
-          field "If-Unmodified-Since", but a value was not specified for either field.
-        version: 2
-    AnalyticsValidationPutValidationModelbyIdRequest400TransferObjectResponse:
-      description: Analytics Validation PUT Validation Model by id transfer object
-        request - bad request response.
       value:
         details:
         - 'pathId: dm.bart.vm2'
@@ -4877,67 +4066,896 @@ components:
         name: Bayesian Additive Regression Trees
         type: application/vnd.sas.analytics.validation.model
         version: 1
-    AnalyticsValidationGetValidationModelbyIdRequest200ValidationModelSummaryResponse:
-      description: Analytics Validation GET Validation Model by id validation model
-        summary request - successful response.
+    AnalyticsValidationDeleteValidationModelbyIdRequest404Response:
+      description: Analytics Validation DELETE Validation Model by id request - Not
+        Found response.
       value:
-        createdBy: '{creator}'
-        creationTimeStamp: '2024-03-31T02:21:52.949124Z'
-        description: Fits a Bayesian additive regression trees (BART) model for an
-          interval target.
-        id: '{vm-id}'
-        links:
-        - method: GET
-          rel: self
-          href: /analyticsValidation/models/{vm-id}
-          uri: /analyticsValidation/models/{vm-id}
-          type: application/vnd.sas.analytics.validation.model
-        - method: GET
-          rel: transferExport
-          href: /analyticsValidation/models/{vm-id}
-          uri: /analyticsValidation/models/{vm-id}
-          type: application/vnd.sas.transfer.object
-        - method: POST
-          rel: validateProperties
-          href: /analyticsValidation/models/{vm-id}/validationResults
-          uri: /analyticsValidation/models/{vm-id}/validationResults
-          type: application/vnd.sas.analytics.validation.request
-          responseType: application/vnd.sas.analytics.validation.response
-        - method: GET
-          rel: localizationContext
-          href: /analyticsLocalization/contexts/{lc-id}
-          uri: /analyticsLocalization/contexts/{lc-id}
-          type: application/vnd.sas.analytics.localization.context
-        modifiedBy: '{modifier}'
-        modifiedTimeStamp: '2024-03-31T02:21:52.949124Z'
-        name: Bayesian Additive Regression Trees
-        type: application/vnd.sas.analytics.validation.model
-        version: 1
-    AnalyticsValidationPostCacheInvalidationRequest400Response:
-      description: Analytics Validation POST cache invalidation request - bad request
-        response.
-      value:
-        version: 2
-        httpStatusCode: 400
-        errorCode: 67628
-        message: The specified request body cannot be parsed.
         details:
-        - 'messageID: analytics-resources-api-icu.cmn.invalid.request.body.msg'
-        - 'path: /analyticsValidation/overrideCache/invalidations'
-        - 'correlator: f7c28804-b3f3-473c-b597-6e9c33d17dd6'
+        - 'id: dm.bart.vm210'
+        - 'messageID: analytics-resources-api-icu.val.model.delete.error.msg'
+        - 'path: /analyticsValidation/models/{vm-id}210'
+        - 'correlator: e07327d6-bb26-45d1-890b-5e479b2e764b'
+        errorCode: 67602
         errors:
         - version: 2
-          httpStatusCode: 500
-          message: invalid character '}' looking for beginning of object key string
-    AnalyticsValidationGetValidationModelbyIdRequest200SasSummaryResponse:
-      description: Analytics Validation GET Validation Model by Id sas summary request
-        - successful response.
+          httpStatusCode: 404
+          errorCode: 67602
+          message: The validation model (ID dm.bart.vm210) cannot be deleted because
+            it does not exist.
+          details:
+          - 'id: dm.bart.vm210'
+          - 'messageID: analytics-resources-api-icu.val.deleted.model.not.found.msg'
+        httpStatusCode: 404
+        message: The validation model (ID dm.bart.vm210) cannot be deleted.
+        version: 2
+    AnalyticsValidationPutValidationModelbyIdRequest200Response:
+      description: Analytics Validation PUT Validation Model by id request - successful
+        response.
       value:
         createdBy: '{creator}'
         creationTimeStamp: '2024-03-28T08:40:38.272632Z'
         description: Fits a Bayesian additive regression trees (BART) model for an
           interval target.
+        eTag: '{e-tag}'
         id: '{vm-id}'
+        items:
+        - id: '{vm-item-id}'
+          array: false
+          enabledWhen: train==true
+          enabledWhenValue: true
+          clientProperties:
+            properties:
+            - name: organizationalGroup
+              value: 'true'
+          itemType: group
+          style: nested
+          items:
+          - id: '{vm-item-property-id}'
+            name: nTrees
+            displayName: Number of trees
+            description: Specifies the number of trees in the sum-of-trees model.
+            array: false
+            enabledWhen: ''
+            enabledWhenValue: true
+            clientProperties:
+              properties: []
+            itemType: property
+            items:
+            type: integer
+            required: true
+            selector: false
+            constraints:
+            - type: range
+              enabledWhen: ''
+              enabledWhenValue: true
+              min: '1'
+              max: '1000'
+              includeMin: true
+              includeMax: true
+              choices:
+          - id: '{vm-item-id}'
+            displayName: Tree-splitting Options
+            array: false
+            enabledWhen: ''
+            enabledWhenValue: true
+            clientProperties:
+              properties:
+              - name: initialState
+                value: collapsed
+            itemType: group
+            style: nested
+            items:
+            - id: '{vm-item-property-id}'
+              name: minLeafSize
+              displayName: Minimum leaf size
+              description: Specifies the smallest number of training observations
+                that a leaf can have.
+              array: false
+              enabledWhen: ''
+              enabledWhenValue: true
+              clientProperties:
+                properties: []
+              itemType: property
+              items:
+              type: integer
+              required: true
+              selector: false
+              constraints:
+              - type: range
+                enabledWhen: ''
+                enabledWhenValue: true
+                min: '1'
+                includeMin: true
+                includeMax: true
+                choices:
+            - id: 18c7df73-17e7-4f40-b209-7a6537e6969b
+              name: missingValues
+              displayName: Missing values
+              description: Specifies how a splitting rule handles an observation with
+                missing values. "Use in search" indicates that missing values are
+                treated as their own level for both nominal and interval inputs. "Use
+                as machine largest" indicates that missing values are used as their
+                own level for nominal inputs and as the largest machine value for
+                interval inputs. "Use as machine smallest" indicates that missing
+                values are used as their own level for nominal inputs and as the smallest
+                machine value for interval inputs. "Ignore" indicates that missing
+                values are not included in the model.
+              array: false
+              enabledWhen: ''
+              enabledWhenValue: true
+              clientProperties:
+                properties: []
+              itemType: property
+              items:
+              type: string
+              required: true
+              selector: false
+              constraints:
+              - type: choicelist
+                enabledWhen: ''
+                enabledWhenValue: true
+                includeMin:
+                includeMax:
+                choices:
+                - value: USEINSEARCH
+                  displayValue: Use in search
+                - value: MACBIG
+                  displayValue: Use as machine largest
+                - value: MACSMALL
+                  displayValue: Use as machine smallest
+                - value: NONE
+                  displayValue: Ignore
+            - id: 1ffb148a-74ad-4727-87d0-c4ec8c0545e8
+              name: intervalBins
+              displayName: Number of interval bins
+              description: Specifies the number of bins in which to bin the interval
+                inputs.
+              array: false
+              enabledWhen: ''
+              enabledWhenValue: true
+              clientProperties:
+                properties: []
+              itemType: property
+              items:
+              type: integer
+              required: true
+              selector: false
+              constraints:
+              - type: range
+                enabledWhen: ''
+                enabledWhenValue: true
+                min: '2'
+                max: '500'
+                includeMin: true
+                includeMax: true
+                choices:
+            - id: 65c686a3-fffc-43c6-9469-b841939bba41
+              name: intBinMethod
+              displayName: Interval bin method
+              description: Specifies the method to use to bin the interval inputs.
+              array: false
+              enabledWhen: ''
+              enabledWhenValue: true
+              clientProperties:
+                properties: []
+              itemType: property
+              items:
+              type: string
+              required: true
+              selector: false
+              constraints:
+              - type: choicelist
+                enabledWhen: ''
+                enabledWhenValue: true
+                includeMin:
+                includeMax:
+                choices:
+                - value: BUCKET
+                  displayValue: Bucket
+                - value: QUANTILE
+                  displayValue: Quantile
+            required:
+            selector: false
+            constraints:
+          - id: '{vm-item-id}'
+            displayName: MCMC Options
+            array: false
+            enabledWhen: ''
+            enabledWhenValue: true
+            clientProperties:
+              properties:
+              - name: initialState
+                value: collapsed
+            itemType: group
+            style: nested
+            items:
+            - id: '{vm-item-property-id}'
+              name: nDistChains
+              displayName: Number of Markov chains
+              description: Specifies the number of separate Markov chains to run in
+                parallel. The fit of a BART model depends on the number of chains
+                that you run. The number cannot exceed the number of worker nodes,
+                and the default value is equal to the number of workers. To use the
+                default value, leave the value as blank. Any value that you specify
+                for this option is ignored if you are in single-machine mode.
+              array: false
+              enabledWhen: ''
+              enabledWhenValue: true
+              clientProperties:
+                properties: []
+              itemType: property
+              items:
+              type: integer
+              required: false
+              selector: false
+              constraints:
+              - type: range
+                enabledWhen: ''
+                enabledWhenValue: true
+                min: '1'
+                includeMin: true
+                includeMax: true
+                choices:
+            - id: '{vm-item-property-id}'
+              name: nIters
+              displayName: Number of iterations
+              description: Specifies the number of MCMC iterations per chain in the
+                main simulation loop. This number excludes the burn-in iterations.
+              array: false
+              enabledWhen: ''
+              enabledWhenValue: true
+              clientProperties:
+                properties: []
+              itemType: property
+              items:
+              type: integer
+              required: true
+              selector: false
+              constraints:
+              - type: range
+                enabledWhen: ''
+                enabledWhenValue: true
+                min: '1'
+                includeMin: true
+                includeMax: true
+                choices:
+            - id: '{vm-item-property-id}'
+              name: burninIters
+              displayName: Number of burn-in iterations
+              description: Specifies the number of initial "burn-in" iterations per
+                chain to discard before samples are saved for prediction and posterior
+                statistics.
+              array: false
+              enabledWhen: ''
+              enabledWhenValue: true
+              clientProperties:
+                properties: []
+              itemType: property
+              items:
+              type: integer
+              required: true
+              selector: false
+              constraints:
+              - type: range
+                enabledWhen: ''
+                enabledWhenValue: true
+                min: '1'
+                includeMin: true
+                includeMax: true
+                choices:
+            - id: '{vm-item-property-id}'
+              name: thinRate
+              displayName: Thinning rate
+              description: Specifies the thinning rate for the simulation. For a thinning
+                rate value of k, the simulation keeps every kth sample per chain for
+                prediction and posterior statistics, and then discards the rest of
+                the samples. Thinning is a strategy that can reduce autocorrelation
+                among posterior samples at the cost of discarding a potentially large
+                number of samples.
+              array: false
+              enabledWhen: ''
+              enabledWhenValue: true
+              clientProperties:
+                properties: []
+              itemType: property
+              items:
+              type: integer
+              required: true
+              selector: false
+              constraints:
+              - type: range
+                enabledWhen: ''
+                enabledWhenValue: true
+                min: '1'
+                includeMin: true
+                includeMax: true
+                choices:
+            - id: '{vm-item-property-id}'
+              name: maxTime
+              displayName: Maximum time (seconds)
+              description: Specifies the maximum time (in seconds) to use to train
+                the model. A value of 0 indicates that no maximum time is set.
+              array: false
+              enabledWhen: ''
+              enabledWhenValue: true
+              clientProperties:
+                properties: []
+              itemType: property
+              items:
+              type: double
+              required: true
+              selector: false
+              constraints:
+              - type: range
+                enabledWhen: ''
+                enabledWhenValue: true
+                min: '0'
+                includeMin: true
+                includeMax: true
+                choices:
+            - id: '{vm-item-property-id}'
+              name: randomSeed
+              displayName: Seed
+              description: Specifies the initial random number seed for model building.
+                The random sampling depends on how the data are distributed across
+                machines and threads. Specifying the same seed across multiple runs
+                might yield different results for each run.
+              array: false
+              enabledWhen: ''
+              enabledWhenValue: true
+              clientProperties:
+                properties: []
+              itemType: property
+              items:
+              type: integer
+              required: true
+              selector: false
+              constraints:
+              - type: range
+                enabledWhen: ''
+                enabledWhenValue: true
+                min: '0'
+                max: '2147483647'
+                includeMin: true
+                includeMax: true
+                choices:
+            required:
+            selector: false
+            constraints:
+          - id: '{vm-item-property-id}'
+            name: exactPctlLift
+            displayName: Use the exact percentile method for lift calculations
+            description: Specifies whether to use the exact percentile method for
+              calculating lift and related assessment measures.  When unchecked, the
+              iterative method is used.  Note that the exact method should be used
+              if there are convergence errors using the iterative method.
+            array: false
+            enabledWhen: ''
+            enabledWhenValue: true
+            clientProperties:
+              properties: []
+            itemType: property
+            items:
+            type: boolean
+            required: true
+            selector: false
+            constraints: []
+          required:
+          selector: false
+          constraints:
+        - id: '{vm-item-id}'
+          displayName: Post-training Properties
+          description: Changing these properties will not retrain the model.
+          array: false
+          enabledWhen: ''
+          enabledWhenValue: true
+          clientProperties:
+            properties:
+            - name: organizationalGroup
+              value: 'true'
+          itemType: group
+          style: nested
+          items:
+          - id: '{vm-item-id}'
+            displayName: Model Interpretability
+            array: false
+            enabledWhen: ''
+            enabledWhenValue: true
+            clientProperties:
+              properties: []
+            itemType: group
+            style: nested
+            items:
+            - id: '{vm-item-id}'
+              displayName: Global Interpretability
+              array: false
+              enabledWhen: ''
+              enabledWhenValue: true
+              clientProperties:
+                properties:
+                - name: initialState
+                  value: collapsed
+              itemType: group
+              style: nested
+              items:
+              - id: '{vm-item-property-id}'
+                name: performVI
+                displayName: Variable importance
+                description: Specifies whether to display a table of relative importance
+                  values for the input variables. The values are calculated using
+                  a one-level decision tree for each input to predict the predicted
+                  value as a global surrogate model. For tree-based supervised learning
+                  models, the variable importance table from the actual model is displayed
+                  as well.
+                array: false
+                enabledWhen: ''
+                enabledWhenValue: true
+                clientProperties:
+                  properties: []
+                itemType: property
+                items:
+                type: boolean
+                required: true
+                selector: false
+                constraints: []
+              - id: '{vm-item-property-id}'
+                name: pdPlots
+                displayName: PD plots
+                description: Specifies whether to display Partial Dependency (PD)
+                  plots that show the relationship between model inputs and their
+                  predictions.
+                array: false
+                enabledWhen: ''
+                enabledWhenValue: true
+                clientProperties:
+                  properties: []
+                itemType: property
+                items:
+                type: boolean
+                required: true
+                selector: false
+                constraints: []
+              required:
+              selector: false
+              constraints:
+            - id: '{vm-item-id}'
+              displayName: Local Interpretability
+              array: false
+              enabledWhen: ''
+              enabledWhenValue: true
+              clientProperties:
+                properties:
+                - name: initialState
+                  value: collapsed
+              itemType: group
+              style: nested
+              items:
+              - id: '{vm-item-property-id}'
+                name: icePlots
+                displayName: ICE plots
+                description: Specifies whether to display Individual Conditional Expectation
+                  (ICE) plots. ICE plots can help reveal interesting subgroups and
+                  interactions between model variables.
+                array: false
+                enabledWhen: ''
+                enabledWhenValue: true
+                clientProperties:
+                  properties: []
+                itemType: property
+                items:
+                type: boolean
+                required: true
+                selector: false
+                constraints: []
+              - id: '{vm-item-property-id}'
+                name: performLime
+                displayName: LIME
+                description: Specifies whether to use the Locally Interpretable Model-Agnostic
+                  Explanation (LIME) method to explain the model predictions.
+                array: false
+                enabledWhen: ''
+                enabledWhenValue: true
+                clientProperties:
+                  properties: []
+                itemType: property
+                items:
+                type: boolean
+                required: true
+                selector: false
+                constraints: []
+              - id: '{vm-item-property-id}'
+                name: performKernelShap
+                displayName: HyperSHAP
+                description: Specifies whether to use the Shapley Explainer (HyperSHAP)
+                  method to explain the model predictions.
+                array: false
+                enabledWhen: ''
+                enabledWhenValue: true
+                clientProperties:
+                  properties: []
+                itemType: property
+                items:
+                type: boolean
+                required: true
+                selector: false
+                constraints: []
+              - id: '{vm-item-property-id}'
+                name: maxNumShapVars
+                displayName: Maximum number of HyperSHAP variables
+                description: Specifies the maximum number of HyperSHAP variables to
+                  plot.
+                array: false
+                enabledWhen: performKernelShap==true
+                enabledWhenValue: true
+                clientProperties:
+                  properties:
+                  - name: hideWhenDisabled
+                    value: 'true'
+                itemType: property
+                items:
+                type: integer
+                required: true
+                selector: false
+                constraints:
+                - type: range
+                  enabledWhen: ''
+                  enabledWhenValue: true
+                  min: '0'
+                  max: '100'
+                  includeMin: false
+                  includeMax: true
+                  choices:
+              - id: '{vm-item-property-id}'
+                name: specifyRows
+                displayName: Specify instances to explain
+                description: Specifies the individual observations to provide explanation.
+                  The "Random" observations option provides explanations for five
+                  randomly selected observations.  The "Specify up to 5" observations
+                  option enables you to provide IDs for the specific observations
+                  in the data. The IDs should be unique values of the variable that
+                  has the role "Key" in the metadata.  If no variable is assigned
+                  the role "Key", then you can use the variable _dmIndex_ to specify
+                  the individual rows.
+                array: false
+                enabledWhen: performLime==true || performKernelShap==true || icePlots==true
+                enabledWhenValue: true
+                clientProperties:
+                  properties: []
+                itemType: property
+                items:
+                type: string
+                required: true
+                selector: false
+                constraints:
+                - type: choicelist
+                  enabledWhen: ''
+                  enabledWhenValue: true
+                  includeMin:
+                  includeMax:
+                  choices:
+                  - value: RANDOM
+                    displayValue: Random
+                  - value: INDIVIDUALROWS
+                    displayValue: Specify up to 5
+              - id: '{vm-item-property-id}'
+                name: indvRow
+                displayName: Individual observation 1
+                description: Specifies an individual observation based on the input
+                  variable that has the role "Key".
+                array: false
+                enabledWhen: (performLime==true || performKernelShap==true || icePlots==true)
+                  && specifyRows=='INDIVIDUALROWS'
+                enabledWhenValue: true
+                clientProperties:
+                  properties:
+                  - name: hideWhenDisabled
+                    value: 'true'
+                itemType: property
+                items:
+                type: string
+                required: false
+                selector: false
+                constraints: []
+              - id: '{vm-item-property-id}'
+                name: indvRow_2
+                displayName: Individual observation 2
+                description: Specifies an individual observation based on the input
+                  variable that has the role "Key".
+                array: false
+                enabledWhen: (performLime==true || performKernelShap==true || icePlots==true)
+                  && specifyRows=='INDIVIDUALROWS'
+                enabledWhenValue: true
+                clientProperties:
+                  properties:
+                  - name: hideWhenDisabled
+                    value: 'true'
+                itemType: property
+                items:
+                type: string
+                required: false
+                selector: false
+                constraints: []
+              - id: '{vm-item-property-id}'
+                name: indvRow_3
+                displayName: Individual observation 3
+                description: Specifies an individual observation based on the input
+                  variable that has the role "Key".
+                array: false
+                enabledWhen: (performLime==true || performKernelShap==true || icePlots==true)
+                  && specifyRows=='INDIVIDUALROWS'
+                enabledWhenValue: true
+                clientProperties:
+                  properties:
+                  - name: hideWhenDisabled
+                    value: 'true'
+                itemType: property
+                items:
+                type: string
+                required: false
+                selector: false
+                constraints: []
+              - id: '{vm-item-property-id}'
+                name: indvRow_4
+                displayName: Individual observation 4
+                description: Specifies an individual observation based on the input
+                  variable that has the role "Key".
+                array: false
+                enabledWhen: (performLime==true || performKernelShap==true || icePlots==true)
+                  && specifyRows=='INDIVIDUALROWS'
+                enabledWhenValue: true
+                clientProperties:
+                  properties:
+                  - name: hideWhenDisabled
+                    value: 'true'
+                itemType: property
+                items:
+                type: string
+                required: false
+                selector: false
+                constraints: []
+              - id: '{vm-item-property-id}'
+                name: indvRow_5
+                displayName: Individual observation 5
+                description: Specifies an individual observation based on the input
+                  variable that has the role "Key".
+                array: false
+                enabledWhen: (performLime==true || performKernelShap==true || icePlots==true)
+                  && specifyRows=='INDIVIDUALROWS'
+                enabledWhenValue: true
+                clientProperties:
+                  properties:
+                  - name: hideWhenDisabled
+                    value: 'true'
+                itemType: property
+                items:
+                type: string
+                required: false
+                selector: false
+                constraints: []
+              - id: '{vm-item-property-id}'
+                displayName: LIME Tables
+                array: false
+                enabledWhen: performLime==true
+                enabledWhenValue: true
+                clientProperties:
+                  properties:
+                  - name: initialState
+                    value: collapsed
+                itemType: group
+                style: nested
+                items:
+                - id: '{vm-item-property-id}'
+                  name: explainInfo
+                  displayName: Explainer Information table
+                  description: Specifies whether the Explainer Information tables
+                    for the LIME method should be included in the node results. The
+                    Explainer Information table contains information about what settings
+                    were used to perform the LIME method.
+                  array: false
+                  enabledWhen: ''
+                  enabledWhenValue: true
+                  clientProperties:
+                    properties: []
+                  itemType: property
+                  items:
+                  type: boolean
+                  required: true
+                  selector: false
+                  constraints: []
+                - id: '{vm-item-property-id}'
+                  name: explainFidelity
+                  displayName: Explainer Fidelity table
+                  description: Specifies whether the Explainer Fidelity tables for
+                    the LIME method should be included in the node results. The Explainer
+                    Fidelity table contains information about how accurate the local
+                    explanation predictions are compared to the black-box machine
+                    learning model.
+                  array: false
+                  enabledWhen: ''
+                  enabledWhenValue: true
+                  clientProperties:
+                    properties: []
+                  itemType: property
+                  items:
+                  type: boolean
+                  required: true
+                  selector: false
+                  constraints: []
+                required:
+                selector: false
+                constraints:
+              required:
+              selector: false
+              constraints:
+            - id: '{vm-item-id}'
+              displayName: PD/ICE Options
+              array: false
+              enabledWhen: pdPlots==true || icePlots==true
+              enabledWhenValue: true
+              clientProperties:
+                properties:
+                - name: initialState
+                  value: collapsed
+              itemType: group
+              style: nested
+              items:
+              - id: '{vm-item-property-id}'
+                name: pdNumImportantInputs
+                displayName: Maximum number of variables
+                description: Specifies the maximum number of input variables to generate
+                  PD and ICE plots. Input variables are selected based on their relative
+                  importance.
+                array: false
+                enabledWhen: ''
+                enabledWhenValue: true
+                clientProperties:
+                  properties: []
+                itemType: property
+                items:
+                type: integer
+                required: true
+                selector: false
+                constraints:
+                - type: range
+                  enabledWhen: ''
+                  enabledWhenValue: true
+                  min: '0'
+                  max: '10'
+                  includeMin: false
+                  includeMax: true
+                  choices:
+              - id: '{vm-item-property-id}'
+                name: pdObsSamples
+                displayName: Number of observations
+                description: Specifies the maximum number of observations to sample
+                  for the PD and ICE plots.
+                array: false
+                enabledWhen: ''
+                enabledWhenValue: true
+                clientProperties:
+                  properties: []
+                itemType: property
+                items:
+                type: integer
+                required: true
+                selector: false
+                constraints:
+                - type: range
+                  enabledWhen: ''
+                  enabledWhenValue: true
+                  min: '100'
+                  max: '1000'
+                  includeMin: false
+                  includeMax: true
+                  choices:
+              - id: '{vm-item-property-id}'
+                name: nBins
+                displayName: Number of tick points
+                description: Specifies the number of tick points for an interval analysis
+                  variable for the PD and ICE plots.
+                array: false
+                enabledWhen: ''
+                enabledWhenValue: true
+                clientProperties:
+                  properties: []
+                itemType: property
+                items:
+                type: integer
+                required: true
+                selector: false
+                constraints:
+                - type: range
+                  enabledWhen: ''
+                  enabledWhenValue: true
+                  min: '2'
+                  max: '100'
+                  includeMin: false
+                  includeMax: true
+                  choices:
+              - id: '{vm-item-property-id}'
+                name: truncateLl
+                displayName: Truncate lower tail
+                description: Specifies under what percentage to discard the values
+                  of the interval analysis variables for the PD and ICE plots.
+                array: false
+                enabledWhen: ''
+                enabledWhenValue: true
+                clientProperties:
+                  properties: []
+                itemType: property
+                items:
+                type: integer
+                required: true
+                selector: false
+                constraints:
+                - type: range
+                  enabledWhen: ''
+                  enabledWhenValue: true
+                  min: '0'
+                  max: '100'
+                  includeMin: true
+                  includeMax: true
+                  choices:
+              - id: '{vm-item-property-id}'
+                name: truncateUl
+                displayName: Truncate upper tail
+                description: Specifies above what percentage to discard the values
+                  of the interval analysis variables for the PD and ICE plots.
+                array: false
+                enabledWhen: ''
+                enabledWhenValue: true
+                clientProperties:
+                  properties: []
+                itemType: property
+                items:
+                type: integer
+                required: true
+                selector: false
+                constraints:
+                - type: range
+                  enabledWhen: ''
+                  enabledWhenValue: true
+                  min: '0'
+                  max: '100'
+                  includeMin: true
+                  includeMax: true
+                  choices:
+              required:
+              selector: false
+              constraints:
+            - id: '{vm-item-property-id}'
+              name: seedId
+              displayName: Seed
+              description: Specifies the seed for generating random numbers. This
+                is used for selecting individual observations to explain, selecting
+                observations to generate partial dependency and ICE plots, simulating
+                data for LIME, and sampling data for HyperSHAP.
+              array: false
+              enabledWhen: performLime==true || performKernelShap==true || pdPlots==true
+                || icePlots==true
+              enabledWhenValue: true
+              clientProperties:
+                properties: []
+              itemType: property
+              items:
+              type: integer
+              required: true
+              selector: false
+              constraints:
+              - type: range
+                enabledWhen: ''
+                enabledWhenValue: true
+                min: '0'
+                max: '2147483647'
+                includeMin: true
+                includeMax: true
+                choices:
+            required:
+            selector: false
+            constraints:
+          required:
+          selector: false
+          constraints:
         links:
         - method: GET
           rel: self
@@ -4963,8 +4981,8 @@ components:
         modifiedBy: '{modifier}'
         modifiedTimeStamp: '2024-03-28T08:40:38.272632Z'
         name: Bayesian Additive Regression Trees
-        type: application/vnd.sas.analytics.validation.model
-        version: 1
+        revision: 0
+        version: 3
     AnalyticsValidationPutValidationModelbyIdRequest201Response:
       description: Analytics Validation PUT Validation Model by id request - successful
         response.
@@ -5860,53 +5878,6 @@ components:
         name: Bayesian Additive Regression Trees
         revision: 0
         version: 3
-    AnalyticsValidationPutValidationModelbyIdRequest200SasSummaryResponse:
-      description: Analytics Validation PUT Validation Model by Id sas summary request
-        - successful response.
-      value:
-        createdBy: '{creator}'
-        creationTimeStamp: '2024-03-28T08:40:38.272632Z'
-        description: Fits a Bayesian additive regression trees (BART) model for an
-          interval target.
-        id: '{vm-id}'
-        links:
-        - method: GET
-          rel: self
-          href: /analyticsValidation/models/{vm-id}
-          uri: /analyticsValidation/models/{vm-id}
-          type: application/vnd.sas.analytics.validation.model
-        - method: GET
-          rel: transferExport
-          href: /analyticsValidation/models/{vm-id}
-          uri: /analyticsValidation/models/{vm-id}
-          type: application/vnd.sas.transfer.object
-        - method: POST
-          rel: validateProperties
-          href: /analyticsValidation/models/{vm-id}/validationResults
-          uri: /analyticsValidation/models/{vm-id}/validationResults
-          type: application/vnd.sas.analytics.validation.request
-          responseType: application/vnd.sas.analytics.validation.response
-        - method: GET
-          rel: localizationContext
-          href: /analyticsLocalization/contexts/{lc-id}
-          uri: /analyticsLocalization/contexts/{lc-id}
-          type: application/vnd.sas.analytics.localization.context
-        modifiedBy: '{modifier}'
-        modifiedTimeStamp: '2024-03-28T08:40:38.272632Z'
-        name: Bayesian Additive Regression Trees
-        type: application/vnd.sas.analytics.validation.model
-        version: 1
-    AnalyticsValidationPutValidationModelbyIdRequest403Response:
-      description: Analytics Validation PUT Validation Model by id request - Unauthorized
-        response.
-      value:
-        version: 2
-        httpStatusCode: 403
-        message: Forbidden
-        details:
-        - Unauthorized
-        - 'path: /analyticsValidation/models/{vm-id}209'
-        - 'correlator: a5939bc3-6647-42bf-b64b-5db241ab8bdd'
     AnalyticsValidationDeleteValidationModelbyIdRequest403Response:
       description: Analytics Validation DELETE Validation Model by id request - Unauthorized
         response.
@@ -5918,8 +5889,24 @@ components:
         - Unauthorized
         - 'path: /analyticsValidation/models/{vm-id}210'
         - 'correlator: cc03820f-d219-4c2c-b5b9-a1fd73bc1b41'
-
-
-
-
-
+    AnalyticsValidationGetValidationModelbyIdRequest404Response:
+      description: Analytics Validation GET Validation Model by id request - Not Found
+        response.
+      value:
+        details:
+        - 'id: dm.bart.vm209'
+        - 'messageID: analytics-resources-api-icu.val.model.read.error.msg'
+        - 'path: /analyticsValidation/models/{vm-id}209'
+        - 'correlator: 26c11138-3f47-4589-a63a-9755671164e1'
+        errorCode: 67602
+        errors:
+        - version: 2
+          httpStatusCode: 404
+          errorCode: 67602
+          message: The validation model (ID dm.bart.vm209) cannot be found.
+          details:
+          - 'id: dm.bart.vm209'
+          - 'messageID: analytics-resources-api-icu.val.model.not.found.msg'
+        httpStatusCode: 404
+        message: The validation model (ID dm.bart.vm209) cannot be retrieved.
+        version: 2

@@ -1,7 +1,7 @@
 ---
 openapi: 3.0.3
 info:
-  version: "10"
+  version: "11"
   title: Real-Time Watchlist Screening
   description: |
     The Real-Time Watchlist Screening API supports screening party and payment information against lists of known or suspected parties that are involved in illegal activities, such as money laundering, terrorism financing, or other criminal behaviors.
@@ -26,6 +26,10 @@ tags:
   description: "Contains the operations to create, read, update, and delete screening\
     \ exceptions. Screening exceptions identify the profiles or conditions that, when\
     \ matched, do not generate a hit during the screening process."
+- name: Custom Watchlist
+  description: Contains the operations to publish and remove a custom watchlist. A
+    custom watchlist enables screening hits on entities that do not appear in the
+    official watchlists.
 - name: Watchlist Profiles
   description: Contains the operation to read watchlist profiles. A watchlist profile
     represents the publication of data on a sanctioned entity or individual by a given
@@ -2579,6 +2583,96 @@ paths:
           $ref: "#/paths/~1presets/get/responses/500"
         "502":
           $ref: "#/paths/~1entity/post/responses/502"
+  /customWatchlist:
+    post:
+      operationId: createCustomWatchlist
+      summary: Publish a custom watchlist
+      description: |
+        Publishes the custom watchlist provided in the request body, replacing
+        any prior watchlist that was in use. Requests that are being
+        processed will continue to use the previous custom watchlist, but
+        subsequent requests will use the new custom watchlist. If the request
+        fails, the previous custom watchlist remains in effect.
+
+        Because custom watchlists can be large, the request does not return a payload.
+      tags:
+      - Custom Watchlist
+      parameters:
+      - name: Content-Type
+        in: header
+        description: The representation for the custom watchlist.
+        schema:
+          type: string
+          enum:
+          - application/xml
+          default: application/xml
+      requestBody:
+        description: The custom watchlist contents.
+        required: true
+        content:
+          application/xml:
+            examples:
+              Custom watchlist:
+                summary: Custom watchlist request
+                description: The request body for a custom watchlist.
+                value:
+                  sdnList:
+                    publshInformation:
+                      Publish_Date: 09/07/2023
+                      Record_Count: "4"
+                    sdnEntry:
+                    - uid: "36"
+                      firstName: Norman
+                      lastName: James
+                      sdnType: Individual
+                      programList:
+                        program: CANADA
+                      akaList: ""
+                      addressList:
+                        address:
+                          uid: "25"
+                          city: Aldergrove
+                          country: Canada
+                    - uid: "37"
+                      firstName: Cindy
+                      lastName: DeScrier
+                      sdnType: Individual
+                      programList:
+                        program: UK
+                      akaList: ""
+                      addressList:
+                        address:
+                          uid: "26"
+                          city: Suffolk
+                          country: England
+                    "_xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance"
+                    _xmlns: "http://tempuri.org/sdnList.xsd"
+      responses:
+        "204":
+          description: The custom watchlist was published.
+        "400":
+          $ref: "#/paths/~1entity/post/responses/400"
+        "404":
+          $ref: "#/paths/~1/get/responses/404"
+        "500":
+          $ref: "#/paths/~1presets/get/responses/500"
+    delete:
+      operationId: deleteCustomWatchlist
+      summary: Remove a custom watchlist
+      description: |
+        Removes the custom watchlist. Requests that are being
+        processed will continue to use the custom watchlist, but
+        subsequent requests will not. If the request
+        fails, the previous custom watchlist remains in effect.
+      tags:
+      - Custom Watchlist
+      responses:
+        "204":
+          description: The request succeeded.
+        "404":
+          $ref: "#/paths/~1/get/responses/404"
+        "500":
+          $ref: "#/paths/~1presets/get/responses/500"
   "/profiles/{profileId}":
     get:
       operationId: getWatchlistProfile
@@ -4459,6 +4553,32 @@ components:
                         minLength: 0
                         maxLength: 36
                         readOnly: true
+                      projectReference:
+                        title: Project Reference
+                        type: string
+                        description: An identifier that is provided as part of a screening
+                          request. It enables you to trace and report on special requests
+                          through the system. This value is provided for informational
+                          purposes only and is ignored on input.
+                        minLength: 0
+                        maxLength: 100
+                        readOnly: true
+                      suppressAlertsFlg:
+                        title: Suppress Alerts Flag
+                        type: boolean
+                        description: |
+                          Enables you to manage requests for tuning purposes.
+                          Valid values are as follows:
+                            * true: Alerts are suppressed.
+                            * false: Alerts are not suppressed.
+                          This value is provided for informational purposes only and is ignored on input.
+                        default: false
+                      routingClassification:
+                        title: Routing Classification
+                        type: string
+                        description: |
+                          Enables you to override the default screening request routing classification. If no value is specified, a default routing classification is assigned: "batch" for Kafka messages and "real-time" for REST requests.
+                        maxLength: 10
                       matchedProfile:
                         title: Matched Profile
                         type: array
@@ -7668,6 +7788,32 @@ components:
                         readOnly: true
                         title: Message Reference
                         type: string
+                      projectReference:
+                        title: Project Reference
+                        type: string
+                        description: An identifier that is provided as part of a screening
+                          request. It enables you to trace and report on special requests
+                          through the system. This value is provided for informational
+                          purposes only and is ignored on input.
+                        minLength: 0
+                        maxLength: 100
+                        readOnly: true
+                      suppressAlertsFlg:
+                        title: Suppress Alerts Flag
+                        type: boolean
+                        description: |
+                          Enables you to manage requests for tuning purposes.
+                          Valid values are as follows:
+                            * true: Alerts are suppressed.
+                            * false: Alerts are not suppressed.
+                          This value is provided for informational purposes only and is ignored on input.
+                        default: false
+                      routingClassification:
+                        title: Routing Classification
+                        type: string
+                        description: |
+                          Enables you to override the default screening request routing classification. If no value is specified, a default routing classification is assigned: "batch" for Kafka messages and "real-time" for REST requests.
+                        maxLength: 10
                       notifications:
                         description: All error and warning messages that are involved
                           in the respective context of the screening process.

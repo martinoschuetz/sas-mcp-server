@@ -1,7 +1,7 @@
 ---
 openapi: 3.0.3
 info:
-  version: '8'
+  version: '9'
   title: Visual Investigator
   description: The SAS Visual Investigator REST API provides configuration values
     to the client defining what it should display to the user.
@@ -425,95 +425,49 @@ paths:
               $ref: '#/components/schemas/jsonPatchDocument'
             examples:
               addAppConfig:
-                summary: Create a new app configuration
-                value:
-                - op: add
-                  path: /appConfigurations/-
-                  value:
-                    appName: MyNewApp
-                    appType: Admin
-                    urlPathToBootStrap: /my-new-app/bootstrap.json
-                    loadOrder: 10
-                    moduleName: myNewAppModule
-                    version: 1
+                $ref: '#/components/examples/appConfigurationPatch-addAppConfig'
               replaceAppConfig:
-                summary: Replace an existing app configuration
-                value:
-                - op: replace
-                  path: /appConfigurations/abc-123
-                  value:
-                    id: abc-123
-                    appName: UpdatedApp
-                    appType: Admin
-                    loadOrder: 20
-                    version: 2
+                $ref: '#/components/examples/appConfigurationPatch-replaceAppConfig'
               removeAppConfig:
-                summary: Delete an app configuration
-                value:
-                - op: remove
-                  path: /appConfigurations/abc-123
+                $ref: '#/components/examples/appConfigurationPatch-removeAppConfig'
               testAppConfig:
-                summary: Test that an app configuration exists
-                value:
-                - op: test
-                  path: /appConfigurations/abc-123
+                $ref: '#/components/examples/appConfigurationPatch-testAppConfig'
               addThenRemove:
-                summary: Create then remove an app configuration
-                value:
-                - op: add
-                  path: /appConfigurations/-
-                  value:
-                    id: temp-app-123
-                    appName: TempApp
-                    appType: Admin
-                    version: 1
-                - op: remove
-                  path: /appConfigurations/temp-app-123
+                $ref: '#/components/examples/appConfigurationPatch-addThenRemove'
               replaceNestedProperty:
-                summary: Replace a single property on an existing app configuration
-                value:
-                - op: replace
-                  path: /appConfigurations/abc-123/appName
-                  value: RenamedApp
+                $ref: '#/components/examples/appConfigurationPatch-replaceNestedProperty'
               addNestedProperty:
-                summary: Set a property value on an existing app configuration
-                value:
-                - op: add
-                  path: /appConfigurations/abc-123/urlPathToApplicationCheck
-                  value: /apps/myapp/health
+                $ref: '#/components/examples/appConfigurationPatch-addNestedProperty'
               removeNestedProperty:
-                summary: Clear a property on an existing app configuration
-                value:
-                - op: remove
-                  path: /appConfigurations/abc-123/urlPathToApplicationCheck
+                $ref: '#/components/examples/appConfigurationPatch-removeNestedProperty'
               testNestedProperty:
-                summary: Assert a property has a specific value
-                value:
-                - op: test
-                  path: /appConfigurations/abc-123/appType
-                  value: Core
+                $ref: '#/components/examples/appConfigurationPatch-testNestedProperty'
               mixedBatch:
-                summary: Mixed batch with entity-level and nested property operations
-                value:
-                - op: test
-                  path: /appConfigurations/abc-123/appType
-                  value: Core
-                - op: replace
-                  path: /appConfigurations/abc-123/appName
-                  value: NewName
-                - op: replace
-                  path: /appConfigurations/abc-123/loadOrder
-                  value: 3
-                - op: add
-                  path: /appConfigurations/-
-                  value:
-                    appName: SecondApp
-                    appType: Admin
-                    loadOrder: 10
-                    version: 1
+                $ref: '#/components/examples/appConfigurationPatch-mixedBatch'
           application/json:
             schema:
               $ref: '#/components/schemas/jsonPatchDocument'
+            examples:
+              addAppConfig:
+                $ref: '#/components/examples/appConfigurationPatch-addAppConfig'
+              replaceAppConfig:
+                $ref: '#/components/examples/appConfigurationPatch-replaceAppConfig'
+              removeAppConfig:
+                $ref: '#/components/examples/appConfigurationPatch-removeAppConfig'
+              testAppConfig:
+                $ref: '#/components/examples/appConfigurationPatch-testAppConfig'
+              addThenRemove:
+                $ref: '#/components/examples/appConfigurationPatch-addThenRemove'
+              replaceNestedProperty:
+                $ref: '#/components/examples/appConfigurationPatch-replaceNestedProperty'
+              addNestedProperty:
+                $ref: '#/components/examples/appConfigurationPatch-addNestedProperty'
+              removeNestedProperty:
+                $ref: '#/components/examples/appConfigurationPatch-removeNestedProperty'
+              testNestedProperty:
+                $ref: '#/components/examples/appConfigurationPatch-testNestedProperty'
+              mixedBatch:
+                $ref: '#/components/examples/appConfigurationPatch-mixedBatch'
       responses:
         '200':
           description: >-
@@ -524,9 +478,15 @@ paths:
             application/vnd.sas.collection+json:
               schema:
                 $ref: '#/components/schemas/appConfigurationCollection'
+              examples:
+                An example of an App Configuration collection:
+                  $ref: '#/components/examples/appConfigurationCollection'
             application/json:
               schema:
                 $ref: '#/components/schemas/appConfigurationCollection'
+              examples:
+                An example of an App Configuration collection:
+                  $ref: '#/components/examples/appConfigurationCollection'
         '400':
           description: >-
             The request is malformed. Possible causes include: the patch document
@@ -557,9 +517,15 @@ paths:
             application/vnd.sas.error+json:
               schema:
                 $ref: '#/components/schemas/error2'
+              examples:
+                error2Response404:
+                  $ref: '#/components/examples/error2Response404'
             application/json:
               schema:
                 $ref: '#/components/schemas/error2'
+              examples:
+                error2Response404:
+                  $ref: '#/components/examples/error2Response404'
   '/appConfigurations/{appConfigurationId}/configurations':
     get:
       tags:
@@ -907,6 +873,498 @@ paths:
         - category-desktop
         - category-global
         - category-mobile
+  /documentationConfigurations:
+    get:
+      tags:
+      - Properties
+      summary: Get all documentation configurations
+      operationId: getDocumentationConfigurations
+      description: Get a list of documentation configurations.
+      parameters:
+      - name: start
+        in: query
+        description: The index of the first result to include on the page.
+        required: false
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        description: The number of results that should be returned.
+        required: false
+        schema:
+          type: integer
+          default: 100
+      - name: filter
+        in: query
+        description: The filter criteria for the returned collection.
+        schema:
+          type: string
+      - name: sortBy
+        in: query
+        description: The sort order for the returned collection.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The request for the resource succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/documentationConfigurationCollection'
+              examples:
+                An example collection of documentation configurations:
+                  $ref: '#/components/examples/documentationConfigurationCollectionResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentationConfigurationCollection'
+              examples:
+                An example collection of documentation configurations:
+                  $ref: '#/components/examples/documentationConfigurationCollectionResponse'
+    post:
+      tags:
+      - Properties
+      summary: Create a new documentation configuration
+      operationId: createDocumentationConfiguration
+      description: Create a new documentation configuration.
+      requestBody:
+        required: true
+        description: The documentation configuration to create. ID must be supplied.
+        content:
+          application/vnd.sas.investigation.documentation.configuration+json:
+            schema:
+              $ref: '#/components/schemas/documentationConfiguration'
+            examples:
+              configuration:
+                $ref: '#/components/examples/documentationConfigurationPayload'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/documentationConfiguration'
+            examples:
+              configuration:
+                $ref: '#/components/examples/documentationConfigurationPayload'
+      responses:
+        '201':
+          description: The resource was successfully created.
+          headers:
+            ETag:
+              description: The up-to-date modifiedAt timestamp.
+              schema:
+                type: string
+            Location:
+              description: The URI of the new documentation configuration.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.investigation.documentation.configuration+json:
+              schema:
+                $ref: '#/components/schemas/documentationConfiguration'
+              examples:
+                configuration:
+                  $ref: '#/components/examples/documentationConfigurationResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentationConfiguration'
+              examples:
+                configuration:
+                  $ref: '#/components/examples/documentationConfigurationResponse'
+        '400':
+          description: The request is malformed or the resource is not a valid configuration
+            bundle.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response400:
+                  $ref: '#/components/examples/error2Response400'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response400:
+                  $ref: '#/components/examples/error2Response400'
+    patch:
+      tags:
+      - Properties
+      summary: Batch patch documentation configurations
+      operationId: patchDocumentationConfigurations
+      description: >-
+        Apply a batch of operations to documentation configurations. The request body
+        is a JSON array of
+        patch operations. Each operation targets a specific documentation configuration
+        identified by the
+        last segment of the `path` field (e.g. `/documentationConfigurations/{id}`),
+        or a nested property
+        within an documentation configuration (e.g. `/documentationConfigurations/{id}/{propertyName}`).
+
+
+        **Entity-level operations** (path: `/documentationConfigurations/{id}`):
+
+        - **add** – Create a new documentation configuration. The `value` field must
+        contain a full documentation
+          configuration representation. If an documentation configuration with the
+        same `id` already exists
+          the value is updated instead.
+
+        - **replace** – Replace an existing documentation configuration. The `value`
+        field must contain the
+          full updated representation including a `version` that is not older than
+        the current one.
+          If the documentation configuration does not exist, the entire patch is rejected
+        with a 400 error.
+
+        - **remove** – Delete the documentation configuration identified by the `path`.
+
+        - **test** – Assert that the documentation configuration identified by the
+        `path` exists.
+          If it does not exist, the entire patch is rejected with a 400 error.
+
+
+        **Nested property operations** (path: `/documentationConfigurations/{id}/{property...}`):
+
+        When the path includes segments beyond the `{id}`, the operation targets a
+        specific
+        property within the identified documentation configuration.
+
+        - **add** – Set the property value. The documentation configuration must already
+        exist.
+
+        - **replace** – Update the property value. The property must currently exist
+        (have a
+          non-null value). Targeting a property that does not exist returns a 400
+        error.
+
+        - **remove** – Clear (null) the property value. The property must currently
+        exist.
+          Targeting a property that does not exist returns a 400 error.
+
+        - **test** – Assert the property equals the provided `value`. If the property
+        does not
+          exist or does not match, the entire patch is rejected with a 400 error.
+
+
+        Note: The `id` field is not patchable. Attempting to target it via a nested
+        property
+        operation (e.g. `/documentationConfigurations/{id}/id`) will result in a 400
+        error.
+      requestBody:
+        required: true
+        description: A JSON array of patch operations to apply to documentation configurations.
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: '#/components/schemas/jsonPatchDocument'
+            examples:
+              addDocumentationConfig:
+                $ref: '#/components/examples/documentationConfigurationPatch-addDocumentationConfig'
+              replaceDocumentationConfig:
+                $ref: '#/components/examples/documentationConfigurationPatch-replaceDocumentationConfig'
+              removeDocumentationConfig:
+                $ref: '#/components/examples/documentationConfigurationPatch-removeDocumentationConfig'
+              testDocumentationConfig:
+                $ref: '#/components/examples/documentationConfigurationPatch-testDocumentationConfig'
+              addThenRemove:
+                $ref: '#/components/examples/documentationConfigurationPatch-addThenRemove'
+              replaceNestedProperty:
+                $ref: '#/components/examples/documentationConfigurationPatch-replaceNestedProperty'
+              addNestedProperty:
+                $ref: '#/components/examples/documentationConfigurationPatch-addNestedProperty'
+              removeNestedProperty:
+                $ref: '#/components/examples/documentationConfigurationPatch-removeNestedProperty'
+              testNestedProperty:
+                $ref: '#/components/examples/documentationConfigurationPatch-testNestedProperty'
+              mixedBatch:
+                $ref: '#/components/examples/documentationConfigurationPatch-mixedBatch'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/jsonPatchDocument'
+            examples:
+              addDocumentationConfig:
+                $ref: '#/components/examples/documentationConfigurationPatch-addDocumentationConfig'
+              replaceDocumentationConfig:
+                $ref: '#/components/examples/documentationConfigurationPatch-replaceDocumentationConfig'
+              removeDocumentationConfig:
+                $ref: '#/components/examples/documentationConfigurationPatch-removeDocumentationConfig'
+              testDocumentationConfig:
+                $ref: '#/components/examples/documentationConfigurationPatch-testDocumentationConfig'
+              addThenRemove:
+                $ref: '#/components/examples/documentationConfigurationPatch-addThenRemove'
+              replaceNestedProperty:
+                $ref: '#/components/examples/documentationConfigurationPatch-replaceNestedProperty'
+              addNestedProperty:
+                $ref: '#/components/examples/documentationConfigurationPatch-addNestedProperty'
+              removeNestedProperty:
+                $ref: '#/components/examples/documentationConfigurationPatch-removeNestedProperty'
+              testNestedProperty:
+                $ref: '#/components/examples/documentationConfigurationPatch-testNestedProperty'
+              mixedBatch:
+                $ref: '#/components/examples/documentationConfigurationPatch-mixedBatch'
+      responses:
+        '200':
+          description: >-
+            The patch was applied successfully. Returns a collection containing only
+            the documentation
+            configurations that were created by `add` operations in this batch.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: '#/components/schemas/documentationConfigurationCollection'
+              examples:
+                exampleCollection:
+                  $ref: '#/components/examples/documentationConfigurationCollectionResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentationConfigurationCollection'
+              examples:
+                exampleCollection:
+                  $ref: '#/components/examples/documentationConfigurationCollectionResponse'
+        '400':
+          description: >-
+            The request is malformed. Possible causes include: the patch document
+            is not valid JSON,
+            an unsupported operation was used, a `test` operation failed because the
+            documentation configuration
+            does not exist or a nested property value does not match, the `add` operation
+            is missing
+            the `value` field, or a nested property path targets an unrecognized or
+            non-existent field.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response400:
+                  $ref: '#/components/examples/error2Response400'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response400:
+                  $ref: '#/components/examples/error2Response400'
+        '404':
+          description: >-
+            A `replace` operation targeted an documentation configuration that does
+            not exist.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response404:
+                  $ref: '#/components/examples/error2Response404'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response404:
+                  $ref: '#/components/examples/error2Response404'
+  '/documentationConfigurations/{configurationId}':
+    get:
+      tags:
+      - Properties
+      summary: Get a documentation configuration
+      operationId: getDocumentationConfiguration
+      description: Get a documentation configuration by ID.
+      responses:
+        '200':
+          description: The request for the resource succeeded.
+          headers:
+            ETag:
+              description: The entity tag for this resource based on its modifiedAt
+                timestamp.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.investigation.documentation.configuration+json:
+              schema:
+                $ref: '#/components/schemas/documentationConfiguration'
+              examples:
+                configuration:
+                  $ref: '#/components/examples/documentationConfigurationResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentationConfiguration'
+              examples:
+                configuration:
+                  $ref: '#/components/examples/documentationConfigurationResponse'
+        '404':
+          description: No documentation configuration with the specified ID exists.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response404:
+                  $ref: '#/components/examples/error2Response404'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response404:
+                  $ref: '#/components/examples/error2Response404'
+    head:
+      tags:
+      - Properties
+      summary: Get headers for a documentation configuration
+      operationId: headersForDocumentationConfiguration
+      description: Get the headers for a documentation configuration by ID, including
+        the ETag. Useful for checking whether a configuration exists or has changed
+        without retrieving its body.
+      responses:
+        '200':
+          description: The request for the resource succeeded.
+          headers:
+            ETag:
+              description: The entity tag for this resource based on its modifiedAt
+                timestamp.
+              schema:
+                type: string
+        '404':
+          description: No documentation configuration with the specified ID exists.
+    put:
+      tags:
+      - Properties
+      summary: Update an existing documentation configuration
+      operationId: updateDocumentationConfiguration
+      description: Update an existing documentation configuration.
+      requestBody:
+        required: true
+        description: The documentation configuration to update. ID must match the
+          request path.
+        content:
+          application/vnd.sas.investigation.documentation.configuration+json:
+            schema:
+              $ref: '#/components/schemas/documentationConfiguration'
+            examples:
+              configuration:
+                $ref: '#/components/examples/documentationConfigurationPayload'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/documentationConfiguration'
+            examples:
+              configuration:
+                $ref: '#/components/examples/documentationConfigurationPayload'
+      responses:
+        '200':
+          description: The resource was successfully updated.
+          headers:
+            ETag:
+              description: The up-to-date modifiedAt timestamp.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.investigation.documentation.configuration+json:
+              schema:
+                $ref: '#/components/schemas/documentationConfiguration'
+              examples:
+                configuration:
+                  $ref: '#/components/examples/documentationConfigurationResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentationConfiguration'
+              examples:
+                configuration:
+                  $ref: '#/components/examples/documentationConfigurationResponse'
+        '400':
+          description: The request is malformed or the resource is not a valid documentation
+            configuration.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response400:
+                  $ref: '#/components/examples/error2Response400'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response400:
+                  $ref: '#/components/examples/error2Response400'
+        '404':
+          description: No documentation configuration with the specified ID exists.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response404:
+                  $ref: '#/components/examples/error2Response404'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response404:
+                  $ref: '#/components/examples/error2Response404'
+        '412':
+          description: The request refers to an out-of-date version of the documentation
+            configuration.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response412:
+                  $ref: '#/components/examples/error2Response412'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response412:
+                  $ref: '#/components/examples/error2Response412'
+        '428':
+          description: The request is missing the If-Match header.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response428:
+                  $ref: '#/components/examples/error2Response428'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response428:
+                  $ref: '#/components/examples/error2Response428'
+    delete:
+      tags:
+      - Properties
+      summary: Delete a documentation configuration
+      operationId: deleteDocumentationConfiguration
+      description: >-
+        Delete a documentation configuration by ID. If no documentation configuration
+        with the
+        specified ID exists, the request succeeds with no action taken. If the configuration
+        is
+        read-only, only members of the `sasapp` group may delete it.
+      responses:
+        '204':
+          description: The resource was successfully deleted.
+        '400':
+          description: The documentation configuration is read-only and the caller
+            is not a member of the `sasapp` group.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response400:
+                  $ref: '#/components/examples/error2Response400'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error2'
+              examples:
+                error2Response400:
+                  $ref: '#/components/examples/error2Response400'
+    parameters:
+    - name: configurationId
+      in: path
+      required: true
+      description: The ID of the documentation configuration.
+      schema:
+        type: string
   /casEnabled:
     get:
       tags:
@@ -3923,6 +4381,71 @@ components:
           description: The REST link relations for this resource.
           items:
             $ref: '#/components/schemas/link'
+    documentationConfiguration:
+      title: Documentation configuration
+      description: A configuration used to build a help center URL for a given solution.
+      x-sas-media-type:
+        name: application/vnd.sas.investigation.documentation.configuration
+        version: 1
+      properties:
+        id:
+          type: string
+          description: The ID of this configuration.
+        solutionName:
+          type: string
+          description: The name of the solution that owns this configuration.
+        documentationServiceUrl:
+          type: string
+          description: The host URL for the documentation site.
+        softwareId:
+          type: string
+          description: The software ID configured with https://documentation.sas.com.
+        softwareContextIdAdminGuide:
+          type: string
+          description: The context ID to use for the help center URL when a user is
+            viewing the Visual Investigator Administration application.
+        softwareContextIdUserGuide:
+          type: string
+          description: The context ID to use for the help center URL when a user is
+            viewing the Visual Investigator Investigation application.
+        softwareVersion:
+          type: string
+          description: The software version to use alongside the softwareId. 'default'
+            will resolve to the current cadence.
+        helpCenterPriority:
+          type: integer
+          description: The priority to use when selecting a help center URL (higher
+            priority wins).
+        cdcId:
+          type: string
+          description: The CDC ID configured with https://documentation.sas.com.
+        readOnly:
+          type: boolean
+          description: SAS applications can set this value to restrict edit access.
+            Other uses cannot update this configuration if readonly is true.
+        createdAt:
+          type: string
+          description: The creation date in ISO 8601 format.
+        modifiedAt:
+          type: string
+          description: The last modification date in ISO 8601 format.
+        createdBy:
+          type: string
+          description: The ID of user that created the configuration.
+        modifiedBy:
+          type: string
+          description: The ID of user that last modified the configuration.
+    documentationConfigurationCollection:
+      title: Documentation configuration collection
+      description: A collection of documentation configuration representations.
+      allOf:
+      - $ref: '#/components/schemas/baseCollection2'
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/documentationConfiguration'
   examples:
     api:
       description: An example of the root SAS Visual Investigator API object.
@@ -5447,3 +5970,256 @@ components:
         remediation: ""
         links: []
         version: 1
+    documentationConfigurationPayload:
+      description: An example of a documentation configuration.
+      value:
+        id: SVIINVSTGTR
+        solutionName: sas_visual_investigator_default
+        documentationServiceUrl: https://documentation.sas.com
+        softwareId: SVIINVSTGTR
+        softwareContextIdAdminGuide: agLandingPage
+        softwareContextIdUserGuide: ugLandingPage
+        softwareVersion: default
+        helpCenterPriority: 0
+        cdcId: vicdc
+    documentationConfigurationResponse:
+      description: An example of a documentation configuration response.
+      value:
+        id: SVIINVSTGTR
+        solutionName: sas_visual_investigator_default
+        documentationServiceUrl: https://documentation.sas.com
+        softwareId: SVIINVSTGTR
+        softwareContextIdAdminGuide: agLandingPage
+        softwareContextIdUserGuide: ugLandingPage
+        softwareVersion: default
+        helpCenterPriority: 0
+        cdcId: vicdc
+        createdBy: sas.SASVisualInvestigator
+        modifiedBy: sas.SASVisualInvestigator
+        createdAt: 2026-06-26T10:32:13.861000Z
+        modifiedAt: 2026-06-26T10:32:13.861000Z
+    documentationConfigurationCollectionResponse:
+      description: An example collection of documentation configurations. A production
+        system would likely feature more items.
+      value:
+        links:
+        - method: GET
+          rel: self
+          href: /documentationConfigurations?start=0&limit=100
+          uri: /documentationConfigurations?start=0&limit=100
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.investigation.documentation.configuration
+        - method: GET
+          rel: collection
+          href: /documentationConfigurations
+          uri: /documentationConfigurations
+          type: application/vnd.sas.collection
+          itemType: application/vnd.sas.investigation.documentation.configuration
+        name: items
+        accept: application/vnd.sas.investigation.documentation.configuration
+        start: 0
+        count: 1
+        items:
+        - id: SVIINVSTGTR
+          solutionName: sas_visual_investigator_default
+          documentationServiceUrl: https://documentation.sas.com
+          softwareId: SVIINVSTGTR
+          softwareContextIdAdminGuide: agLandingPage
+          softwareContextIdUserGuide: ugLandingPage
+          softwareVersion: default
+          helpCenterPriority: 0
+          cdcId: vicdc
+          createdBy: sas.SASVisualInvestigator
+          modifiedBy: sas.SASVisualInvestigator
+          createdAt: 2026-06-26T10:32:13.861000Z
+          modifiedAt: 2026-06-26T10:32:13.861000Z
+          limit: 100
+          version: 2
+    appConfigurationPatch-addAppConfig:
+      description: Create a new app configuration
+      value:
+      - op: add
+        path: /appConfigurations/-
+        value:
+          appName: MyNewApp
+          appType: Admin
+          urlPathToBootStrap: /my-new-app/bootstrap.json
+          loadOrder: 10
+          moduleName: myNewAppModule
+          version: 1
+    appConfigurationPatch-replaceAppConfig:
+      description: Replace an existing app configuration
+      value:
+      - op: replace
+        path: /appConfigurations/abc-123
+        value:
+          id: abc-123
+          appName: UpdatedApp
+          appType: Admin
+          loadOrder: 20
+          version: 2
+    appConfigurationPatch-removeAppConfig:
+      description: Delete an app configuration
+      value:
+      - op: remove
+        path: /appConfigurations/abc-123
+    appConfigurationPatch-testAppConfig:
+      description: Test that an app configuration exists
+      value:
+      - op: test
+        path: /appConfigurations/abc-123
+    appConfigurationPatch-addThenRemove:
+      description: Create then remove an app configuration
+      value:
+      - op: add
+        path: /appConfigurations/-
+        value:
+          id: temp-app-123
+          appName: TempApp
+          appType: Admin
+          version: 1
+      - op: remove
+        path: /appConfigurations/temp-app-123
+    appConfigurationPatch-replaceNestedProperty:
+      description: Replace a single property on an existing app configuration
+      value:
+      - op: replace
+        path: /appConfigurations/abc-123/appName
+        value: RenamedApp
+    appConfigurationPatch-addNestedProperty:
+      description: Set a property value on an existing app configuration
+      value:
+      - op: add
+        path: /appConfigurations/abc-123/urlPathToApplicationCheck
+        value: /apps/myapp/health
+    appConfigurationPatch-removeNestedProperty:
+      description: Clear a property on an existing app configuration
+      value:
+      - op: remove
+        path: /appConfigurations/abc-123/urlPathToApplicationCheck
+    appConfigurationPatch-testNestedProperty:
+      description: Assert a property has a specific value
+      value:
+      - op: test
+        path: /appConfigurations/abc-123/appType
+        value: Core
+    appConfigurationPatch-mixedBatch:
+      description: Mixed batch with entity-level and nested property operations
+      value:
+      - op: test
+        path: /appConfigurations/abc-123/appType
+        value: Core
+      - op: replace
+        path: /appConfigurations/abc-123/appName
+        value: NewName
+      - op: replace
+        path: /appConfigurations/abc-123/loadOrder
+        value: 3
+      - op: add
+        path: /appConfigurations/-
+        value:
+          appName: SecondApp
+          appType: Admin
+          loadOrder: 10
+          version: 1
+    documentationConfigurationPatch-addDocumentationConfig:
+      description: Create a new documentation configuration
+      value:
+      - op: add
+        path: /documentationConfigurations/-
+        value:
+          id: SVIINVSTGTR
+          solutionName: sas_visual_investigator_default
+          documentationServiceUrl: https://documentation.sas.com
+          softwareId: SVIINVSTGTR
+          softwareContextIdAdminGuide: agLandingPage
+          softwareContextIdUserGuide: ugLandingPage
+          softwareVersion: default
+          helpCenterPriority: 0
+          cdcId: vicdc
+    documentationConfigurationPatch-replaceDocumentationConfig:
+      description: Replace an existing documentation configuration
+      value:
+      - op: replace
+        path: /documentationConfigurations/SVIINVSTGTR
+        value:
+          id: SVIINVSTGTR
+          solutionName: sas_visual_investigator_default
+          documentationServiceUrl: https://documentation.sas.com
+          softwareId: NEW
+          softwareContextIdAdminGuide: agLandingPage
+          softwareContextIdUserGuide: ugLandingPage
+          softwareVersion: default
+          helpCenterPriority: 100
+    documentationConfigurationPatch-removeDocumentationConfig:
+      description: Delete an documentation configuration
+      value:
+      - op: remove
+        path: /documentationConfigurations/EXAMPLE
+    documentationConfigurationPatch-testDocumentationConfig:
+      description: Test that an documentation configuration exists
+      value:
+      - op: test
+        path: /documentationConfigurations/EXAMPLE
+    documentationConfigurationPatch-addThenRemove:
+      description: Create then remove an documentation configuration
+      value:
+      - op: add
+        path: /documentationConfigurations/-
+        value:
+          id: EXAMPLE
+          solutionName: sas_visual_investigator_default
+          documentationServiceUrl: https://documentation.sas.com
+          softwareId: SVIINVSTGTR
+          softwareContextIdAdminGuide: agLandingPage
+          softwareContextIdUserGuide: ugLandingPage
+          softwareVersion: default
+          helpCenterPriority: 0
+      - op: remove
+        path: /documentationConfigurations/EXAMPLE
+    documentationConfigurationPatch-replaceNestedProperty:
+      description: Replace a single property on an existing documentation configuration
+      value:
+      - op: replace
+        path: /documentationConfigurations/EXAMPLE/softwareVersion
+        value: "2.0"
+    documentationConfigurationPatch-addNestedProperty:
+      description: Set a property value on an existing documentation configuration
+      value:
+      - op: add
+        path: /documentationConfigurations/EXAMPLE/helpCenterPriority
+        value: 10
+    documentationConfigurationPatch-removeNestedProperty:
+      description: Clear a property on an existing documentation configuration
+      value:
+      - op: remove
+        path: /documentationConfigurations/EXAMPLE/softwareContextIdAdminGuide
+    documentationConfigurationPatch-testNestedProperty:
+      description: Assert a property has a specific value
+      value:
+      - op: test
+        path: /documentationConfigurations/EXAMPLE/softwareVersion
+        value: default
+    documentationConfigurationPatch-mixedBatch:
+      description: Mixed batch with entity-level and nested property operations
+      value:
+      - op: test
+        path: /documentationConfigurations/EXAMPLE/softwareId
+        value: SVIINVSTGTR
+      - op: replace
+        path: /documentationConfigurations/EXAMPLE/softwareId
+        value: NEW
+      - op: replace
+        path: /documentationConfigurations/EXAMPLE/softwareVersion
+        value: "3"
+      - op: add
+        path: /documentationConfigurations/-
+        value:
+          id: EXAMPLE
+          solutionName: sas_visual_investigator_default
+          documentationServiceUrl: https://documentation.sas.com
+          softwareId: SVIINVSTGTR
+          softwareContextIdAdminGuide: agLandingPage
+          softwareContextIdUserGuide: ugLandingPage
+          softwareVersion: default
+          helpCenterPriority: 0

@@ -30,6 +30,8 @@ tags:
   description: Service related operations.
 - name: Model Context Protocol
   description: MCP related operations.
+- name: Agents
+  description: Agent related operations.
 paths:
   /v1:
     get:
@@ -1104,6 +1106,228 @@ paths:
       responses:
         "204":
           description: The MCP server registration was deleted successfully.
+  /v1/agents:
+    get:
+      summary: Retrieve a collection of agents
+      description: |
+        Get a collection of agents. Note that by default, only the first ten
+        agents are returned. To retrieve all agents, use the "start", "limit",
+        and "sortBy" query parameters. For example, to retrieve the twenty most
+        recently created agents, use the following query string:
+        `?limit=20&sortBy=order:descending`.
+      tags:
+      - Agents
+      operationId: getAgents
+      parameters:
+      - name: filter
+        in: query
+        description: The criteria for filtering the collection. See [Filtering in
+          REST APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#filtering).
+        schema:
+          type: string
+          format: string
+      - name: start
+        in: query
+        description: The start index for pagination.
+        schema:
+          type: integer
+          format: int64
+          default: 0
+      - name: limit
+        in: query
+        description: The maximum number of agents to return on a page.
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      - name: sortBy
+        in: query
+        description: The criteria for sorting the collection. See [Sorting in REST
+          APIs](https://developer.sas.com/docs/rest-apis/getting-started/usage-notes#sorting).
+        schema:
+          type: string
+          format: sort-criteria
+      responses:
+        "200":
+          description: A collection of agents.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/agents"
+              examples:
+                default:
+                  $ref: "#/components/examples/agentsResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/agents"
+              examples:
+                default:
+                  $ref: "#/components/examples/agentsResponse"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+    post:
+      summary: Create an agent
+      description: Create a new agent.
+      tags:
+      - Agents
+      operationId: createAgent
+      requestBody:
+        description: The agent to create.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/agent"
+            examples:
+              default:
+                $ref: "#/components/examples/agentRequest"
+      responses:
+        "201":
+          description: The agent was created.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/agent"
+              examples:
+                default:
+                  $ref: "#/components/examples/agentResponse"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+  /v1/agents/{agentId}:
+    head:
+      summary: Check if an agent exists
+      description: Check if a single agent exists by its ID.
+      tags:
+      - Agents
+      operationId: headersForAgent
+      parameters:
+      - name: agentId
+        in: path
+        description: The unique identifier of the agent to retrieve.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The agent was found.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        "404":
+          description: The agent was not found.
+    get:
+      summary: Retrieve an agent
+      description: Retrieve a single agent by its ID.
+      tags:
+      - Agents
+      operationId: getAgent
+      parameters:
+      - name: agentId
+        in: path
+        description: The unique identifier of the agent to retrieve.
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The agent was found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/agent"
+              examples:
+                default:
+                  $ref: "#/components/examples/agentResponse"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        "404":
+          description: The agent was not found.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+    put:
+      summary: Update an agent
+      description: |
+        Replace an existing agent with the provided representation.
+      tags:
+      - Agents
+      operationId: updateAgent
+      parameters:
+      - name: agentId
+        in: path
+        description: The unique identifier of the agent to update.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: The updated agent representation.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/agent"
+            examples:
+              default:
+                $ref: "#/components/examples/agentRequest"
+      responses:
+        "200":
+          description: The agent was updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/agent"
+              examples:
+                default:
+                  $ref: "#/components/examples/agentResponse"
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                default:
+                  $ref: "#/components/examples/errorResponse"
+    delete:
+      summary: Delete an agent
+      description: Delete an agent by its ID.
+      tags:
+      - Agents
+      operationId: deleteAgent
+      parameters:
+      - name: agentId
+        in: path
+        description: The unique identifier of the agent to delete.
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: The agent was deleted successfully.
 components:
   schemas:
     status:
@@ -1507,6 +1731,93 @@ components:
             type: array
             items:
               $ref: "#/components/schemas/mcpServer"
+    tool:
+      title: Tool
+      description: |
+        A tool that an agent has access to. A tool must specify either an MCP
+        server and glob filter (`mcpServerId` and `globFilter`) or a sub-agent
+        (`subAgentId`), but not both.
+      type: object
+      properties:
+        mcpServerId:
+          type: string
+          description: |
+            The identifier of the MCP server registration that provides the
+            tools. Must be accompanied by a `globFilter` and must not be
+            combined with a `subAgentId`.
+        globFilter:
+          type: string
+          description: |
+            A glob pattern that selects which tools from the MCP server are
+            made available to the agent. Required when `mcpServerId` is set.
+        subAgentId:
+          type: string
+          description: |
+            The identifier of another agent to use as a tool. Must not be
+            combined with `mcpServerId` or `globFilter`.
+      oneOf:
+      - title: MCP server tool
+        description: |
+          A tool backed by an MCP server. Requires both `mcpServerId` and
+          `globFilter`, and must not include `subAgentId`.
+        required:
+        - mcpServerId
+        - globFilter
+        not:
+          required:
+          - subAgentId
+      - title: Sub-agent tool
+        description: |
+          A tool backed by another agent. Requires `subAgentId`, and must
+          not include `mcpServerId` or `globFilter`.
+        required:
+        - subAgentId
+        not:
+          anyOf:
+          - required:
+            - mcpServerId
+          - required:
+            - globFilter
+    agent:
+      title: Agent
+      description: |
+        An agent containing the metadata that describes it, such as its prompt
+        and the tools it has access to.
+      type: object
+      required:
+      - id
+      - name
+      - prompt
+      - tools
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the agent.
+        name:
+          type: string
+          description: The display name of the agent.
+        description:
+          type: string
+          description: A description of the agent.
+        prompt:
+          type: string
+          description: The system prompt that defines the agent's behavior.
+        tools:
+          type: array
+          description: The tools that the agent has access to.
+          items:
+            $ref: "#/components/schemas/tool"
+    agents:
+      title: Collection of agents
+      description: A collection of agents.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/agent"
     error2:
       title: Error
       type: object
@@ -1646,29 +1957,40 @@ components:
           description: The media type or link type of the items in the response body
             for a `PUT`, `POST`, or `PATCH` operation.
   examples:
-    userPromptRequest:
-      summary: Example 2 - User Prompt Request
-      description: |
-        A request that is sent from the client to the gateway after a user prompt has been selected.
-        The "type" field must be set to "userPromptRequest"
-      value: {"type": "userPromptRequest", "context": {"project_id": "95876166-2c45-486f-b304-13eb60979d9c",
-          "pipeline_id": "508664ac-5b53-4272-bce3-77e3aa90d2eb", "node_id": "2f85baaf-090c-4364-b0c7-49aaf1064110"},
-        "selectedPrompt": {"id": "start_exploration", "label": "Start exploration",
-          "messageText": "Start the exploration process."}}
-    copilotRequestResponse:
-      summary: Message List Response
-      description: A list of messages
+    statusEnabled:
+      summary: GenAI Gateway Status Example with Enabled State
+      description: Example of a GenAI Gateway status response.
       value:
-        creationTimeStamp: "2025-03-02T13:39:35.925677Z"
-        createdBy: "sas"
-        modifiedTimeStamp: "2025-03-02T13:39:35.925669Z"
-        modifiedBy: "sas"
-        id: "990989bd-e6f7-4a76-b313-afdba829144b"
-        type: "copilotResponse"
-        chatId: "0b447308-2f1a-4430-9fc9-3e4738cf59c3"
-        content: "Run a longer process that will train some exploratory models and\
-          \ report the best suggestions.\n\n[Start exploration](prompt:start_exploration?messageText=Start%20the%20exploration%20process.)"
-        complete: true
+        enabled: true
+        activeTimeStamp: "2014-08-06 11:20:00.764522 +0000 UTC"
+        territory: "US"
+    functionResult:
+      summary: Example 3 - Function Result
+      description: |
+        A request that is sent from the client to the gateway after a function has been executed.
+        The "type" field must be set to "functionResult"
+      value: {"type": "functionResult", "copilotFunctionResponseId": "95876166-2c45-486f-b304-13eb60979d9c",
+        "data": {"pipeline_id": "508664ac-5b53-4272-bce3-77e3aa90d2eb", "node_id": "2f85baaf-090c-4364-b0c7-49aaf1064110",
+          "status": "complete"}}
+    copilotsResponse:
+      summary: Copilot List Response
+      description: A list of copilots
+      value: {"version": 1, "accept": "application/vnd.sas.collection+json", "count": 2,
+        "start": 0, "limit": 0, "name": "collection", "items": [{"id": "modelStudio",
+            "version": "v1"}, {"id": "visualAnalytics", "version": "v1"}]}
+    agentRequest:
+      summary: Agent Request
+      description: |
+        A request body for creating or updating an agent.
+      value:
+        id: some-agent
+        name: Some Agent
+        description: An example agent that answers questions about the weather.
+        prompt: You are a helpful assistant that answers questions about the weather.
+        tools:
+        - mcpServerId: some-mcp-server
+          globFilter: weather-*
+        - subAgentId: another-agent
     mcpServersResponse:
       summary: MCP Server Registrations Response
       description: The response from fetching a collection of MCP server registrations.
@@ -1705,12 +2027,166 @@ components:
           uri: /genAiGateway/v1/mcpServers?start=0&limit=10
           type: application/vnd.sas.collection
           itemType: application/json
-    copilotsResponse:
-      summary: Copilot List Response
-      description: A list of copilots
-      value: {"version": 1, "accept": "application/vnd.sas.collection+json", "count": 2,
-        "start": 0, "limit": 0, "name": "collection", "items": [{"id": "modelStudio",
-            "version": "v1"}, {"id": "visualAnalytics", "version": "v1"}]}
+    copilotRequestResponse:
+      summary: Message List Response
+      description: A list of messages
+      value:
+        creationTimeStamp: "2025-03-02T13:39:35.925677Z"
+        createdBy: "sas"
+        modifiedTimeStamp: "2025-03-02T13:39:35.925669Z"
+        modifiedBy: "sas"
+        id: "990989bd-e6f7-4a76-b313-afdba829144b"
+        type: "copilotResponse"
+        chatId: "0b447308-2f1a-4430-9fc9-3e4738cf59c3"
+        content: "Run a longer process that will train some exploratory models and\
+          \ report the best suggestions.\n\n[Start exploration](prompt:start_exploration?messageText=Start%20the%20exploration%20process.)"
+        complete: true
+    copilotRequest:
+      summary: Copilot Request Example
+      description: Send a copilot request of type "userPromptRequest"
+      value:
+        applicationName: My Sample Application
+        copilot:
+          id: myApplication
+          version: v2
+        message:
+          type: userPromptRequest
+          selectedPrompt:
+            id: "start_exploration"
+            label: "Start exploration"
+            messageText: "Start the exploration process."
+    userRequest:
+      summary: Example 1 - User Request
+      description: |
+        A request that is sent from the client to the gateway after a basic prompt has been entered.
+        The "type" field must be set to "userRequest"
+      value: {"content": "Hello, how are you?", "type": "userRequest", "context": {
+          "view": "pipelineTab", "node_id": "95876166-2c45-486f-b304-13eb60979d9c"}}
+    statusDisabled:
+      summary: GenAI Gateway Status Example with Disabled State
+      description: Example of a GenAI Gateway status response.
+      value:
+        enabled: false
+        reason: "One or more required credentials are missing"
+    errorResponse:
+      summary: Error Response
+      description: This example shows the error response returned when the Gen AI
+        gateway API returns an error
+      value: {"message": "An error has occurred", "remediation": "Do this to fix the\
+          \ error", "errorCode": 12345, "errors": [], "version": 2}
+    mcpServerRequest:
+      summary: MCP Server Registration Request
+      description: |
+        A request body for creating or updating an MCP server registration.
+      value:
+        id: some-mcp-server
+        url: /someStudioMcp/v1/mcp
+    chatRequest2:
+      summary: Example 2 - with user request
+      description: Create a chat with an initial request of type "userRequest"
+      value:
+        applicationName: My Sample Application
+        copilot:
+          id: myApplication
+          version: v2
+        initialRequest:
+          type: userRequest
+          context:
+            view: pipelineTab
+          content: hello, how are you?
+    chatsResponse:
+      summary: Chat List Response
+      description: The response from fetching a list of chat objects
+      value: {"version": 1, "accept": "application/vnd.sas.collection+json", "count": 4,
+        "start": 0, "limit": 10, "name": "collection", "items": [{"creationTimeStamp": "2025-02-20T23:19:02.048331Z",
+            "createdBy": "user1", "modifiedTimeStamp": "2025-02-20T23:19:02.04832Z",
+            "modifiedBy": "user1", "id": "c5098078-af59-451a-8b18-0e3937e9df90", "state": "ready"},
+          {"creationTimeStamp": "2025-02-20T20:18:38.200451Z", "createdBy": "user2",
+            "modifiedTimeStamp": "2025-02-20T20:18:38.200443Z", "modifiedBy": "user2",
+            "id": "03f888b4-a2be-4b4a-aa5e-05920dcce57a", "state": "ready"}, {"creationTimeStamp": "2025-02-20T20:15:45.239657Z",
+            "createdBy": "user1", "modifiedTimeStamp": "2025-02-20T20:15:45.239648Z",
+            "modifiedBy": "user1", "id": "36e08a2e-4647-467b-b5d9-58c1cf3e01b0", "state": "ready"},
+          {"creationTimeStamp": "2025-02-20T16:49:29.920978Z", "createdBy": "user1",
+            "modifiedTimeStamp": "2025-02-20T16:49:29.920968Z", "modifiedBy": "user1",
+            "id": "cb68e96a-3d08-400c-8b2f-d0a650d61918", "state": "ready"}]}
+    userPromptRequest:
+      summary: Example 2 - User Prompt Request
+      description: |
+        A request that is sent from the client to the gateway after a user prompt has been selected.
+        The "type" field must be set to "userPromptRequest"
+      value: {"type": "userPromptRequest", "context": {"project_id": "95876166-2c45-486f-b304-13eb60979d9c",
+          "pipeline_id": "508664ac-5b53-4272-bce3-77e3aa90d2eb", "node_id": "2f85baaf-090c-4364-b0c7-49aaf1064110"},
+        "selectedPrompt": {"id": "start_exploration", "label": "Start exploration",
+          "messageText": "Start the exploration process."}}
+    mcpServerResponse:
+      summary: MCP Server Registration Response
+      description: |
+        A response for a single MCP server registration.
+      value:
+        id: some-mcp-server
+        url: /someStudioMcp/v1/mcp
+        creationTimeStamp: 2026-03-06T03:36:07.587214Z
+        createdBy: sas
+        modifiedTimeStamp: 2026-03-06T03:36:20.037110Z
+        modifiedBy: sas
+    agentsResponse:
+      summary: Agents Response
+      description: The response from fetching a collection of agents.
+      value:
+        version: 1
+        accept: application/vnd.sas.collection+json
+        count: 2
+        start: 0
+        limit: 10
+        name: agents
+        items:
+        - id: some-agent
+          name: Some Agent
+          description: An example agent that answers questions about the weather.
+          prompt: You are a helpful assistant that answers questions about the weather.
+          tools:
+          - mcpServerId: some-mcp-server
+            globFilter: weather-*
+          - subAgentId: another-agent
+        - id: another-agent
+          name: Another Agent
+          description: An example agent with no tools.
+          prompt: You are a helpful assistant.
+          tools: []
+        links:
+        - method: GET
+          rel: collection
+          href: /genAiGateway/v1/agents
+          uri: /genAiGateway/v1/agents
+          type: application/vnd.sas.collection
+          itemType: application/json
+        - method: GET
+          rel: self
+          href: /genAiGateway/v1/agents?start=0&limit=10
+          uri: /genAiGateway/v1/agents?start=0&limit=10
+          type: application/vnd.sas.collection
+          itemType: application/json
+    userRequestResponse:
+      summary: User request response
+      description: Response from sending a message
+      value: {"creationTimeStamp": "2025-03-20T18:43:06.701515Z", "createdBy": "testUser",
+        "modifiedTimeStamp": "2025-03-20T18:43:06.701511Z", "modifiedBy": "testUser",
+        "id": "599ff50e-62be-41c2-81ce-1c0c365d20f4", "type": "userRequest", "chatId": "2b5a5582-9421-479e-9960-f45ccbdcb7f5",
+        "content": "Hello, how are you?", "requestMessageId": "2357f8e7-dcbb-4f84-abea-e04eaff9b337"}
+    chatRequest3:
+      summary: Example 3 - with user prompt request
+      description: Create a chat with an initial request of type "userPromptRequest"
+      value:
+        applicationName: My Sample Application
+        copilot:
+          id: myApplication
+          version: v2
+        initialRequest:
+          type: userPromptRequest
+          selectedPrompt:
+            id: "start_exploration"
+            label: "Start exploration"
+            messageText: "Start the exploration process."
     messagesResponse:
       summary: Message List Response
       description: A list of messages
@@ -1884,79 +2360,19 @@ components:
           {"method": "POST", "rel": "createMessage", "href": "/genAiGateway/v1/chats/{chatId}/messages",
             "uri": "/genAiGateway/v1/chats/{chatId}/messages", "type": "application/json",
             "responseType": "application/json"}]}
-    statusEnabled:
-      summary: GenAI Gateway Status Example with Enabled State
-      description: Example of a GenAI Gateway status response.
-      value:
-        enabled: true
-        activeTimeStamp: "2014-08-06 11:20:00.764522 +0000 UTC"
-        territory: "US"
-    chatRequest3:
-      summary: Example 3 - with user prompt request
-      description: Create a chat with an initial request of type "userPromptRequest"
-      value:
-        applicationName: My Sample Application
-        copilot:
-          id: myApplication
-          version: v2
-        initialRequest:
-          type: userPromptRequest
-          selectedPrompt:
-            id: "start_exploration"
-            label: "Start exploration"
-            messageText: "Start the exploration process."
-    chatsResponse:
-      summary: Chat List Response
-      description: The response from fetching a list of chat objects
-      value: {"version": 1, "accept": "application/vnd.sas.collection+json", "count": 4,
-        "start": 0, "limit": 10, "name": "collection", "items": [{"creationTimeStamp": "2025-02-20T23:19:02.048331Z",
-            "createdBy": "user1", "modifiedTimeStamp": "2025-02-20T23:19:02.04832Z",
-            "modifiedBy": "user1", "id": "c5098078-af59-451a-8b18-0e3937e9df90", "state": "ready"},
-          {"creationTimeStamp": "2025-02-20T20:18:38.200451Z", "createdBy": "user2",
-            "modifiedTimeStamp": "2025-02-20T20:18:38.200443Z", "modifiedBy": "user2",
-            "id": "03f888b4-a2be-4b4a-aa5e-05920dcce57a", "state": "ready"}, {"creationTimeStamp": "2025-02-20T20:15:45.239657Z",
-            "createdBy": "user1", "modifiedTimeStamp": "2025-02-20T20:15:45.239648Z",
-            "modifiedBy": "user1", "id": "36e08a2e-4647-467b-b5d9-58c1cf3e01b0", "state": "ready"},
-          {"creationTimeStamp": "2025-02-20T16:49:29.920978Z", "createdBy": "user1",
-            "modifiedTimeStamp": "2025-02-20T16:49:29.920968Z", "modifiedBy": "user1",
-            "id": "cb68e96a-3d08-400c-8b2f-d0a650d61918", "state": "ready"}]}
-    mcpServerResponse:
-      summary: MCP Server Registration Response
+    agentResponse:
+      summary: Agent Response
       description: |
-        A response for a single MCP server registration.
+        A response for a single agent.
       value:
-        id: some-mcp-server
-        url: /someStudioMcp/v1/mcp
-        creationTimeStamp: 2026-03-06T03:36:07.587214Z
-        createdBy: sas
-        modifiedTimeStamp: 2026-03-06T03:36:20.037110Z
-        modifiedBy: sas
-    errorResponse:
-      summary: Error Response
-      description: This example shows the error response returned when the Gen AI
-        gateway API returns an error
-      value: {"message": "An error has occurred", "remediation": "Do this to fix the\
-          \ error", "errorCode": 12345, "errors": [], "version": 2}
-    copilotRequest:
-      summary: Copilot Request Example
-      description: Send a copilot request of type "userPromptRequest"
-      value:
-        applicationName: My Sample Application
-        copilot:
-          id: myApplication
-          version: v2
-        message:
-          type: userPromptRequest
-          selectedPrompt:
-            id: "start_exploration"
-            label: "Start exploration"
-            messageText: "Start the exploration process."
-    statusDisabled:
-      summary: GenAI Gateway Status Example with Disabled State
-      description: Example of a GenAI Gateway status response.
-      value:
-        enabled: false
-        reason: "One or more required credentials are missing"
+        id: some-agent
+        name: Some Agent
+        description: An example agent that answers questions about the weather.
+        prompt: You are a helpful assistant that answers questions about the weather.
+        tools:
+        - mcpServerId: some-mcp-server
+          globFilter: weather-*
+        - subAgentId: another-agent
     chatResponse:
       summary: Chat Response
       description: |
@@ -1980,45 +2396,3 @@ components:
         siteNumber: "123456"
         platformUrl: "https://genai.example.com"
         secretId: "1f1e35bf-e762-4158-83d5-40746b1671e1"
-    mcpServerRequest:
-      summary: MCP Server Registration Request
-      description: |
-        A request body for creating or updating an MCP server registration.
-      value:
-        id: some-mcp-server
-        url: /someStudioMcp/v1/mcp
-    userRequest:
-      summary: Example 1 - User Request
-      description: |
-        A request that is sent from the client to the gateway after a basic prompt has been entered.
-        The "type" field must be set to "userRequest"
-      value: {"content": "Hello, how are you?", "type": "userRequest", "context": {
-          "view": "pipelineTab", "node_id": "95876166-2c45-486f-b304-13eb60979d9c"}}
-    chatRequest2:
-      summary: Example 2 - with user request
-      description: Create a chat with an initial request of type "userRequest"
-      value:
-        applicationName: My Sample Application
-        copilot:
-          id: myApplication
-          version: v2
-        initialRequest:
-          type: userRequest
-          context:
-            view: pipelineTab
-          content: hello, how are you?
-    functionResult:
-      summary: Example 3 - Function Result
-      description: |
-        A request that is sent from the client to the gateway after a function has been executed.
-        The "type" field must be set to "functionResult"
-      value: {"type": "functionResult", "copilotFunctionResponseId": "95876166-2c45-486f-b304-13eb60979d9c",
-        "data": {"pipeline_id": "508664ac-5b53-4272-bce3-77e3aa90d2eb", "node_id": "2f85baaf-090c-4364-b0c7-49aaf1064110",
-          "status": "complete"}}
-    userRequestResponse:
-      summary: User request response
-      description: Response from sending a message
-      value: {"creationTimeStamp": "2025-03-20T18:43:06.701515Z", "createdBy": "testUser",
-        "modifiedTimeStamp": "2025-03-20T18:43:06.701511Z", "modifiedBy": "testUser",
-        "id": "599ff50e-62be-41c2-81ce-1c0c365d20f4", "type": "userRequest", "chatId": "2b5a5582-9421-479e-9960-f45ccbdcb7f5",
-        "content": "Hello, how are you?", "requestMessageId": "2357f8e7-dcbb-4f84-abea-e04eaff9b337"}

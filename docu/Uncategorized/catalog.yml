@@ -1,7 +1,7 @@
 ---
 openapi: 3.0.3
 info:
-  version: "7"
+  version: "8"
   title: Catalog
   description: |
     The Catalog API allows for the discovery, creation, and integration of metadata. This allows management of information about other information.
@@ -4024,9 +4024,9 @@ paths:
               schema:
                 type: string
             Content-Length:
-              $ref: "#/paths/~1instances~1search/get/responses/200/headers/Content-Length"
+              $ref: "#/paths/~1lineage/post/responses/200/headers/Content-Length"
             Content-Encoding:
-              $ref: "#/paths/~1instances~1search/get/responses/200/headers/Content-Encoding"
+              $ref: "#/paths/~1lineage/post/responses/200/headers/Content-Encoding"
           content:
             text/csv:
               schema:
@@ -4109,14 +4109,9 @@ paths:
             Content-Type:
               $ref: "#/paths/~1/get/responses/200/headers/Content-Type"
             Content-Length:
-              description: Indicates the size of the message body (in bytes).
-              schema:
-                type: string
+              $ref: "#/paths/~1lineage/post/responses/200/headers/Content-Length"
             Content-Encoding:
-              description: Lists any encodings (comma separated) that have been applied
-                to the message payload and in what order.
-              schema:
-                type: string
+              $ref: "#/paths/~1lineage/post/responses/200/headers/Content-Encoding"
           content:
             text/csv:
               schema:
@@ -14021,6 +14016,166 @@ paths:
           $ref: "#/paths/~1/get/responses/406"
         "500":
           $ref: "#/paths/~1bots/get/responses/500"
+    post:
+      x-sas-internal: true
+      operationId: downloadLineage
+      summary: Download data flow lineage as CSV
+      description: |
+        Downloads data flow lineage for a single data flow instance with a specific ID or URI, returned as CSV.
+        The `level` query parameter controls the level or degree of complexity of metadata to be included in the response.
+        Note: This is only available with the `DATAPREP-67225_LineageCSVExport` feature flag enabled.
+      tags:
+      - Lineage
+      parameters:
+      - $ref: "#/paths/~1lineage/get/parameters/0"
+      - $ref: "#/paths/~1lineage/get/parameters/1"
+      - $ref: "#/paths/~1lineage/get/parameters/2"
+      - $ref: "#/paths/~1lineage/get/parameters/3"
+      - name: level
+        in: query
+        description: The level or degree of complexity of metadata to be included.
+        schema:
+          type: string
+          format: enumeration
+          enum:
+          - NODE
+          - FLOW
+          default: NODE
+      - name: delimiter
+        in: query
+        description: |
+          The delimiter to use to separate individual fields within a row. Defaults to comma (","). Note that the encoded value will need to be provided for semi-colon (i.e. `%3B`).
+        schema:
+          type: string
+          format: enumeration
+          enum:
+          - ","
+          - ;
+          default: ","
+      - name: Content-Type
+        required: true
+        description: The representation in the request body.
+        in: header
+        schema:
+          type: string
+          enum:
+          - application/vnd.sas.metadata.lineage.download.options+json
+      - name: Accept
+        description: The desired representation for the response. Must be text/csv.
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - text/csv
+          default: text/csv
+      requestBody:
+        content:
+          application/vnd.sas.metadata.lineage.download.options+json:
+            schema:
+              type: object
+              properties:
+                filters:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                    - dataset
+                    properties:
+                      dataset:
+                        type: string
+                        description: Dataset in `<library>.<table>` format.
+                      columns:
+                        type: array
+                        items:
+                          type: string
+                options:
+                  type: object
+                  properties:
+                    includeControlDependencies:
+                      type: boolean
+                    includeTransformationDetails:
+                      type: boolean
+            examples:
+              Lineage Download Request:
+                summary: Lineage Download Request
+                description: Request to export data flow lineage as CSV using NODE
+                  level.
+                value:
+                  filters:
+                  - dataset: SASHELP.CLASS
+                    columns:
+                    - height
+                    - weight
+                  - dataset: SASHELP.CLASSFIT
+                    columns:
+                    - upper
+                    - lower
+                  options:
+                    includeTransformationDetails: true
+      responses:
+        "200":
+          description: OK.
+          headers:
+            Content-Type:
+              $ref: "#/paths/~1/get/responses/200/headers/Content-Type"
+            Content-Length:
+              description: Indicates the size of the message body (in bytes).
+              schema:
+                type: string
+            Content-Encoding:
+              description: Lists any encodings (comma separated) that have been applied
+                to the message payload and in what order.
+              schema:
+                type: string
+          content:
+            text/csv:
+              schema:
+                type: string
+              examples:
+                Lineage Download - NODE:
+                  summary: Lineage Download Response - NODE
+                  description: NODE-level CSV output for a single data flow with transformation
+                    details included. Filtered to include lineage for the Height and
+                    Weight columns of the SASHELP.CLASS dataset and Upper and Lower
+                    columns of the SASHELP.CLASSFIT dataset.
+                  value: "Flow Name,Swimlane,Step Priority,Output Port,Node Name,Node\
+                    \ Type,Node Identifier,Consuming Dataset Name,Consuming Attribute\
+                    \ Table Name,Consuming Attribute Column Name,Passthrough Flag,Providing\
+                    \ Dataset Name,Providing Attribute Table Name,Providing Attribute\
+                    \ Column Name,Purpose,Details MDM_Sample.flw,0,0,0,Calculate BMI,Query,b877b67c-7513-4b03-af2f-1715630914a9,WORK,CLASS_ENRICHED,Height,true,SASHELP,CLASS,Height,Use-as-is,\
+                    \ MDM_Sample.flw,0,0,0,Calculate BMI,Query,b877b67c-7513-4b03-af2f-1715630914a9,WORK,CLASS_ENRICHED,BMI,false,SASHELP,CLASS,Height,Directly\
+                    \ used in the computation of a measure,t1.Height/t1.Weight MDM_Sample.flw,0,0,0,Calculate\
+                    \ BMI,Query,b877b67c-7513-4b03-af2f-1715630914a9,WORK,CLASS_ENRICHED,Weight,true,SASHELP,CLASS,Weight,Use-as-is,\
+                    \ MDM_Sample.flw,0,0,0,Calculate BMI,Query,b877b67c-7513-4b03-af2f-1715630914a9,WORK,CLASS_ENRICHED,BMI,false,SASHELP,CLASS,Weight,Directly\
+                    \ used in the computation of a measure,t1.Height/t1.Weight MDM_Sample.flw,0,1,0,Query\
+                    \ Bigger 12 years,Query,250e2486-87c9-4215-8308-48d588d8307a,TRGLIB,MyCLASS,Range,false,SASHELP,CLASSFIT,lower,Directly\
+                    \ used in the computation of a measure,t2.'upper'n-t2.'lower'n\
+                    \ MDM_Sample.flw,0,1,0,Query Bigger 12 years,Query,250e2486-87c9-4215-8308-48d588d8307a,TRGLIB,MyCLASS,BMI,true,WORK,CLASS_ENRICHED,BMI,Use-as-is,\
+                    \ MDM_Sample.flw,0,1,0,Query Bigger 12 years,Query,250e2486-87c9-4215-8308-48d588d8307a,TRGLIB,MyCLASS,Range,false,SASHELP,CLASSFIT,upper,Directly\
+                    \ used in the computation of a measure,t2.'upper'n-t2.'lower'n\
+                    \ MDM_Sample.flw,0,2,0,Manage Columns,Manage Columns,c60042a3-1fb6-4ed5-92f9-c07987929bad,WORK,_Manage\
+                    \ Columns,BMI,true,TRGLIB,MYCLASS,BMI,Use-as-is, MDM_Sample.flw,0,2,0,Manage\
+                    \ Columns,Manage Columns,c60042a3-1fb6-4ed5-92f9-c07987929bad,WORK,_Manage\
+                    \ Columns,Range,true,TRGLIB,MYCLASS,Range,Use-as-is, MDM_Sample.flw,0,3,0,Query\
+                    \ Sex ,Query,47b48d43-b2fb-422d-823f-b0dcabbb5e82,TRGLIB,MyClassStats,AVG_BMI,false,WORK,_Manage\
+                    \ Columns,BMI,Directly used in the computation of a measure, MDM_Sample.flw,0,3,0,Query\
+                    \ Sex ,Query,47b48d43-b2fb-422d-823f-b0dcabbb5e82,TRGLIB,MyClassStats,AVG_Range,false,WORK,_Manage\
+                    \ Columns,Range,Directly used in the computation of a measure,"
+        "400":
+          $ref: "#/paths/~1mcp/post/responses/400"
+        "401":
+          $ref: "#/paths/~1/get/responses/401"
+        "403":
+          $ref: "#/paths/~1mcp/get/responses/403"
+        "404":
+          $ref: "#/paths/~1mcp/get/responses/404"
+        "406":
+          $ref: "#/paths/~1/get/responses/406"
+        "415":
+          $ref: "#/paths/~1bots/post/responses/415"
+        "500":
+          $ref: "#/paths/~1bots/get/responses/500"
   /deletions:
     post:
       x-performance:
@@ -14313,6 +14468,18 @@ paths:
                       searchText: What is catalog?
                       limit: 10
                       start: 0
+              toolCallCatalogSearch:
+                summary: Catalog Search Tool Call Request
+                description: JSON-RPC request to call the Catalog Search tool on the
+                  MCP server
+                value:
+                  jsonrpc: "2.0"
+                  id: "5"
+                  method: tools/call
+                  params:
+                    name: sas-catalog-get-search-results
+                    arguments:
+                      query: What tables are in the SASHELP library?
       responses:
         "200":
           description: Response of a successful request.
@@ -14356,10 +14523,14 @@ paths:
                     id: 2
                     result:
                       tools:
-                      - annotation: Get SAS Data Governance documentation chunks to
-                          answer a query. Results include links to the relevant product
-                          documentation that should be used when answering the user's
-                          question.
+                      - annotations:
+                          destructiveHint: false
+                          idempotentHint: true
+                          readOnlyHint: true
+                        description: Get SAS Data Governance documentation chunks
+                          to answer a query. Results include links to the relevant
+                          product documentation that should be used when answering
+                          the user's question.
                         name: sas-catalog-get-documentation-answer
                         title: SAS Data Governance Documentation Search
                         inputSchema:
@@ -14456,8 +14627,185 @@ paths:
                           - searchText
                           - items
                           - count
+                          additionalProperties: false
+                      - annotations:
+                          destructiveHint: false
+                          idempotentHint: true
+                          readOnlyHint: true
+                        description: Search the SAS Viya Catalog for assets and returns
+                          matching instances with their metadata.
+                        name: sas-catalog-get-search-results
+                        title: SAS Catalog Search
+                        inputSchema:
+                          type: object
+                          properties:
+                            version:
+                              type: integer
+                              description: "The version of the search request input.\
+                                \ If not specified, will use the latest version. Currently\
+                                \ only version 1 is supported."
+                            query:
+                              type: string
+                              description: The search query to perform (required).
+                            syntax:
+                              type: string
+                              description: "The search syntax to use to processing\
+                                \ the given query ('catalog' for faceted queries,\
+                                \ 'text' for natural language search; optional, defaults\
+                                \ to 'text')."
+                            indices:
+                              type:
+                              - "null"
+                              - array
+                              items:
+                                type: string
+                              description: "A list of specific indices to restrict\
+                                \ the search query to (optional, defaults to all indices)."
+                            start:
+                              type:
+                              - "null"
+                              - integer
+                              description: "The starting index for the search results\
+                                \ (optional, defaults to 0)."
+                            limit:
+                              type:
+                              - "null"
+                              - integer
+                              description: "The maximum number of results to return\
+                                \ (optional, defaults to 10)."
+                          required:
+                          - query
+                          additionalProperties: false
+                        outputSchema:
+                          type: object
+                          properties:
+                            version:
+                              type: integer
+                              description: The schema version of the search results
+                                collection.
+                            count:
+                              type:
+                              - "null"
+                              - integer
+                              description: The total number of search results.
+                            start:
+                              type: integer
+                              description: The starting index of the search results.
+                            limit:
+                              type: integer
+                              description: The maximum number of search results returned.
+                            query:
+                              type: string
+                              description: The search query that was executed.
+                            results:
+                              type:
+                              - "null"
+                              - array
+                              items:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                    description: The unique identifier for the search
+                                      result.
+                                  version:
+                                    type: integer
+                                    description: The schema version of the search
+                                      result.
+                                  count:
+                                    type:
+                                    - "null"
+                                    - integer
+                                    description: The total number of search results.
+                                  start:
+                                    type: integer
+                                    description: The starting index of the search
+                                      results.
+                                  limit:
+                                    type: integer
+                                    description: The maximum number of search results
+                                      returned.
+                                  query:
+                                    type: string
+                                    description: The search query that was executed.
+                                  results:
+                                    type:
+                                    - "null"
+                                    - array
+                                    items:
+                                      type: object
+                                      properties:
+                                        id:
+                                          type: string
+                                          description: The unique identifier for the
+                                            search result.
+                                        version:
+                                          type: integer
+                                          description: The schema version of the search
+                                            result.
+                                        name:
+                                          type: string
+                                          description: The name of the asset.
+                                        label:
+                                          type: string
+                                          description: The label of the asset.
+                                        description:
+                                          type: string
+                                          description: The description of the asset.
+                                        type:
+                                          type: string
+                                          description: The type definition of the
+                                            asset.
+                                        typeLabel:
+                                          type: string
+                                          description: The user-friendly type label
+                                            of the asset.
+                                        owner:
+                                          type: string
+                                          description: The creator of the asset.
+                                        modifiedBy:
+                                          type: string
+                                          description: The last editor of the asset.
+                                        created:
+                                          type: string
+                                          description: The creation timestamp of the
+                                            asset.
+                                        modified:
+                                          type: string
+                                          description: The last modification timestamp
+                                            of the asset.
+                                        registeredType:
+                                          type: string
+                                          description: The logical system type of
+                                            the asset used to classify and present
+                                            assets consistently in the search results.
+                                        displayType:
+                                          type: string
+                                          description: The user-friendly type of the
+                                            asset for user-visible search results.
+                                        score:
+                                          type: number
+                                          description: The relevance score of the
+                                            asset in relation to the search query.
+                                        attributes:
+                                          type: object
+                                          description: Additional attributes of the
+                                            asset.
+                                          additionalProperties: true
+                                        uri:
+                                          type: string
+                                          description: The URI of the asset.
+                                      required:
+                                      - id
+                                      - name
+                                      - score
+                                      additionalProperties: false
+                                    description: The list of search results.
+                          required:
+                          - version
                           - start
                           - limit
+                          - results
                           additionalProperties: false
                 toolCallDocSearchResponse:
                   summary: Documentation Search Tool Call Response
@@ -14488,6 +14836,51 @@ paths:
                         searchText: What is catalog?
                         start: 0
                         version: 2
+                toolCallCatalogSearchResponse:
+                  summary: Catalog Search Tool Call Response
+                  description: JSON-RPC response from the Catalog Search tool on the
+                    MCP server
+                  value:
+                    jsonrpc: "2.0"
+                    id: "6"
+                    result:
+                      content:
+                      - type: text
+                        text: '{"count":1,"limit":10,"query":"Library.name: SASHELP","results":[{"attributes":{"analysisTimeStamp":"2026-05-21T01:27:25.221Z","columnCount":21,"completenessPercent":99.714285714,"dataSize":37011456,"extension":"sas7bdat","informationPrivacy":"candidate","library":"SASHELP","region":"","reviewStatus":"none","rowCount":40925,"sourceSystem":"SAS"},"created":"2026-03-04T01:40:17.309Z","displayType":"SAS","id":"4b77843a-650b-4c29-8e6c-52040d658831","label":"US
+                          Zipcodes; Source: zipcodedownload.com Feb 2026","modified":"2026-03-04T01:40:17.309Z","name":"ZIPCODE","owner":"sas","registeredType":"dataTable","score":4.328067,"type":"sasTable","typeLabel":"SAS
+                          Table","uri":"/dataTables/dataSources/Compute~fs~4f885483-e72f-4588-b592-c03647dd62ed~fs~SASHELP/tables/ZIPCODE","version":1}],"start":0,"version":1}'
+                      structuredContent:
+                        count: 1
+                        limit: 10
+                        query: "Library.name: SASHELP"
+                        results:
+                        - attributes:
+                            analysisTimeStamp: "2026-01-01T01:00:00.000Z"
+                            columnCount: 21
+                            completenessPercent: 99.714285714
+                            dataSize: 37011456
+                            extension: sas7bdat
+                            informationPrivacy: candidate
+                            library: SASHELP
+                            region: ""
+                            reviewStatus: none
+                            rowCount: 40925
+                            sourceSystem: SAS
+                          created: "2026-01-01T01:00:00.000Z"
+                          displayType: SAS
+                          id: 4b77843a-650b-4c29-8e6c-52040d658831
+                          label: "US Zipcodes; Source: zipcodedownload.com Feb 2026"
+                          modified: "2026-01-01T01:00:00.000Z"
+                          name: ZIPCODE
+                          owner: sas
+                          registeredType: dataTable
+                          score: 4.328067
+                          type: sasTable
+                          typeLabel: SAS Table
+                          uri: /dataTables/dataSources/Compute~fs~4f885483-e72f-4588-b592-c03647dd62ed~fs~SASHELP/tables/ZIPCODE
+                          version: 1
+                        start: 0
+                        version: 1
             text/event-stream:
               schema:
                 type: string
@@ -14513,6 +14906,28 @@ paths:
                     errorCode: 100139
                     message: Bad Request
                     details: The request body could not be processed.
+        "401":
+          $ref: "#/paths/~1/get/responses/401"
+        "403":
+          $ref: "#/paths/~1mcp/get/responses/403"
+        "404":
+          $ref: "#/paths/~1mcp/get/responses/404"
+    delete:
+      x-sas-internal: true
+      operationId: deleteMCPSession
+      summary: Terminate an MCP session
+      description: |
+        Terminates the MCP session associated with the provided `mcp-session-id` header.
+        Note: This is only available with the `DATAPREP-66649_CatalogMCP` feature flag enabled.
+      tags:
+      - MCP
+      parameters:
+      - $ref: "#/paths/~1mcp/get/parameters/0"
+      responses:
+        "204":
+          description: The session was successfully terminated.
+        "400":
+          $ref: "#/paths/~1mcp/post/responses/400"
         "401":
           $ref: "#/paths/~1/get/responses/401"
         "403":

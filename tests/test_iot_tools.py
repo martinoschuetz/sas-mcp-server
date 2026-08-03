@@ -6,7 +6,7 @@ import respx
 from httpx import Response
 
 from sas_mcp_server.config import VIYA_ENDPOINT
-from sas_mcp_server.viya_utils import (
+from sas_mcp_server.tools.iot import (
     get_data_selection,
     get_iot_analysis_job,
     launch_data_selection,

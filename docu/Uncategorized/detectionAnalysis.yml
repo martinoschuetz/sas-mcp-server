@@ -21,6 +21,8 @@ tags:
 - name: Markings
   description: Contains the operations for managing detection markings and triage
     information.
+- name: Tools
+  description: Operations exposing aggregated MCP tools and execution endpoints.
 paths:
   /:
     get:
@@ -126,6 +128,100 @@ paths:
                   value: |-
                     messageId,lastModifiedDttm,lastModifiedByNm,revisionId,createdDttm,messageOrganizationNm,messageOrganizationId,messageClassificationNm,alertTypeCd,entityValueNm,entityTypeId
                     msg-12345,2026-02-12T10:30:00Z,john.doe,1,2026-02-10T08:15:00Z,ACME Corp,org-001,Fraud Detection,SUSPICIOUS_ACTIVITY,Account-789,ACCOUNT
+  "/v1/tools":
+    get:
+      tags:
+      - Tools
+      summary: List MCP tools
+      description: |
+        Retrieves a paginated list of tools made available by upstream MCP servers. Tools are merged from all configured upstreams and returned as a collection. Supports optional RSQL filtering and pagination.
+      operationId: listTools
+      parameters:
+      - $ref: "#/components/parameters/startParam"
+      - $ref: "#/components/parameters/limitParam"
+      - $ref: "#/components/parameters/filterParam"
+      - $ref: "#/components/parameters/sortByParam"
+      responses:
+        "200":
+          description: The request succeeded.
+          content:
+            application/vnd.sas.collection+json:
+              schema:
+                $ref: "#/components/schemas/toolCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/list_tools"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/toolCollection"
+              examples:
+                default:
+                  $ref: "#/components/examples/list_tools"
+        "400":
+          description: The request was invalid.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "500":
+          description: The request could not be fulfilled because of an unexpected
+            server error.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+  "/v1/tools/{toolName}/execute":
+    post:
+      tags:
+      - Tools
+      summary: Execute a named tool
+      description: |
+        Executes the specified MCP tool. The request body contains an arguments object matching the tool's input schema. The tool's execution result is returned as a ToolExecution representation.
+      operationId: executeTool
+      parameters:
+      - name: toolName
+        in: path
+        description: The tool name to execute (URL-encoded if necessary).
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: Tool execution arguments.
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/executeToolRequest"
+      responses:
+        "200":
+          description: The request succeeded. The tool executed successfully or returned
+            a tool-level error object (isError=true).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/toolExecution"
+            application/vnd.sas.detection.tool.execution+json:
+              schema:
+                $ref: "#/components/schemas/toolExecution"
+        "400":
+          description: The request was invalid or contained malformed arguments.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "404":
+          description: No tool exists at the requested path.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+        "500":
+          description: The request could not be fulfilled because of an unexpected
+            server error.
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
 components:
   parameters:
     startParam:
@@ -264,40 +360,152 @@ components:
             description: The results of a query.
             items:
               $ref: "#/components/schemas/marking"
-    baseCollection2:
-      title: Base Collection
-      description: This is a base schema used to define paginated collections of resources.
-        This base schema is extended by other schemas in APIs by adding an 'items'
-        array property. These extensions define the application/vnd.sas.collection
-        media type (version 2)
+    tool:
+      title: Tool
+      description: A single MCP tool manifest entry.
+      type: object
       properties:
-        name:
-          type: string
-          description: The name of the collection.
-        start:
-          type: integer
-          description: The zero-based index of the first item in the collection.
-          format: int64
-        limit:
-          type: integer
-          description: The number of items that were requested for the collection.
-        count:
-          type: integer
-          description: If populated indicates the number of items in the collection.
-          format: int64
-        accept:
-          type: string
-          description: A space-delimited list of media types from which an `Accept`
-            header may be constructed.
-        links:
-          type: array
-          description: The links that apply to the collection.
-          items:
-            $ref: "#/components/schemas/link"
         version:
           type: integer
-          description: The version number of the collection representation. This representation
-            is version 2.
+        name:
+          type: string
+        description:
+          type: string
+        title:
+          type: string
+        meta:
+          type: object
+          additionalProperties: true
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+        inputSchema:
+          type: object
+          additionalProperties: true
+        outputSchema:
+          type: object
+          additionalProperties: true
+    toolCollection:
+      title: ToolCollection
+      description: A collection of tool items with pagination metadata.
+      allOf:
+      - $ref: "#/components/schemas/baseCollection2"
+      - type: object
+        properties:
+          items:
+            type: array
+            description: The results of a query.
+            items:
+              $ref: "#/components/schemas/tool"
+    executeToolRequest:
+      title: ExecuteToolRequest
+      description: The request body when executing a tool. Arguments is a free-form
+        object whose shape is defined by the tool's input schema.
+      type: object
+      properties:
+        version:
+          type: integer
+        arguments:
+          type: object
+          additionalProperties: true
+    toolContent:
+      title: ToolContent
+      type: object
+      properties:
+        type:
+          type: string
+          description: A discriminator for the content type (text, image, audio, resource,
+            resource_link, unknown)
+        text:
+          type: string
+        mimeType:
+          type: string
+        data:
+          type: string
+          description: Base64-encoded blob for image/audio/resource content
+        uri:
+          type: string
+    toolExecution:
+      title: ToolExecution
+      description: The REST representation of a tool execution result.
+      type: object
+      properties:
+        version:
+          type: integer
+        name:
+          type: string
+        isError:
+          type: boolean
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/toolContent"
+        structuredContent:
+          type: object
+          additionalProperties: true
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
     error2:
       title: Error
       type: object
@@ -344,84 +552,45 @@ components:
           type: integer
           description: The version number of the error representation. This representation
             is version 2.
-    api:
-      title: API
-      description: The list of links to top-level resources and operations available
-        from the root of the API.
-      x-sas-media-type:
-        name: application/vnd.sas.api
-        version: 1
-      required:
-      - version
-      - links
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
       properties:
-        version:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
           type: integer
-          description: The version number of the API representation. This is version
-            1.
-          minimum: 1
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
         links:
-          description: The API's top-level links.
           type: array
+          description: The links that apply to the collection.
           items:
             $ref: "#/components/schemas/link"
-    link:
-      title: Link
-      type: object
-      description: A link to a related operation or resource.
-      required:
-      - rel
-      properties:
-        method:
-          type: string
-          description: The HTTP method for the link.
-        rel:
-          type: string
-          description: The relationship of the link to the resource.
-        uri:
-          type: string
-          description: The relative URI for the link.
-        href:
-          type: string
-          description: The URL for the link.
-        title:
-          type: string
-          description: The title for the link.
-        type:
-          type: string
-          description: The media type or link type for the link.
-        itemType:
-          type: string
-          description: If this is a link to a container, `itemType` is the media type
-            or link type for the items in the container.
-        responseType:
-          type: string
-          description: The media type or link type of the response body for a `PUT`,
-            `POST`, or `PATCH` operation.
-        responseItemType:
-          type: string
-          description: The media type or link type of the items in the response body
-            for a `PUT`, `POST`, or `PATCH` operation.
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
   examples:
     service_not_available_error_503:
       description: A sample response when the service is not available.
       value: {"version": 2, "httpStatusCode": 503, "errorCode": 1000000, "message": "Service\
           \ not available"}
-    api:
-      description: Returns a list of API links.
-      value:
-        version: 1
-        links:
-        - rel: markings
-          method: GET
-          href: /detectionAnalysis/markings
-          uri: /detectionAnalysis/markings
-          type: application/vnd.sas.collection+json
-        - rel: self
-          method: GET
-          href: /detectionAnalysis
-          uri: /detectionAnalysis
-          type: application/vnd.sas.api+json
     list_markings:
       description: A response example for listing markings with pagination.
       value:
@@ -466,3 +635,70 @@ components:
           href: /detectionAnalysis/markings
           uri: /detectionAnalysis/markings
           type: application/vnd.sas.collection+json
+    list_tools:
+      description: A response example for listing MCP tools with pagination.
+      value:
+        name: tools
+        accept: application/vnd.sas.detection.tool
+        count: 3
+        start: 0
+        limit: 200
+        items:
+        - version: 1
+          name: list_detection_schemas_by_org
+          title: list_detection_schemas_by_org
+          description: Lists all detection schemas associated with a specific organization
+            ID.
+          links:
+          - rel: execute
+            method: POST
+            href: /detectionAnalysis/v1/tools/list_detection_schemas_by_org/execute
+            uri: /detectionAnalysis/v1/tools/list_detection_schemas_by_org/execute
+            mediaType: application/vnd.sas.detection.tool.execution+json
+        - version: 1
+          name: list_detection_schemas_by_project
+          title: list_detection_schemas_by_project
+          description: Lists detection schemas assigned to a specific project.
+          links:
+          - rel: execute
+            method: POST
+            href: /detectionAnalysis/v1/tools/list_detection_schemas_by_project/execute
+            uri: /detectionAnalysis/v1/tools/list_detection_schemas_by_project/execute
+            mediaType: application/vnd.sas.detection.tool.execution+json
+        - version: 1
+          name: list_projects_with_rule_write_access
+          title: list_projects_with_rule_write_access
+          description: Lists projects where the caller has permission to create or
+            update rules.
+          links:
+          - rel: execute
+            method: POST
+            href: /detectionAnalysis/v1/tools/list_projects_with_rule_write_access/execute
+            uri: /detectionAnalysis/v1/tools/list_projects_with_rule_write_access/execute
+            mediaType: application/vnd.sas.detection.tool.execution+json
+        links:
+        - rel: self
+          method: GET
+          href: /detectionAnalysis/v1/tools?start=0&limit=200
+          uri: /detectionAnalysis/v1/tools
+          type: application/vnd.sas.collection+json
+        - rel: collection
+          method: GET
+          href: /detectionAnalysis/v1/tools
+          uri: /detectionAnalysis/v1/tools
+          type: application/vnd.sas.collection+json
+    api:
+      description: Returns a list of API links.
+      value:
+        version: 1
+        links:
+        - rel: markings
+          method: GET
+          href: /detectionAnalysis/markings
+          uri: /detectionAnalysis/markings
+          type: application/vnd.sas.collection+json
+        - rel: self
+          method: GET
+          href: /detectionAnalysis
+          uri: /detectionAnalysis
+          type: application/vnd.sas.api+json
