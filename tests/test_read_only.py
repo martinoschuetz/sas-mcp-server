@@ -46,7 +46,7 @@ def test_read_and_write_sets_are_disjoint():
 async def test_read_only_registers_only_read_tools():
     names = await _register(read_only=True)
     assert names == set(READ_ONLY_TOOLS)
-    assert len(names) == 43
+    assert len(names) == 61
 
 
 async def test_read_only_withholds_every_mutating_tool():
