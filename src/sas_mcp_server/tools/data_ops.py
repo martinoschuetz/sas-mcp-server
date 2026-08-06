@@ -3,6 +3,7 @@
 
 """Tier 2 — Data Operations & Files tools."""
 
+import mimetypes
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,7 +14,13 @@ from fastmcp import Context, FastMCP
 
 from ..config import SSL_VERIFY, VIYA_ENDPOINT
 from ..env import env_bool
-from ..viya_client import contains_filter, get_json, get_paged_items, return_items
+from ..viya_client import (
+    contains_filter,
+    get_json,
+    get_paged_items,
+    raise_for_viya_status,
+    return_items,
+)
 from ._common import make_session_helpers
 
 
@@ -173,6 +180,9 @@ async def _resolve_source_bytes(file_path: str | None, url: str | None) -> tuple
     try:
         async with httpx.AsyncClient(timeout=120.0, follow_redirects=True, verify=SSL_VERIFY) as fetch_client:
             fetch_resp = await fetch_client.get(url)
+            # Plain raise_for_status on purpose: this is an arbitrary caller-supplied
+            # URL, not Viya, so there is no vnd.sas.error+json body worth quoting
+            # and folding a third-party page into the message adds only noise.
             fetch_resp.raise_for_status()
             return fetch_resp.content, None
     except httpx.HTTPError as exc:
@@ -432,7 +442,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
                 params={"value": "loaded", "scope": "global"},
                 headers={"Accept": "*/*"},
             )
-            resp.raise_for_status()
+            raise_for_viya_status(resp)
             return {
                 "status": "promoted",
                 "table": f"{caslib_name}.{table_name}",
@@ -455,26 +465,71 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
 
     @mcp.tool()
     async def upload_file(
-        file_name: str, content: str, ctx: Context, content_type: str = "text/plain"
+        file_name: str,
+        ctx: Context,
+        content: str | None = None,
+        file_path: str | None = None,
+        url: str | None = None,
+        parent_folder_uri: str | None = None,
+        content_type: str | None = None,
     ) -> dict[str, Any]:
-        """Upload a file to the Viya Files Service.
+        """Upload a file to the Viya Files Service, optionally into a Content folder.
+
+        Provide the file content through **exactly one** of:
+
+        - ``content`` — inline text (the original behaviour; text files only).
+        - ``file_path`` — a path the **server** reads directly from its own disk
+          (in stdio mode that's your machine). Handles binary files (xlsx, zip,
+          images) untouched. Disable with ``ALLOW_LOCAL_FILE_UPLOAD=false``.
+        - ``url`` — an HTTP(S) URL the server fetches the file from. Also binary-safe.
+
+        ``parent_folder_uri`` files the upload into a Content folder (e.g.
+        ``/folders/folders/{folderId}``) — the location ``%include``/``filesrvc``
+        ingestion and other folder-scoped consumers need. Without it the file
+        lands unfiled under the caller's user context.
 
         Args:
             file_name: Name for the file.
-            content: File content as a string.
-            content_type: MIME type (default 'text/plain').
+            content: File content as an inline string (small text files).
+            file_path: Path to a file the server reads directly from disk.
+            url: HTTP(S) URL the server fetches the file from.
+            parent_folder_uri: Target folder URI (``/folders/folders/{id}``);
+                get one from list_files or the Folders service.
+            content_type: MIME type. Defaults to ``text/plain`` for ``content``,
+                else guessed from ``file_name`` (``application/octet-stream``
+                when unguessable).
         """
+        provided = [
+            n for n, v in (("content", content), ("file_path", file_path), ("url", url)) if v is not None
+        ]
+        if len(provided) != 1:
+            return {
+                "status": "invalid_source",
+                "provided": provided,
+                "message": "Provide exactly one of content, file_path, or url.",
+            }
+        if content is not None:
+            file_bytes = content.encode("utf-8")
+            resolved_type = content_type or "text/plain"
+        else:
+            file_bytes, error = await _resolve_source_bytes(file_path, url)
+            if error is not None:
+                return error
+            assert file_bytes is not None
+            resolved_type = content_type or mimetypes.guess_type(file_name)[0] or "application/octet-stream"
+        params = {"parentFolderUri": parent_folder_uri} if parent_folder_uri else None
         async with viya_session("upload_file", ctx) as client:
             resp = await client.post(
                 f"{VIYA_ENDPOINT}/files/files",
-                content=content.encode("utf-8"),
+                params=params,
+                content=file_bytes,
                 headers={
-                    "Content-Type": content_type,
+                    "Content-Type": resolved_type,
                     "Content-Disposition": f'attachment; filename="{file_name}"',
                     "Accept": "application/json",
                 },
             )
-            resp.raise_for_status()
+            raise_for_viya_status(resp)
             return resp.json()
 
     @mcp.tool()
@@ -486,5 +541,5 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         """
         async with viya_session("download_file", ctx) as client:
             resp = await client.get(f"{VIYA_ENDPOINT}/files/files/{file_id}/content")
-            resp.raise_for_status()
+            raise_for_viya_status(resp)
             return resp.text

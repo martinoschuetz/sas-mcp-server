@@ -4,7 +4,7 @@ A Model Context Protocol (MCP) server for executing SAS code, training AutoML pr
 
 ## Features
 
-- 68 tools across 9 selectable tiers, spanning the Analytics Life Cycle on SAS Viya
+- 74 tools across 9 selectable tiers, spanning the Analytics Life Cycle on SAS Viya
 - Prompt Templates for improving your SAS Code
 - OAuth2 authentication with PKCE flow
 - HTTP-based MCP server compatible with MCP clients
@@ -13,10 +13,11 @@ A Model Context Protocol (MCP) server for executing SAS code, training AutoML pr
 
 Here you can find getting articles on how to use and integrate the SAS MCP Server in different tools and what to build with it:
 
-- [Connecting GitHub Copilot to SAS Viya with the SAS MCP Server](https://communities.sas.com/t5/SAS-Communities-Library/Connecting-GitHub-Copilot-to-SAS-Viya-with-the-SAS-MCP-Server/ta-p/987191)
-- [Putting the SAS MCP Server to Work in GitHub Copilot](https://communities.sas.com/t5/SAS-Communities-Library/Putting-the-SAS-MCP-Server-to-Work-in-GitHub-Copilot/ta-p/987193)
-- [Connecting Claude Code CLI to SAS Viya with the SAS MCP Server](https://communities.sas.com/t5/SAS-Communities-Library/Connecting-Claude-Code-CLI-to-SAS-Viya-with-the-SAS-MCP-Server/ta-p/988775)
-- [Putting the SAS MCP Server to Work in Claude Code CLI](https://communities.sas.com/t5/SAS-Communities-Library/Putting-the-SAS-MCP-Server-to-Work-in-Claude-Code-CLI/ta-p/988922)
+- [Connecting GitHub Copilot to SAS Viya with the SAS Viya MCP Server](https://communities.sas.com/t5/SAS-Communities-Library/Connecting-GitHub-Copilot-to-SAS-Viya-with-the-SAS-Viya-MCP/ta-p/987191)
+- [Bring Your Own Key: SAS Viya MCP Server with GitHub Copilot CLI](https://communities.sas.com/t5/SAS-Communities-Library/Bring-Your-Own-Key-SAS-Viya-MCP-with-GitHub-Copilot-CLI/ta-p/991530)
+- [Putting the SAS Viya MCP Server to Work in GitHub Copilot](https://communities.sas.com/t5/SAS-Communities-Library/Putting-the-SAS-Viya-MCP-Server-to-Work-in-GitHub-Copilot/ta-p/987193)
+- [Connecting Claude Code CLI to SAS Viya with the SAS Viya MCP Server](https://communities.sas.com/t5/SAS-Communities-Library/Connecting-Claude-Code-CLI-to-SAS-Viya-with-the-SAS-Viya-MCP/ta-p/988775)
+- [Putting the SAS Viya MCP Server to Work in Claude Code CLI](https://communities.sas.com/t5/SAS-Communities-Library/Putting-the-SAS-Viya-MCP-Server-to-Work-in-Claude-Code-CLI/ta-p/988922)
 - [Integration with SAS Retrieval Agent Manager (RAM)](https://github.com/sassoftware/sas-retrieval-agent-manager-examples/tree/main/examples/container_mcp_servers/sas_mcp_server)
 
 ## Getting Started
@@ -157,6 +158,31 @@ Tools are grouped into numbered tiers. By default the server exposes all of them
 MCP_TIERS=0-3 uv run app
 ```
 
+### Read-only mode
+
+Set `MCP_READ_ONLY=true` to expose only tools that neither change server-side state nor cause server-side work — 43 of the 74 tools. Withheld tools are never registered, so they are absent from the client's tool list entirely: the model cannot see them, so it cannot attempt them.
+
+This is a filter over the tiers, not a tier of its own — the read/write split cuts across every tier (Tier 3 has both `get_report` and `delete_report`). The two settings compose:
+
+```sh
+# Every read tool, all tiers
+MCP_READ_ONLY=true uv run app
+
+# Read tools of the reporting and decisioning tiers only
+MCP_TIERS=3,7 MCP_READ_ONLY=true uv run app
+```
+
+The definition is strict: a tool qualifies only if it can neither write nor start work. Beyond the obvious create/update/delete tools, that withholds:
+
+| Withheld | Why |
+|---|---|
+| `execute_sas_code`, `submit_batch_job` | Run arbitrary code — can perform any operation, including deletes |
+| `score_data`, `catalog_run_agent`, `catalog_run_adhoc_analysis` | Start server-side jobs and leave run records, though they return data |
+| `promote_table_to_memory` | Mutates CAS in-memory state |
+| `cancel_job`, `reset_compute_session` | Destroy something the caller owns |
+
+Classification is fail-closed: a tool that is not explicitly classified as read-only is withheld. The list lives in [`src/sas_mcp_server/tools/_access.py`](src/sas_mcp_server/tools/_access.py), and a test asserts it covers every registered tool, so a newly added tool cannot silently land in read-only mode.
+
 ### Available Tools
 
 The headings below match the numbered **tiers** above, so `MCP_TIERS` maps directly to the tools you expose (e.g. `MCP_TIERS=0-3` gives Tiers 0–3).
@@ -197,13 +223,19 @@ The headings below match the numbered **tiers** above, so `MCP_TIERS` maps direc
 - **upload_inline_data**: Create a *small* CAS table from inline csv/tsv text passed as a string (a lookup/mapping table the model builds on the fly, or a quick test table). The payload travels through the model's context, so it's for tiny tables only — use **upload_data** for files or anything larger.
 - **promote_table_to_memory**: Load a source table into memory at global scope (idempotent)
 - **list_files**: List files in the Viya Files Service
-- **upload_file**: Upload a file to Viya Files Service
+- **upload_file**: Upload a file to the Viya Files Service, optionally into a Content folder (`parent_folder_uri`). Content comes from exactly one of `content` (inline text), `file_path` (read **server-side**, binary-safe — xlsx, zip, images — gated by `ALLOW_LOCAL_FILE_UPLOAD`), or `url` (server-side fetch)
 - **download_file**: Download file content
 
 #### Tier 3 — Reports & Visualization
 - **list_reports**: List Visual Analytics reports
 - **get_report**: Get report metadata and definition
 - **export_report**: export a report (or specific report objects) in any format the VA service supports — `package` (zip), `pdf`, `png`, `svg`, `csv`, `tsv`, `xlsx`, or `summary`. Text formats come back inline, `png` as image content, and binary formats (`package`/`pdf`/`xlsx`) as an embedded file with the right MIME type.
+- **describe_report_objects**: Discover what a report can contain — the eight report operations and every addable object (bar chart, list table, geo map, key value, …) with a one-line purpose, its data roles, common options, and an example payload. Call with no arguments for the catalog (including an intent→object map, placement guide, layout recipes, and the API's hard limits), `object_type=` for one object's contract (colloquial aliases like `kpi` resolve), `category=` to filter, or `operation=` for one operation's full shape — `operation="addData"` documents `dataItems` (column renames, SAS formats, aggregations, geography classification). Backs the `apply_report_operations` loop.
+- **create_report**: Create a Visual Analytics report and return its id. Optionally pass an `operations` array to build the whole report in one atomic call; the result carries the created page/object names+labels and a verify hint.
+- **apply_report_operations**: The authoring workhorse — apply an ordered batch of native VA operations (`addData`, `addPage`, `addObject`, `updateObject`, `setParameterValue`, `updateData`, `changeData`, `applyDataView`) to a report. Give a page a **title** with `addPage`'s `title` field (a text band at the top of the page body — VA headers are controls-only); title every chart at add time via `options.object.title`; arrange objects with **placement** — `page`, `relativeToObject` (left/right/top/bottom for columns, rows, and grids), `container` (group into a `standardContainer`), or `report` (`new_page` creates-and-names a page inline for one-batch multi-page reports). The batch is atomic. Validates every operation, object key, and placement against the catalog first (reporting all errors at once), supports `dry_run`, handles the ETag concurrency handshake, and — with `result_report_name`/`result_folder` — applies the batch **save-as** to a new report, leaving the source untouched. Typical loop: `describe_report_objects` → `get_castable_columns` → `apply_report_operations` → `get_report_outline` / `export_report` (png, page-by-page) to verify.
+- **get_report_outline**: Read a report's structure back — pages → objects with the handles the other tools need (object `name` for placement/`updateObject` targets, `label` for `export_report`, page `label` for page placement).
+- **copy_report**: Copy a report to a new one (optionally renaming/refoldering). Pairs with a `changeData` operation for the copy-and-replace pattern.
+- **delete_report**: Delete a report and its content.
 
 #### Tier 4 — Batch Jobs & Async Execution
 - **submit_batch_job**: Submit a SAS job for async execution
@@ -256,6 +288,7 @@ Build and manage SAS Intelligent Decisioning rule sets and decision flows end to
 - **explain_sas_code**: Block-by-block code explanation
 - **sas_macro_builder**: Build production-quality SAS macros
 - **generate_report**: Generate ODS/PROC REPORT code
+- **build_va_dashboard**: Guide a polished multi-page Visual Analytics dashboard build from a CAS table — a discover → shape → structure → polish → verify method over the report-authoring tools
 
 ## MCP Client Configuration
 
@@ -442,7 +475,7 @@ tsv, and `file_path`/`data_format` coverage needs no extra deps. Generating a
 `sas7bdat`/`sashdat` fixture requires SAS itself, so those two formats are covered by
 unit-level payload tests only, not live.
 
-Every one of the 68 tools and 8 prompt templates has an integration test, enforced by the
+Every one of the 74 tools and 9 prompt templates has an integration test, enforced by the
 `test_every_tool_has_integration_coverage` / `test_every_prompt_has_integration_coverage`
 guards — adding a new tool or prompt without integration coverage fails the suite. The
 resource-dependent tests discover real targets on the instance: `score_data` scores the most
@@ -478,7 +511,7 @@ gh gist create reports/integration.xml                          # full XML as a 
 
 | File | Description |
 |---|---|
-| `tests/test_tool_payloads.py` | Payload assertions for all 68 tools (URL paths, JSON body, query params, headers) plus error-path coverage |
+| `tests/test_tool_payloads.py` | Payload assertions for all 74 tools (URL paths, JSON body, query params, headers) plus error-path coverage |
 | `tests/test_integration.py` | End-to-end workflow tests against a real Viya instance |
 | `tests/test_tools.py` | Unit tests for the generic Viya REST helpers in `viya_client` (`get_json`, `post_json`, `make_client`, …) |
 | `tests/test_viya_utils.py` | Unit tests for Viya compute session and job orchestration |

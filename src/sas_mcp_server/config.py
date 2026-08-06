@@ -118,10 +118,20 @@ CLIENT_ID = os.getenv("CLIENT_ID", "sas-mcp")
 HOST_PORT = int(os.getenv("HOST_PORT", "8134"))
 MCP_SIGNING_KEY = os.getenv("MCP_SIGNING_KEY", "default")
 CONTEXT_NAME = os.getenv("COMPUTE_CONTEXT_NAME", "SAS Job Execution compute context")
+# Name advertised to MCP clients as serverInfo.name during the initialize
+# handshake. Clients label the server with this rather than the key in their own
+# config, so one server per Viya environment can be told apart.
+SERVER_NAME = os.getenv("MCP_SERVER_NAME", "SAS Viya Execution MCP Server")
 COMPUTE_SESSION_ID = os.getenv("COMPUTE_SESSION_ID", "").strip()
 # Optional tool-tier selection, e.g. "0-4" or "0,1,7". Empty means all tiers.
 # Parsed by sas_mcp_server.tools.resolve_enabled_tiers.
 MCP_TIERS = os.getenv("MCP_TIERS", "")
+# Read-only mode: register only tools that neither change server-side state nor
+# cause server-side work. Composes with (does not replace) MCP_TIERS — the split
+# cuts across tiers, so this filters whichever tiers are enabled. Default OFF.
+# Classification lives in sas_mcp_server.tools._access.READ_ONLY_TOOLS.
+MCP_READ_ONLY = env_bool("MCP_READ_ONLY", False)
+
 _mcp_base_url = os.getenv("MCP_BASE_URL", "").strip()
 # An empty value is the documented .env.sample default. Also ignore values
 # that are plainly placeholder comments instead of URLs.
