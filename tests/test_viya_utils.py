@@ -5,6 +5,7 @@
 Tests for viya_utils module (compute session/job orchestration).
 """
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -185,6 +186,40 @@ async def test_wait_job_error_state(
 
     assert state == "error"
     assert "ERROR: Something went wrong" in log
+
+
+@pytest.mark.asyncio
+async def test_wait_job_fetches_all_log_pages(mock_httpx_client, mock_env_vars):
+    """A log longer than one page is returned completely.
+
+    Regression: the log/listing endpoints are paged collections, and a single
+    unpaginated GET silently truncated long logs to the first page — cutting
+    exactly the trailing PASS/ERROR lines audit-style callers need.
+    """
+    mock_state = AsyncMock()
+    mock_state.text = "completed"
+
+    full_page = AsyncMock()
+    full_page.json = MagicMock(
+        return_value={"items": [{"line": f"NOTE: line {i}"} for i in range(1000)]}
+    )
+    tail_page = AsyncMock()
+    tail_page.json = MagicMock(return_value={"items": [{"line": "NOTE: the PASS line"}]})
+    empty_listing = AsyncMock()
+    empty_listing.json = MagicMock(return_value={"items": []})
+
+    mock_httpx_client.get.side_effect = [mock_state, full_page, tail_page, empty_listing]
+
+    state, log, listing = await wait_job(mock_httpx_client, "s", "j", poll=0.01)
+
+    assert state == "completed"
+    lines = log.split("\n")
+    assert len(lines) == 1001
+    assert lines[0] == "NOTE: line 0"
+    assert lines[-1] == "NOTE: the PASS line"
+    log_calls = [c for c in mock_httpx_client.get.call_args_list if c[0][0].endswith("/log")]
+    assert log_calls[0][1]["params"] == {"start": 0, "limit": 1000}
+    assert log_calls[1][1]["params"] == {"start": 1000, "limit": 1000}
 
 
 @pytest.mark.asyncio
@@ -551,3 +586,24 @@ async def test_shutdown_session_cache_swallows_delete_errors(mock_env_vars):
     del_client.delete.side_effect = httpx.HTTPError("boom")
     with patch("sas_mcp_server.viya_utils.make_client", return_value=del_client):
         await shutdown_session_cache()  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_get_context_id_surfaces_viya_error(mock_httpx_client, mock_env_vars):
+    """A failed context lookup reports Viya's own message, not a bare status code.
+
+    This is the first call any compute tool makes, so it is where a misconfigured
+    COMPUTE_CONTEXT_NAME or a permissions problem surfaces first.
+    """
+    request = httpx.Request("GET", "https://viya.example.com/compute/contexts")
+    mock_httpx_client.get.return_value = httpx.Response(
+        403,
+        request=request,
+        content=json.dumps(
+            {"errorCode": 5, "message": "User is not authorized to list compute contexts."}
+        ).encode(),
+        headers={"Content-Type": "application/vnd.sas.error+json"},
+    )
+
+    with pytest.raises(httpx.HTTPStatusError, match="User is not authorized"):
+        await get_context_id(mock_httpx_client, "Test Context")

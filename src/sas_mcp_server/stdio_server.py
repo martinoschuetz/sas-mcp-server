@@ -46,12 +46,12 @@ import httpx
 from dotenv import load_dotenv
 from fastmcp import Context, FastMCP
 
-from .config import AUTH_ENABLED, CLIENT_ID, SSL_VERIFY, VIYA_ENDPOINT
+from .config import AUTH_ENABLED, CLIENT_ID, SERVER_NAME, SSL_VERIFY, VIYA_ENDPOINT
 from .exceptions import AuthenticationError
 from .prompts import register_prompts
 from .telemetry import install_telemetry
 from .tools import register_tools
-from .viya_client import logger
+from .viya_client import logger, raise_for_viya_status
 from .viya_utils import shutdown_session_cache
 
 load_dotenv()
@@ -152,7 +152,7 @@ def _native_device_code_token() -> str:
             "`uv run sas-mcp-login` (writes ~/.sas-mcp-server/credentials.json) "
             "and re-launch this server."
         )
-    init.raise_for_status()
+    raise_for_viya_status(init)
     flow = init.json()
 
     verification_uri = flow.get("verification_uri_complete") or flow["verification_uri"]
@@ -319,7 +319,7 @@ if not AUTH_ENABLED:
         "VIYA_AUTH=false: SASLogon authentication is disabled; "
         "Viya API calls are sent without Authorization headers"
     )
-mcp = FastMCP("SAS Viya Execution MCP Server", lifespan=_lifespan)
+mcp = FastMCP(SERVER_NAME, lifespan=_lifespan)
 register_tools(mcp, _stdio_get_token)
 # Opt-in telemetry (no-op unless COLLECTION_MODE is enabled).
 install_telemetry(mcp, "stdio")
@@ -328,7 +328,10 @@ register_prompts(mcp)
 
 def main() -> None:
     """Run the MCP server in stdio mode."""
-    mcp.run(transport="stdio")
+    # No startup banner: FastMCP prints it to stderr, and a programmatic driver
+    # that doesn't drain stderr deadlocks on the filled pipe before the first
+    # MCP message. Diagnostics still log normally.
+    mcp.run(transport="stdio", show_banner=False)
 
 
 if __name__ == "__main__":

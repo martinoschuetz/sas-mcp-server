@@ -10,7 +10,14 @@ import httpx
 from fastmcp import Context, FastMCP
 
 from ..config import VIYA_ENDPOINT
-from ..viya_client import contains_filter, get_json, get_paged_items, post_json, return_items
+from ..viya_client import (
+    contains_filter,
+    get_json,
+    get_paged_items,
+    post_json,
+    raise_for_viya_status,
+    return_items,
+)
 from ._common import make_session_helpers
 
 
@@ -230,7 +237,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
                 params={"value": "running"},
                 headers={"Accept": "text/plain"},
             )
-            resp.raise_for_status()
+            raise_for_viya_status(resp)
             return {
                 "status": resp.text.strip() or "running",
                 "agent_id": agent_id,
@@ -511,7 +518,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
                 headers={"Accept": "text/csv"},
                 follow_redirects=True,
             )
-            resp.raise_for_status()
+            raise_for_viya_status(resp)
             return {
                 "status": "ok",
                 "instance_id": instance_id,
@@ -697,8 +704,12 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         table_name: str,
         ctx: Context,
         limit: int = 200,
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict[str, Any]] | dict[str, Any]:
         """Get column metadata for a CAS table (names, types, labels, formats).
+
+        A missing table returns a structured ``not_found`` with the two usual
+        causes (unloaded source table vs session-scoped table) instead of a raw
+        HTTP error.
 
         Args:
             server_id: CAS server name or ID.
@@ -707,11 +718,30 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
             limit: Maximum columns to return (default 200).
         """
         async with viya_session("get_castable_columns", ctx) as client:
-            items, _ = await get_paged_items(
-                f"/casManagement/servers/{server_id}/caslibs/{caslib_name}/tables/{table_name}/columns",
-                client,
-                limit=limit,
-            )
+            try:
+                items, _ = await get_paged_items(
+                    f"/casManagement/servers/{server_id}/caslibs/{caslib_name}/tables/{table_name}/columns",
+                    client,
+                    limit=limit,
+                )
+            except httpx.HTTPStatusError as exc:
+                if exc.response is not None and exc.response.status_code == 404:
+                    return {
+                        "status": "not_found",
+                        "server": server_id,
+                        "caslib": caslib_name,
+                        "table": table_name,
+                        "message": (
+                            f"casManagement has no loaded table '{table_name}' in caslib "
+                            f"'{caslib_name}'. Two usual causes: (1) the table exists on disk "
+                            f"but is not loaded into memory — call promote_table_to_memory "
+                            f"(VA addData can also auto-load it); (2) the table was created in "
+                            f"a SAS/CAS session without PROMOTE=YES, so it is session-scoped "
+                            f"and invisible here — re-create it with PROMOTE=YES (e.g. "
+                            f"PROC CASUTIL PROMOTE, or data step with promote=yes)."
+                        ),
+                    }
+                raise
             return return_items(items, ["name", "type", "rawLength", "label", "format"])
 
     @mcp.tool()
@@ -744,7 +774,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
                     params={"start": col_start, "limit": col_limit},
                     follow_redirects=True,
                 )
-                col_resp.raise_for_status()
+                raise_for_viya_status(col_resp)
                 col_data = col_resp.json()
                 for item in col_data.get("items", []):
                     columns.append(
@@ -764,7 +794,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
                 params={"start": start, "limit": limit},
                 follow_redirects=True,
             )
-            row_resp.raise_for_status()
+            raise_for_viya_status(row_resp)
             row_data = row_resp.json()
 
             col_names = [c["name"] for c in columns]

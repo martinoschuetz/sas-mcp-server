@@ -6,13 +6,27 @@
 import asyncio
 import json
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Annotated, Any
 
 from fastmcp import Context, FastMCP
+from pydantic import BeforeValidator
 
 from ..config import VIYA_ENDPOINT
-from ..viya_client import contains_filter, delete_resource, get_json, get_paged_items, post_json, put_json, return_items
-from ._common import make_session_helpers
+from ..viya_client import (
+    contains_filter,
+    delete_resource,
+    get_json,
+    get_paged_items,
+    post_json,
+    put_json,
+    raise_for_viya_status,
+    return_items,
+)
+from ._common import coerce_json_list, make_session_helpers
+
+# Tolerant alias for list params some MCP clients deliver as JSON-encoded
+# strings (see _common.coerce_json_list). The published schema is unchanged.
+DictListParam = Annotated[list[dict[str, Any]], BeforeValidator(coerce_json_list)]
 
 
 def _build_decision_flow_body(
@@ -54,7 +68,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
 
     @mcp.tool()
     async def create_business_ruleset(
-        name: str, signature: list[dict[str, Any]], ctx: Context, description: str | None = None
+        name: str, signature: DictListParam, ctx: Context, description: str | None = None
     ) -> dict[str, Any]:
         """Create a new SAS Business Rules rule set.
 
@@ -75,7 +89,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
 
     @mcp.tool()
     async def update_business_ruleset(
-        ruleset_id: str, name: str, signature: list[dict[str, Any]], ctx: Context, description: str | None = None
+        ruleset_id: str, name: str, signature: DictListParam, ctx: Context, description: str | None = None
     ) -> dict[str, Any]:
         """Update an existing SAS Business Rules rule set's name/description/signature.
 
@@ -83,7 +97,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         removed variables — check with ``get_business_ruleset`` first if unsure.
 
         Args:
-            ruleset_id: The existing rule set UUID.
+            ruleset_id: The existing rule set UUID (not its name — list_business_rulesets returns both).
             name: Rule set name (max 30 chars).
             signature: Input/output/inOut variables the rules operate on.
             description: Optional description.
@@ -97,7 +111,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         """Fetch a single SAS Business Rules rule set by ID.
 
         Args:
-            ruleset_id: The rule set UUID.
+            ruleset_id: The rule set UUID (not its name — list_business_rulesets returns both).
         """
         async with viya_session("get_business_ruleset", ctx) as client:
             return await get_json(f"/businessRules/ruleSets/{ruleset_id}", client)
@@ -125,7 +139,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         flow — deleting a rule set still referenced by a decision fails.
 
         Args:
-            ruleset_id: The rule set UUID to delete.
+            ruleset_id: The rule set UUID to delete (not its name — list_business_rulesets returns both).
         """
         async with viya_session("delete_business_ruleset", ctx) as client:
             await delete_resource(f"/businessRules/ruleSets/{ruleset_id}", client)
@@ -149,7 +163,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         not just the new revision.
 
         Args:
-            ruleset_id: The rule set UUID.
+            ruleset_id: The rule set UUID (not its name — list_business_rulesets returns both).
             revision_type: "minor" for iterative changes, "major" for a
                 significant/approved milestone (default "minor").
         """
@@ -159,7 +173,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
                 f"{VIYA_ENDPOINT}/businessRules/ruleSets/{ruleset_id}",
                 headers={"Accept": integral_type},
             )
-            get_resp.raise_for_status()
+            raise_for_viya_status(get_resp)
             current = get_resp.json()
             body = {
                 "name": current["name"],
@@ -173,7 +187,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
                 content=json.dumps(body).encode(),
                 headers={"Content-Type": integral_type},
             )
-            resp.raise_for_status()
+            raise_for_viya_status(resp)
             return resp.json()
 
     @mcp.tool()
@@ -183,7 +197,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         """List all locked revisions of a rule set.
 
         Args:
-            ruleset_id: The rule set UUID.
+            ruleset_id: The rule set UUID (not its name — list_business_rulesets returns both).
             limit: Maximum number of results to return (default 20).
         """
         async with viya_session("list_business_ruleset_revisions", ctx) as client:
@@ -196,8 +210,8 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         name: str,
         conditional: str,
         rule_fired_tracking_enabled: bool,
-        conditions: list[dict[str, Any]],
-        actions: list[dict[str, Any]],
+        conditions: DictListParam,
+        actions: DictListParam,
         ctx: Context,
     ) -> dict[str, Any]:
         """Create a new rule inside an existing SAS Business Rules rule set.
@@ -210,7 +224,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         ``= 0``/``= 1`` in expressions, not ``= false``/``= true``.
 
         Args:
-            ruleset_id: The rule set UUID to add the rule to.
+            ruleset_id: The rule set UUID to add the rule to (not its name — list_business_rulesets returns both).
             name: Rule name (max 30 chars).
             conditional: "if" starts a new independent rule chain, "elseif"
                 continues the previous rule's chain, "or" ORs into it.
@@ -243,14 +257,14 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         name: str,
         conditional: str,
         rule_fired_tracking_enabled: bool,
-        conditions: list[dict[str, Any]],
-        actions: list[dict[str, Any]],
+        conditions: DictListParam,
+        actions: DictListParam,
         ctx: Context,
     ) -> dict[str, Any]:
         """Update an existing rule inside a SAS Business Rules rule set.
 
         Args:
-            ruleset_id: The parent rule set UUID.
+            ruleset_id: The parent rule set UUID (not its name — list_business_rulesets returns both).
             rule_id: The specific rule UUID to update.
             name: Rule name (max 30 chars).
             conditional: "if" starts a new independent rule chain, "elseif"
@@ -276,7 +290,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         """Fetch a single rule's definition from a SAS Business Rules rule set.
 
         Args:
-            ruleset_id: The parent rule set UUID.
+            ruleset_id: The parent rule set UUID (not its name — list_business_rulesets returns both).
             rule_id: The rule UUID.
         """
         async with viya_session("get_business_rule", ctx) as client:
@@ -289,7 +303,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         """List all rules inside a SAS Business Rules rule set.
 
         Args:
-            ruleset_id: The rule set UUID.
+            ruleset_id: The rule set UUID (not its name — list_business_rulesets returns both).
             limit: Maximum number of results to return (default 100).
         """
         async with viya_session("list_business_rules", ctx) as client:
@@ -301,7 +315,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         """Permanently delete a rule from a SAS Business Rules rule set.
 
         Args:
-            ruleset_id: The parent rule set UUID.
+            ruleset_id: The parent rule set UUID (not its name — list_business_rulesets returns both).
             rule_id: The rule UUID to delete.
         """
         async with viya_session("delete_business_rule", ctx) as client:
@@ -311,8 +325,8 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
     @mcp.tool()
     async def create_decision_flow(
         name: str,
-        signature: list[dict[str, Any]],
-        rule_set_steps: list[dict[str, Any]],
+        signature: DictListParam,
+        rule_set_steps: DictListParam,
         ctx: Context,
         description: str | None = None,
     ) -> dict[str, Any]:
@@ -341,8 +355,8 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
     async def update_decision_flow(
         decision_id: str,
         name: str,
-        signature: list[dict[str, Any]],
-        rule_set_steps: list[dict[str, Any]],
+        signature: DictListParam,
+        rule_set_steps: DictListParam,
         ctx: Context,
         description: str | None = None,
     ) -> dict[str, Any]:
@@ -352,7 +366,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         on update, it is not a partial patch.
 
         Args:
-            decision_id: The existing decision flow UUID.
+            decision_id: The existing decision flow UUID (not its name — list_decision_flows returns both).
             name: Decision name (max 60 chars).
             signature: Flow-level input/output variables.
             rule_set_steps: Ordered list of rule set steps (see
@@ -368,7 +382,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         """Fetch the current state of a SAS Intelligent Decisioning flow.
 
         Args:
-            decision_id: The decision flow UUID.
+            decision_id: The decision flow UUID (not its name — list_decision_flows returns both).
         """
         async with viya_session("get_decision_flow", ctx) as client:
             return await get_json(f"/decisions/flows/{decision_id}", client)
@@ -393,7 +407,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         """Permanently delete a SAS Intelligent Decisioning flow.
 
         Args:
-            decision_id: The decision flow UUID to delete.
+            decision_id: The decision flow UUID to delete (not its name — list_decision_flows returns both).
         """
         async with viya_session("delete_decision_flow", ctx) as client:
             await delete_resource(f"/decisions/flows/{decision_id}", client)
@@ -404,14 +418,14 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         """Retrieve the generated DS2 execution code for a decision flow.
 
         Args:
-            decision_id: The decision flow UUID.
+            decision_id: The decision flow UUID (not its name — list_decision_flows returns both).
         """
         async with viya_session("get_decision_flow_code", ctx) as client:
             resp = await client.get(
                 f"{VIYA_ENDPOINT}/decisions/flows/{decision_id}/code",
                 headers={"Accept": "text/vnd.sas.source.ds2"},
             )
-            resp.raise_for_status()
+            raise_for_viya_status(resp)
             return resp.text
 
     @mcp.tool()
@@ -422,7 +436,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         a point-in-time snapshot referenceable by ``publish_decision_flow``.
 
         Args:
-            decision_id: The decision flow UUID.
+            decision_id: The decision flow UUID (not its name — list_decision_flows returns both).
         """
         async with viya_session("lock_decision_flow_revision", ctx) as client:
             current = await get_json(f"/decisions/flows/{decision_id}", client)
@@ -441,7 +455,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         """List all locked revisions of a decision flow.
 
         Args:
-            decision_id: The decision flow UUID.
+            decision_id: The decision flow UUID (not its name — list_decision_flows returns both).
             limit: Maximum number of results to return (default 20).
         """
         async with viya_session("list_decision_flow_revisions", ctx) as client:
@@ -453,7 +467,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         """Fetch the content of a specific locked decision revision.
 
         Args:
-            decision_id: The decision flow UUID.
+            decision_id: The decision flow UUID (not its name — list_decision_flows returns both).
             revision_id: The revision UUID.
         """
         async with viya_session("get_decision_flow_revision", ctx) as client:
@@ -485,7 +499,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         lookup via ``list_mas_modules``.
 
         Args:
-            decision_id: The decision flow UUID.
+            decision_id: The decision flow UUID (not its name — list_decision_flows returns both).
             revision_id: The locked revision UUID (see
                 ``lock_decision_flow_revision``).
             publish_name: The published name shown in Model Publish (not the
@@ -500,7 +514,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
                 f"{VIYA_ENDPOINT}/decisions/flows/{decision_id}/revisions/{revision_id}/code",
                 headers={"Accept": "text/vnd.sas.source.ds2"},
             )
-            code_resp.raise_for_status()
+            raise_for_viya_status(code_resp)
             body = {
                 "name": publish_name,
                 "destinationName": destination_name,
@@ -518,7 +532,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
                 content=json.dumps(body).encode(),
                 headers={"Content-Type": "application/vnd.sas.models.publishing.request+json"},
             )
-            resp.raise_for_status()
+            raise_for_viya_status(resp)
             data = resp.json()
             items = data.get("items", [])
             published = items[0] if items else data
@@ -543,7 +557,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
                 await asyncio.sleep(poll_interval)
                 elapsed += poll_interval
                 model_resp = await client.get(f"{VIYA_ENDPOINT}/modelPublish/models/{model_id}")
-                model_resp.raise_for_status()
+                raise_for_viya_status(model_resp)
                 published = model_resp.json()
 
             if not job_uri:
@@ -556,7 +570,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
             terminal_states = ("completed", "failed", "error", "canceled", "cancelled")
             while True:
                 job_resp = await client.get(f"{VIYA_ENDPOINT}{job_uri}")
-                job_resp.raise_for_status()
+                raise_for_viya_status(job_resp)
                 job = job_resp.json()
                 state = job.get("state")
                 if state in terminal_states:
