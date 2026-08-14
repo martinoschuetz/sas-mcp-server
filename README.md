@@ -279,6 +279,17 @@ Build and manage SAS Intelligent Decisioning rule sets and decision flows end to
 #### Tier 8 — Workbench (Execute Code Only)
 - **execute_sas_code**: Execute SAS code snippets and retrieve execution results (log and listing output). Runs in a reusable compute session that is kept warm across calls, so SAS state (WORK tables, macro variables, assigned librefs) persists between successive calls
 
+#### Tier 9 — IoT & FQA (Field Quality Analytics)
+- **Data Selections**: Tools to list, get, create, copy, launch, and update data selections.
+- **Analyses**: Tools to list, get, create, run, copy, and delete IoT and FQA analyses (including Pareto, Detail, Trend, Event Forecasting, and more).
+- **Projects & Folders**: Tools to list, create, and delete IoT projects and their containing folders.
+- **Forecasting & Models**: Tools to list and get forecasting filters, comparisons, pipeline results, and IoT model definitions.
+
+#### Tier 10 — Generative AI
+- **list_genai_agents** / **get_genai_agent**: Discover and fetch details for available Generative AI retrieval agents.
+- **list_genai_sources** / **list_genai_llms**: Discover available data sources and Large Language Models (LLMs) configured in Viya.
+- **query_genai_agent**: Query a specific GenAI retrieval agent with a prompt, supporting session IDs for continuing existing conversations.
+
 ### Prompt Templates
 
 - **debug_sas_log**: Analyze SAS log for errors with root-cause explanations
