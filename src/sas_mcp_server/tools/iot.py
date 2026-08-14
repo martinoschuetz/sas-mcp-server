@@ -3,18 +3,22 @@
 
 """SAS Analytics for IoT / FQA tools."""
 
+import asyncio
+import json
 from collections.abc import Awaitable, Callable
 from typing import Any
-import asyncio
 
 import httpx
+from cachetools import TTLCache
 from fastmcp import Context, FastMCP
 
 from ..viya_client import logger, make_client
 from ..viya_utils import run_one_snippet, get_context_id
-from cachetools import TTLCache
+from ._common import make_session_helpers
+
 data_selection_cache = TTLCache(maxsize=100, ttl=60)
-from ..config import CONTEXT_NAME, VIYA_ENDPOINT
+from ..config import VIYA_ENDPOINT
+
 
 async def _get_json(url, client, params=None, accept="application/json"):
     """GET a JSON response from a Viya REST endpoint."""
@@ -543,6 +547,7 @@ def register(
     mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]
 ) -> None:
     """Register IoT / FQA tools."""
+    viya_session, _ = make_session_helpers(get_token)
 
     @mcp.tool()
     async def list_data_selections_tool(
@@ -3743,7 +3748,7 @@ def register(
                     try:
                         log_resp = await client.get(f"{VIYA_ENDPOINT}{job_link}/log?limit=1000")
                         log_lines = [item.get("line") for item in log_resp.json().get("items", [])]
-                        logger.error(f"Job log output:\n" + "\n".join(log_lines))
+                        logger.error("Job log output:\n" + "\n".join(log_lines))
                     except Exception:
                         pass
                     raise RuntimeError(f"Analysis job failed with status {job_status}")
@@ -3784,73 +3789,73 @@ def register(
     async def list_forecasting_data_definitions(limit: int = 10, start: int = 0, ctx: Context = None) -> dict:
         """List Visual Forecasting data definitions."""
         async with viya_session("list_forecasting_data_definitions", ctx) as client:
-            return await get_paged_items(client, "/dataDefinitions", limit, start)
+            return await _get_paged_items(client, "/dataDefinitions", limit, start)
 
     @mcp.tool()
     async def get_forecasting_data_definition(data_definition_id: str, ctx: Context = None) -> dict:
         """Get details of a specific Visual Forecasting data definition."""
         async with viya_session("get_forecasting_data_definition", ctx) as client:
-            return await get_json(client, f"/dataDefinitions/{data_definition_id}")
+            return await _get_json(client, f"/dataDefinitions/{data_definition_id}")
 
     @mcp.tool()
     async def create_forecasting_data_definition(body: str, ctx: Context = None) -> dict:
         """Create a new Visual Forecasting data definition (pass configuration as a JSON string)."""
         async with viya_session("create_forecasting_data_definition", ctx) as client:
-            return await post_json(client, "/dataDefinitions", json.loads(body))
+            return await _post_json(client, "/dataDefinitions", json.loads(body))
 
     @mcp.tool()
     async def delete_forecasting_data_definition(data_definition_id: str, ctx: Context = None) -> str:
         """Delete a Visual Forecasting data definition."""
         async with viya_session("delete_forecasting_data_definition", ctx) as client:
-            await delete_resource(client, f"/dataDefinitions/{data_definition_id}")
+            await _delete_resource(client, f"/dataDefinitions/{data_definition_id}")
             return f"Deleted data definition {data_definition_id}"
 
     @mcp.tool()
     async def run_final_forecast(data_definition_id: str, ctx: Context = None) -> dict:
         """Run the final forecast for a data definition."""
         async with viya_session("run_final_forecast", ctx) as client:
-            return await post_json(client, f"/dataDefinitions/{data_definition_id}/finalForecast", {})
+            return await _post_json(client, f"/dataDefinitions/{data_definition_id}/finalForecast", {})
 
     @mcp.tool()
     async def list_forecasting_filters(limit: int = 10, start: int = 0, ctx: Context = None) -> dict:
         """List Visual Forecasting filters."""
         async with viya_session("list_forecasting_filters", ctx) as client:
-            return await get_paged_items(client, "/filters", limit, start)
+            return await _get_paged_items(client, "/filters", limit, start)
 
     @mcp.tool()
     async def get_forecasting_filter(filter_id: str, ctx: Context = None) -> dict:
         """Get details of a specific Visual Forecasting filter."""
         async with viya_session("get_forecasting_filter", ctx) as client:
-            return await get_json(client, f"/filters/{filter_id}")
+            return await _get_json(client, f"/filters/{filter_id}")
 
 
     @mcp.tool()
     async def get_forecasting_pipeline_results(pipeline_id: str, component_id: str, ctx: Context = None) -> dict:
         """Get the results of a specific component within a forecasting pipeline."""
         async with viya_session("get_forecasting_pipeline_results", ctx) as client:
-            return await get_json(client, f"/pipelines/{pipeline_id}/components/{component_id}/results")
+            return await _get_json(client, f"/pipelines/{pipeline_id}/components/{component_id}/results")
 
     @mcp.tool()
     async def run_forecasting_comparison(body: str, ctx: Context = None) -> dict:
         """Run a forecasting pipeline comparison (pass configuration as a JSON string)."""
         async with viya_session("run_forecasting_comparison", ctx) as client:
-            return await post_json(client, "/comparison", json.loads(body))
+            return await _post_json(client, "/comparison", json.loads(body))
 
     @mcp.tool()
     async def get_forecasting_comparison_results(ctx: Context = None) -> dict:
         """Get forecasting comparison results."""
         async with viya_session("get_forecasting_comparison_results", ctx) as client:
-            return await get_json(client, "/comparison/results")
+            return await _get_json(client, "/comparison/results")
 
     @mcp.tool()
     async def generate_forecasting_timeseries_plot(body: str, ctx: Context = None) -> dict:
         """Generate a time series plot for exploration (pass configuration as a JSON string)."""
         async with viya_session("generate_forecasting_timeseries_plot", ctx) as client:
-            return await post_json(client, "/timeSeriesPlot", json.loads(body))
+            return await _post_json(client, "/timeSeriesPlot", json.loads(body))
 
     @mcp.tool()
     async def generate_forecast_plot(body: str, ctx: Context = None) -> dict:
         """Generate a forecast plot for exploration (pass configuration as a JSON string)."""
         async with viya_session("generate_forecast_plot", ctx) as client:
-            return await post_json(client, "/forecastPlot", json.loads(body))
+            return await _post_json(client, "/forecastPlot", json.loads(body))
 

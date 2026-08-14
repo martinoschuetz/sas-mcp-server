@@ -106,6 +106,12 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
         "list_iot_analyses_tool",
         "list_iot_models_tool",
         "list_iot_projects_tool",
+        # Tier 10
+        "list_genai_agents",
+        "get_genai_agent",
+        "list_genai_sources",
+        "list_genai_llms",
+        "query_genai_agent",
     }
 )
 

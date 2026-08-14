@@ -34,11 +34,12 @@ from . import (
     data_ops,
     decisioning,
     discovery,
+    iot,
     jobs,
     model_scoring,
     reports,
     workbench,
-    iot,
+    genai,
 )
 from ._access import READ_ONLY_TOOLS, WRITE_TOOLS, ReadOnlyGate
 
@@ -55,6 +56,7 @@ _TIER_REGISTRARS: dict[int, Registrar] = {
     7: decisioning.register,
     8: workbench.register,
     9: iot.register,
+    10: genai.register,
 }
 
 TIER_TITLES: dict[int, str] = {
@@ -68,6 +70,7 @@ TIER_TITLES: dict[int, str] = {
     7: "Decisioning (SAS Intelligent Decisioning)",
     8: "Workbench (Execute Code Only)",
     9: "IoT & FQA (Field Quality Analytics)",
+    10: "Generative AI",
 }
 
 ALL_TIERS: frozenset[int] = frozenset(_TIER_REGISTRARS)
