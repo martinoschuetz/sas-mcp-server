@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+- **Tier 9 (IoT & FQA)**: Added a comprehensive suite of over 60 tools for SAS Field Quality Analytics and IoT solutions, including analysis runs, data selections, forecasting, and visualization.
+- **Tier 10 (Generative AI)**: Added tools for interacting with the SAS Retrieval Agent Manager, including fetching and querying agents, retrieving sources, and querying configured LLMs.
 
 ## [1.8.0] - 2026-08-07
 
