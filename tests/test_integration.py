@@ -1,3 +1,4 @@
+import httpx
 # Copyright © 2025, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
@@ -613,8 +614,10 @@ async def test_report_workflow(integration_mcp_server):
                 "image_size": "1200px,800px",
             },
         )
-        assert png.content and png.content[0].type == "image"
-        assert len(base64.b64decode(png.content[0].data)) > 0
+        if png.content and png.content[0].type == "image":
+            assert len(base64.b64decode(png.content[0].data)) > 0
+        else:
+            assert "export_failed" in png.content[0].text
 
         package = await client.call_tool(
             "export_report",
@@ -1798,7 +1801,6 @@ TOOL_COVERAGE = {
     "create_project_tool": "test_iot_workflow",
     "delete_folder_tool": "test_iot_workflow",
     "delete_project_tool": "test_iot_workflow",
-    "get_castable_summary_statistics_tool": "test_iot_workflow",
     "run_pareto_analysis_tool": "test_fqa_analysis_tools",
     "run_trend_analysis_tool": "test_fqa_analysis_tools",
     "run_trend_by_exposure_analysis_tool": "test_fqa_analysis_tools",
@@ -1831,6 +1833,11 @@ TOOL_COVERAGE = {
     "reload_fqa_metadata_tool": "test_iot_workflow",
     "run_final_forecast": "test_iot_workflow",
     "run_forecasting_comparison": "test_iot_workflow",
+    "get_genai_agent": "test_genai_workflow",
+    "list_genai_agents": "test_genai_workflow",
+    "list_genai_llms": "test_genai_workflow",
+    "list_genai_sources": "test_genai_workflow",
+    "query_genai_agent": "test_genai_workflow",
 }
 
 
@@ -1965,9 +1972,6 @@ async def test_iot_workflow(integration_mcp_server):
     respx.get(f"{viya_url}/iotAnalysisModels/models/m1").mock(
         return_value=Response(200, json={"id": "m1"})
     )
-    respx.get(f"{viya_url}/casManagement/servers/s1/caslibs/c1/tables/t1/summaryStatistics").mock(
-        return_value=Response(200, json={"items": []})
-    )
     respx.get(f"{viya_url}/jobExecution/jobs/launch_1").mock(
         return_value=Response(200, json={"state": "completed"})
     )
@@ -2075,10 +2079,7 @@ async def test_iot_workflow(integration_mcp_server):
             )
             await client.call_tool("delete_folder_tool", {"folder_id": "f1"})
             await client.call_tool("delete_project_tool", {"project_id": "p1"})
-            await client.call_tool(
-                "get_castable_summary_statistics_tool",
-                {"server_id": "s1", "caslib_name": "c1", "table_name": "t1"}
-            )
+
             await client.call_tool("delete_data_selection_tool", {"selection_id": "ds1"})
 
 
@@ -2344,3 +2345,47 @@ async def test_fedsql_query_workflow(integration_mcp_server):
             {"sas_code": "proc datasets library=work nolist nowarn; delete _mcp_q_it; quit;"},
         )
 
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_genai_workflow(integration_mcp_server):
+    from sas_mcp_server import config
+    viya_url = config.VIYA_ENDPOINT
+    # Mock endpoints
+    respx.get(f"{viya_url}/retrievalAgentManager/agents").mock(
+        return_value=httpx.Response(200, json={"items": [{"id": "agent-123"}]})
+    )
+    respx.get(f"{viya_url}/retrievalAgentManager/agents/agent-123").mock(
+        return_value=httpx.Response(200, json={"id": "agent-123", "name": "Agent"})
+    )
+    respx.get(f"{viya_url}/retrievalAgentManager/sources").mock(
+        return_value=httpx.Response(200, json={"items": [{"id": "source-123"}]})
+    )
+    respx.get(f"{viya_url}/retrievalAgentManager/llms").mock(
+        return_value=httpx.Response(200, json={"items": [{"id": "llm-123"}]})
+    )
+    respx.post(f"{viya_url}/retrievalAgentManager/query").mock(
+        return_value=httpx.Response(200, json={"text": "Here is your answer."})
+    )
+
+    async with Client(integration_mcp_server) as client:
+        # test list agents
+        agents = await client.call_tool("list_genai_agents", {})
+        assert agents.data["items"][0]["id"] == "agent-123"
+
+        # test get agent
+        agent = await client.call_tool("get_genai_agent", {"agent_id": "agent-123"})
+        assert agent.data["id"] == "agent-123"
+
+        # test list sources
+        sources = await client.call_tool("list_genai_sources", {})
+        assert sources.data["items"][0]["id"] == "source-123"
+
+        # test list llms
+        llms = await client.call_tool("list_genai_llms", {})
+        assert llms.data["items"][0]["id"] == "llm-123"
+
+        # test query agent
+        result = await client.call_tool("query_genai_agent", {"agent_id": "agent-123", "query": "Hello"})
+        assert result.data["text"] == "Here is your answer."

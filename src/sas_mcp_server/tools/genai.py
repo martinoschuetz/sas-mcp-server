@@ -8,6 +8,7 @@ from typing import Any
 
 from fastmcp import Context, FastMCP
 
+from .. import config
 from ..viya_client import logger
 from ._common import make_session_helpers
 
@@ -23,7 +24,7 @@ def register(
         """List available Generative AI retrieval agents."""
         logger.info("--- TOOL USED: list_genai_agents ---")
         async with viya_session("list_genai_agents", ctx) as client:
-            resp = await client.get("/retrievalAgentManager/agents")
+            resp = await client.get(f"{config.VIYA_ENDPOINT}/retrievalAgentManager/agents")
             resp.raise_for_status()
             return resp.json()
 
@@ -32,7 +33,7 @@ def register(
         """Get details for a specific Generative AI retrieval agent."""
         logger.info(f"--- TOOL USED: get_genai_agent ({agent_id}) ---")
         async with viya_session("get_genai_agent", ctx) as client:
-            resp = await client.get(f"/retrievalAgentManager/agents/{agent_id}")
+            resp = await client.get(f"{config.VIYA_ENDPOINT}/retrievalAgentManager/agents/{agent_id}")
             resp.raise_for_status()
             return resp.json()
 
@@ -41,7 +42,7 @@ def register(
         """List available data sources for Generative AI agents."""
         logger.info("--- TOOL USED: list_genai_sources ---")
         async with viya_session("list_genai_sources", ctx) as client:
-            resp = await client.get("/retrievalAgentManager/sources")
+            resp = await client.get(f"{config.VIYA_ENDPOINT}/retrievalAgentManager/sources")
             resp.raise_for_status()
             return resp.json()
 
@@ -50,7 +51,7 @@ def register(
         """List available Large Language Models (LLMs) configured in Viya."""
         logger.info("--- TOOL USED: list_genai_llms ---")
         async with viya_session("list_genai_llms", ctx) as client:
-            resp = await client.get("/retrievalAgentManager/llms")
+            resp = await client.get(f"{config.VIYA_ENDPOINT}/retrievalAgentManager/llms")
             resp.raise_for_status()
             return resp.json()
 
@@ -78,6 +79,6 @@ def register(
             payload["querySessionId"] = session_id
 
         async with viya_session("query_genai_agent", ctx) as client:
-            resp = await client.post("/retrievalAgentManager/query", json=payload)
+            resp = await client.post(f"{config.VIYA_ENDPOINT}/retrievalAgentManager/query", json=payload)
             resp.raise_for_status()
             return resp.json()
