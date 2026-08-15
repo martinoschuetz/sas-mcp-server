@@ -944,7 +944,7 @@ def warn_operations(operations: list[dict[str, Any]]) -> list[str]:
 # --- request shaping ------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True, frozen=True)
 class CreateReportRequest:
     """A normalised ``create_report`` invocation."""
 

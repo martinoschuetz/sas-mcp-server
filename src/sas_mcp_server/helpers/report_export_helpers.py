@@ -64,7 +64,7 @@ REPORT_EXPORT_FORMATS: dict[str, ReportExportFormat] = {
 }
 
 
-@dataclass
+@dataclass(slots=True, frozen=True)
 class ReportExportRequest:
     """A normalised ``export_report`` invocation."""
 
@@ -77,9 +77,9 @@ class ReportExportRequest:
     def __post_init__(self) -> None:
         # Tolerate ``None`` and a single label passed as a bare string.
         if self.report_objects is None:
-            self.report_objects = []
+            object.__setattr__(self, 'report_objects', [])
         elif isinstance(self.report_objects, str):
-            self.report_objects = [self.report_objects]
+            object.__setattr__(self, 'report_objects', [self.report_objects])
 
 
 def validate_export_request(req: ReportExportRequest) -> dict[str, Any] | None:

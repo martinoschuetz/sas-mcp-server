@@ -15,7 +15,7 @@ class ML_DEPLOYMENT_ACTION(StrEnum):
     PUBLISH = auto()
 
 
-@dataclass
+@dataclass(slots=True, frozen=True)
 class MLRegisterProps:
     """Properties for ML deployment."""
 
@@ -23,7 +23,7 @@ class MLRegisterProps:
     _action: ML_DEPLOYMENT_ACTION = ML_DEPLOYMENT_ACTION.REGISTER
 
 
-@dataclass
+@dataclass(slots=True, frozen=True)
 class MLPublishProps:
     """Properties for ML deployment."""
 
