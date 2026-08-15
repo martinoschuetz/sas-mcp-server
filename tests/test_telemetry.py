@@ -162,6 +162,42 @@ async def test_on_call_tool_strips_goal_and_logs():
     assert "arguments_truncated" in rec and "result_truncated" in rec
 
 
+def test_extract_output_blocks():
+    logger = FakeLogger()
+    mw = TelemetryMiddleware(logger, require_goal=True, transport="http")
+    
+    class FakeBlock:
+        type = "image"
+        data = b"123"
+        
+    class FakeResult:
+        content = [FakeBlock(), FakeBlock()]
+        
+    out = mw._extract_output(FakeResult())
+    assert isinstance(out, dict)
+    assert "_content_blocks" in out
+    assert out["_content_blocks"][0]["type"] == "image"
+    assert out["_content_blocks"][0]["bytes"] == 3
+
+
+def test_extract_error_text():
+    logger = FakeLogger()
+    mw = TelemetryMiddleware(logger, require_goal=True, transport="http")
+    
+    # Text output
+    class FakeTextResult:
+        content = [SimpleNamespace(type="text", text="my error message")]
+    assert mw._extract_error_text(FakeTextResult()) == "my error message"
+    
+    # Dict output
+    class FakeDictResult:
+        content = [SimpleNamespace(type="image", data=b"123")]
+    assert "image" in mw._extract_error_text(FakeDictResult())
+    
+    # None
+    assert mw._extract_error_text(None) is None
+
+
 @pytest.mark.asyncio
 async def test_on_call_tool_records_redacted_and_truncated():
     logger = FakeLogger()
