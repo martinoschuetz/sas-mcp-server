@@ -13,6 +13,7 @@ A Model Context Protocol (MCP) server for executing SAS code, training AutoML pr
 
 Here you can find getting articles on how to use and integrate the SAS MCP Server in different tools and what to build with it:
 
+- [From REST APIs to AI Agents: Why the SAS Viya MCP Server Matters](https://communities.sas.com/t5/SAS-Communities-Library/From-REST-APIs-to-AI-Agents-Why-the-SAS-Viya-MCP-Server-Matters/ta-p/992010)
 - [Connecting GitHub Copilot to SAS Viya with the SAS Viya MCP Server](https://communities.sas.com/t5/SAS-Communities-Library/Connecting-GitHub-Copilot-to-SAS-Viya-with-the-SAS-Viya-MCP/ta-p/987191)
 - [Bring Your Own Key: SAS Viya MCP Server with GitHub Copilot CLI](https://communities.sas.com/t5/SAS-Communities-Library/Bring-Your-Own-Key-SAS-Viya-MCP-with-GitHub-Copilot-CLI/ta-p/991530)
 - [Putting the SAS Viya MCP Server to Work in GitHub Copilot](https://communities.sas.com/t5/SAS-Communities-Library/Putting-the-SAS-Viya-MCP-Server-to-Work-in-GitHub-Copilot/ta-p/987193)
@@ -30,7 +31,8 @@ Here you can find getting articles on how to use and integrate the SAS MCP Serve
         - See [configuration.md](/examples/configuration.md)
 
 - Optional
-    - [Docker](https://docs.docker.com/engine/install): refer to [docker setup](/examples/docker/setup.md)
+    - [Docker](https://docs.docker.com/engine/install): refer to [container setup](/deploy/docker.md)
+    - Kubernetes: sample manifest and Helm chart in [deploy/](/deploy/README.md)
 
 ### Installation
 
@@ -122,20 +124,22 @@ If your compute deployment does not expose `/compute/contexts` and only supports
 
 ### Choosing a deployment mode
 
-| | **HTTP** | **Stdio** | **Docker** |
-|---|---|---|---|
-| **How it runs** | Long-running server you start separately | MCP client spawns it on demand | Containerized HTTP server |
-| **Authentication** | OAuth2 PKCE flow (browser popup) | Cached token via `sas-viya` CLI or `sas-mcp-login` | OAuth2 PKCE flow (browser popup) |
-| **Best for** | Multi-user or shared setups; production-like environments | Single-user local development; quick experimentation | Team deployments; CI/CD; environments without Python installed |
-| **Requires** | Python + uv | Python + uv (+ optional `sas-viya` CLI) | Docker or Podman only |
-| **Credentials stored?** | No — user authenticates interactively | No — only an access token (not a password) is cached | No — user authenticates interactively |
-| **MCP client config** | Point client to `http://localhost:8134/mcp` | Client runs `uv run app-stdio` | Point client to `http://host:8134/mcp` |
+| | **HTTP** | **Stdio** | **Docker** | **Kubernetes** |
+|---|---|---|---|---|
+| **How it runs** | Long-running server you start separately | MCP client spawns it on demand | Containerized HTTP server | Containerized, behind an ingress |
+| **Authentication** | OAuth2 PKCE flow (browser popup) | Cached token via `sas-viya` CLI or `sas-mcp-login` | OAuth2 PKCE flow (browser popup) | PKCE and/or raw Viya bearer token |
+| **Best for** | Multi-user or shared setups; production-like environments | Single-user local development; quick experimentation | Team deployments; CI/CD; environments without Python installed | Shared/organisational deployments alongside Viya |
+| **Requires** | Python + uv | Python + uv (+ optional `sas-viya` CLI) | Docker or Podman only | A cluster, an ingress controller, a TLS secret |
+| **Credentials stored?** | No — user authenticates interactively | No — only an access token (not a password) is cached | No — user authenticates interactively | No — a signing key in a `Secret`; users authenticate themselves |
+| **MCP client config** | Point client to `http://localhost:8134/mcp` | Client runs `uv run app-stdio` | Point client to `http://host:8134/mcp` | Point client to `https://<viya-host>/mcp` |
 
 **Quick guidance:**
 - **Starting out or exploring?** Use **stdio** — one `sas-viya auth loginCode` or `uv run sas-mcp-login`, then your MCP client manages the server lifecycle.
 - **Need secure, interactive auth?** Use **HTTP** — no stored passwords, each user authenticates via browser.
 - **Deploying for a team or on a server?** Use **Docker** — portable, no Python dependency on the host, easy to integrate with orchestrators.
+- **Running it for a whole organisation?** Use **Kubernetes** — a sample manifest and a Helm chart are in [deploy/](/deploy/README.md), including the ingress routing the OAuth flow needs.
 - **Using Gemini CLI?** Use **stdio** — Gemini CLI does not support HTTP mode or browser-based OAuth. See [Gemini CLI configuration](examples/configuration.md#gemini-cli).
+- **Installing from a client's server catalogue?** That path runs the published container in **stdio** mode (`app-stdio`), not as an HTTP server, so it authenticates from your `~/.sas` token cache — which has to be mounted into the container at `/app/.sas`.
 
 ### Limiting exposed tools (tiers)
 
@@ -386,8 +390,22 @@ When enabled it does two things:
 
 1. **Injects a required `goal` parameter** into every tool's schema, asking the model to state in one sentence *why* it chose that tool for the current
    request. The `goal` is stripped from the arguments before the real tool runs, so tools never see it.
-2. **Appends one JSON line per tool call** (JSON Lines / NDJSON) to a local log file: timestamp, session id, tool name, goal, arguments, result, status,
-   error, and latency. Secret-shaped keys and inline Bearer/JWT tokens are redacted and every field is size-capped.
+2. **Appends one JSON line per tool call** (JSON Lines / NDJSON, schema v3) to a local log file: timestamp, run id, per-run sequence number, tool
+   name, goal, arguments (plus a stable `args_hash` for retry analysis), result, status, error, latency, and the calling client's
+   `client_name` / `client_version`. When a tool *declares* a failure as data
+   (e.g. `{"status": "apply_failed"}`, which the MCP layer sees as success), the record also carries `tool_status` / `is_tool_error` /
+   `tool_message` / `failed_operation_index` — so tool-level failure rates are analyzable in every mode. A `run_start` header record
+   (transport, pid, server version, result mode, and an optional `COLLECTION_RUN_TAG` label for tagging A/B runs) opens the log and is
+   **re-emitted every 1000 records**, so rotation cannot leave a stretch of the log with no header to resolve; every emission is
+   byte-identical, so any one of them will do. Secret-shaped keys and inline Bearer/JWT tokens are redacted, the Viya hostname is masked in
+   error/result text, and every field is size-capped.
+
+   **Records group by `run_id` — one per server process — not by MCP session.** The protocol is moving to a *sessionless* model (FastMCP 4 makes
+   it the default) in which `session_id` is absent or minted per request, so grouping on it would shatter every trace into single-call fragments.
+   Under stdio, one process serves one client, so a run *is* that client's trace. Under HTTP a run spans every client the process served, and
+   `client_name`/`client_version` are the only thing separating them — **two users on the same client software share one `run_id` and one `seq`
+   counter**, which is an accepted limitation of dropping the session key, not something a per-process `COLLECTION_LOG_PATH` can fix (that splits
+   by process, the axis `run_id` already covers).
 
 ### Enabling it
 
@@ -397,19 +415,27 @@ Set the toggle in `.env` (all options are documented in `.env.sample`):
 COLLECTION_MODE=true
 # optional overrides (defaults shown):
 # COLLECTION_LOG_PATH=~/.sas-mcp-server/tool-usage.log
-# COLLECTION_LOG_RESULTS=false   # false = record result shape only, not contents
+# COLLECTION_LOG_RESULTS=failures  # never | failures | always (see below)
+# COLLECTION_RUN_TAG=            # free-text label stamped into run_start
 ```
 
-By default (`COLLECTION_LOG_RESULTS=false`) tool **results** are recorded only as a content-free shape summary (e.g. `{"_type":"array","_items":500}`) — arguments, goal, status, and error text are still captured. Set it to `true` to capture (capped + redacted) result contents for richer analysis.
+Tool **results** are recorded per `COLLECTION_LOG_RESULTS` — a tri-state dial: `never` records only a content-free shape summary (type + key
+names, e.g. `{"_type":"object","_keys":["status","report_id"]}`); `failures` (**the default**) records full (capped + redacted) result contents **only** for calls that
+errored or whose tool declared a failure — the middle ground, since failure diagnostics are the highest-value trace data and rarely carry
+table rows, and because under `never` a success and a tool-declared failure are indistinguishable in the log; `always` records result contents on every call. Arguments, goal, status, error text, and the tool-declared outcome fields are captured in
+every mode. (`true`/`false` still work as aliases for `always`/`never`.)
 
-> ⚠️ **Privacy:** when enabled, the log captures your tool inputs (e.g. the SAS code and queries you submit) and — if `COLLECTION_LOG_RESULTS=true` — real result data that may include table rows, SAS listings, and PII. Redaction is heuristic (credential-shaped keys + Bearer/JWT only) and does **not** detect PII in data values. **Review the log before sharing it.** The file is locked to your user (chmod 0600 on POSIX; icacls on Windows, best-effort).
+> ⚠️ **Privacy:** when enabled, the log captures your tool inputs (e.g. the SAS code and queries you submit) and — in `failures`/`always` modes — real
+> result data that may include table rows, SAS listings, and PII. Redaction is heuristic (credential-shaped keys + Bearer/JWT + the Viya hostname) and
+> does **not** detect PII in data values. **Review the log before sharing it.** The file is locked to your user (chmod 0600 on POSIX; icacls on
+> Windows, best-effort).
 
 ### Performance impact
 
 Collection mode is designed to be cheap enough to leave on. Measured on this repo (45 registered tools, FastMCP 3.4.2):
 
 - **Prompt tokens.** The injected `goal` field grows the `tools/list` schema the model sees by roughly **+2,400 input tokens (~29%) per turn**. Because the tool list is stable within a session it is served from the prompt cache after the first turn (steady-state ≈ +240 tokens/turn), plus ~15–30 output tokens per call for the model to write the `goal` sentence. This is the only client-visible cost and it applies only while collection mode is enabled. 
-- **Per-call latency.** Middleware + logging adds **≈1.4 ms per call** at the shape-only default (**≈5.3 ms** with `COLLECTION_LOG_RESULTS=true`). The JSONL
+- **Per-call latency.** Middleware + logging adds **≈1.4 ms per call** at the shape-only default (**≈5.3 ms** with `COLLECTION_LOG_RESULTS=always`). The JSONL
   write is offloaded to a worker thread so it never blocks the event loop. Against real Viya calls (typically hundreds of milliseconds to seconds) this is
   negligible — the live integration suite passed identically with collection mode off and on, the overhead lost in normal network variance.
 - **Disk.** Roughly **0.5–0.7 KB per tool call** at the shape-only default. The log rotates at `COLLECTION_MAX_LOG_BYTES` (default 10 MiB, ≈16k calls) and keeps `COLLECTION_LOG_BACKUPS` (default 3) rotated files, so on-disk growth is bounded.

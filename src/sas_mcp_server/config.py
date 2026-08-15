@@ -3,15 +3,14 @@
 
 import logging
 import os
-import ssl
 
 from dotenv import load_dotenv
-from fastmcp.server.auth import OAuthProxy
 from fastmcp.server.auth.providers.jwt import JWTVerifier
-from mcp.server.auth.provider import AccessToken
 
-from .env import env_bool
+from .auth import PermissiveOAuthProxy
+from .env import env_bool, parse_log_results
 from .exceptions import ConfigError
+from .ssl_patch import disable_tls_verification
 
 load_dotenv()
 
@@ -44,74 +43,42 @@ COLLECTION_MAX_LOG_BYTES = int(
 COLLECTION_LOG_BACKUPS = int(os.getenv("COLLECTION_LOG_BACKUPS", "3"))
 # Whether 'goal' is appended to each schema's required[]. Escape hatch = false.
 COLLECTION_REQUIRE_GOAL = env_bool("COLLECTION_REQUIRE_GOAL", True)
-# Privacy dial for tool RESULTS. Default FALSE: results are recorded as a
-# content-free shape summary ({"_type":"array","_items":N} / ...), NOT their
-# contents, so data-sensitive shops contribute usage signal (which tools,
-# goals, inputs, success/failure, error text) WITHOUT exfiltrating table rows
-# or SAS listings. Set true to capture (capped + redacted) result contents.
-# Arguments and goal are captured either way.
-COLLECTION_LOG_RESULTS = env_bool("COLLECTION_LOG_RESULTS", False)
+# Privacy dial for tool RESULTS — tri-state:
+#   never    — results recorded as a content-free shape summary
+#            ({"_type":"object","_keys":[...names]}), NOT their contents, so
+#            data-sensitive shops contribute usage signal without exfiltrating
+#            table rows or SAS listings. Note this makes a success and a
+#            tool-declared failure indistinguishable in the log.
+#   failures (DEFAULT) — full (capped + redacted) result contents ONLY when the call
+#            errored at the MCP layer or the tool itself declared a failure
+#            (status apply_failed / invalid_* / not_found / ...). Successes
+#            stay shape-only. The middle ground: failure diagnostics are the
+#            highest-value trace data and rarely carry table rows.
+#   always   — full (capped + redacted) result contents on every call.
+# Back-compat: true/1/yes/on -> always; false/0/no/off -> never.
+# Parsing lives in env.py alongside env_bool, which owns the boolean spellings.
+COLLECTION_LOG_RESULTS = parse_log_results(os.getenv("COLLECTION_LOG_RESULTS"))
+# Free-text experiment label stamped into each run_start record — tag A/B runs
+# (skill on/off, server build) so traces are self-describing.
+COLLECTION_RUN_TAG = os.getenv("COLLECTION_RUN_TAG", "") or None
+# Accept the former name so an existing .env keeps labelling its runs. Dropping
+# it silently would only surface AFTER an A/B arm finished, as an untagged
+# header — i.e. the arm has to be re-run. Warn like parse_log_results does.
+_legacy_tag = os.getenv("COLLECTION_SESSION_TAG", "") or None
+if _legacy_tag and not COLLECTION_RUN_TAG:
+    logging.getLogger(__name__).warning(
+        "COLLECTION_SESSION_TAG is deprecated; using it as COLLECTION_RUN_TAG. "
+        "Rename it — telemetry groups by run, not by MCP session."
+    )
+    COLLECTION_RUN_TAG = _legacy_tag
 
 _logger = logging.getLogger(__name__)
 
-
-class PermissiveOAuthProxy(OAuthProxy):
-    """OAuthProxy that optionally accepts raw upstream JWTs.
-
-    When ``ALLOW_RAW_BEARER`` is set, a bearer token that fails the standard
-    MCP JWT swap (because it isn't a proxy-issued JWT) falls through to the
-    configured ``token_verifier``. If the verifier accepts it (i.e. the
-    token is a valid Viya JWT signed by the upstream JWKS), the request
-    proceeds with the raw token used directly as the upstream credential.
-
-    This lets PKCE clients and pre-authenticated programmatic clients hit
-    the same MCP endpoint without conflict — the additive path only kicks
-    in after the standard swap has already failed.
-    """
-
-    async def load_access_token(self, token: str) -> AccessToken | None:
-        validated = await super().load_access_token(token)
-        if validated is not None:
-            return validated
-        if not ALLOW_RAW_BEARER:
-            return None
-        raw = await self._token_validator.verify_token(token)
-        if raw is not None:
-            _logger.info(
-                "Accepted raw bearer token (ALLOW_RAW_BEARER=true); "
-                "bypassing MCP JWT swap"
-            )
-        return raw
-
 if not SSL_VERIFY:
-    # Disable SSL verification for self-signed Viya certificates
-    import httpx
-    # Guard against re-patching when this module is reloaded (e.g. by tests
-    # that del sys.modules['sas_mcp_server.config'] and re-import). Without
-    # this, each reload stacks another wrapper around the existing one,
-    # eventually breaking outbound httpx connections in the same process.
-    if not getattr(httpx.AsyncClient.__init__, "_sas_mcp_ssl_patched", False):
-        _ssl_context = ssl.create_default_context()
-        _ssl_context.check_hostname = False
-        _ssl_context.verify_mode = ssl.CERT_NONE
-        # Monkey-patch httpx to use our permissive SSL context by default
-        _original_async_client_init = httpx.AsyncClient.__init__
-
-        def _patched_async_client_init(self, *args, **kwargs):
-            kwargs.setdefault("verify", _ssl_context)
-            _original_async_client_init(self, *args, **kwargs)
-
-        _patched_async_client_init._sas_mcp_ssl_patched = True
-        httpx.AsyncClient.__init__ = _patched_async_client_init
-
-        _original_client_init = httpx.Client.__init__
-
-        def _patched_client_init(self, *args, **kwargs):
-            kwargs.setdefault("verify", _ssl_context)
-            _original_client_init(self, *args, **kwargs)
-
-        _patched_client_init._sas_mcp_ssl_patched = True
-        httpx.Client.__init__ = _patched_client_init
+    # Self-signed Viya certificates. Patches httpx AND httpx2 (FastMCP 4's
+    # client), so the exemption keeps covering FastMCP's own JWKS/OAuth calls
+    # across a major upgrade. See sas_mcp_server.ssl_patch.
+    disable_tls_verification()
 
 VIYA_ENDPOINT = os.getenv("VIYA_ENDPOINT", "").rstrip("/")
 CLIENT_ID = os.getenv("CLIENT_ID", "sas-mcp")
@@ -142,6 +109,16 @@ MCP_BASE_URL = _mcp_base_url if _mcp_base_url and not _mcp_base_url.startswith("
 # streamed through the model context (default 25 MiB).
 MAX_EXPORT_INLINE_BYTES = int(os.getenv("MAX_EXPORT_INLINE_BYTES", str(25 * 1024 * 1024)))
 
+# Upper bound on bytes accepted from the server-side upload sources
+# (``upload_data`` / ``upload_file`` with ``file_path`` or ``url``). The whole
+# source is buffered in memory while it is re-posted to Viya, so without a cap
+# one oversized URL fetch can OOM-kill the process. Default 100 MiB — SAS
+# Viya's own default file-upload limit — because a bigger payload would be
+# refused upstream anyway; if your Viya administrator raises the Viya-side
+# limit, raise this with it (and revisit the pod memory limit, see
+# deploy/SCALING.md).
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(100 * 1024 * 1024)))
+
 if not VIYA_ENDPOINT:
     raise ConfigError(
         "VIYA_ENDPOINT is not set. Please set it in the environment variables."
@@ -164,4 +141,5 @@ viya_auth = PermissiveOAuthProxy(
     forward_pkce=True,
     token_verifier=token_verifier,
     valid_scopes=["openid"],
+    allow_raw_bearer=ALLOW_RAW_BEARER,
 )
