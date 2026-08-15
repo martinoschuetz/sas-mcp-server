@@ -33,7 +33,7 @@ from ._common import make_session_helpers
 # Per the uploadTable API the accepted ``format`` values are csv, xls, xlsx,
 # sas7bdat and sashdat; ``tsv`` is csv with a tab delimiter and ``xlsm`` uploads
 # as ``xlsx``.
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class DataFormat:
     key: str  # logical name used in data_format / detection (e.g. "tsv")
     cas_format: str  # value sent in the multipart ``format`` field (e.g. "csv")

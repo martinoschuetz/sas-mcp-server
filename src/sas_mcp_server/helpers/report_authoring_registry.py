@@ -174,7 +174,7 @@ LAYOUT_RECIPES: tuple[str, ...] = (
 # --- object registry ------------------------------------------------------
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class RoleSpec:
     """A single data role a VA object accepts.
 
@@ -186,7 +186,7 @@ class RoleSpec:
     multi: bool = False
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class VaObject:
     """One VA report object and the data roles it exposes.
 
