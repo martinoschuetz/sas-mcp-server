@@ -1,9 +1,8 @@
-import pytest
-import re
 from sas_mcp_server.helpers.telemetry_helpers import (
     classify_error,
     is_tool_failure_status,
 )
+
 
 def test_classify_error_empty():
     assert classify_error(None) == (None, None)
@@ -30,10 +29,11 @@ def test_rescue_unparsed_input():
     
     # test raw invalid JSON with goal
     raw_str = 'some invalid json "goal": "do something"'
-    assert rescue_unparsed_input({"__unparsedToolInput": {"raw": raw_str}})[1] == False
+    assert rescue_unparsed_input({"__unparsedToolInput": {"raw": raw_str}})[1] is False
     
     # test raw valid JSON
-    assert rescue_unparsed_input({"__unparsedToolInput": {"raw": '{"valid": "json"}'}}) == ({"valid": "json"}, True, None)
+    res = rescue_unparsed_input({"__unparsedToolInput": {"raw": '{"valid": "json"}'}})
+    assert res == ({"valid": "json"}, True, None)
 def test_result_shape():
     from sas_mcp_server.helpers.telemetry_helpers import result_shape
     assert result_shape(None) is None
@@ -65,7 +65,7 @@ def test_args_hash():
     assert len(h3) == 12
 
 def test_scrub_host():
-    from sas_mcp_server.helpers.telemetry_helpers import scrub_host, scrub_host_deep, _HOST_MASK
+    from sas_mcp_server.helpers.telemetry_helpers import _HOST_MASK, scrub_host, scrub_host_deep
     assert scrub_host("https://host.com/api", "https://host.com") == f"{_HOST_MASK}/api"
     assert scrub_host(123, "https://host.com") == 123
     assert scrub_host("https://host.com/api", None) == "https://host.com/api"
