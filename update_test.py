@@ -1,6 +1,5 @@
-import sys
 
-with open('tests/test_integration.py', 'r') as f:
+with open('tests/test_integration.py') as f:
     content = f.read()
 
 replacement = '''
