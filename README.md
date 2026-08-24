@@ -32,7 +32,7 @@ Here you can find getting articles on how to use and integrate the SAS MCP Serve
 
 - Optional
     - [Docker](https://docs.docker.com/engine/install): refer to [container setup](/deploy/docker.md)
-    - Kubernetes: sample manifest and Helm chart in [deploy/](/deploy/README.md)
+    - Kubernetes: sample manifests (Contour or nginx) and a Helm chart in [deploy/](/deploy/README.md)
 
 ### Installation
 
@@ -137,7 +137,7 @@ If your compute deployment does not expose `/compute/contexts` and only supports
 - **Starting out or exploring?** Use **stdio** — one `sas-viya auth loginCode` or `uv run sas-mcp-login`, then your MCP client manages the server lifecycle.
 - **Need secure, interactive auth?** Use **HTTP** — no stored passwords, each user authenticates via browser.
 - **Deploying for a team or on a server?** Use **Docker** — portable, no Python dependency on the host, easy to integrate with orchestrators.
-- **Running it for a whole organisation?** Use **Kubernetes** — a sample manifest and a Helm chart are in [deploy/](/deploy/README.md), including the ingress routing the OAuth flow needs.
+- **Running it for a whole organisation?** Use **Kubernetes** — sample manifests and a Helm chart are in [deploy/](/deploy/README.md), including the routing the OAuth flow needs for either **Contour** (the chart's default, and the only one that can mount the server under a path prefix on an existing hostname) or **ingress-nginx**.
 - **Using Gemini CLI?** Use **stdio** — Gemini CLI does not support HTTP mode or browser-based OAuth. See [Gemini CLI configuration](examples/configuration.md#gemini-cli).
 - **Installing from a client's server catalogue?** That path runs the published container in **stdio** mode (`app-stdio`), not as an HTTP server, so it authenticates from your `~/.sas` token cache — which has to be mounted into the container at `/app/.sas`.
 
@@ -186,6 +186,19 @@ The definition is strict: a tool qualifies only if it can neither write nor star
 | `cancel_job`, `reset_compute_session` | Destroy something the caller owns |
 
 Classification is fail-closed: a tool that is not explicitly classified as read-only is withheld. The list lives in [`src/sas_mcp_server/tools/_access.py`](src/sas_mcp_server/tools/_access.py), and a test asserts it covers every registered tool, so a newly added tool cannot silently land in read-only mode.
+
+### Tool annotations (what clients are told)
+
+The same classification is **advertised** to every client as [MCP tool annotations](https://modelcontextprotocol.io/specification/2025-03-26/server/tools#tool-annotations) on each `tools/list` entry — whether or not read-only mode is on:
+
+| Hint | Derived from |
+|---|---|
+| `readOnlyHint` | exactly the read-only set above — one table, so what a client is told and what `MCP_READ_ONLY` enforces cannot drift |
+| `destructiveHint` | tools that can remove or overwrite existing state: arbitrary code (`execute_sas_code`, `submit_batch_job`), `delete_*`, `cancel_job`, `reset_compute_session`, the `update_*` PUTs, `apply_report_operations`, `create_report`/`copy_report` (their `replace` conflict policy), `publish_ml_champion_model` |
+| `idempotentHint` | reads, the `update_*` PUTs, deletes, `cancel_job`, `reset_compute_session`, `promote_table_to_memory` |
+| `openWorldHint` | only tools that can reach beyond Viya: arbitrary code and the upload tools' `url` source |
+
+Clients use these to shape their approval UX — e.g. Claude groups read-only tools for one-click approval and warns before destructive ones — and to decide when to interrupt the user. They are hints, not enforcement: the spec tells clients to treat them as untrusted unless the server is trusted, and `MCP_READ_ONLY` remains the server-side control. Without annotations a client must assume the spec's pessimistic defaults (writable, destructive, open-world) for every tool, so this only ever reduces friction. The browser landing page marks each tool `read-only` / `write` / `destructive` from the same hints.
 
 ### Available Tools
 
@@ -309,6 +322,8 @@ Build and manage SAS Intelligent Decisioning rule sets and decision flows end to
 ## MCP Client Configuration
 
 Example configurations are provided in the `examples/` folder. Below are quick-start snippets for common clients.
+
+> **Tip — open the endpoint in a browser.** In HTTP mode, pointing a browser at the MCP URL (e.g. `http://localhost:8134/mcp`, or `https://<host>/mcp` for a deployed server) shows a landing page instead of a bare `401`: what the server is, which SAS Viya it talks to, the tool tiers this deployment exposes with a one-line summary per tool, and ready-to-copy configuration for Claude Code, VS Code, Cursor, Claude connectors and generic `mcp.json` clients — with the deployment's real URL already filled in. Only a plain browser `GET` (`Accept: text/html`) is answered this way; MCP clients and `curl` see exactly what they saw before. The page is unauthenticated and shows deployment shape only (never user data); administrators can turn it off with `MCP_LANDING_PAGE=false`.
 
 ### VS Code / Cursor / Claude Code (`.vscode/mcp.json`)
 
