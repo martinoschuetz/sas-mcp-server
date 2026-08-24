@@ -1,6 +1,5 @@
-import sys
 
-with open('src/sas_mcp_server/tools/iot.py', 'r') as f:
+with open('src/sas_mcp_server/tools/iot.py') as f:
     lines = f.readlines()
 
 out = []

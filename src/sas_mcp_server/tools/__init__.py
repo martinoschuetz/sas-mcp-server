@@ -34,12 +34,12 @@ from . import (
     data_ops,
     decisioning,
     discovery,
+    genai,
     iot,
     jobs,
     model_scoring,
     reports,
     workbench,
-    genai,
 )
 from ._access import READ_ONLY_TOOLS, WRITE_TOOLS, ReadOnlyGate
 

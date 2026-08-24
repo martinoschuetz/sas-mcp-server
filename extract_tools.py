@@ -1,6 +1,5 @@
-import sys
-import inspect
 import re
+
 from sas_mcp_server import tools
 
 groups = {num: title for num, title in tools.TIER_TITLES.items()}
@@ -23,7 +22,7 @@ for tier_num, title in sorted(groups.items()):
     output.append(f'## {title}')
     mod = modules[tier_num]
     
-    with open(mod.__file__, 'r') as f:
+    with open(mod.__file__) as f:
         content = f.read()
     
     matches_async = re.findall(r'@mcp\.tool(?:\(\))?\s+async def ([a-zA-Z0-9_]+)', content)

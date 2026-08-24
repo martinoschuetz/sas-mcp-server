@@ -12,6 +12,7 @@ from .. import config
 from ..viya_client import logger
 from ._common import make_session_helpers
 
+
 def register(
     mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]
 ) -> None:

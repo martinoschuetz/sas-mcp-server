@@ -1,4 +1,3 @@
-import sys
 
 with open('tests/test_integration.py', 'a') as f:
     f.write('''

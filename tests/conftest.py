@@ -26,8 +26,8 @@ def _clear_compute_session_cache():
     The cache in ``viya_utils`` is module-level state that would otherwise leak
     a session id (and per-key lock) from one test into the next.
     """
-    from sas_mcp_server.viya_utils import clear_session_cache
     from sas_mcp_server.tools.iot import data_selection_cache
+    from sas_mcp_server.viya_utils import clear_session_cache
 
     clear_session_cache()
     data_selection_cache.clear()
