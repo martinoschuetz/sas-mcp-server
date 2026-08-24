@@ -6,7 +6,8 @@ sys.path.insert(0, r"c:\Git\sas-mcp-server\src")
 os.chdir(r"c:\Git\sas-mcp-server")
 
 from sas_mcp_server.stdio_server import _get_viya_token
-from sas_mcp_server.viya_utils import _make_client, _get_json
+from sas_mcp_server.viya_utils import _get_json, _make_client
+
 
 async def main():
     try:
@@ -34,7 +35,7 @@ async def main():
                         if "EIENTERPRISE" in name or "5F8F11A8" in name:
                             print(f"MATCH: {name} in {caslib}")
                             found_tables.append((caslib, name))
-                except Exception as ex:
+                except Exception:
                     pass
             
             if not found_tables:

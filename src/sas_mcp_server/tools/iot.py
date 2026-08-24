@@ -13,7 +13,7 @@ from cachetools import TTLCache
 from fastmcp import Context, FastMCP
 
 from ..viya_client import logger, make_client
-from ..viya_utils import run_one_snippet, get_context_id
+from ..viya_utils import run_one_snippet
 from ._common import make_session_helpers
 
 data_selection_cache = TTLCache(maxsize=100, ttl=60)

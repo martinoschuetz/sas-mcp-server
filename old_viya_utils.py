@@ -28,7 +28,7 @@ import httpx
 from cachetools import TTLCache
 
 from .config import CONTEXT_NAME, SSL_VERIFY, VIYA_ENDPOINT
-from .viya_client import logger, make_client, SharedAsyncClient
+from .viya_client import SharedAsyncClient, logger, make_client
 
 # Caching for performance
 # Cache data selection lists for 60 seconds, max 100 different filter combinations

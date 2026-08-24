@@ -1,9 +1,8 @@
-import os
-import sys
-import json
-import re
 import asyncio
+import json
+import os
 import subprocess
+import sys
 from urllib.parse import urljoin, urlparse
 
 # Ensure playwright is installed
