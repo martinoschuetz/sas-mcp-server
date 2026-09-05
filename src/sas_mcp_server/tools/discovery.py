@@ -859,6 +859,67 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
             }
 
     @mcp.tool()
+    async def get_compute_table_data(
+        compute_context_name: str,
+        library_name: str,
+        table_name: str,
+        ctx: Context,
+        limit: int = 100,
+        start: int = 0,
+    ) -> dict[str, Any]:
+        """Fetch rows from a table in a SAS library, with column names.
+
+        The compute-tier counterpart of ``get_castable_data``: a plain page of
+        rows from ``libref.table`` as the session sees it, read through the
+        compute session's data API rather than by running SQL. Values arrive
+        formatted the way SAS displays them (dates as text, numbers with their
+        format applied), which is what a person browsing a table expects; use
+        ``query_data`` with ``target='compute'`` when you need raw numerics,
+        a WHERE clause, or a join.
+
+        Runs in the reusable per-user compute session for the context, so
+        WORK tables from earlier ``execute_sas_code`` calls are visible.
+
+        Args:
+            compute_context_name: Name of the compute context (see list_compute_contexts).
+            library_name: The libref, e.g. ``WORK`` or ``SASHELP``.
+            table_name: The table within the library.
+            limit: Maximum rows to return (default 100).
+            start: Row offset for paging (default 0).
+
+        Returns:
+            ``{columns, rows, count, start, limit, truncated, column_types}`` —
+            ``rows`` are dicts keyed by column name, ``count`` is the table's
+            total row count as the service reports it, and ``truncated`` is
+            true when rows exist beyond this page.
+        """
+        base = f"/compute/sessions/{{sid}}/data/{library_name}/{table_name}"
+        async with compute_tool_session("get_compute_table_data", ctx, compute_context_name) as (
+            client,
+            session_id,
+        ):
+            col_items, _ = await get_paged_items(
+                base.format(sid=session_id) + "/columns", client, limit=1000
+            )
+            columns = fedsql_helpers.describe_columns(col_items)
+            row_items, total = await get_paged_items(
+                base.format(sid=session_id) + "/rows", client, limit=limit, start=start
+            )
+            names = [c["name"] for c in columns]
+            rows = [
+                dict(zip(names, item.get("cells", []), strict=False)) for item in row_items
+            ]
+            return {
+                "columns": names,
+                "rows": rows,
+                "count": total or len(rows),
+                "start": start,
+                "limit": limit,
+                "truncated": start + len(rows) < (total or 0),
+                "column_types": {c["name"]: c["type"] for c in columns},
+            }
+
+    @mcp.tool()
     async def query_data(
         query: str,
         ctx: Context,
