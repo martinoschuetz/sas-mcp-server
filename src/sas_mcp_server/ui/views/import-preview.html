@@ -1,0 +1,111 @@
+<style>
+  #rows { max-height: 480px; }
+  td.tree { white-space: nowrap; }
+  td.tree .indent { display: inline-block; width: 14px; }
+  td.tree .branch { color: var(--ink-2); margin-right: 4px; }
+  #failures td.err { color: var(--bad); white-space: normal; max-width: 520px; }
+</style>
+<div id="root">
+  <div class="head">
+    <div>
+      <h1 id="title">Glossary import</h1>
+      <div id="meta" class="small muted"></div>
+    </div>
+    <div class="row" id="counts"></div>
+  </div>
+  <div id="banner" class="banner" hidden></div>
+  <div class="toolbar" id="actions" hidden>
+    <button id="run" class="primary" type="button">Import</button>
+    <label class="small"><input id="update-existing" type="checkbox"> Overwrite terms that already exist at the same path</label>
+  </div>
+  <div id="rows" class="scroll"><div class="empty">Waiting for the import…</div></div>
+  <div id="failures" class="scroll" hidden style="margin-top:8px"></div>
+</div>
+<script type="module">
+  const { el, fmt } = sas;
+  const $ = (id) => document.getElementById(id);
+  const state = { args: {}, preview: null };
+
+  function depth(path) { return path ? String(path).split("\\").length : 0; }
+
+  function renderPreview(data) {
+    state.preview = data;
+    const rows = data.rows || [];
+    const attrCols = (data.columns || []).filter((c) => !["Name", "Type", "Path", "Description"].includes(c));
+    $("title").textContent = `Preview: ${fmt.int(rows.length)} term${rows.length === 1 ? "" : "s"} to import`;
+    $("meta").textContent = data.note || "Nothing has been imported yet.";
+    $("counts").replaceChildren(
+      el("span", { class: "pill" }, `${fmt.int(rows.length)} rows`),
+      el("span", { class: "pill" }, `${fmt.int(new Set(rows.map((r) => r.term_type)).size)} type(s)`),
+      el("span", { class: "pill" }, `${fmt.int(Math.max(0, ...rows.map((r) => depth(r.path)))) + 1} level(s)`),
+    );
+    $("run").textContent = `Import ${fmt.int(rows.length)} term${rows.length === 1 ? "" : "s"}`;
+    $("update-existing").checked = !!state.args.update_existing;
+    $("actions").hidden = false;
+    $("failures").hidden = true;
+    const head = el("tr", {}, el("th", {}, "#"), el("th", {}, "Name"), el("th", {}, "Type"), el("th", {}, "Parent path"), el("th", {}, "Description"), ...attrCols.map((c) => el("th", {}, c)));
+    const body = el("tbody", {}, ...rows.map((r, i) => {
+      const d = depth(r.path);
+      return el("tr", {},
+        el("td", { class: "idx" }, String(i + 1)),
+        el("td", { class: "tree" }, ...Array.from({ length: d }, () => el("span", { class: "indent" })), d ? el("span", { class: "branch" }, "└") : null, r.name),
+        el("td", {}, r.term_type || ""),
+        el("td", { class: "mono muted", title: r.path || "" }, r.path || "—"),
+        el("td", { title: r.description || "" }, r.description || ""),
+        ...attrCols.map((c) => { const v = (r.attributes || {})[c]; return el("td", { class: v == null || v === "" ? "null" : "" }, v == null || v === "" ? "—" : Array.isArray(v) ? v.join(", ") : String(v)); }),
+      );
+    }));
+    $("rows").replaceChildren(el("table", { class: "grid" }, el("thead", {}, head), body));
+  }
+
+  function renderOutcome(data) {
+    const failures = data.failures || [];
+    $("title").textContent = failures.length ? "Import finished with failures" : "Import finished";
+    $("meta").textContent = data.note || (data.job_id ? `Job ${data.job_id}` : "");
+    $("counts").replaceChildren(
+      el("span", { class: "pill" }, `${fmt.int(data.requested ?? 0)} requested`),
+      el("span", { class: `pill ${data.created ? "ok" : ""}` }, `${fmt.int(data.created ?? 0)} created`),
+      el("span", { class: `pill ${failures.length ? "bad" : ""}` }, `${fmt.int(data.failed ?? failures.length)} failed`),
+    );
+    $("actions").hidden = true;
+    const order = data.order || [];
+    $("rows").replaceChildren(el("table", { class: "grid" },
+      el("thead", {}, el("tr", {}, el("th", {}, "#"), el("th", {}, "Term"), el("th", {}, "Outcome"))),
+      el("tbody", {}, ...order.map((name, i) => {
+        const failure = failures.find((f) => f.term === name || f.row === i + 2 || f.row === i + 1);
+        return el("tr", {}, el("td", { class: "idx" }, String(i + 1)), el("td", {}, name), el("td", {}, failure ? el("span", { class: "pill bad" }, "failed") : el("span", { class: "pill ok" }, "created")));
+      })),
+    ));
+    if (failures.length) {
+      $("failures").hidden = false;
+      $("failures").replaceChildren(el("table", { class: "grid" },
+        el("thead", {}, el("tr", {}, el("th", {}, "Row"), el("th", {}, "Term"), el("th", {}, "Reason"))),
+        el("tbody", {}, ...failures.map((f) => el("tr", {}, el("td", { class: "idx" }, f.row == null ? "" : String(f.row)), el("td", {}, f.term || ""), el("td", { class: "err" }, f.error || "")))),
+      ));
+    }
+  }
+
+  $("run").addEventListener("click", async () => {
+    const rows = state.preview?.rows?.length || 0;
+    sas.busy(true);
+    sas.banner(`Importing ${rows} term(s)… this runs as a job and can take a moment.`, "");
+    try {
+      const result = await sas.call(sas.tool, { ...state.args, dry_run: false, update_existing: $("update-existing").checked });
+      sas.busy(false);
+      sas.banner(result.failed ? `${result.created} created, ${result.failed} failed — see the reasons below.` : `${result.created} term(s) created.`, result.failed ? "warn" : "ok");
+      renderOutcome(result);
+      await sas.say(`Ran the glossary import from the preview: ${result.created} created, ${result.failed} failed${result.job_id ? ` (job ${result.job_id})` : ""}.`);
+    } catch (err) {
+      sas.busy(false);
+      sas.banner(`The import did not run: ${sas.errorText(err)}`, "bad");
+    }
+  });
+
+  sas.onInput((args) => { state.args = { ...args }; });
+  sas.onResult((data) => {
+    sas.busy(false);
+    if (!data || typeof data !== "object") { sas.banner(String(data ?? "No result."), "bad"); return; }
+    sas.banner("");
+    if (data.dry_run) renderPreview(data); else renderOutcome(data);
+  });
+</script>

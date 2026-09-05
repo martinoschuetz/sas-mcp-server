@@ -1,0 +1,196 @@
+// Shared runtime for every view. Runs as an inline module after the vendored
+// ext-apps bridge; exposes a small `sas` global the view's own module uses.
+//
+// What it does for a view: connects to the host, hands the view the tool's
+// input and result as they arrive, applies the host's theme, reports the
+// view's size, and wraps the few host calls a view needs — call a tool, post
+// a message into the chat, hand the model context — with the result parsing
+// that FastMCP's shapes require. Views never talk to the bridge directly.
+const bridge = globalThis.__MCP_EXT_APPS__;
+const meta = globalThis.SAS_VIEW || { tool: "", view: "", title: "SAS Viya", version: "" };
+
+const app = new bridge.App(
+  { name: `SAS Viya ${meta.title}`, version: meta.version || "0" },
+  { availableDisplayModes: ["inline", "fullscreen"] },
+);
+
+const handlers = { input: [], result: [], theme: [] };
+let hostTheme = "";
+
+function applyTheme(ctx) {
+  if (!ctx) return;
+  try {
+    if (ctx.styles?.variables) bridge.applyHostStyleVariables(ctx.styles.variables);
+    if (ctx.styles?.css?.fonts) bridge.applyHostFonts(ctx.styles.css.fonts);
+    if (ctx.theme) {
+      bridge.applyDocumentTheme(ctx.theme);
+      document.documentElement.dataset.theme = ctx.theme;
+      hostTheme = ctx.theme;
+    }
+  } catch (err) {
+    console.warn("theme not applied", err);
+  }
+  for (const fn of handlers.theme) fn(ctx);
+}
+
+/** Text of a tool result's content blocks, joined. */
+function textOf(result) {
+  return (result?.content || [])
+    .filter((c) => c && c.type === "text" && typeof c.text === "string")
+    .map((c) => c.text)
+    .join("\n");
+}
+
+/** The value a tool returned, from either the structured or the text form.
+ *  FastMCP wraps a non-object return (a string, a list) as {result: ...} in
+ *  structuredContent; a dict return arrives as itself. */
+function parseResult(result) {
+  const sc = result?.structuredContent;
+  if (sc && typeof sc === "object") {
+    const keys = Object.keys(sc);
+    if (!(keys.length === 1 && keys[0] === "result")) return sc;
+    return sc.result;
+  }
+  const text = textOf(result);
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+const sas = {
+  app,
+  tool: meta.tool,
+  view: meta.view,
+  input: null,
+  result: null,
+  get theme() {
+    return hostTheme;
+  },
+  onInput(fn) {
+    handlers.input.push(fn);
+    if (sas.input) fn(sas.input);
+  },
+  onResult(fn) {
+    handlers.result.push(fn);
+    if (sas.result) fn(sas.result.data, sas.result.raw);
+  },
+  onTheme(fn) {
+    handlers.theme.push(fn);
+  },
+  /** Call a server tool through the host. Resolves to the parsed value;
+   *  rejects with the tool's own message when it reports an error. */
+  async call(name, args) {
+    const result = await app.callServerTool({ name, arguments: args || {} });
+    if (result?.isError) throw new Error(textOf(result) || `${name} failed`);
+    return parseResult(result);
+  },
+  /** Post a message into the chat as the person — the host then lets the
+   *  model respond, so use it only for something they did on purpose. */
+  async say(text) {
+    await app.sendMessage({ role: "user", content: [{ type: "text", text }] });
+  },
+  /** Hand the model context silently (no turn). Hosts may not support it;
+   *  a refusal is not an error for the person. */
+  async context(text, structured) {
+    try {
+      const params = { content: [{ type: "text", text }] };
+      if (structured) params.structuredContent = structured;
+      await app.updateModelContext(params);
+    } catch (err) {
+      console.info("model context not accepted by this host", err?.message || err);
+    }
+  },
+  async fullscreen() {
+    try {
+      await app.requestDisplayMode({ mode: "fullscreen" });
+    } catch (err) {
+      console.info("display mode not accepted by this host", err?.message || err);
+    }
+  },
+  /** DOM helper: el("td", {class: "num", onclick: fn}, "text", node, ...). */
+  el(tag, attrs, ...children) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs || {})) {
+      if (value == null || value === false) continue;
+      if (key === "class") node.className = value;
+      else if (key === "dataset") Object.assign(node.dataset, value);
+      else if (key.startsWith("on") && typeof value === "function") node.addEventListener(key.slice(2), value);
+      else if (key in node && typeof value !== "string") node[key] = value;
+      else node.setAttribute(key, value === true ? "" : String(value));
+    }
+    for (const child of children.flat()) {
+      if (child == null || child === false) continue;
+      node.append(child.nodeType ? child : document.createTextNode(String(child)));
+    }
+    return node;
+  },
+  fmt: {
+    int(n) {
+      return Number(n).toLocaleString();
+    },
+    /** A cell for display: null stays null (rendered by the caller), numbers
+     *  keep their precision, objects become JSON. */
+    cell(v) {
+      if (v == null) return null;
+      if (typeof v === "number") return Number.isInteger(v) ? String(v) : String(+v.toPrecision(12));
+      if (typeof v === "object") return JSON.stringify(v);
+      return String(v);
+    },
+    isNumeric(v) {
+      return typeof v === "number" || (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v)));
+    },
+  },
+  /** Show a message in the view's banner (kind: ok | warn | bad | ""). */
+  banner(text, kind) {
+    const box = document.getElementById("banner");
+    if (!box) return;
+    if (!text) {
+      box.hidden = true;
+      return;
+    }
+    box.textContent = text;
+    box.className = `banner ${kind || ""}`.trim();
+    box.hidden = false;
+  },
+  busy(on) {
+    const root = document.getElementById("root");
+    if (root) root.classList.toggle("busy", !!on);
+  },
+  /** One-line description of an error for a banner. */
+  errorText(err) {
+    const text = err?.message || String(err);
+    return text.length > 600 ? `${text.slice(0, 600)}…` : text;
+  },
+};
+
+app.ontoolinput = (params) => {
+  sas.input = params?.arguments || {};
+  for (const fn of handlers.input) fn(sas.input);
+};
+app.ontoolresult = (result) => {
+  const data = parseResult(result);
+  sas.result = { data, raw: result };
+  for (const fn of handlers.result) fn(data, result);
+};
+app.ontoolcancelled = (params) => {
+  sas.banner(`The call was cancelled${params?.reason ? `: ${params.reason}` : "."}`, "warn");
+};
+app.onhostcontextchanged = (ctx) => applyTheme(ctx);
+
+sas.ready = app
+  .connect()
+  .then(() => {
+    applyTheme(app.getHostContext());
+    try {
+      app.setupSizeChangedNotifications();
+    } catch (err) {
+      console.info("size notifications unavailable", err?.message || err);
+    }
+  })
+  .catch((err) => {
+    sas.banner(`Could not connect to the host: ${sas.errorText(err)}`, "bad");
+  });
+
+globalThis.sas = sas;

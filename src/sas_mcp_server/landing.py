@@ -83,6 +83,9 @@ class ToolEntry:
     # when the tool carries none, so the page never invents a classification.
     read_only: bool | None = None
     destructive: bool | None = None
+    # True when the tool carries an MCP Apps view (``_meta.ui.resourceUri``)
+    # that a supporting client renders beside the result.
+    interactive: bool = False
 
     @property
     def kind(self) -> str:
@@ -202,6 +205,13 @@ _READ_ONLY_HINT = "read_only_hint"
 _DESTRUCTIVE_HINT = "destructive_hint"
 
 
+def _has_view(tool: Any) -> bool:
+    """Whether the tool's metadata names an MCP Apps view resource."""
+    meta = getattr(tool, "meta", None)
+    ui = meta.get("ui") if isinstance(meta, dict) else None
+    return isinstance(ui, dict) and bool(ui.get("resourceUri"))
+
+
 async def collect_facts(
     mcp: Any,
     *,
@@ -232,6 +242,7 @@ async def collect_facts(
                 summary=summarize(t.description),
                 read_only=_hint(ann, _READ_ONLY_HINT),
                 destructive=_hint(ann, _DESTRUCTIVE_HINT),
+                interactive=_has_view(t),
             )
         )
     groups: list[TierGroup] = []
@@ -435,6 +446,11 @@ details .tools li .kind {
 }
 details .tools li .kind.read-only { color: var(--ok); }
 details .tools li .kind.destructive { color: var(--warn); }
+details .tools li .view, .legend .view {
+  font-style: normal; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--accent); border: 1px solid currentColor; border-radius: 999px; padding: 0 6px;
+  margin-left: 6px; white-space: nowrap;
+}
 .legend { color: var(--muted); font-size: 0.9rem; margin: 6px 0 12px; }
 .legend .kind { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; font-style: normal; }
 .legend .kind.read-only { color: var(--ok); }
@@ -495,7 +511,8 @@ def _render_snippet(s: ClientSnippet) -> str:
 def _render_tier(g: TierGroup, *, open_: bool) -> str:
     label = f"Tier {g.tier} — {g.title}" if g.tier is not None else g.title
     items = "".join(
-        f'<li><code>{_e(t.name)}</code><em class="kind {_e(t.kind)}">{_e(t.kind)}</em><span>{_e(t.summary)}</span></li>'
+        f'<li><code>{_e(t.name)}</code><em class="kind {_e(t.kind)}">{_e(t.kind)}</em>'
+        f'<span>{_e(t.summary)}{"<em class=\"view\">interactive</em>" if t.interactive else ""}</span></li>'
         for t in g.tools
     )
     n = len(g.tools)
@@ -580,6 +597,13 @@ def render_page(facts: ServerFacts, *, nonce: str) -> str:
         if kinds - {""}
         else ""
     )
+    if any(t.interactive for g in facts.tiers for t in g.tools):
+        legend += (
+            '<p class="legend">Tools marked <em class="view">interactive</em> also carry a small view — '
+            "a data grid, a SAS log, a glossary form — that clients supporting MCP Apps (Claude, ChatGPT, "
+            "Microsoft 365 Copilot, VS Code, Cursor) render beside the result. Other clients see the same "
+            "text result as always.</p>"
+        )
     prompt_items = "".join(f"<li><code>{_e(p.name)}</code><span>{_e(p.summary)}</span></li>" for p in facts.prompts)
     prompts_html = (
         f'<details><summary>Prompt templates<span class="count">{len(facts.prompts)}</span></summary>'

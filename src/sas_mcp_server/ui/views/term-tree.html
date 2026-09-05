@@ -1,0 +1,183 @@
+<style>
+  #layout { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(220px, 300px); gap: 10px; }
+  @media (max-width: 640px) { #layout { grid-template-columns: 1fr; } }
+  #tree { max-height: 520px; padding: 4px 0; }
+  #tree ul { list-style: none; margin: 0; padding: 0 0 0 16px; }
+  #tree > ul { padding-left: 0; }
+  #tree li { margin: 0; }
+  .node { display: flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: var(--radius); cursor: pointer; }
+  .node:hover { background: var(--bg-2); }
+  .node.selected { background: var(--accent-bg); }
+  .node .chev { width: 16px; text-align: center; color: var(--ink-2); flex: none; font-size: 11px; }
+  .node .chev.leaf { visibility: hidden; }
+  .node .name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .node .name mark { background: var(--warn-bg); color: inherit; }
+  .node.hidden { display: none; }
+  #detail { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; font-size: var(--fs-sm); align-self: start; }
+  #detail h2 { margin-bottom: 4px; }
+  #detail dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin: 8px 0 0; }
+  #detail dt { color: var(--ink-2); } #detail dd { margin: 0; overflow-wrap: anywhere; }
+  #detail .def { white-space: pre-wrap; }
+</style>
+<div id="root">
+  <div class="head">
+    <div>
+      <h1>Glossary terms</h1>
+      <div id="meta" class="small muted"></div>
+    </div>
+    <div class="row" id="counts"></div>
+  </div>
+  <div id="banner" class="banner" hidden></div>
+  <div class="toolbar">
+    <input id="filter" class="grow" type="search" placeholder="Find in loaded terms…" aria-label="Find">
+    <button id="more" type="button" hidden>Load more</button>
+  </div>
+  <div id="layout">
+    <div id="tree" class="scroll"><div class="empty">Waiting for terms…</div></div>
+    <div id="detail"><div class="empty">Select a term to see its definition and attributes.</div></div>
+  </div>
+</div>
+<script type="module">
+  const { el, fmt } = sas;
+  const $ = (id) => document.getElementById(id);
+  const state = { args: {}, nodes: new Map(), selected: null, nextStart: null, root: null };
+
+  function line(item) {
+    const node = el("div", { class: "node", role: "treeitem", tabindex: 0 },
+      el("span", { class: "chev" }, "▸"),
+      el("span", { class: "name" }, item.name || "(unnamed)"),
+      item.is_draft ? el("span", { class: "pill warn" }, "draft") : null,
+      item.term_type ? el("span", { class: "pill" }, item.term_type) : null,
+      item.assigned_asset_count ? el("span", { class: "pill info", title: "assigned assets" }, String(item.assigned_asset_count)) : null,
+    );
+    const li = el("li", { role: "none" }, node);
+    const entry = { item, li, node, expanded: false, loaded: false, children: null };
+    state.nodes.set(item.term_id, entry);
+    node.addEventListener("click", (e) => {
+      if (e.target.classList.contains("chev")) expand(entry); else select(entry);
+    });
+    node.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") select(entry);
+      if (e.key === "ArrowRight") expand(entry, true);
+      if (e.key === "ArrowLeft") expand(entry, false);
+    });
+    node.addEventListener("dblclick", () => expand(entry));
+    return li;
+  }
+
+  async function expand(entry, force) {
+    const open = force === undefined ? !entry.expanded : force;
+    if (open && !entry.loaded) {
+      entry.node.querySelector(".chev").textContent = "…";
+      try {
+        const page = await sas.call("list_glossary_terms", {
+          parent_id: entry.item.term_id, limit: 200, include_drafts: !!state.args.include_drafts,
+        });
+        const items = page.items || [];
+        entry.children = el("ul", { role: "group" }, ...items.map(line));
+        entry.li.append(entry.children);
+        entry.loaded = true;
+        if (!items.length) entry.node.querySelector(".chev").classList.add("leaf");
+      } catch (err) {
+        sas.banner(`Could not load children: ${sas.errorText(err)}`, "bad");
+        entry.node.querySelector(".chev").textContent = "▸";
+        return;
+      }
+    }
+    entry.expanded = open && !!entry.children?.childElementCount;
+    if (entry.children) entry.children.hidden = !entry.expanded;
+    const chev = entry.node.querySelector(".chev");
+    if (!chev.classList.contains("leaf")) chev.textContent = entry.expanded ? "▾" : "▸";
+  }
+
+  async function select(entry) {
+    if (state.selected) state.selected.node.classList.remove("selected");
+    state.selected = entry;
+    entry.node.classList.add("selected");
+    renderDetail(entry.item);
+    sas.context(`The user selected the glossary term "${entry.item.name}" (term_id ${entry.item.term_id}).`);
+    if (!entry.item.attributes) {
+      try {
+        const full = await sas.call("get_glossary_term", { term_id: entry.item.term_id });
+        entry.item = { ...entry.item, ...full };
+        if (state.selected === entry) renderDetail(entry.item);
+      } catch (err) {
+        console.info("detail unavailable", err?.message || err);
+      }
+    }
+  }
+
+  function renderDetail(item) {
+    const box = $("detail");
+    box.replaceChildren(
+      el("h2", {}, item.name || ""),
+      el("div", { class: "row" },
+        item.term_type ? el("span", { class: "pill" }, item.term_type) : null,
+        item.status ? el("span", { class: `pill ${item.is_draft ? "warn" : "ok"}` }, item.is_draft ? "draft" : item.status) : null,
+      ),
+      item.definition ? el("p", { class: "def" }, item.definition) : el("p", { class: "muted" }, "No definition."),
+      item.description ? el("p", { class: "def muted" }, item.description) : null,
+    );
+    const dl = el("dl");
+    for (const [k, v] of Object.entries(item.attributes || {})) {
+      if (v == null || v === "") continue;
+      dl.append(el("dt", {}, k), el("dd", {}, Array.isArray(v) ? v.join(", ") : String(v)));
+    }
+    for (const [k, v] of [["Assets", item.assigned_asset_count], ["Parent", item.parent_id], ["Id", item.term_id]]) if (v) dl.append(el("dt", {}, k), el("dd", { class: k === "Assets" ? "" : "mono" }, String(v)));
+    if (dl.childElementCount) box.append(dl);
+  }
+
+  function filter(needle) {
+    const q = needle.trim().toLowerCase();
+    for (const entry of state.nodes.values()) {
+      const name = entry.item.name || "";
+      const hit = !q || name.toLowerCase().includes(q);
+      entry.node.classList.toggle("hidden", !hit);
+      const span = entry.node.querySelector(".name");
+      span.replaceChildren();
+      if (hit && q) {
+        const i = name.toLowerCase().indexOf(q);
+        span.append(name.slice(0, i), el("mark", {}, name.slice(i, i + q.length)), name.slice(i + q.length));
+      } else span.textContent = name;
+      if (hit && q && entry.children) entry.children.hidden = false;
+    }
+  }
+
+  function scope(args) {
+    const parts = [];
+    if (args.term_type) parts.push(`type ${args.term_type}`);
+    if (args.parent_id) parts.push(`children of ${args.parent_id}`);
+    if (args.name_contains) parts.push(`name contains “${args.name_contains}”`);
+    if (args.attribute_filter) parts.push(`attributes ${JSON.stringify(args.attribute_filter)}`);
+    if (args.include_drafts) parts.push("drafts included");
+    return parts.join(" · ") || "all terms";
+  }
+
+  function render(data, append) {
+    sas.busy(false);
+    if (!data || typeof data !== "object") { sas.banner(String(data ?? "No result."), "bad"); return; }
+    const items = data.items || [];
+    if (!append) { $("tree").replaceChildren(); state.nodes.clear(); state.root = el("ul", { role: "tree" }); $("tree").append(state.root); }
+    for (const item of items) state.root.append(line(item));
+    if (!state.nodes.size) $("tree").append(el("div", { class: "empty" }, "No terms match."));
+    state.nextStart = data.next_start ?? null;
+    $("more").hidden = state.nextStart == null;
+    $("meta").textContent = scope(state.args);
+    $("counts").replaceChildren(
+      el("span", { class: "pill" }, `${fmt.int(state.nodes.size)} loaded`),
+      data.scan_complete === false ? el("span", { class: "pill warn", title: `${data.scanned} scanned` }, "partial scan") : null,
+    );
+  }
+
+  $("filter").addEventListener("input", (e) => filter(e.target.value));
+  $("more").addEventListener("click", async () => {
+    sas.busy(true);
+    try {
+      const page = await sas.call(sas.tool, { ...state.args, start: state.nextStart });
+      render(page, true);
+    } catch (err) { sas.busy(false); sas.banner(sas.errorText(err), "bad"); }
+  });
+
+  sas.onInput((args) => { state.args = { ...args }; $("meta").textContent = scope(args); });
+  sas.onResult((data) => render(data, false));
+</script>

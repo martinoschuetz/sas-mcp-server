@@ -106,6 +106,13 @@ MCP_READ_ONLY = env_bool("MCP_READ_ONLY", False)
 # tool names + one-line summaries) — set false to hide it and get the 401 back.
 # Rendering lives in sas_mcp_server.landing.
 MCP_LANDING_PAGE = env_bool("MCP_LANDING_PAGE", True)
+# Interactive views (MCP Apps, default: true). Tools whose results read badly
+# as text — data grids, SAS logs, glossary forms — also carry a small HTML view
+# that hosts supporting the MCP Apps extension (Claude, ChatGPT, M365 Copilot,
+# VS Code, Cursor) render beside the result. Purely additive: the tool's return
+# value is unchanged, and a host without the extension sees nothing different.
+# Set false to register no views. The views live in sas_mcp_server.ui.
+MCP_APPS = env_bool("MCP_APPS", True)
 
 _mcp_base_url = os.getenv("MCP_BASE_URL", "").strip()
 # An empty value is the documented .env.sample default. Also ignore values
