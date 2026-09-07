@@ -301,9 +301,31 @@
       el("span", {}, "term_id ", el("code", {}, t.term_id)),
       el("button", { type: "button", onclick: () => copy(t.term_id) }, "Copy id"),
       el("button", { type: "button", onclick: () => sas.say(`Let's work on the glossary term "${t.name}" (term_id ${t.term_id}).`) }, "Ask the assistant about this term"),
+      // A draft is visible to nobody but its author, so the tree is exactly
+      // where you notice one — and publishing is a single call away. Withheld
+      // in a read-only deployment, where the call could only fail.
+      t.is_draft && sas.can("update_glossary_term")
+        ? el("button", { type: "button", onclick: () => publish(id) }, "Publish draft")
+        : null,
       t.modified ? el("span", {}, `modified ${t.modified}${t.modified_by ? ` by ${t.modified_by}` : ""}`) : null,
     ));
     renderAssets(id, assetsBox);
+  }
+  async function publish(id) {
+    const t = state.terms.get(id);
+    sas.busy(true);
+    try {
+      const r = await sas.call("update_glossary_term", { term_id: id, publish: true });
+      Object.assign(t, { is_draft: false, status: r.status || t.status });
+      sas.busy(false);
+      sas.banner(`Published “${t.name}”.`, "ok");
+      renderTree();
+      renderDetail(id);
+      await sas.say(`Published the glossary draft "${t.name}" (term_id ${id}) from the glossary browser.`);
+    } catch (err) {
+      sas.busy(false);
+      sas.banner(`Not published: ${sas.errorText(err)}`, "bad");
+    }
   }
   async function renderAssets(id, box) {
     const t = state.terms.get(id);

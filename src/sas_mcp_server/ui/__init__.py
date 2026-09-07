@@ -57,6 +57,13 @@ class View:
     key: str
     title: str
     tools: tuple[str, ...]
+    #: Other tools the view calls of its own accord — a next page, a lookup,
+    #: an action offered on the result. A deployment can withhold any of them
+    #: through ``MCP_TIERS`` or ``MCP_READ_ONLY`` while still registering the
+    #: view, so which ones survived is stamped into the page and the view asks
+    #: ``sas.can(...)`` before offering the control. Otherwise a read-only
+    #: deployment shows a Publish button whose only possible outcome is an error.
+    calls: tuple[str, ...] = ()
 
     @property
     def template(self) -> str:
@@ -73,16 +80,19 @@ VIEWS: tuple[View, ...] = (
         key="sas-log",
         title="SAS log",
         tools=("execute_sas_code", "get_job_log", "submit_batch_job"),
+        calls=("get_job_status", "get_job_log"),
     ),
     View(
         key="term-editor",
         title="Glossary term editor",
         tools=("get_glossary_term_type", "get_glossary_term"),
+        calls=("get_glossary_term_type", "create_glossary_term", "update_glossary_term"),
     ),
     View(
         key="term-tree",
         title="Glossary browser",
         tools=("list_glossary_terms",),
+        calls=("list_glossary_terms", "list_term_assets", "update_glossary_term"),
     ),
     View(
         key="import-preview",
@@ -121,16 +131,28 @@ def bridge_version() -> str:
 
 
 @cache
-def render_view(view_key: str, tool: str, version: str = "") -> str:
+def render_view(
+    view_key: str, tool: str, version: str = "", available: tuple[str, ...] = ()
+) -> str:
     """Assemble the complete HTML document for one (view, tool) pair.
 
     Cached: the document is fixed for the process lifetime and a host may
     read it on every render. The tool name is stamped into the page as
     ``SAS_VIEW`` so the view can re-invoke exactly the tool that produced
-    its result (the extension does not pass the name along).
+    its result (the extension does not pass the name along), and with it the
+    subset of the view's :attr:`View.calls` this deployment actually
+    registered, which :func:`sas.can` in the shell reads.
     """
     view = next(v for v in VIEWS if v.key == view_key)
-    stamp = json.dumps({"tool": tool, "view": view.key, "title": view.title, "version": version})
+    stamp = json.dumps(
+        {
+            "tool": tool,
+            "view": view.key,
+            "title": view.title,
+            "version": version,
+            "can": sorted(available),
+        }
+    )
     return (
         "<!doctype html>\n"
         '<html lang="en">\n<head>\n<meta charset="utf-8">\n'
@@ -152,29 +174,35 @@ def register_views(mcp: FastMCP, tools: Iterable[str], *, version: str = "") -> 
     would advertise something the host could never call. Returns the URIs
     registered, for logging.
     """
+    present = set(tools)
     registered: list[str] = []
-    for tool in sorted(set(tools)):
+    for tool in sorted(present):
         view = VIEW_FOR_TOOL.get(tool)
         if view is None:
             continue
         uri = resource_uri(tool)
+        # Only the companion tools this deployment kept, so a view offers no
+        # control the server would refuse.
+        available = tuple(sorted(c for c in view.calls if c in present))
         mcp.resource(
             uri,
             name=f"{view.key}:{tool}",
             description=f"{view.title} view for the {tool} tool (MCP Apps).",
             mime_type=UI_MIME_TYPE,
-        )(_server_for(view.key, tool, version))
+        )(_server_for(view.key, tool, version, available))
         registered.append(uri)
     return registered
 
 
-def _server_for(view_key: str, tool: str, version: str) -> Callable[[], str]:
+def _server_for(
+    view_key: str, tool: str, version: str, available: tuple[str, ...] = ()
+) -> Callable[[], str]:
     """A zero-argument reader for one view. FastMCP takes any parameter on a
     resource function to mean a URI *template*, so the binding has to close
     over the values rather than take them as defaults."""
 
     def _serve() -> str:
-        return render_view(view_key, tool, version)
+        return render_view(view_key, tool, version, available)
 
     return _serve
 

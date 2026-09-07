@@ -10,6 +10,7 @@ that the switch really removes both, and that the HTML is self-contained.
 
 from __future__ import annotations
 
+import json
 import re
 
 import pytest
@@ -50,6 +51,26 @@ def test_every_view_tool_is_a_real_classified_tool():
     for view in ui.VIEWS:
         for tool in view.tools:
             assert tool in known, f"{view.key} names unknown tool {tool!r}"
+
+
+def test_every_declared_call_is_a_real_tool():
+    """A view calls these of its own accord; a renamed tool would fail in the
+    browser, where nothing here would notice."""
+    known = READ_ONLY_TOOLS | WRITE_TOOLS
+    for view in ui.VIEWS:
+        for tool in view.calls:
+            assert tool in known, f"{view.key} calls unknown tool {tool!r}"
+
+
+def test_declared_calls_cover_what_the_views_actually_call():
+    """The stamp is what `sas.can` reads, so an undeclared call is a control
+    the deployment can never switch off."""
+    for view in ui.VIEWS:
+        source = ui._read(f"views/{view.template}")
+        for tool in re.findall(r'sas\.call\("([a-z_]+)"', source):
+            assert tool in view.calls, f"{view.key} calls {tool!r} without declaring it"
+        for tool in re.findall(r'sas\.can\("([a-z_]+)"', source):
+            assert tool in view.calls, f"{view.key} asks about undeclared {tool!r}"
 
 
 def test_a_tool_has_at_most_one_view():
@@ -120,6 +141,25 @@ async def test_read_only_mode_registers_views_only_for_tools_it_kept():
     assert "query_data" not in names
     assert ui.resource_uri("query_data") not in uris
     assert ui.resource_uri("execute_sas_code") not in uris
+
+
+async def test_the_stamp_lists_only_companion_tools_the_deployment_kept():
+    """`sas.can` gates a view's own controls. Read-only keeps the glossary
+    browser but not the tool that publishes a draft from it, so the button
+    must not be offered rather than offered and refused."""
+    async def stamped(**kwargs) -> set[str]:
+        mcp = await _server(apps=True, **kwargs)
+        async with Client(mcp) as client:
+            text = (await client.read_resource(ui.resource_uri("list_glossary_terms")))[0].text
+        # The stamp, not the page: the view's own source names the tool too.
+        stamp = re.search(r"globalThis\.SAS_VIEW = (\{.*?\});", text, re.S)
+        assert stamp, "no SAS_VIEW stamp"
+        return set(json.loads(stamp.group(1))["can"])
+
+    locked = await stamped(read_only=True)
+    assert "list_term_assets" in locked, "a read-only companion survives"
+    assert "update_glossary_term" not in locked, "the write companion must not be offered"
+    assert "update_glossary_term" in await stamped()
 
 
 async def test_tier_selection_limits_views_the_same_way():

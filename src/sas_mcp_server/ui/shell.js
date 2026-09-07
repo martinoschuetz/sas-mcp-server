@@ -8,6 +8,10 @@
 // that FastMCP's shapes require. Views never talk to the bridge directly.
 const bridge = globalThis.__MCP_EXT_APPS__;
 const meta = globalThis.SAS_VIEW || { tool: "", view: "", title: "SAS Viya", version: "" };
+// Which of this view's companion tools the deployment actually registered.
+// MCP_TIERS and MCP_READ_ONLY can withhold any of them, and a control that can
+// only ever fail is worse than no control.
+const available = new Set(meta.can || []);
 
 const app = new bridge.App(
   { name: `SAS Viya ${meta.title}`, version: meta.version || "0" },
@@ -78,6 +82,13 @@ const sas = {
   },
   onTheme(fn) {
     handlers.theme.push(fn);
+  },
+  /** Is *name* a tool this deployment registered? Ask before offering a
+   *  control that calls it — `MCP_READ_ONLY` and `MCP_TIERS` withhold tools
+   *  from a view exactly as they withhold them from the model. Only the
+   *  view's declared `calls` are listed, so an unlisted name reads false. */
+  can(name) {
+    return available.has(name);
   },
   /** Call a server tool through the host. Resolves to the parsed value;
    *  rejects with the tool's own message when it reports an error. */

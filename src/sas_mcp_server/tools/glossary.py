@@ -59,6 +59,7 @@ from ..helpers.glossary_helpers import (
     parse_import_log,
     readable_attributes,
     resolve_import_paths,
+    term_csv_header,
     unmet_required,
 )
 from ..viya_client import (
@@ -1720,12 +1721,13 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
                             "name": row["name"],
                             "term_type": row["term_type"],
                             "path": row.get("_path", ""),
+                            "definition": row.get("definition", ""),
                             "description": row.get("description", ""),
                             "attributes": row.get("attributes") or {},
                         }
                         for row in ordered
                     ],
-                    "columns": ["Name", "Type", "Path", "Description", *columns],
+                    "columns": term_csv_header(columns),
                     "update_existing": update_existing,
                     "note": (
                         "Nothing was imported. These are the rows, in the order they would "
