@@ -1772,6 +1772,7 @@ TOOL_COVERAGE = {
     "catalog_list_agents": "test_catalog_agents_workflow",
     "catalog_run_agent": "test_catalog_agents_workflow",
     "catalog_get_agent_history": "test_catalog_agents_workflow",
+
     # AIoT and CAS Summary Tools
     "list_data_selections_tool": "test_iot_workflow",
     "get_data_selection_details": "test_iot_workflow",
@@ -1838,6 +1839,22 @@ TOOL_COVERAGE = {
     "list_genai_llms": "test_genai_workflow",
     "list_genai_sources": "test_genai_workflow",
     "query_genai_agent": "test_genai_workflow",
+    "list_glossary_term_types": "test_glossary_workflow",
+    "get_glossary_term_type": "test_glossary_workflow",
+    "search_glossary_terms": "test_glossary_workflow",
+    "list_glossary_terms": "test_glossary_workflow",
+    "get_glossary_term": "test_glossary_workflow",
+    "list_term_assets": "test_glossary_workflow",
+    "list_table_terms": "test_glossary_workflow",
+    "create_glossary_term": "test_glossary_workflow",
+    "update_glossary_term": "test_glossary_workflow",
+    "delete_glossary_term": "test_glossary_workflow",
+    "assign_glossary_term": "test_glossary_workflow",
+    "unassign_glossary_term": "test_glossary_workflow",
+    "create_glossary_term_type": "test_glossary_term_type_lifecycle",
+    "update_glossary_term_type": "test_glossary_term_type_lifecycle",
+    "delete_glossary_term_type": "test_glossary_term_type_lifecycle",
+    "import_glossary_terms": "test_glossary_bulk_import",
 }
 
 
@@ -2347,6 +2364,7 @@ async def test_fedsql_query_workflow(integration_mcp_server):
 
 
 
+
 @pytest.mark.asyncio
 @respx.mock
 async def test_genai_workflow(integration_mcp_server):
@@ -2389,3 +2407,698 @@ async def test_genai_workflow(integration_mcp_server):
         # test query agent
         result = await client.call_tool("query_genai_agent", {"agent_id": "agent-123", "query": "Hello"})
         assert result.data["text"] == "Here is your answer."
+
+# -----------------------------------------------------------------------
+# Business Glossary workflow (Tier 9)
+# -----------------------------------------------------------------------
+
+
+def _sample_attribute_value(attribute: dict):
+    """A value that satisfies one attribute definition from a term type.
+
+    A deployment's term types are whatever its governance team created, so the
+    test cannot hardcode values — it reads the contract and answers it.
+    """
+    attr_type = (attribute.get("type") or "").lower()
+    if attr_type == "single-select":
+        allowed = attribute.get("allowed_values") or []
+        return allowed[0] if allowed else "n/a"
+    if attr_type == "boolean":
+        return True
+    if attr_type == "date":
+        return "2030-01-01"
+    return f"set by integration test {_SUFFIX}"
+
+
+async def _wait_for_catalog_entity(client, term_id: str, attempts: int = 12) -> bool:
+    """Poll until a new glossary term is mirrored into the Information Catalog.
+
+    A term is created in the glossary service and copied into the catalog
+    asynchronously; nothing can be assigned to it until that lands, so the
+    assignment half of this test waits for it rather than assuming it.
+    """
+    for _ in range(attempts):
+        assets = (await client.call_tool("list_term_assets", {"term_id": term_id})).data
+        if assets.get("catalog_entity_id"):
+            return True
+        await asyncio.sleep(5)
+    return False
+
+
+async def test_glossary_workflow(integration_mcp_server):
+    """Author a term, attach it to a real column, read it back both ways, clean up.
+
+    Covers all twelve Tier 9 tools against live Viya. The term type, table and
+    column are discovered rather than hardcoded, because a deployment's glossary
+    holds whatever its governance team put there.
+    """
+    term_name = f"MCP_TEST_TERM_{_SUFFIX}"
+    created_id = None
+    assigned = False
+    column_name = None
+    resource_uri = None
+
+    async with Client(integration_mcp_server) as client:
+        # --- the authoring contract -----------------------------------------
+        try:
+            types = (await client.call_tool("list_glossary_term_types", {"limit": 100})).data
+        except Exception as exc:  # noqa: BLE001
+            pytest.skip(f"SAS Business Glossary not available on this Viya: {exc}")
+        if not types["items"]:
+            pytest.skip("No glossary term types defined on this Viya")
+
+        # Prefer a type WITH attributes, so the label<->UUID mapping is exercised
+        # against real definitions rather than an empty map.
+        with_attributes = [t for t in types["items"] if t["attribute_count"] > 0]
+        chosen = (with_attributes or types["items"])[0]
+
+        contract = (
+            await client.call_tool(
+                "get_glossary_term_type", {"term_type_id": chosen["term_type_id"]}
+            )
+        ).data
+        assert contract["term_type_id"] == chosen["term_type_id"]
+        for attribute in contract["attributes"]:
+            # The contract is only useful if every attribute is self-describing.
+            assert attribute["label"], contract
+            assert attribute["type"], attribute
+            if attribute["type"] == "single-select":
+                assert attribute["allowed_values"], attribute
+
+        # A term type resolves by name as well as by id.
+        by_name = (
+            await client.call_tool("get_glossary_term_type", {"term_type_id": chosen["name"]})
+        ).data
+        assert by_name["term_type_id"] == chosen["term_type_id"]
+
+        attributes = {
+            attribute["label"]: _sample_attribute_value(attribute)
+            for attribute in contract["attributes"]
+            if attribute["required"]
+        }
+
+        try:
+            # --- create ------------------------------------------------------
+            created = (
+                await client.call_tool(
+                    "create_glossary_term",
+                    {
+                        "name": term_name,
+                        "term_type": chosen["name"],
+                        "definition": "Created by the sas-mcp-server integration suite.",
+                        "description": "Integration test term.",
+                        "attributes": attributes,
+                    },
+                )
+            ).data
+            created_id = created["term_id"]
+            assert created["name"] == term_name
+            # publish defaults to true, so the term must not land as a draft.
+            assert created["is_draft"] is False, created
+
+            # --- read back ---------------------------------------------------
+            fetched = (await client.call_tool("get_glossary_term", {"term_id": created_id})).data
+            assert fetched["name"] == term_name
+            assert fetched["term_type_id"] == chosen["term_type_id"]
+            # Everything we set comes back under its label, not its UUID.
+            for label, value in attributes.items():
+                expected = "true" if value is True else str(value)
+                assert fetched["attributes"].get(label) == expected, fetched["attributes"]
+
+            # --- update merges rather than replacing --------------------------
+            updated = (
+                await client.call_tool(
+                    "update_glossary_term",
+                    {"term_id": created_id, "description": "Updated by the integration suite."},
+                )
+            ).data
+            assert updated["term_id"] == created_id
+            after = (await client.call_tool("get_glossary_term", {"term_id": created_id})).data
+            assert after["description"] == "Updated by the integration suite."
+            # definition was not passed, so it must have survived the PUT.
+            assert after["definition"] == "Created by the sas-mcp-server integration suite."
+
+            # --- structural listing ------------------------------------------
+            listed = (
+                await client.call_tool(
+                    "list_glossary_terms",
+                    {
+                        "term_type": chosen["term_type_id"],
+                        "name_contains": "MCP_TEST_TERM",
+                        "limit": 50,
+                    },
+                )
+            ).data
+            assert created_id in {item["term_id"] for item in listed["items"]}
+
+            # --- assignment to a real column ----------------------------------
+            try:
+                hits = (
+                    await client.call_tool(
+                        "catalog_search",
+                        {"query": "Name:HMEQ", "indices": "datasets", "limit": 10},
+                    )
+                ).data
+            except Exception as exc:  # noqa: BLE001
+                pytest.skip(f"Information Catalog not available: {exc}")
+            table_hit = next((h for h in hits["items"] if h.get("resource_uri")), None)
+            if table_hit is None:
+                pytest.skip("No catalogued HMEQ table to assign a term to on this Viya")
+            resource_uri = table_hit["resource_uri"]
+
+            columns = (
+                await client.call_tool(
+                    "list_table_terms", {"resource_uri": resource_uri, "assigned_only": False}
+                )
+            ).data
+            if not columns["columns"]:
+                pytest.skip("The catalogued HMEQ table has no column entities")
+            column_name = columns["columns"][0]["column_name"]
+
+            if not await _wait_for_catalog_entity(client, created_id):
+                pytest.skip("Term was not mirrored into the Information Catalog in time")
+
+            assignment = (
+                await client.call_tool(
+                    "assign_glossary_term",
+                    {
+                        "term_id": created_id,
+                        "column_name": column_name,
+                        "resource_uri": resource_uri,
+                    },
+                )
+            ).data
+            assert assignment["status"] == "assigned", assignment
+            assigned = True
+
+            # Assigning twice reports the existing link rather than duplicating it.
+            again = (
+                await client.call_tool(
+                    "assign_glossary_term",
+                    {
+                        "term_id": created_id,
+                        "column_name": column_name,
+                        "resource_uri": resource_uri,
+                    },
+                )
+            ).data
+            assert again["status"] == "already_assigned"
+            assert again["relationship_id"] == assignment["relationship_id"]
+
+            # --- both directions of the link now resolve -----------------------
+            assets = (await client.call_tool("list_term_assets", {"term_id": created_id})).data
+            assert assets["asset_count"] >= 1
+            assert column_name in {a["asset_name"] for a in assets["assets"]}
+
+            # The term is reachable by name, not only by id.
+            by_term_name = (
+                await client.call_tool("list_term_assets", {"term_name": term_name})
+            ).data
+            assert by_term_name["term_id"] == created_id
+
+            table_terms = (
+                await client.call_tool("list_table_terms", {"resource_uri": resource_uri})
+            ).data
+            governed = {
+                column["column_name"]: [t["term_id"] for t in column["terms"]]
+                for column in table_terms["columns"]
+            }
+            assert created_id in governed.get(column_name, []), governed
+
+            # --- free-text search sees the new term ----------------------------
+            # The catalog index updates asynchronously, so a miss here is a
+            # timing artefact rather than a failure of the tool.
+            found = (
+                await client.call_tool("search_glossary_terms", {"query": term_name, "limit": 10})
+            ).data
+            if found["items"]:
+                hit = found["items"][0]
+                assert hit["catalog_entity_id"]
+                if hit["term_id"] is not None:
+                    # When the bridge resolves it must resolve to the *glossary* id.
+                    assert hit["term_id"] != hit["catalog_entity_id"]
+
+            # --- unassign -------------------------------------------------------
+            removed = (
+                await client.call_tool(
+                    "unassign_glossary_term",
+                    {
+                        "term_id": created_id,
+                        "column_name": column_name,
+                        "resource_uri": resource_uri,
+                    },
+                )
+            ).data
+            assert removed["status"] == "unassigned"
+            assigned = False
+
+            repeat = (
+                await client.call_tool(
+                    "unassign_glossary_term",
+                    {
+                        "term_id": created_id,
+                        "column_name": column_name,
+                        "resource_uri": resource_uri,
+                    },
+                )
+            ).data
+            assert repeat["status"] == "not_assigned"
+
+        finally:
+            if created_id:
+                if assigned and column_name and resource_uri:
+                    with contextlib.suppress(Exception):
+                        await client.call_tool(
+                            "unassign_glossary_term",
+                            {
+                                "term_id": created_id,
+                                "column_name": column_name,
+                                "resource_uri": resource_uri,
+                            },
+                        )
+                deleted = (
+                    await client.call_tool("delete_glossary_term", {"term_id": created_id})
+                ).data
+                assert deleted["status"] == "deleted"
+
+
+async def test_glossary_term_type_lifecycle(integration_mcp_server):
+    """Design a term type, use it, evolve it, and delete it.
+
+    The point of the evolve step is that an attribute keeps its identifier: a
+    term's stored values are filed under it, so re-minting one would leave every
+    existing term's value orphaned under a key nothing names.
+    """
+    type_name = f"MCP_TEST_TYPE_{_SUFFIX}"
+    type_id = term_id = None
+    async with Client(integration_mcp_server) as client:
+        try:
+            created = (
+                await client.call_tool(
+                    "create_glossary_term_type",
+                    {
+                        "name": type_name,
+                        "description": "Integration test. Safe to delete.",
+                        "attributes": [
+                            {"label": "Owner", "type": "single-line", "required": True},
+                            {
+                                "label": "Tier",
+                                "type": "single-select",
+                                "allowed_values": ["Gold", "Silver"],
+                            },
+                            {"label": "Masked", "type": "boolean", "default": False},
+                            {"label": "Cutoff", "type": "time"},
+                        ],
+                    },
+                )
+            ).data
+            type_id = created["term_type_id"]
+            assert created["label"] == type_name, "label must default from name"
+            before = {a["label"]: a["attribute_id"] for a in created["attributes"]}
+            assert set(before) == {"Owner", "Tier", "Masked", "Cutoff"}
+
+            # A term of the new type, exercising every value form at once.
+            term = (
+                await client.call_tool(
+                    "create_glossary_term",
+                    {
+                        "name": f"MCP_TEST_TYPED_TERM_{_SUFFIX}",
+                        "term_type": type_id,
+                        "definition": "Integration test term.",
+                        "attributes": {
+                            "Owner": "data-office",
+                            "Tier": "Gold",
+                            "Masked": True,
+                            # An offset must be converted, not dropped: stored
+                            # as given this would be two hours wrong and say
+                            # nothing about it.
+                            "Cutoff": "09:15:00+02:00",
+                        },
+                    },
+                )
+            ).data
+            term_id = term["term_id"]
+            assert term["attributes"]["Masked"] is True, "a boolean must survive as a boolean"
+            assert term["attributes"]["Cutoff"] == "07:15:00Z"
+
+            # Deleting a type in use would take those definitions with it.
+            with pytest.raises(Exception, match="term"):
+                await client.call_tool("delete_glossary_term_type", {"term_type_id": type_id})
+
+            evolved = (
+                await client.call_tool(
+                    "update_glossary_term_type",
+                    {
+                        "term_type_id": type_id,
+                        "attributes": [
+                            {
+                                "label": "Tier",
+                                "type": "single-select",
+                                "allowed_values": ["Gold", "Silver", "Bronze"],
+                            },
+                            {"label": "Review date", "type": "date"},
+                        ],
+                    },
+                )
+            ).data
+            after = {a["label"]: a for a in evolved["attributes"]}
+            assert set(after) == {"Owner", "Tier", "Masked", "Cutoff", "Review date"}
+            assert after["Tier"]["attribute_id"] == before["Tier"], "identifier must survive"
+            assert after["Owner"]["attribute_id"] == before["Owner"]
+            assert after["Tier"]["allowed_values"] == ["Gold", "Silver", "Bronze"]
+
+            # The existing term still reads its values, which is what the
+            # preserved identifiers actually buy.
+            back = (await client.call_tool("get_glossary_term", {"term_id": term_id})).data
+            assert back["attributes"]["Owner"] == "data-office"
+            assert back["attributes"]["Masked"] is True
+
+            # The widened option and the new attribute are usable on it.
+            updated = (
+                await client.call_tool(
+                    "update_glossary_term",
+                    {
+                        "term_id": term_id,
+                        "attributes": {"Tier": "Bronze", "Review date": "2027-01-31"},
+                    },
+                )
+            ).data
+            assert updated["attributes"]["Tier"] == "Bronze"
+            assert updated["attributes"]["Review date"] == "2027-01-31"
+
+            # Attributes in the listing, and the filter that needs them. Scoped
+            # to this type so the scan is deterministic and small.
+            listed = (
+                await client.call_tool(
+                    "list_glossary_terms",
+                    {"term_type": type_id, "limit": 10, "include_attributes": True},
+                )
+            ).data
+            assert listed["items"], "the term just created should be listed"
+            assert listed["items"][0]["attributes"]["Owner"] == "data-office"
+
+            # The glossary cannot filter on attributes, so this is scanned here
+            # — the result has to say so.
+            matched = (
+                await client.call_tool(
+                    "list_glossary_terms",
+                    {"term_type": type_id, "attribute_filter": {"Masked": True}},
+                )
+            ).data
+            assert matched["count"] == 1
+            assert matched["items"][0]["term_id"] == term_id
+            assert matched["scan_complete"] is True
+            assert matched["scanned"] >= 1
+
+            missed = (
+                await client.call_tool(
+                    "list_glossary_terms",
+                    {"term_type": type_id, "attribute_filter": {"Masked": False}},
+                )
+            ).data
+            assert missed["count"] == 0
+
+            # A mistyped label must not read as "nothing matched".
+            with pytest.raises(Exception, match="no attribute is named"):
+                await client.call_tool(
+                    "list_glossary_terms",
+                    {"term_type": type_id, "attribute_filter": {"Maskd": True}},
+                )
+
+            # A draft is a separate resource: readable and deletable at the
+            # ordinary path, writable only at /draft, and promoted at
+            # /draft/state. Getting that wrong is a 404, so the whole cycle —
+            # create unpublished, edit, publish — is exercised here.
+            draft = (
+                await client.call_tool(
+                    "create_glossary_term",
+                    {
+                        "name": f"MCP_TEST_DRAFT_{_SUFFIX}",
+                        "term_type": type_id,
+                        "definition": "before",
+                        # Still called Owner here: the rename comes below.
+                        "attributes": {"Owner": "data-office"},
+                        "publish": False,
+                    },
+                )
+            ).data
+            draft_id = draft["term_id"]
+            try:
+                assert draft["is_draft"] is True
+
+                hidden = (
+                    await client.call_tool(
+                        "list_glossary_terms", {"term_type": type_id, "limit": 20}
+                    )
+                ).data
+                assert draft_id not in {i["term_id"] for i in hidden["items"]}, (
+                    "a draft must not show in the published listing"
+                )
+                shown = (
+                    await client.call_tool(
+                        "list_glossary_terms",
+                        {"term_type": type_id, "limit": 20, "include_drafts": True},
+                    )
+                ).data
+                assert draft_id in {i["term_id"] for i in shown["items"]}
+
+                edited = (
+                    await client.call_tool(
+                        "update_glossary_term",
+                        {"term_id": draft_id, "definition": "after"},
+                    )
+                ).data
+                assert edited["is_draft"] is True, "editing must not publish it"
+
+                promoted = (
+                    await client.call_tool(
+                        "update_glossary_term", {"term_id": draft_id, "publish": True}
+                    )
+                ).data
+                assert promoted["is_draft"] is False
+                assert promoted["status"] == "Published"
+
+                settled = (
+                    await client.call_tool("get_glossary_term", {"term_id": draft_id})
+                ).data
+                assert settled["definition"] == "after", "the edit survived the publish"
+
+                # There is no draft left, so this is a no-op with a reason
+                # rather than the 404 the service would answer.
+                again = (
+                    await client.call_tool(
+                        "update_glossary_term", {"term_id": draft_id, "publish": True}
+                    )
+                ).data
+                assert "already published" in again.get("note", "")
+            finally:
+                await client.call_tool("delete_glossary_term", {"term_id": draft_id})
+
+            # Renaming needs the attribute's identifier: matched by label alone
+            # the new name matches nothing, so the attribute is added afresh and
+            # every term's value stays behind under the old id, readable as
+            # nothing. Owner is required, which makes the loss louder still.
+            renamed = (
+                await client.call_tool(
+                    "update_glossary_term_type",
+                    {
+                        "term_type_id": type_id,
+                        "attributes": [
+                            {
+                                "attribute_id": before["Owner"],
+                                "label": "Steward",
+                                "type": "single-line",
+                                "required": True,
+                            }
+                        ],
+                    },
+                )
+            ).data
+            renamed_by_label = {a["label"]: a for a in renamed["attributes"]}
+            assert "Owner" not in renamed_by_label, "no orphaned copy under the old label"
+            assert renamed_by_label["Steward"]["attribute_id"] == before["Owner"]
+
+            still_there = (
+                await client.call_tool("get_glossary_term", {"term_id": term_id})
+            ).data
+            assert still_there["attributes"]["Steward"] == "data-office", (
+                "the stored value must read under the new name"
+            )
+
+            dropped = (
+                await client.call_tool(
+                    "update_glossary_term_type",
+                    {"term_type_id": type_id, "remove_attributes": ["Review date"]},
+                )
+            ).data
+            assert "Review date" not in {a["label"] for a in dropped["attributes"]}
+        finally:
+            if term_id:
+                await client.call_tool("delete_glossary_term", {"term_id": term_id})
+            if type_id:
+                gone = (
+                    await client.call_tool(
+                        "delete_glossary_term_type",
+                        {"term_type_id": type_id, "force": True},
+                    )
+                ).data
+                assert gone["status"] == "deleted"
+
+
+async def test_glossary_bulk_import(integration_mcp_server):
+    """Import a three-level hierarchy in one call, then take it back down.
+
+    The point is that no id is threaded: children name their parent, and the
+    rows may be given in any order. The import runs as a job that reports
+    ``completed`` even when rows fail, so the created/failed tallies matter more
+    than the call not raising.
+    """
+    type_name = f"MCP_TEST_IMPORT_TYPE_{_SUFFIX}"
+    prefix = f"MCP_IMP_{_SUFFIX}"
+    type_id = None
+    created_ids: list[str] = []
+    async with Client(integration_mcp_server) as client:
+        try:
+            type_id = (
+                await client.call_tool(
+                    "create_glossary_term_type",
+                    {
+                        "name": type_name,
+                        "attributes": [
+                            {"label": "Tier", "type": "single-select",
+                             "allowed_values": ["Gold", "Silver"]},
+                            {"label": "Masked", "type": "boolean"},
+                            # Required *and* defaulted: the service fills it in,
+                            # so omitting it from every row must not be refused.
+                            {"label": "Stage", "type": "single-line",
+                             "required": True, "default": "draft"},
+                        ],
+                    },
+                )
+            ).data["term_type_id"]
+
+            # Deliberately out of order: the leaf comes before its ancestors.
+            result = (
+                await client.call_tool(
+                    "import_glossary_terms",
+                    {
+                        "term_type": type_id,
+                        "terms": [
+                            {"name": f"{prefix} Leaf", "parent": f"{prefix} Mid",
+                             "attributes": {"Tier": "Silver", "Masked": False}},
+                            {"name": f"{prefix} Root", "definition": "imported root",
+                             "description": "imported root overview",
+                             "attributes": {"Tier": "Gold", "Masked": True}},
+                            {"name": f"{prefix} Mid", "parent": f"{prefix} Root"},
+                        ],
+                    },
+                )
+            ).data
+            assert result["failures"] == [], f"import reported failures: {result['failures']}"
+            assert result["created"] == 3
+            assert result["order"] == [
+                f"{prefix} Root", f"{prefix} Mid", f"{prefix} Leaf"
+            ], "parents must be emitted before their children"
+
+            # The hierarchy is real: each child hangs off the right parent.
+            listed = (
+                await client.call_tool(
+                    "list_glossary_terms",
+                    {"term_type": type_id, "limit": 20, "include_attributes": True},
+                )
+            ).data
+            by_name = {i["name"]: i for i in listed["items"]}
+            created_ids = [i["term_id"] for i in listed["items"]]
+            assert set(by_name) == {f"{prefix} Root", f"{prefix} Mid", f"{prefix} Leaf"}
+            assert by_name[f"{prefix} Root"]["parent_id"] is None
+            assert by_name[f"{prefix} Mid"]["parent_id"] == by_name[f"{prefix} Root"]["term_id"]
+            assert by_name[f"{prefix} Leaf"]["parent_id"] == by_name[f"{prefix} Mid"]["term_id"]
+
+            # Attribute values survive the CSV round trip in their own types.
+            assert by_name[f"{prefix} Root"]["attributes"]["Masked"] is True
+            assert by_name[f"{prefix} Leaf"]["attributes"]["Tier"] == "Silver"
+
+            # Definition and Description are separate CSV columns and separate
+            # fields. Write only one of them and the service fills the
+            # definition in with the term's own name, which is how a whole
+            # imported hierarchy came back reading like a list of labels.
+            root = by_name[f"{prefix} Root"]
+            assert root["definition"] == "imported root"
+            assert root["description"] == "imported root overview"
+            # What the service does with an *empty* Definition cell is its own
+            # business; what matters is that a supplied one is not the
+            # description and is not the term's name.
+            assert root["definition"] != root["name"]
+
+            # Required, but defaulted: no row supplied it and none was refused.
+            assert by_name[f"{prefix} Mid"]["attributes"]["Stage"] == "draft"
+
+            # The import names no ids, so every row is matched back to its term
+            # by walking its path over one filtered lookup. Without this, using
+            # the imported terms means a search per term.
+            resolved = {t["name"]: t for t in result["terms"]}
+            assert set(resolved) == set(by_name)
+            for name, term in resolved.items():
+                assert term["term_id"] == by_name[name]["term_id"], name
+                assert term["existed"] is False, "the job just created it"
+            assert result["new"] == 3
+            assert result["already_existed"] == 0
+            assert resolved[f"{prefix} Leaf"]["path"] == f"{prefix} Root\\{prefix} Mid"
+
+            # Re-importing the same rows creates nothing, but the job still
+            # tallies them as successful — so 'new' is what says what happened.
+            again = (
+                await client.call_tool(
+                    "import_glossary_terms",
+                    {
+                        "term_type": type_id,
+                        "terms": [
+                            {"name": f"{prefix} Root", "attributes": {"Tier": "Gold"}},
+                            {"name": f"{prefix} Mid", "parent": f"{prefix} Root"},
+                        ],
+                    },
+                )
+            ).data
+            assert again["failures"] == []
+            assert again["new"] == 0, f"nothing was new: {again['terms']}"
+            assert again["already_existed"] == 2
+            assert {t["term_id"] for t in again["terms"]} == {
+                by_name[f"{prefix} Root"]["term_id"], by_name[f"{prefix} Mid"]["term_id"]
+            }, "the same terms, not duplicates"
+            assert "already existed" in again["note"]
+
+            # A bad value is caught here, before anything is sent.
+            with pytest.raises(Exception, match="only accepts"):
+                await client.call_tool(
+                    "import_glossary_terms",
+                    {
+                        "term_type": type_id,
+                        "terms": [{"name": f"{prefix} Bad", "attributes": {"Tier": "Bronze"}}],
+                    },
+                )
+        finally:
+            # Deepest first: a parent cannot be deleted while a child points at it.
+            async def depth(term_id: str) -> int:
+                steps = 0
+                current = (
+                    await client.call_tool("get_glossary_term", {"term_id": term_id})
+                ).data
+                while current.get("parent_id"):
+                    steps += 1
+                    current = (
+                        await client.call_tool(
+                            "get_glossary_term", {"term_id": current["parent_id"]}
+                        )
+                    ).data
+                return steps
+
+            ranked = sorted(
+                [(await depth(tid), tid) for tid in created_ids], reverse=True
+            )
+            for _, tid in ranked:
+                await client.call_tool("delete_glossary_term", {"term_id": tid})
+            if type_id:
+                await client.call_tool(
+                    "delete_glossary_term_type", {"term_type_id": type_id, "force": True}
+                )
+

@@ -28,9 +28,9 @@ the registered surface, so adding a tool without classifying it fails CI.
 
 **Advertised as well as enforced.** The same partition is published to clients
 as MCP *tool annotations* (spec revision 2025-03-26, "Tool annotations"):
-``readOnlyHint`` is derived from :data:`READ_ONLY_TOOLS` — one table, one
-truth — and the finer ``destructiveHint`` / ``idempotentHint`` /
-``openWorldHint`` come from the small sets below. Annotations are hints for the
+``read_only_hint`` is derived from :data:`READ_ONLY_TOOLS` — one table, one
+truth — and the finer ``destructive_hint`` / ``idempotent_hint`` /
+``open_world_hint`` come from the small sets below. Annotations are hints for the
 *client's* approval UX (group read-only tools, warn before destructive ones),
 not enforcement; ``MCP_READ_ONLY`` remains the enforcement, and the spec tells
 clients to treat hints as untrusted unless the server is trusted. Without them
@@ -119,7 +119,15 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
         "list_iot_analyses_tool",
         "list_iot_models_tool",
         "list_iot_projects_tool",
-        # Tier 10
+        # Tier 9 — Business Glossary
+        "list_glossary_term_types",
+        "get_glossary_term_type",
+        "search_glossary_terms",
+        "list_glossary_terms",
+        "get_glossary_term",
+        "list_term_assets",
+        "list_table_terms",
+        # Tier 11 (was 10)
         "list_genai_agents",
         "get_genai_agent",
         "list_genai_sources",
@@ -222,6 +230,19 @@ WRITE_TOOLS: frozenset[str] = frozenset(
         "run_trend_by_exposure_analysis_tool",
         "set_data_selection_date_range_tool",
         "update_data_selection_tool",
+        # Tier 9
+        "create_glossary_term",
+        "update_glossary_term",
+        "delete_glossary_term",
+        # A term type is the template terms are created from, so these change
+        # what every term of that type must carry — not just one term.
+        "create_glossary_term_type",
+        "update_glossary_term_type",
+        "delete_glossary_term_type",
+        "import_glossary_terms",
+        # Creates/removes a catalog relationship between a term and a column.
+        "assign_glossary_term",
+        "unassign_glossary_term",
     }
 )
 
@@ -251,6 +272,18 @@ DESTRUCTIVE_TOOLS: frozenset[str] = frozenset(
         "create_report",  # on_conflict="replace" can overwrite a report
         "copy_report",  # result_name_conflict="replace" likewise
         "publish_ml_champion_model",  # re-publish replaces the destination module
+        "delete_glossary_term",
+        "unassign_glossary_term",  # removes an existing term/column assignment
+        # PUT replaces the whole term; the tool merges first, but a caller can
+        # still overwrite a definition or an attribute that was already set.
+        "update_glossary_term",
+        # Takes the attribute definitions of every term of that type with it.
+        "delete_glossary_term_type",
+        # remove_attributes drops a definition, which stops every existing
+        # term's stored value from being readable as that attribute.
+        "update_glossary_term_type",
+        # update_existing=true overwrites a term already at that path.
+        "import_glossary_terms",
     }
 )
 
@@ -271,6 +304,14 @@ IDEMPOTENT_WRITE_TOOLS: frozenset[str] = frozenset(
         "cancel_job",
         "reset_compute_session",
         "promote_table_to_memory",
+        "update_glossary_term",
+        "delete_glossary_term",
+        "update_glossary_term_type",
+        "delete_glossary_term_type",
+        # Both check for the existing link first and report it rather than
+        # creating a duplicate or failing on an absent one.
+        "assign_glossary_term",
+        "unassign_glossary_term",
     }
 )
 
@@ -290,30 +331,30 @@ OPEN_WORLD_TOOLS: frozenset[str] = frozenset(
 # stated explicitly rather than left implicit. test_read_only.py guarantees no
 # registered tool takes this path, so this is belt-and-braces, not a policy.
 _PESSIMISTIC = ToolAnnotations(
-    readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True
+    read_only_hint=False, destructive_hint=True, idempotent_hint=False, open_world_hint=True
 )
 
 
 def annotations_for(name: str) -> ToolAnnotations:
     """MCP tool annotations for *name*, derived from the classification above.
 
-    ``readOnlyHint`` mirrors :data:`READ_ONLY_TOOLS` exactly, so what a client
+    ``read_only_hint`` mirrors :data:`READ_ONLY_TOOLS` exactly, so what a client
     is told and what ``MCP_READ_ONLY`` enforces cannot drift apart. Unknown
     names get the pessimistic defaults (fail closed).
     """
     if name in READ_ONLY_TOOLS:
         return ToolAnnotations(
-            readOnlyHint=True,
-            destructiveHint=False,
-            idempotentHint=True,
-            openWorldHint=name in OPEN_WORLD_TOOLS,
+            read_only_hint=True,
+            destructive_hint=False,
+            idempotent_hint=True,
+            open_world_hint=name in OPEN_WORLD_TOOLS,
         )
     if name in WRITE_TOOLS:
         return ToolAnnotations(
-            readOnlyHint=False,
-            destructiveHint=name in DESTRUCTIVE_TOOLS,
-            idempotentHint=name in IDEMPOTENT_WRITE_TOOLS,
-            openWorldHint=name in OPEN_WORLD_TOOLS,
+            read_only_hint=False,
+            destructive_hint=name in DESTRUCTIVE_TOOLS,
+            idempotent_hint=name in IDEMPOTENT_WRITE_TOOLS,
+            open_world_hint=name in OPEN_WORLD_TOOLS,
         )
     return _PESSIMISTIC.model_copy()
 

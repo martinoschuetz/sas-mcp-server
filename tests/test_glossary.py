@@ -1,0 +1,1996 @@
+# Copyright © 2025, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+"""Tests for Tier 9 — Business Glossary tools.
+
+These run against a routed fake Viya built on :class:`httpx.MockTransport`
+rather than an ``AsyncMock`` client, because most of what this tier does is
+choose the *right request*: the representation that carries ``resourceId``, the
+``Accept-Item`` that carries relationship endpoints, the ``publish`` flag, the
+batched ``in(...)`` filter. A mock that answers every call identically cannot
+tell a correct request from a wrong one, so the fake dispatches on path and
+records every request for the tests to assert against.
+
+The fixture data mirrors a real deployment: a term type whose attributes are
+keyed by UUID, a term whose glossary id differs from its catalog entity id, and
+``glossaryTermAsset`` relationships with the term on ``endpoint1``.
+"""
+
+import json
+import re
+from contextlib import asynccontextmanager
+from typing import Any
+
+import httpx
+import pytest
+from fastmcp import Client, FastMCP
+
+from sas_mcp_server import viya_client
+from sas_mcp_server.helpers import glossary_helpers as gh
+from sas_mcp_server.tools import glossary
+
+pytestmark = pytest.mark.asyncio
+
+VIYA = "https://test.viya.com"
+
+# --- fixture data ------------------------------------------------------------
+
+TERM_TYPE_ID = "tt-0001"
+TERM_TYPE = {
+    "id": TERM_TYPE_ID,
+    "name": "BCBS239",
+    "label": "BCBS239",
+    "description": "Risk data aggregation terms.",
+    "usageCount": 3,
+    "attributeCount": 4,
+    "allowCustomAttributes": False,
+    "attributes": [
+        {"name": "attr-scope", "label": "Scope", "type": "single-select",
+         "required": True, "items": ["Local", "Group"]},
+        {"name": "attr-risk", "label": "Used in Risk", "type": "boolean",
+         "defaultValue": "false"},
+        {"name": "attr-region", "label": "Regions", "type": "multi-select",
+         "items": ["EMEA", "APAC", "AMER"]},
+        {"name": "attr-asof", "label": "As of", "type": "date"},
+        {"name": "attr-seen", "label": "Last seen", "type": "date-time"},
+        {"name": "attr-cutoff", "label": "Cutoff", "type": "time"},
+        {"name": "attr-oper", "label": "Operational field", "type": "single-line"},
+        {"name": "attr-note", "label": "Notes", "type": "multi-line"},
+    ],
+}
+
+# A term's two identities: the glossary id and the catalog entity id differ.
+TERM_ID = "gterm-1111"
+TERM_ENTITY_ID = "cent-2222"
+TERM = {
+    "id": TERM_ID,
+    "name": "Currency",
+    "label": "Currency",
+    "definition": "The ISO 4217 currency of the exposure.",
+    "description": "Currency",
+    "termTypeId": TERM_TYPE_ID,
+    "termTypeLabel": "BCBS239",
+    "parentId": None,
+    "status": "Published",
+    "isDraft": False,
+    "assetCount": 1,
+    "version": 3,
+    "createdBy": "author",
+    "modifiedBy": "author",
+    "modifiedTimeStamp": "2026-06-11T12:02:35.602Z",
+    # Keyed by attribute-definition UUID, and carrying the empty values the
+    # glossary stores for every declared attribute.
+    # Viya stores a boolean as a JSON boolean, and a multi-select as one
+    # comma-joined string — both verified live against a real term type.
+    "attributes": {
+        "attr-scope": "Group",
+        "attr-risk": True,
+        "attr-region": "EMEA,APAC",
+        "attr-oper": "",
+        "attr-note": "",
+    },
+    "links": [{"rel": "self", "href": f"/glossary/terms/{TERM_ID}"}],
+}
+
+TABLE_ID = "cent-table"
+TABLE_RESOURCE = "/dataTables/dataSources/Compute~fs~abc~fs~PUBLIC/tables/BCBS_SOURCE"
+TABLE_ENTITY = {
+    "id": TABLE_ID,
+    "name": "BCBS_SOURCE",
+    "type": "sasTable",
+    "resourceId": TABLE_RESOURCE,
+    "attributes": {"rowCount": 100},
+}
+COLUMN_CURR = {
+    "id": "cent-col-curr",
+    "name": "CURR_CD",
+    "type": "sasColumn",
+    "resourceId": f"{TABLE_RESOURCE}/columns/CURR_CD",
+    "attributes": {"dataType": "string"},
+}
+COLUMN_BAL = {
+    "id": "cent-col-bal",
+    "name": "BAL_AMT",
+    "type": "sasColumn",
+    "resourceId": f"{TABLE_RESOURCE}/columns/BAL_AMT",
+    "attributes": {"dataType": "double"},
+}
+TERM_ENTITY = {
+    "id": TERM_ENTITY_ID,
+    "name": "Currency",
+    "type": "glossaryTerm",
+    "description": TERM["definition"],
+    "resourceId": f"/glossary/terms/{TERM_ID}",
+    "attributes": {"assetCount": 1, "status": "Published"},
+}
+# endpoint1 is the term, endpoint2 the asset — the direction the module relies on.
+RELATIONSHIP = {
+    "id": "rel-9999",
+    "instanceType": "relationship",
+    "definition": "glossaryTermAsset",
+    "endpoint1Id": TERM_ENTITY_ID,
+    "endpoint2Id": COLUMN_CURR["id"],
+}
+
+# A table the catalog knows about but whose columns it never indexed — the
+# shape that makes every column name look wrong.
+EMPTY_TABLE_RESOURCE = "/dataTables/dataSources/Compute~fs~abc~fs~PUBLIC/tables/NOT_INDEXED"
+EMPTY_TABLE = {
+    "id": "cent-empty-table",
+    "name": "NOT_INDEXED",
+    "type": "sasTable",
+    "resourceId": EMPTY_TABLE_RESOURCE,
+    "attributes": {},
+}
+
+_ENTITIES = {
+    e["id"]: e
+    for e in (TERM_ENTITY, TABLE_ENTITY, COLUMN_CURR, COLUMN_BAL, EMPTY_TABLE)
+}
+
+
+class FakeViya:
+    """A routed stand-in for the Viya REST API.
+
+    ``requests`` records every call so a test can assert on the headers and
+    query parameters the tier actually sent, not merely on what it returned.
+    """
+
+    def __init__(self, **overrides: Any) -> None:
+        self.requests: list[httpx.Request] = []
+        self.overrides = overrides
+        self.deleted: list[str] = []
+        self.posted: list[dict[str, Any]] = []
+        self.put_bodies: list[dict[str, Any]] = []
+        self.relationships: list[dict[str, Any]] = [RELATIONSHIP]
+        self.import_counts: dict[str, int] = {"successful": 0, "errors": 0, "warnings": 0}
+        self.import_log = "The term import process has completed.\n"
+        # A draft is a separate resource: readable and deletable at the ordinary
+        # path, writable only at /draft, and promoted at /draft/state. Modelled
+        # here because getting the path wrong is a 404 the tier has to avoid.
+        self.term_is_draft = False
+        self.publish_calls: list[dict[str, str]] = []
+        # What an `in(name, ...)` lookup finds. Empty by default, so a test that
+        # does not care about imported ids sees the unresolved path.
+        self.terms_by_name: list[dict[str, Any]] = []
+        self.job_started = "2026-09-06T10:00:00.000Z"
+
+    # -- helpers ----------------------------------------------------------
+    @staticmethod
+    def _json(payload: Any, status: int = 200) -> httpx.Response:
+        return httpx.Response(status, json=payload)
+
+    def _term(self) -> dict[str, Any]:
+        """The term as it currently stands, published or still a draft."""
+        if not self.term_is_draft:
+            return TERM
+        return {**TERM, "isDraft": True, "status": None}
+
+    @staticmethod
+    def _ids_in(filter_expr: str, field: str) -> list[str]:
+        """Extract the ids from an ``in(field,'a','b')`` clause."""
+        match = re.search(rf"in\({field},((?:'[^']*',?)+)\)", filter_expr or "")
+        if not match:
+            return []
+        return re.findall(r"'([^']*)'", match.group(1))
+
+    def _instances(self, request: httpx.Request) -> httpx.Response:
+        expr = request.url.params.get("filter", "")
+        item_media = request.headers.get("Accept-Item", "")
+
+        if "glossaryTermAsset" in expr:
+            wanted = set(self._ids_in(expr, "endpoint1Id")) | set(self._ids_in(expr, "endpoint2Id"))
+            hits = [
+                rel
+                for rel in self.relationships
+                if {rel["endpoint1Id"], rel["endpoint2Id"]} & wanted
+            ]
+            # Endpoints only exist in the relationship representation; anything
+            # else gets the stripped summary a real server returns.
+            if "relationship+json" not in item_media:
+                hits = [{k: v for k, v in h.items() if not k.startswith("endpoint")} for h in hits]
+            # A real collection honours start/limit and reports the unpaged
+            # total as ``count``; the tier pages on exactly that, so the fake
+            # has to behave the same or the paging tests prove nothing.
+            total = len(hits)
+            offset = int(request.url.params.get("start", 0))
+            hits = hits[offset : offset + int(request.url.params.get("limit", 100))]
+            return self._json({"items": hits, "count": total})
+
+        matched: list[dict[str, Any]] = []
+        if expr.startswith("in(id,"):
+            matched = [_ENTITIES[i] for i in self._ids_in(expr, "id") if i in _ENTITIES]
+        elif expr.startswith("in(resourceId,"):
+            wanted = set(self._ids_in(expr, "resourceId"))
+            matched = [e for e in _ENTITIES.values() if e.get("resourceId") in wanted]
+        elif expr.startswith("eq(resourceId,"):
+            wanted = expr[len("eq(resourceId,'") : -2]
+            matched = [e for e in _ENTITIES.values() if e.get("resourceId") == wanted]
+        elif expr.startswith("startsWith(resourceId,"):
+            prefix = expr[len("startsWith(resourceId,'") : -2]
+            matched = [
+                e for e in _ENTITIES.values() if (e.get("resourceId") or "").startswith(prefix)
+            ]
+        # resourceId lives only in the entity representation.
+        if "entity+json" not in item_media:
+            matched = [{k: v for k, v in m.items() if k != "resourceId"} for m in matched]
+        return self._json({"items": matched, "count": len(matched)})
+
+    # -- dispatch ---------------------------------------------------------
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        path, method = request.url.path, request.method
+
+        if (override := self.overrides.get(f"{method} {path}")) is not None:
+            return override if isinstance(override, httpx.Response) else self._json(override)
+
+        if method == "GET" and path == "/glossary/termTypes":
+            return self._json({"items": [TERM_TYPE], "count": 1})
+        if method == "GET" and path.startswith("/glossary/termTypes/"):
+            return self._json(TERM_TYPE)
+        if method == "GET" and path == "/glossary/terms":
+            expr = request.url.params.get("filter", "")
+            if expr.startswith("in(name,"):
+                # The post-import id resolution. Sibling names are unique, so
+                # the tier matches on (parentId, name) — the fake has to carry
+                # both, and the creation timestamps that say what was new.
+                wanted = {n.lower() for n in self._ids_in(expr, "name")}
+                hits = [t for t in self.terms_by_name if t["name"].lower() in wanted]
+                return self._json({"items": hits, "count": len(hits)})
+            return self._json({"items": [self._term()], "count": 1})
+
+        # --- the draft resource, which lives beside the term ------------------
+        if path.startswith("/glossary/terms/") and path.endswith("/draft/state"):
+            if method != "PUT":
+                return self._json({"message": "Not Found"}, 404)
+            if not self.term_is_draft:
+                # What a real deployment answers: there is no draft to promote.
+                return self._json({"message": "Not Found", "errorCode": 76900}, 404)
+            self.publish_calls.append(dict(request.url.params))
+            self.term_is_draft = False
+            return self._json(self._term())
+        if path.startswith("/glossary/terms/") and path.endswith("/draft"):
+            if not self.term_is_draft:
+                return self._json({"message": "Not Found"}, 404)
+            if method == "PUT":
+                body = json.loads(request.content)
+                self.put_bodies.append(body)
+                return self._json({**body, "version": TERM["version"] + 1})
+            if method == "DELETE":
+                self.deleted.append(path)
+                return httpx.Response(204)
+            return self._json(self._term())
+
+        if method == "GET" and path.startswith("/glossary/terms/"):
+            return self._json(self._term())
+        if method == "PUT" and self.term_is_draft and path.startswith("/glossary/terms/"):
+            # A plain PUT on a draft is a 404, not a validation error.
+            return self._json({"message": "Not Found"}, 404)
+        if method == "POST" and path == "/glossary/importTerms":
+            self.posted.append({"path": path, "body": request.content, "params": {}})
+            return self._json({"id": "job-1", "state": "running"}, 202)
+        if method == "GET" and path.startswith("/jobExecution/jobs/"):
+            return self._json(
+                {
+                    "id": "job-1",
+                    "state": "completed",
+                    "creationTimeStamp": self.job_started,
+                    "results": {"counts": json.dumps(self.import_counts)},
+                    "logLocation": "/files/files/log-1",
+                }
+            )
+        if method == "GET" and path == "/files/files/log-1/content":
+            return httpx.Response(200, text=self.import_log)
+        if method == "POST" and path == "/glossary/termTypes":
+            body = json.loads(request.content)
+            self.posted.append({"path": path, "body": body, "params": dict(request.url.params)})
+            return self._json({**body, "id": "tt-new", "usageCount": 0}, 201)
+        if method == "PUT" and path.startswith("/glossary/termTypes/"):
+            body = json.loads(request.content)
+            self.put_bodies.append(body)
+            return self._json({**body, "version": 2})
+        if method == "POST" and path == "/glossary/terms":
+            body = json.loads(request.content)
+            self.posted.append({"path": path, "body": body, "params": dict(request.url.params)})
+            return self._json({**TERM, **body, "id": "gterm-new", "status": "Published"}, 201)
+        if method == "PUT" and path.startswith("/glossary/terms/"):
+            body = json.loads(request.content)
+            self.put_bodies.append(body)
+            return self._json({**body, "version": TERM["version"] + 1})
+        if method == "DELETE":
+            self.deleted.append(path)
+            return httpx.Response(204)
+        if method == "GET" and path == "/catalog/instances":
+            return self._instances(request)
+        if method == "POST" and path == "/catalog/instances":
+            body = json.loads(request.content)
+            self.posted.append({"path": path, "body": body, "params": dict(request.url.params)})
+            created = {**body, "id": "rel-new"}
+            self.relationships.append(created)
+            return self._json(created, 201)
+        if method == "GET" and path == "/catalog/search":
+            return self._json(self.overrides.get("search", {"items": [], "count": 0}))
+        return self._json({"message": f"unrouted {method} {path}"}, 404)
+
+
+@asynccontextmanager
+async def glossary_client(fake: FakeViya):
+    """An MCP client whose glossary tools talk to *fake* instead of Viya."""
+    transport = httpx.MockTransport(fake.handler)
+
+    def make_client(token: str | None):  # noqa: ARG001 - signature parity
+        return httpx.AsyncClient(transport=transport, base_url=VIYA)
+
+    mcp = FastMCP("glossary-test")
+
+    async def get_token(ctx):  # noqa: ARG001
+        return "test-token"
+
+    import sas_mcp_server.tools._common as common
+
+    original = common.make_client
+    common.make_client = make_client
+    try:
+        glossary.register(mcp, get_token)
+        async with Client(mcp) as client:
+            yield client
+    finally:
+        common.make_client = original
+
+
+def result_of(call) -> dict[str, Any]:
+    """The structured payload of a FastMCP tool result."""
+    return call.data if call.data is not None else json.loads(call.content[0].text)
+
+
+@pytest.fixture(autouse=True)
+def _pin_endpoint(monkeypatch):
+    """Pin VIYA_ENDPOINT so request URLs are predictable regardless of .env."""
+    monkeypatch.setattr(glossary, "VIYA_ENDPOINT", VIYA)
+    import sas_mcp_server.viya_client as viya_client
+
+    monkeypatch.setattr(viya_client, "VIYA_ENDPOINT", VIYA)
+
+
+# --- pure helpers (helpers/glossary_helpers.py) -------------------------------------------------------------
+
+
+def test_quote_doubles_single_quotes():
+    assert viya_client.filter_literal("O'Brien") == "O''Brien"
+    assert viya_client.filter_literal("") == ""
+
+
+def test_in_filter_escapes_each_value():
+    assert viya_client.in_filter("id", ["a", "b'c"]) == "in(id,'a','b''c')"
+
+
+def test_chunks_splits_at_the_configured_size():
+    values = [str(i) for i in range(95)]
+    chunks = gh.chunk_ids(values)
+    assert [len(c) for c in chunks] == [40, 40, 15]
+    assert [v for c in chunks for v in c] == values
+
+
+def test_glossary_id_is_read_from_the_resource_id():
+    assert gh.glossary_id_from_resource("/glossary/terms/abc-123") == "abc-123"
+    # A table's resourceId must not be mistaken for a term's.
+    assert gh.glossary_id_from_resource("/dataTables/x/tables/T") is None
+    assert gh.glossary_id_from_resource(None) is None
+
+
+def test_readable_attributes_names_keys_and_drops_empties():
+    by_uuid, _ = gh.attribute_maps(TERM_TYPE)
+    readable = gh.readable_attributes(TERM["attributes"], by_uuid)
+    assert readable == {
+        "Scope": "Group",
+        "Used in Risk": True,
+        # Stored comma-joined; handed back as the list the caller passed in.
+        "Regions": ["EMEA", "APAC"],
+    }
+
+
+def test_readable_attributes_keeps_unknown_uuids():
+    """A type edited after the term was written must not lose the term's data."""
+    by_uuid, _ = gh.attribute_maps(TERM_TYPE)
+    readable = gh.readable_attributes({"attr-gone": "value"}, by_uuid)
+    assert readable == {"attr-gone": "value"}
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(True, True), (False, False), ("true", True), ("FALSE", False)],
+)
+def test_boolean_attributes_are_encoded_as_json_booleans(value, expected):
+    """Viya rejects the string "true": the value has to stay a real bool."""
+    definition = {"label": "Used in Risk", "type": "boolean"}
+    encoded = gh.encode_attribute(value, definition)
+    assert encoded is expected
+    assert isinstance(encoded, bool)
+
+
+def test_boolean_attribute_rejects_a_non_boolean():
+    with pytest.raises(ValueError, match="is a boolean"):
+        gh.encode_attribute("yes", {"label": "Used in Risk", "type": "boolean"})
+
+
+def test_single_select_rejects_a_value_outside_the_allowed_list():
+    definition = {"label": "Scope", "type": "single-select", "items": ["Local", "Group"]}
+    with pytest.raises(ValueError, match=r"only accepts \['Local', 'Group'\]"):
+        gh.encode_attribute("Regional", definition)
+
+
+
+# --- attribute wire formats ---------------------------------------------------
+# Each format below was established against a live glossary; the API publishes no
+# schema, and every one of these types rejects all but one spelling.
+
+
+def test_multi_select_joins_a_list_the_way_viya_stores_it():
+    """A JSON array and "a, b" are both rejected; only "a,b" is accepted."""
+    definition = {"label": "Regions", "type": "multi-select", "items": ["EMEA", "APAC"]}
+    assert gh.encode_attribute(["EMEA", "APAC"], definition) == "EMEA,APAC"
+
+
+def test_multi_select_accepts_the_stored_string_and_strips_spaces():
+    definition = {"label": "Regions", "type": "multi-select", "items": ["EMEA", "APAC"]}
+    assert gh.encode_attribute("EMEA, APAC", definition) == "EMEA,APAC"
+
+
+def test_multi_select_names_the_items_that_are_not_allowed():
+    """Viya's own rejection names the attribute but never which item was wrong."""
+    definition = {"label": "Regions", "type": "multi-select", "items": ["EMEA", "APAC"]}
+    with pytest.raises(ValueError) as excinfo:
+        gh.encode_attribute(["EMEA", "ANTARCTICA"], definition)
+    assert "ANTARCTICA" in str(excinfo.value)
+
+
+def test_multi_select_round_trips_through_decode():
+    definition = {"label": "Regions", "type": "multi-select", "items": ["EMEA", "APAC"]}
+    stored = gh.encode_attribute(["EMEA", "APAC"], definition)
+    assert gh.decode_attribute(stored, definition) == ["EMEA", "APAC"]
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("2026-09-04T13:41:24Z", "2026-09-04T13:41:24Z"),
+        ("2026-09-04T13:41:24", "2026-09-04T13:41:24Z"),  # Z is mandatory
+        ("2026-09-04T13:41", "2026-09-04T13:41:00Z"),  # seconds are mandatory
+        ("2026-09-04", "2026-09-04T00:00:00Z"),  # a bare date is rejected as-is
+        ("2026-09-04T15:41:24+02:00", "2026-09-04T13:41:24Z"),  # offsets are rejected
+        ("2026-09-04T11:41:24-02:00", "2026-09-04T13:41:24Z"),
+    ],
+)
+def test_date_time_is_normalised_to_utc(value, expected):
+    assert gh.encode_attribute(value, {"label": "Last seen", "type": "date-time"}) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("15:41:28Z", "15:41:28Z"),
+        ("15:41:28", "15:41:28Z"),
+        ("15:41", "15:41:00Z"),
+        # An offset is converted, not stripped. Dropping it stored a value two
+        # hours out with nothing to say so — the one failure mode worse than a
+        # rejection, and the one a date-time never had.
+        ("09:15:00+02:00", "07:15:00Z"),
+        ("09:15:00-02:00", "11:15:00Z"),
+        # No date to carry, so a conversion across midnight wraps within the day.
+        ("00:30:00+02:00", "22:30:00Z"),
+        ("23:30:00-02:00", "01:30:00Z"),
+    ],
+)
+def test_time_gets_its_seconds_and_z(value, expected):
+    assert gh.encode_attribute(value, {"label": "Cutoff", "type": "time"}) == expected
+
+
+def test_an_impossible_time_is_rejected_rather_than_wrapped():
+    """Wrapping would turn a typo into a plausible-looking 01:00:00."""
+    with pytest.raises(ValueError, match="hh<24"):
+        gh.encode_attribute("25:00:00Z", {"label": "Cutoff", "type": "time"})
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("2026-09-04", "2026-09-04"), ("2026-09-04T13:41:24Z", "2026-09-04")],
+)
+def test_date_keeps_only_the_date(value, expected):
+    assert gh.encode_attribute(value, {"label": "As of", "type": "date"}) == expected
+
+
+@pytest.mark.parametrize(
+    ("attr_type", "value"),
+    [("date", "31/12/2026"), ("time", "9am"), ("date-time", "next tuesday")],
+)
+def test_unparseable_dates_are_rejected_with_the_format_named(attr_type, value):
+    """Viya answers these with a bare 400; the caller needs the format instead."""
+    with pytest.raises(ValueError) as excinfo:
+        gh.encode_attribute(value, {"label": "X", "type": attr_type})
+    assert attr_type in str(excinfo.value)
+
+
+def test_a_boolean_cannot_be_cleared_with_an_empty_string():
+    """Viya answers '' with `The value "" for the field "X" is invalid`."""
+    with pytest.raises(ValueError, match="cannot be cleared"):
+        gh.encode_attribute("", {"label": "Used in Risk", "type": "boolean"})
+
+
+def test_a_required_attribute_set_to_empty_counts_as_missing():
+    """Viya rejects "" for a required attribute, so presence alone is not enough."""
+    _, by_label = gh.attribute_maps(TERM_TYPE)
+    with pytest.raises(ValueError, match="requires attribute"):
+        gh.encode_attributes({"Scope": ""}, by_label, require_all=True)
+
+
+def test_a_required_attribute_with_a_default_need_not_be_supplied_on_create():
+    """Verified live: an imported row omitting one came back holding the default."""
+    typed = {
+        "attributes": [
+            {"name": "attr-owner", "label": "Owner", "type": "single-line",
+             "required": True, "defaultValue": "unassigned"},
+        ]
+    }
+    _, by_label = gh.attribute_maps(typed)
+    assert gh.encode_attributes({}, by_label, require_all=True) == {}
+
+
+def test_missing_required_finds_the_gap_in_a_merged_term():
+    _, by_label = gh.attribute_maps(TERM_TYPE)
+    assert gh.missing_required({"attr-scope": "Group"}, by_label) == []
+    assert gh.missing_required({"attr-scope": ""}, by_label) == ["Scope"]
+    assert gh.missing_required({}, by_label) == ["Scope"]
+
+
+def test_a_required_boolean_set_to_false_is_not_missing():
+    """`False or ""` reads as empty, which refused an edit over a value that was there."""
+    typed = {
+        "attributes": [
+            {"name": "attr-flag", "label": "Flag", "type": "boolean", "required": True},
+        ]
+    }
+    _, by_label = gh.attribute_maps(typed)
+    assert gh.missing_required({"attr-flag": False}, by_label) == []
+    assert gh.missing_required({"attr-flag": ""}, by_label) == ["Flag"]
+
+
+def test_a_default_does_not_excuse_a_required_attribute_on_an_update():
+    """Defaults are applied when a term is created, not when one is rewritten."""
+    typed = {
+        "attributes": [
+            {"name": "attr-owner", "label": "Owner", "type": "single-line",
+             "required": True, "defaultValue": "unassigned"},
+        ]
+    }
+    _, by_label = gh.attribute_maps(typed)
+    assert gh.missing_required({}, by_label) == ["Owner"]
+
+
+def test_encode_attributes_maps_labels_case_insensitively():
+    _, by_label = gh.attribute_maps(TERM_TYPE)
+    encoded = gh.encode_attributes(
+        {"scope": "Local", "USED IN RISK": True}, by_label, require_all=False
+    )
+    assert encoded == {"attr-scope": "Local", "attr-risk": True}
+
+
+def test_encode_attributes_names_the_valid_labels_for_an_unknown_one():
+    _, by_label = gh.attribute_maps(TERM_TYPE)
+    with pytest.raises(ValueError) as excinfo:
+        gh.encode_attributes({"Scop": "Local"}, by_label, require_all=False)
+    message = str(excinfo.value)
+    assert "unknown attribute 'Scop'" in message
+    assert "Scope" in message  # the correction is in the message
+
+
+def test_encode_attributes_requires_mandatory_attributes_on_create():
+    _, by_label = gh.attribute_maps(TERM_TYPE)
+    with pytest.raises(ValueError, match=r"requires attribute\(s\) \['Scope'\]"):
+        gh.encode_attributes({"Notes": "x"}, by_label, require_all=True)
+
+
+def test_encode_attributes_does_not_require_them_on_update():
+    """An update merges onto what exists, so a required attribute is already set."""
+    _, by_label = gh.attribute_maps(TERM_TYPE)
+    assert gh.encode_attributes({"Notes": "x"}, by_label, require_all=False) == {
+        "attr-note": "x"
+    }
+
+
+# --- term types ---------------------------------------------------------------
+
+
+async def test_list_glossary_term_types_flattens_the_summary():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(await client.call_tool("list_glossary_term_types", {}))
+    assert result["count"] == 1
+    assert result["items"][0] == {
+        "term_type_id": TERM_TYPE_ID,
+        "name": "BCBS239",
+        "label": "BCBS239",
+        "description": "Risk data aggregation terms.",
+        "usage_count": 3,
+        "attribute_count": 4,
+    }
+
+
+async def test_get_glossary_term_type_publishes_the_authoring_contract():
+    """The attribute contract is what makes create_glossary_term usable."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool("get_glossary_term_type", {"term_type_id": TERM_TYPE_ID})
+        )
+    scope = next(a for a in result["attributes"] if a["label"] == "Scope")
+    assert scope["required"] is True
+    assert scope["allowed_values"] == ["Local", "Group"]
+    assert scope["type"] == "single-select"
+    risk = next(a for a in result["attributes"] if a["label"] == "Used in Risk")
+    assert risk["required"] is False
+
+
+async def test_term_type_is_resolvable_by_name():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool("get_glossary_term_type", {"term_type_id": "bcbs239"})
+        )
+    assert result["term_type_id"] == TERM_TYPE_ID
+
+
+async def test_unknown_term_type_name_lists_the_available_ones():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception, match="no term type named 'Nope'"):
+            await client.call_tool("get_glossary_term_type", {"term_type_id": "Nope"})
+
+
+# --- finding terms ------------------------------------------------------------
+
+
+async def test_search_resolves_the_catalog_hit_to_a_glossary_term_id():
+    """A search hit carries the *catalog* id; every other tool needs the glossary id."""
+    fake = FakeViya(
+        search={
+            "count": 1,
+            "start": 0,
+            "items": [
+                {
+                    "id": TERM_ENTITY_ID,
+                    "name": "Currency",
+                    "typeLabel": "BCBS239",
+                    "score": 12.5,
+                    "attributes": {
+                        "definition": TERM["definition"],
+                        "reviewStatus": "Published",
+                        "assignedAssets": 1,
+                    },
+                }
+            ],
+        }
+    )
+    async with glossary_client(fake) as client:
+        result = result_of(await client.call_tool("search_glossary_terms", {"query": "currency"}))
+    item = result["items"][0]
+    assert item["term_id"] == TERM_ID
+    assert item["catalog_entity_id"] == TERM_ENTITY_ID
+    assert item["assigned_asset_count"] == 1
+    assert result["note"] == ""
+
+
+async def test_search_uses_the_plural_terms_index():
+    """The singular 'term' is rejected by the catalog with a 400."""
+    fake = FakeViya(search={"count": 0, "items": []})
+    async with glossary_client(fake) as client:
+        await client.call_tool("search_glossary_terms", {"query": "*"})
+    search = next(r for r in fake.requests if r.url.path == "/catalog/search")
+    assert search.url.params["indices"] == "terms"
+
+
+async def test_search_flags_a_count_that_exceeds_the_readable_items():
+    """The index count is pre-authorization and can outrun what comes back."""
+    fake = FakeViya(search={"count": 9, "start": 0, "items": []})
+    async with glossary_client(fake) as client:
+        result = result_of(await client.call_tool("search_glossary_terms", {"query": "*"}))
+    assert "may exceed the readable items" in result["note"]
+
+
+async def test_get_glossary_term_names_its_attributes():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(await client.call_tool("get_glossary_term", {"term_id": TERM_ID}))
+    assert result["attributes"] == {
+        "Scope": "Group",
+        "Used in Risk": True,
+        "Regions": ["EMEA", "APAC"],
+    }
+    assert result["attribute_ids"] == TERM["attributes"]  # raw map preserved
+    assert result["term_id"] == TERM_ID
+    assert result["catalog_entity_id"] == TERM_ENTITY_ID
+
+
+async def test_get_glossary_term_asks_for_the_representation_with_resource_id():
+    """Without the entity representation the bridge silently yields no id."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool("get_glossary_term", {"term_id": TERM_ID})
+    bridge = [
+        r
+        for r in fake.requests
+        if r.url.path == "/catalog/instances" and "resourceId" in r.url.params.get("filter", "")
+    ]
+    assert bridge, "no bridge lookup was made"
+    assert bridge[0].headers["Accept-Item"] == glossary._ENTITY_MEDIA
+
+
+async def test_list_glossary_terms_builds_a_conjunction_of_filters():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "list_glossary_terms",
+            {"term_type": "BCBS239", "parent_id": "p-1", "name_contains": "Cur"},
+        )
+    listing = [
+        r
+        for r in fake.requests
+        if r.url.path == "/glossary/terms" and "parentId" in r.url.params.get("filter", "")
+    ][0]
+    expr = listing.url.params["filter"]
+    assert expr.startswith("and(")
+    assert f"eq(termTypeId,'{TERM_TYPE_ID}')" in expr
+    assert "eq(parentId,'p-1')" in expr
+    assert "contains(name,'Cur')" in expr
+
+
+async def test_list_glossary_terms_excludes_drafts_by_default():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool("list_glossary_terms", {})
+        await client.call_tool("list_glossary_terms", {"include_drafts": True})
+    calls = [r for r in fake.requests if r.url.path == "/glossary/terms"]
+    assert calls[0].url.params["allowDrafts"] == "none"
+    assert calls[1].url.params["allowDrafts"] == "all"
+
+
+async def test_a_single_filter_is_not_wrapped_in_and():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool("list_glossary_terms", {"parent_id": "p-1"})
+    listing = [r for r in fake.requests if r.url.path == "/glossary/terms"][0]
+    assert listing.url.params["filter"] == "eq(parentId,'p-1')"
+
+
+
+async def test_term_type_publishes_the_wire_format_per_attribute():
+    """The formats are undocumented upstream, so the contract has to carry them."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool("get_glossary_term_type", {"term_type_id": TERM_TYPE_ID})
+        )
+    formats = {a["label"]: a["value_format"] for a in result["attributes"]}
+    assert "true/false" in formats["Used in Risk"]
+    assert "list" in formats["Regions"]
+    assert formats["As of"] == "yyyy-mm-dd"
+    assert "Z" in formats["Cutoff"]
+
+
+async def test_create_sends_a_real_boolean_not_the_string():
+    """The bug this guards: Viya rejects "true" and stores only its own default."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "create_glossary_term",
+            {
+                "name": "Exposure",
+                "term_type": "BCBS239",
+                "attributes": {"Scope": "Group", "Used in Risk": True},
+            },
+        )
+    body = next(p for p in fake.posted if p["path"] == "/glossary/terms")["body"]
+    assert body["attributes"]["attr-risk"] is True
+    # And it must survive serialisation as a JSON boolean, not "True".
+    assert '"attr-risk": true' in json.dumps(body)
+
+
+async def test_create_sends_multi_select_as_a_joined_string():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "create_glossary_term",
+            {
+                "name": "Exposure",
+                "term_type": "BCBS239",
+                "attributes": {"Scope": "Group", "Regions": ["EMEA", "APAC"]},
+            },
+        )
+    body = next(p for p in fake.posted if p["path"] == "/glossary/terms")["body"]
+    assert body["attributes"]["attr-region"] == "EMEA,APAC"
+
+
+async def test_update_refuses_when_a_required_attribute_became_required_later():
+    """The whole term is rewritten, so an unrelated edit fails on a field the
+    caller never mentioned. Say which one, before calling Viya."""
+    fake = FakeViya()
+    stale = {**TERM, "attributes": {**TERM["attributes"], "attr-scope": ""}}
+    fake.overrides[f"GET /glossary/terms/{TERM_ID}"] = stale
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception) as excinfo:
+            await client.call_tool(
+                "update_glossary_term", {"term_id": TERM_ID, "attributes": {"Notes": "x"}}
+            )
+    message = str(excinfo.value)
+    assert "Scope" in message and "required" in message
+    assert not fake.put_bodies, "must not reach Viya"
+
+# --- term <-> asset linkage ---------------------------------------------------
+
+
+async def test_list_term_assets_traverses_to_the_column_and_its_table():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(await client.call_tool("list_term_assets", {"term_id": TERM_ID}))
+    assert result["asset_count"] == 1
+    asset = result["assets"][0]
+    assert asset["asset_name"] == "CURR_CD"
+    assert asset["table_name"] == "BCBS_SOURCE"
+    assert asset["table_resource_uri"] == TABLE_RESOURCE
+
+
+async def test_relationship_lookup_requests_the_endpoints():
+    """Without this Accept-Item the endpoints are stripped and nothing is found."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool("list_term_assets", {"term_id": TERM_ID})
+    rel_calls = [
+        r
+        for r in fake.requests
+        if "glossaryTermAsset" in r.url.params.get("filter", "")
+    ]
+    assert rel_calls
+    assert all(r.headers["Accept-Item"] == glossary._RELATIONSHIP_MEDIA for r in rel_calls)
+
+
+def _many_assets(count: int) -> list[dict[str, Any]]:
+    """*count* relationships hanging off the same term, one per column."""
+    return [
+        {**RELATIONSHIP, "id": f"rel-{n}", "endpoint2Id": f"cent-col-{n}"} for n in range(count)
+    ]
+
+
+async def test_list_term_assets_reports_the_total_not_just_the_page():
+    """A partial list must not read as the whole story: count is the term's total."""
+    fake = FakeViya()
+    fake.relationships = _many_assets(5)
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool("list_term_assets", {"term_id": TERM_ID, "limit": 2})
+        )
+    assert result["asset_count"] == 2
+    assert result["count"] == 5
+    assert result["truncated"] is True
+    assert result["next_start"] == 2
+    assert "2 of 5" in result["note"]
+    rel_calls = [r for r in fake.requests if "glossaryTermAsset" in r.url.params.get("filter", "")]
+    assert rel_calls[0].url.params["limit"] == "2"
+
+
+async def test_paging_with_start_reaches_every_asset():
+    """The answer to 'I want them all': page on next_start until truncated is false."""
+    fake = FakeViya()
+    fake.relationships = _many_assets(7)
+    seen: list[str] = []
+    start, pages = 0, 0
+    async with glossary_client(fake) as client:
+        while True:
+            page = result_of(
+                await client.call_tool(
+                    "list_term_assets", {"term_id": TERM_ID, "limit": 3, "start": start}
+                )
+            )
+            seen.extend(a["asset_id"] for a in page["assets"])
+            pages += 1
+            if not page["truncated"]:
+                break
+            start = page["next_start"]
+    assert pages == 3
+    assert len(seen) == 7
+    assert len(set(seen)) == 7, "pages must not overlap"
+
+
+async def test_list_term_assets_is_not_flagged_truncated_when_it_is_complete():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(await client.call_tool("list_term_assets", {"term_id": TERM_ID}))
+    assert result["truncated"] is False
+    assert result["count"] == result["asset_count"] == 1
+    assert "note" not in result and "next_start" not in result
+
+
+async def test_list_term_assets_limit_cannot_exceed_the_ceiling():
+    """The ceiling is the catalog's page size, not a suggestion."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool("list_term_assets", {"term_id": TERM_ID, "limit": 100_000})
+    rel_calls = [r for r in fake.requests if "glossaryTermAsset" in r.url.params.get("filter", "")]
+    assert rel_calls[0].url.params["limit"] == str(glossary._RELATIONSHIP_PAGE)
+
+
+async def test_list_term_assets_reports_a_term_with_no_catalog_entity():
+    """A just-created term is mirrored asynchronously; that is not 'no assets'."""
+    fake = FakeViya()
+    fake.overrides["GET /glossary/terms/orphan"] = {**TERM, "id": "orphan"}
+    async with glossary_client(fake) as client:
+        result = result_of(await client.call_tool("list_term_assets", {"term_id": "orphan"}))
+    assert result["asset_count"] == 0
+    assert "mirrored into the catalog" in result["note"]
+
+
+async def test_list_table_terms_reports_the_governed_columns():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool("list_table_terms", {"resource_uri": TABLE_RESOURCE})
+        )
+    assert result["column_count"] == 2
+    assert result["columns_with_terms"] == 1
+    assert [c["column_name"] for c in result["columns"]] == ["CURR_CD"]
+    assert result["columns"][0]["terms"][0]["term_id"] == TERM_ID
+
+
+async def test_list_table_terms_can_show_the_ungoverned_columns_too():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "list_table_terms", {"resource_uri": TABLE_RESOURCE, "assigned_only": False}
+            )
+        )
+    names = {c["column_name"]: c["terms"] for c in result["columns"]}
+    assert set(names) == {"CURR_CD", "BAL_AMT"}
+    assert names["BAL_AMT"] == []
+
+
+async def test_list_table_terms_rejects_an_ambiguous_table_name():
+    """Two libraries can hold the same table name; guessing would be wrong."""
+    fake = FakeViya(
+        search={
+            "count": 2,
+            "items": [
+                {"id": "a", "name": "CARS", "attributes": {"library": "PUBLIC"}},
+                {"id": "b", "name": "CARS", "attributes": {"library": "SASHELP"}},
+            ],
+        }
+    )
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception, match="matches 2 tables"):
+            await client.call_tool("list_table_terms", {"table_name": "CARS"})
+
+
+async def test_unknown_resource_uri_says_how_to_find_the_right_one():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception, match="catalog_search"):
+            await client.call_tool("list_table_terms", {"resource_uri": "/nope"})
+
+
+async def test_column_lookup_is_chunked_for_a_wide_table(monkeypatch):
+    """A 200-column table must not build one filter the gateway would reject."""
+    monkeypatch.setattr(gh, "ID_CHUNK", 5)
+    fake = FakeViya()
+    wide = {
+        f"cent-w{i}": {
+            "id": f"cent-w{i}",
+            "name": f"C{i}",
+            "type": "sasColumn",
+            "resourceId": f"{TABLE_RESOURCE}/columns/C{i}",
+            "attributes": {},
+        }
+        for i in range(12)
+    }
+    _ENTITIES.update(wide)
+    try:
+        async with glossary_client(fake) as client:
+            await client.call_tool("list_table_terms", {"resource_uri": TABLE_RESOURCE})
+        rel_calls = [
+            r for r in fake.requests if "glossaryTermAsset" in r.url.params.get("filter", "")
+        ]
+        # 14 columns at 5 per chunk.
+        assert len(rel_calls) == 3
+    finally:
+        for key in wide:
+            _ENTITIES.pop(key, None)
+
+
+# --- authoring ----------------------------------------------------------------
+
+
+async def test_create_publishes_by_default():
+    """The API defaults to a draft nobody can see; the tool must not inherit that."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "create_glossary_term",
+            {"name": "Exposure", "term_type": "BCBS239", "attributes": {"Scope": "Group"}},
+        )
+    post = next(p for p in fake.posted if p["path"] == "/glossary/terms")
+    assert post["params"]["publish"] == "true"
+
+
+async def test_create_can_be_asked_for_a_draft():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "create_glossary_term",
+            {
+                "name": "Exposure",
+                "term_type": "BCBS239",
+                "attributes": {"Scope": "Group"},
+                "publish": False,
+            },
+        )
+    post = next(p for p in fake.posted if p["path"] == "/glossary/terms")
+    assert post["params"]["publish"] == "false"
+
+
+async def test_create_translates_labels_to_attribute_uuids():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "create_glossary_term",
+            {
+                "name": "Exposure",
+                "term_type": "BCBS239",
+                "definition": "Amount at risk.",
+                "attributes": {"Scope": "Group", "Used in Risk": True},
+            },
+        )
+    body = next(p for p in fake.posted if p["path"] == "/glossary/terms")["body"]
+    assert body["attributes"] == {"attr-scope": "Group", "attr-risk": True}
+    assert body["termTypeId"] == TERM_TYPE_ID
+    assert body["definition"] == "Amount at risk."
+    assert "parentId" not in body  # omitted rather than sent as null
+
+
+async def test_create_rejects_a_missing_required_attribute_before_calling_viya():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception, match=r"requires attribute\(s\) \['Scope'\]"):
+            await client.call_tool(
+                "create_glossary_term", {"name": "Exposure", "term_type": "BCBS239"}
+            )
+    assert not [p for p in fake.posted if p["path"] == "/glossary/terms"]
+
+
+async def test_create_accepts_attributes_as_a_json_string():
+    """Some MCP clients serialize object parameters as strings (see _common)."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "create_glossary_term",
+            {
+                "name": "Exposure",
+                "term_type": "BCBS239",
+                "attributes": json.dumps({"Scope": "Local"}),
+            },
+        )
+    body = next(p for p in fake.posted if p["path"] == "/glossary/terms")["body"]
+    assert body["attributes"] == {"attr-scope": "Local"}
+
+
+async def test_update_merges_rather_than_replacing():
+    """PUT replaces the whole term, so an omitted field must survive the call."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "update_glossary_term", {"term_id": TERM_ID, "description": "Updated."}
+        )
+    body = fake.put_bodies[0]
+    assert body["description"] == "Updated."
+    assert body["definition"] == TERM["definition"]  # untouched, not blanked
+    assert body["name"] == "Currency"
+    assert body["attributes"]["attr-scope"] == "Group"
+    assert "links" not in body  # HATEOAS links are not part of the resource
+
+
+async def test_update_merges_attributes_one_at_a_time():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "update_glossary_term", {"term_id": TERM_ID, "attributes": {"Notes": "checked"}}
+        )
+    attributes = fake.put_bodies[0]["attributes"]
+    assert attributes["attr-note"] == "checked"
+    assert attributes["attr-scope"] == "Group"  # the other attributes survive
+
+
+async def test_update_can_clear_one_attribute():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "update_glossary_term", {"term_id": TERM_ID, "attributes": {"Notes": ""}}
+        )
+    assert fake.put_bodies[0]["attributes"]["attr-note"] == ""
+    # The others survive the whole-resource PUT.
+    assert fake.put_bodies[0]["attributes"]["attr-scope"] == "Group"
+
+
+# --- drafts -------------------------------------------------------------------
+# A draft is a separate resource. Verified live: the ordinary path answers GET
+# and DELETE for one but 404s on PUT, and the draft's own `links` name
+# /draft for the edit and /draft/state?action=publish for the promotion.
+
+
+async def test_editing_a_draft_writes_to_the_draft_path():
+    """The ordinary path 404s on a draft, so an edit there is lost entirely."""
+    fake = FakeViya()
+    fake.term_is_draft = True
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "update_glossary_term", {"term_id": TERM_ID, "definition": "revised"}
+        )
+    written = [r for r in fake.requests if r.method == "PUT"]
+    assert [r.url.path for r in written] == [f"/glossary/terms/{TERM_ID}/draft"]
+    assert fake.put_bodies[0]["definition"] == "revised"
+
+
+async def test_a_draft_can_be_published():
+    fake = FakeViya()
+    fake.term_is_draft = True
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "update_glossary_term", {"term_id": TERM_ID, "publish": True}
+            )
+        )
+    assert fake.publish_calls == [{"action": "publish"}]
+    assert result["is_draft"] is False
+    assert result["status"] == "Published"
+
+
+async def test_publishing_a_published_term_reports_it_rather_than_failing():
+    """`/draft/state` answers a published term with a 404, which reads as 'gone'."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "update_glossary_term", {"term_id": TERM_ID, "publish": True}
+            )
+        )
+    assert fake.publish_calls == []
+    assert "already published" in result["note"]
+    assert result["is_draft"] is False
+
+
+async def test_an_ordinary_update_does_not_touch_the_draft_endpoints():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "update_glossary_term", {"term_id": TERM_ID, "definition": "revised"}
+        )
+    assert not [r for r in fake.requests if "/draft" in r.url.path]
+
+
+async def test_delete_calls_the_glossary_not_the_catalog():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(await client.call_tool("delete_glossary_term", {"term_id": TERM_ID}))
+    assert result == {"status": "deleted", "term_id": TERM_ID}
+    assert fake.deleted == [f"/glossary/terms/{TERM_ID}"]
+
+
+async def test_assign_creates_the_relationship_with_the_term_on_endpoint1():
+    """The relationship is not symmetric; every reader depends on this order."""
+    fake = FakeViya()
+    fake.relationships = []
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "assign_glossary_term",
+                {"term_id": TERM_ID, "column_name": "CURR_CD", "resource_uri": TABLE_RESOURCE},
+            )
+        )
+    body = next(p for p in fake.posted if p["path"] == "/catalog/instances")["body"]
+    assert body["endpoint1Id"] == TERM_ENTITY_ID  # the term
+    assert body["endpoint2Id"] == COLUMN_CURR["id"]  # the asset
+    assert body["definition"] == "glossaryTermAsset"
+    assert body["instanceType"] == "relationship"
+    assert result["status"] == "assigned"
+
+
+async def test_assign_is_case_insensitive_about_the_column():
+    fake = FakeViya()
+    fake.relationships = []
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "assign_glossary_term",
+                {"term_id": TERM_ID, "column_name": "curr_cd", "resource_uri": TABLE_RESOURCE},
+            )
+        )
+    assert result["column_name"] == "CURR_CD"
+
+
+async def test_assign_reports_an_existing_link_instead_of_duplicating_it():
+    fake = FakeViya()  # RELATIONSHIP already links this term and column
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "assign_glossary_term",
+                {"term_id": TERM_ID, "column_name": "CURR_CD", "resource_uri": TABLE_RESOURCE},
+            )
+        )
+    assert result["status"] == "already_assigned"
+    assert result["relationship_id"] == RELATIONSHIP["id"]
+    assert not [p for p in fake.posted if p["path"] == "/catalog/instances"]
+
+
+async def test_assign_lists_the_columns_when_the_name_is_wrong():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception, match="CURR_CD"):
+            await client.call_tool(
+                "assign_glossary_term",
+                {"term_id": TERM_ID, "column_name": "NOPE", "resource_uri": TABLE_RESOURCE},
+            )
+
+
+async def test_unassign_deletes_only_the_relationship():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "unassign_glossary_term",
+                {"term_id": TERM_ID, "column_name": "CURR_CD", "resource_uri": TABLE_RESOURCE},
+            )
+        )
+    assert result["status"] == "unassigned"
+    assert fake.deleted == [f"/catalog/instances/{RELATIONSHIP['id']}"]
+
+
+async def test_unassign_is_a_no_op_when_nothing_is_linked():
+    fake = FakeViya()
+    fake.relationships = []
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "unassign_glossary_term",
+                {"term_id": TERM_ID, "column_name": "BAL_AMT", "resource_uri": TABLE_RESOURCE},
+            )
+        )
+    assert result["status"] == "not_assigned"
+    assert fake.deleted == []
+
+
+async def test_resolving_a_term_by_name_uses_an_exact_filter():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool("list_term_assets", {"term_name": "Currency"})
+    lookup = [r for r in fake.requests if r.url.path == "/glossary/terms"][0]
+    assert lookup.url.params["filter"] == "eq(name,'Currency')"
+
+
+async def test_a_term_reference_is_required():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception, match="provide term_id or term_name"):
+            await client.call_tool("list_term_assets", {})
+
+
+async def test_assign_reports_an_indexing_gap_rather_than_a_bad_column_name():
+    """A table indexed without its columns rejects every column name; say why."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception) as excinfo:
+            await client.call_tool(
+                "assign_glossary_term",
+                {
+                    "term_id": TERM_ID,
+                    "resource_uri": EMPTY_TABLE_RESOURCE,
+                    "column_name": "ANY_COLUMN",
+                },
+            )
+    message = str(excinfo.value)
+    assert "indexing gap" in message
+    assert "catalog_run_agent" in message
+
+
+# --- term type authoring ------------------------------------------------------
+
+
+def test_attribute_definitions_get_generated_identifiers():
+    """The API will not mint them and rejects the omission unhelpfully."""
+    built = gh.build_attribute_definitions(
+        [{"label": "Scope", "type": "single-select", "allowed_values": ["A", "B"]}]
+    )
+    assert len(built) == 1
+    assert built[0]["label"] == "Scope"
+    assert built[0]["items"] == ["A", "B"]
+    assert len(built[0]["name"]) == 36  # a UUID
+
+
+def test_editing_an_attribute_keeps_its_identifier():
+    """Minting a new one orphans every stored value under the old key."""
+    existing = [{"name": "attr-keep", "label": "Scope", "type": "single-select", "items": ["A"]}]
+    built = gh.build_attribute_definitions(
+        [{"label": "scope", "type": "single-select", "allowed_values": ["A", "B"], "required": True}],
+        existing,
+    )
+    assert built[0]["name"] == "attr-keep", "the UUID must survive an edit"
+    assert built[0]["items"] == ["A", "B"]
+    assert built[0]["required"] is True
+
+
+def test_unmentioned_attributes_survive_an_edit():
+    existing = [
+        {"name": "a1", "label": "Scope", "type": "single-line"},
+        {"name": "a2", "label": "Notes", "type": "multi-line"},
+    ]
+    built = gh.build_attribute_definitions([{"label": "Scope", "type": "single-line"}], existing)
+    assert {d["label"] for d in built} == {"Scope", "Notes"}
+
+
+def test_attributes_can_be_removed_by_label():
+    existing = [
+        {"name": "a1", "label": "Scope", "type": "single-line"},
+        {"name": "a2", "label": "Notes", "type": "multi-line"},
+    ]
+    built = gh.build_attribute_definitions(None, existing, remove=["notes"])
+    assert [d["label"] for d in built] == ["Scope"]
+
+
+def test_removing_an_attribute_that_does_not_exist_is_refused():
+    existing = [{"name": "a1", "label": "Scope", "type": "single-line"}]
+    with pytest.raises(ValueError, match="no such attribute"):
+        gh.build_attribute_definitions(None, existing, remove=["Nope"])
+
+
+def test_a_select_attribute_without_options_is_refused():
+    """Nothing could ever be stored in it, and Viya accepts the definition."""
+    with pytest.raises(ValueError, match="allowed_values"):
+        gh.build_attribute_definitions([{"label": "Scope", "type": "single-select"}])
+
+
+def test_an_unknown_attribute_type_lists_the_valid_ones():
+    with pytest.raises(ValueError) as excinfo:
+        gh.build_attribute_definitions([{"label": "Scope", "type": "dropdown"}])
+    assert "single-select" in str(excinfo.value)
+
+
+def test_duplicate_attribute_labels_are_refused():
+    with pytest.raises(ValueError, match="twice"):
+        gh.build_attribute_definitions(
+            [{"label": "Scope", "type": "single-line"}, {"label": "scope", "type": "multi-line"}]
+        )
+
+
+def test_an_attribute_can_be_renamed_by_identifier():
+    """Matching by label cannot express a rename: the new label matches nothing."""
+    existing = [
+        {"name": "a1", "label": "Scope", "type": "single-line"},
+        {"name": "a2", "label": "Notes", "type": "multi-line"},
+    ]
+    built = gh.build_attribute_definitions(
+        [{"attribute_id": "a1", "label": "Coverage", "type": "single-line"}], existing
+    )
+    renamed = next(d for d in built if d["name"] == "a1")
+    assert renamed["label"] == "Coverage", "the stored values stay under a1"
+    assert [d["label"] for d in built] == ["Coverage", "Notes"], "no orphaned copy of Scope"
+
+
+def test_renaming_onto_a_label_another_attribute_holds_is_refused():
+    existing = [
+        {"name": "a1", "label": "Scope", "type": "single-line"},
+        {"name": "a2", "label": "Notes", "type": "multi-line"},
+    ]
+    with pytest.raises(ValueError, match="twice on this term type"):
+        gh.build_attribute_definitions(
+            [{"attribute_id": "a1", "label": "Notes", "type": "single-line"}], existing
+        )
+
+
+def test_an_unknown_attribute_id_is_refused():
+    """Silently minting a new UUID is how an intended rename loses every value."""
+    existing = [{"name": "a1", "label": "Scope", "type": "single-line"}]
+    with pytest.raises(ValueError, match="does not have"):
+        gh.build_attribute_definitions(
+            [{"attribute_id": "nope", "label": "Coverage", "type": "single-line"}], existing
+        )
+
+
+async def test_create_term_type_defaults_the_label_and_sends_definitions():
+    """The API leaves label empty rather than defaulting it, showing as a blank."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "create_glossary_term_type",
+                {
+                    "name": "Risk Terms",
+                    "attributes": [
+                        {"label": "Scope", "type": "single-select", "allowed_values": ["A", "B"]},
+                        {"label": "Owned", "type": "boolean", "default": False},
+                    ],
+                },
+            )
+        )
+    body = next(p for p in fake.posted if p["path"] == "/glossary/termTypes")["body"]
+    assert body["label"] == "Risk Terms"
+    assert [a["label"] for a in body["attributes"]] == ["Scope", "Owned"]
+    # A term type's default is a string even for a boolean, unlike a term's value.
+    assert body["attributes"][1]["defaultValue"] == "false"
+    assert result["term_type_id"] == "tt-new"
+
+
+async def test_update_term_type_preserves_identifiers_of_untouched_attributes():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "update_glossary_term_type",
+            {
+                "term_type_id": TERM_TYPE_ID,
+                "attributes": [{"label": "Scope", "type": "single-select",
+                                "allowed_values": ["Local", "Group", "Regional"]}],
+            },
+        )
+    sent = {a["label"]: a for a in fake.put_bodies[0]["attributes"]}
+    assert sent["Scope"]["name"] == "attr-scope", "editing must not re-key the attribute"
+    assert sent["Scope"]["items"] == ["Local", "Group", "Regional"]
+    assert "Notes" in sent, "attributes the caller did not mention must survive"
+
+
+async def test_delete_term_type_refuses_while_terms_use_it():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception) as excinfo:
+            await client.call_tool(
+                "delete_glossary_term_type", {"term_type_id": TERM_TYPE_ID}
+            )
+    assert "used by 3 term(s)" in str(excinfo.value)
+    assert not fake.deleted
+
+
+async def test_delete_term_type_proceeds_with_force():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "delete_glossary_term_type", {"term_type_id": TERM_TYPE_ID, "force": True}
+            )
+        )
+    assert result["status"] == "deleted"
+    assert result["terms_affected"] == 3
+    assert fake.deleted == [f"/glossary/termTypes/{TERM_TYPE_ID}"]
+
+
+# --- attributes in list and search --------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("stored", "wanted", "expected"),
+    [
+        (True, True, True),
+        (True, "true", True),
+        (False, True, False),
+        ("Gold", "gold", True),  # values are read off a screen, not identifiers
+        ("Gold", "Silver", False),
+        (["EMEA", "APAC"], "EMEA", True),  # a multi-select matches on contains
+        (["EMEA", "APAC"], ["EMEA", "APAC"], True),
+        (["EMEA"], ["EMEA", "APAC"], False),
+        (["EMEA"], "AMER", False),
+    ],
+)
+def test_attribute_match_semantics(stored, wanted, expected):
+    assert gh.attribute_matches(stored, wanted) is expected
+
+
+def test_filter_clauses_are_anded_and_a_missing_attribute_never_matches():
+    readable = {"Tier": "Gold", "Masked": True}
+    assert gh.matches_attribute_filter(readable, {"Tier": "Gold", "Masked": True})
+    assert not gh.matches_attribute_filter(readable, {"Tier": "Gold", "Masked": False})
+    assert not gh.matches_attribute_filter(readable, {"Absent": "x"})
+
+
+async def test_list_can_return_attributes_without_extra_calls_per_term():
+    """The listing already carries the raw map; only the term type is fetched."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool("list_glossary_terms", {"include_attributes": True})
+        )
+    assert result["items"][0]["attributes"] == {
+        "Scope": "Group",
+        "Used in Risk": True,
+        "Regions": ["EMEA", "APAC"],
+    }
+    term_list_calls = [
+        r for r in fake.requests if r.url.path == "/glossary/terms" and r.method == "GET"
+    ]
+    assert len(term_list_calls) == 1, "attributes must not cost a call per term"
+
+
+async def test_list_omits_attributes_by_default():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(await client.call_tool("list_glossary_terms", {}))
+    assert "attributes" not in result["items"][0]
+
+
+async def test_attribute_filter_keeps_only_matching_terms_and_reports_the_scan():
+    """Filtering is client-side, so the answer must say how much it covered."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        hit = result_of(
+            await client.call_tool(
+                "list_glossary_terms", {"attribute_filter": {"Used in Risk": True}}
+            )
+        )
+        miss = result_of(
+            await client.call_tool(
+                "list_glossary_terms", {"attribute_filter": {"Used in Risk": False}}
+            )
+        )
+    assert hit["count"] == 1
+    assert hit["items"][0]["attributes"]["Used in Risk"] is True
+    assert hit["scanned"] == 1
+    assert hit["scan_complete"] is True
+    assert miss["count"] == 0
+
+
+async def test_attribute_filter_matches_a_multi_select_on_contains():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "list_glossary_terms", {"attribute_filter": {"Regions": "APAC"}}
+            )
+        )
+    assert result["count"] == 1
+
+
+async def test_a_mistyped_filter_label_is_refused_rather_than_matching_nothing():
+    """An empty list would read as a real answer, which is the worst outcome."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception) as excinfo:
+            await client.call_tool(
+                "list_glossary_terms", {"attribute_filter": {"Used in Rsk": True}}
+            )
+    message = str(excinfo.value)
+    assert "Used in Rsk" in message
+    assert "used in risk" in message.lower(), "the valid labels must be listed"
+
+
+async def test_search_can_attach_attributes_and_batches_the_lookup():
+    fake = FakeViya()
+    fake.overrides["search"] = {
+        "items": [{"id": TERM_ENTITY_ID, "name": "Currency", "attributes": {}}],
+        "count": 1,
+    }
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "search_glossary_terms", {"query": "currency", "include_attributes": True}
+            )
+        )
+    assert result["items"][0]["attributes"]["Scope"] == "Group"
+    batched = [
+        r
+        for r in fake.requests
+        if r.url.path == "/glossary/terms" and "in(id," in r.url.params.get("filter", "")
+    ]
+    assert len(batched) == 1, "one batched lookup, not one call per hit"
+
+
+# --- bulk import ---------------------------------------------------------------
+
+
+def test_import_orders_parents_before_children_and_builds_paths():
+    """The import resolves a parent by path against rows already processed."""
+    ordered = gh.resolve_import_paths(
+        [
+            {"name": "Leaf", "parent": "Mid"},
+            {"name": "Root"},
+            {"name": "Mid", "parent": "Root"},
+        ]
+    )
+    assert [r["name"] for r in ordered] == ["Root", "Mid", "Leaf"]
+    assert [r["_path"] for r in ordered] == ["", "Root", "Root\Mid"]
+
+
+def test_import_takes_an_unknown_parent_as_an_existing_path():
+    ordered = gh.resolve_import_paths([{"name": "Child", "parent": "Existing\Branch"}])
+    assert ordered[0]["_path"] == "Existing\Branch"
+
+
+def test_a_circular_parent_chain_is_refused():
+    with pytest.raises(ValueError, match="circular"):
+        gh.resolve_import_paths(
+            [{"name": "A", "parent": "B"}, {"name": "B", "parent": "A"}]
+        )
+
+
+def test_a_duplicate_name_in_one_batch_is_refused():
+    with pytest.raises(ValueError, match="twice"):
+        gh.resolve_import_paths([{"name": "A"}, {"name": "a"}])
+
+
+def test_a_backslash_in_a_name_is_refused():
+    """It separates path levels, so a name carrying one builds the wrong tree."""
+    with pytest.raises(ValueError, match="backslash"):
+        gh.resolve_import_paths([{"name": "Risk\Credit"}])
+
+
+def test_csv_quotes_a_multi_select_value():
+    ordered = gh.resolve_import_paths([{"name": "A", "term_type": "T"}])
+    ordered[0]["attributes"] = {"Regions": "EMEA,APAC"}
+    csv = gh.build_term_csv(ordered, ["Regions"])
+    assert csv.startswith("Name,Type,Path,Definition,Description,Regions\r\n")
+    assert '"EMEA,APAC"' in csv, "the comma must not split the column"
+
+
+def test_csv_keeps_definition_and_description_in_their_own_columns():
+    """Verified live: with no Definition column the importer uses the term's name."""
+    ordered = gh.resolve_import_paths([{"name": "A", "term_type": "T"}])
+    ordered[0]["definition"] = "what it means"
+    ordered[0]["description"] = "short overview"
+    csv = gh.build_term_csv(ordered, [])
+    assert csv.splitlines()[1] == "A,T,,what it means,short overview"
+
+
+def test_lookup_names_cover_the_rows_and_every_path_level():
+    """A path may lead through terms that are not rows of this batch."""
+    ordered = gh.resolve_import_paths(
+        [{"name": "Leaf", "parent": "Existing\\Branch"}, {"name": "Root"}]
+    )
+    assert sorted(gh.import_lookup_names(ordered)) == ["Branch", "Existing", "Leaf", "Root"]
+
+
+def test_lookup_names_are_deduplicated_case_insensitively():
+    ordered = [{"name": "Risk", "_path": "Group\\risk"}, {"name": "Other", "_path": "GROUP"}]
+    assert sorted(n.lower() for n in gh.import_lookup_names(ordered)) == [
+        "group", "other", "risk"
+    ]
+
+
+def test_imported_rows_are_matched_by_walking_their_path():
+    """Sibling names are unique, so (parentId, name) identifies a term exactly."""
+    ordered = gh.resolve_import_paths(
+        [
+            {"name": "Leaf", "parent": "Mid"},
+            {"name": "Root"},
+            {"name": "Mid", "parent": "Root"},
+        ]
+    )
+    candidates = [
+        {"id": "r", "name": "Root", "parentId": None, "creationTimeStamp": "2026-09-06T11:00:00Z"},
+        {"id": "m", "name": "Mid", "parentId": "r", "creationTimeStamp": "2026-09-06T11:00:01Z"},
+        {"id": "l", "name": "Leaf", "parentId": "m", "creationTimeStamp": "2026-09-06T11:00:02Z"},
+        # The same name under a different parent must not be picked up.
+        {"id": "x", "name": "Leaf", "parentId": "other", "creationTimeStamp": "2020-01-01T00:00:00Z"},
+    ]
+    matched = gh.match_imported_rows(ordered, candidates, started_at="2026-09-06T10:00:00Z")
+    assert [(m["name"], m["term_id"]) for m in matched] == [
+        ("Root", "r"), ("Mid", "m"), ("Leaf", "l")
+    ]
+    assert not any(m["existed"] for m in matched), "all created after the job began"
+
+
+def test_a_term_older_than_the_job_is_reported_as_pre_existing():
+    """The job counts a row it skipped as successful; only the timestamp says otherwise."""
+    ordered = gh.resolve_import_paths([{"name": "Root"}, {"name": "Fresh", "parent": "Root"}])
+    candidates = [
+        {"id": "r", "name": "Root", "parentId": None, "creationTimeStamp": "2020-01-01T00:00:00Z"},
+        {"id": "f", "name": "Fresh", "parentId": "r", "creationTimeStamp": "2026-09-06T11:00:00Z"},
+    ]
+    matched = gh.match_imported_rows(ordered, candidates, started_at="2026-09-06T10:00:00Z")
+    assert {m["name"]: m["existed"] for m in matched} == {"Root": True, "Fresh": False}
+
+
+def test_an_unresolved_row_keeps_its_place_and_is_not_called_pre_existing():
+    """Dropping it would hide the gap; 'existed' on it would invent a fact."""
+    ordered = gh.resolve_import_paths([{"name": "Root"}, {"name": "Lost", "parent": "Nowhere"}])
+    candidates = [
+        {"id": "r", "name": "Root", "parentId": None, "creationTimeStamp": "2026-09-06T11:00:00Z"},
+    ]
+    matched = gh.match_imported_rows(ordered, candidates, started_at="2026-09-06T10:00:00Z")
+    lost = next(m for m in matched if m["name"] == "Lost")
+    assert lost["term_id"] is None
+    assert lost["existed"] is False
+    assert len(matched) == 2
+
+
+def test_import_log_is_parsed_into_rows():
+    log = (
+        "The term import process has completed.\n"
+        'Import failed for term (Bad) on row 2. Error: The value "X" for the field "Scope" '
+        "is invalid.\n"
+        'Import failed for term (Root\Mid) on row 3. Error: A parent term with the path '
+        '"Root" does not exist.\n'
+    )
+    failures = gh.parse_import_log(log)
+    assert [f["row"] for f in failures] == [2, 3]
+    assert failures[0]["term"] == "Bad"
+    assert "Scope" in failures[0]["error"]
+
+
+async def test_import_sends_a_csv_and_reports_what_was_created():
+    fake = FakeViya()
+    fake.import_counts = {"successful": 2, "errors": 0, "warnings": 0}
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "import_glossary_terms",
+                {
+                    "term_type": "BCBS239",
+                    "terms": [
+                        {
+                            "name": "Child",
+                            "parent": "Parent",
+                            "definition": "a child",
+                            "attributes": {"Scope": "Local"},
+                        },
+                        {
+                            "name": "Parent",
+                            "attributes": {"Scope": "Group", "Used in Risk": True},
+                        },
+                    ],
+                },
+            )
+        )
+    assert result["created"] == 2
+    assert result["failed"] == 0
+    assert result["order"] == ["Parent", "Child"], "parents must be emitted first"
+    sent = next(p for p in fake.posted if p["path"] == "/glossary/importTerms")["body"]
+    text = sent.decode("utf-8", "replace")
+    assert "Name,Type,Path,Definition,Description,Scope,Used in Risk" in text
+    assert "Parent,BCBS239,,,,Group,true" in text
+    assert "Child,BCBS239,Parent,a child,,Local," in text
+
+
+async def test_import_reports_per_row_failures_from_the_log():
+    """The job says 'completed' even when rows failed, so this must not read as success."""
+    fake = FakeViya()
+    fake.import_counts = {"successful": 1, "errors": 1, "warnings": 0}
+    fake.import_log = (
+        "The term import process has completed.\n"
+        'Import failed for term (Child) on row 3. Error: A parent term with the path '
+        '"Parent" does not exist.\n'
+    )
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "import_glossary_terms",
+                {
+                    "term_type": "BCBS239",
+                    "terms": [
+                        {"name": "Parent", "attributes": {"Scope": "Group"}},
+                        {"name": "Child", "attributes": {"Scope": "Local"}},
+                    ],
+                },
+            )
+        )
+    assert result["created"] == 1
+    assert result["failed"] == 1
+    assert result["failures"][0]["term"] == "Child"
+    assert "already committed" in result["note"]
+
+
+async def test_import_refuses_an_attribute_that_collides_with_a_system_column():
+    """A 'Description' column is read as the term's own field, not the attribute."""
+    fake = FakeViya()
+    colliding = {
+        **TERM_TYPE,
+        "attributes": [
+            *TERM_TYPE["attributes"],
+            {"name": "attr-desc", "label": "Description", "type": "single-line"},
+        ],
+    }
+    fake.overrides[f"GET /glossary/termTypes/{TERM_TYPE_ID}"] = colliding
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception) as excinfo:
+            await client.call_tool(
+                "import_glossary_terms",
+                {
+                    "term_type": "BCBS239",
+                    "terms": [{"name": "A", "attributes": {"Description": "x"}}],
+                },
+            )
+    assert "cannot be set by import" in str(excinfo.value)
+
+
+async def test_import_validates_attributes_before_sending_anything():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception, match="only accepts"):
+            await client.call_tool(
+                "import_glossary_terms",
+                {
+                    "term_type": "BCBS239",
+                    "terms": [{"name": "A", "attributes": {"Scope": "Nowhere"}}],
+                },
+            )
+    assert not [p for p in fake.posted if p["path"] == "/glossary/importTerms"]
+
+
+async def test_import_returns_the_id_of_each_term_it_created():
+    fake = FakeViya()
+    fake.import_counts = {"successful": 2, "errors": 0, "warnings": 0}
+    fake.terms_by_name = [
+        {"id": "t-root", "name": "Parent", "parentId": None,
+         "creationTimeStamp": "2026-09-06T10:00:05.000Z"},
+        {"id": "t-child", "name": "Child", "parentId": "t-root",
+         "creationTimeStamp": "2026-09-06T10:00:06.000Z"},
+    ]
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "import_glossary_terms",
+                {
+                    "term_type": "BCBS239",
+                    "terms": [
+                        {"name": "Child", "parent": "Parent", "attributes": {"Scope": "Local"}},
+                        {"name": "Parent", "attributes": {"Scope": "Group"}},
+                    ],
+                },
+            )
+        )
+    assert [(t["name"], t["term_id"]) for t in result["terms"]] == [
+        ("Parent", "t-root"), ("Child", "t-child")
+    ]
+    assert result["new"] == 2
+    assert result["already_existed"] == 0
+    # One filtered request for both names, not one per term.
+    lookups = [
+        r for r in fake.requests
+        if r.url.path == "/glossary/terms" and "in(name," in r.url.params.get("filter", "")
+    ]
+    assert len(lookups) == 1
+
+
+async def test_import_reports_a_row_whose_term_already_existed():
+    """The job counts it as successful, so 'created' alone reads as a fresh import."""
+    fake = FakeViya()
+    fake.import_counts = {"successful": 2, "errors": 0, "warnings": 2}
+    fake.terms_by_name = [
+        # Both predate the job: nothing was actually created.
+        {"id": "t-root", "name": "Parent", "parentId": None,
+         "creationTimeStamp": "2020-01-01T00:00:00.000Z"},
+        {"id": "t-child", "name": "Child", "parentId": "t-root",
+         "creationTimeStamp": "2020-01-01T00:00:01.000Z"},
+    ]
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "import_glossary_terms",
+                {
+                    "term_type": "BCBS239",
+                    "terms": [
+                        {"name": "Child", "parent": "Parent", "attributes": {"Scope": "Local"}},
+                        {"name": "Parent", "attributes": {"Scope": "Group"}},
+                    ],
+                },
+            )
+        )
+    assert result["created"] == 2, "the job's own tally is reported unchanged"
+    assert result["new"] == 0
+    assert result["already_existed"] == 2
+    assert all(t["existed"] for t in result["terms"])
+    assert "left untouched" in result["note"]
+
+
+async def test_import_says_so_when_an_id_could_not_be_resolved():
+    """The import already happened; losing the result over a failed lookup would be worse."""
+    fake = FakeViya()
+    fake.import_counts = {"successful": 1, "errors": 0, "warnings": 0}
+    fake.terms_by_name = []  # nothing comes back from the lookup
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "import_glossary_terms",
+                {
+                    "term_type": "BCBS239",
+                    "terms": [{"name": "Parent", "attributes": {"Scope": "Group"}}],
+                },
+            )
+        )
+    assert result["created"] == 1
+    assert result["terms"][0]["term_id"] is None
+    assert "No id could be resolved" in result["note"]
+
+
+async def test_import_refuses_a_row_missing_a_required_attribute():
+    """Otherwise the row fails inside the job, after the rest is already committed."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception, match="requires attribute"):
+            await client.call_tool(
+                "import_glossary_terms",
+                {
+                    "term_type": "BCBS239",
+                    "terms": [
+                        {"name": "Good", "attributes": {"Scope": "Group"}},
+                        {"name": "Bad", "attributes": {"Used in Risk": True}},
+                    ],
+                },
+            )
+    assert not [p for p in fake.posted if p["path"] == "/glossary/importTerms"]
+
+
+async def test_import_reports_the_job_counts_verbatim():
+    """'successful' counts rows the job accepted, including ones left untouched."""
+    fake = FakeViya()
+    fake.import_counts = {"successful": 1, "errors": 0, "warnings": 2}
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "import_glossary_terms",
+                {
+                    "term_type": "BCBS239",
+                    "terms": [{"name": "A", "attributes": {"Scope": "Group"}}],
+                },
+            )
+        )
+    assert result["counts"] == {"successful": 1, "errors": 0, "warnings": 2}
+
+
+async def test_import_rejects_an_empty_batch():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception, match="nothing to import"):
+            await client.call_tool("import_glossary_terms", {"terms": []})
+
+
+async def test_update_can_move_a_term_to_a_new_parent():
+    """Published terms CAN be re-parented; the API allows it, verified live."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool(
+            "update_glossary_term", {"term_id": TERM_ID, "parent_id": "gterm-newparent"}
+        )
+    assert fake.put_bodies[0]["parentId"] == "gterm-newparent"
+
+
+async def test_update_can_promote_a_term_to_a_root():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool("update_glossary_term", {"term_id": TERM_ID, "parent_id": ""})
+    assert fake.put_bodies[0]["parentId"] is None
+
+
+async def test_a_term_cannot_be_its_own_parent():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        with pytest.raises(Exception, match="its own parent"):
+            await client.call_tool(
+                "update_glossary_term", {"term_id": TERM_ID, "parent_id": TERM_ID}
+            )
+    assert not fake.put_bodies
+
+
+async def test_update_leaves_the_parent_alone_when_not_given():
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        await client.call_tool("update_glossary_term", {"term_id": TERM_ID, "name": "Renamed"})
+    assert fake.put_bodies[0]["parentId"] == TERM["parentId"]
