@@ -35,6 +35,7 @@ from . import (
     decisioning,
     discovery,
     genai,
+    glossary,
     iot,
     jobs,
     model_scoring,
@@ -63,8 +64,9 @@ _TIER_REGISTRARS: dict[int, Registrar] = {
     6: model_scoring.register,
     7: decisioning.register,
     8: workbench.register,
-    9: iot.register,
-    10: genai.register,
+    9: glossary.register,
+    10: iot.register,
+    11: genai.register,
 }
 
 TIER_TITLES: dict[int, str] = {
@@ -77,8 +79,9 @@ TIER_TITLES: dict[int, str] = {
     6: "Model Management & Scoring",
     7: "Decisioning (SAS Intelligent Decisioning)",
     8: "Workbench (Execute Code Only)",
-    9: "IoT & FQA (Field Quality Analytics)",
-    10: "Generative AI",
+    9: "Business Glossary (SAS Data Governance)",
+    10: "IoT & FQA (Field Quality Analytics)",
+    11: "Generative AI",
 }
 
 ALL_TIERS: frozenset[int] = frozenset(_TIER_REGISTRARS)
@@ -101,7 +104,8 @@ class _TierRecorder:
       page.
     * ``annotations=`` is filled in from :func:`annotations_for` (the central
       read/write classification) unless the tier passed its own, so every tool
-      advertises ``readOnlyHint`` & co. to clients without any per-tool code.
+      advertises ``readOnlyHint`` & co. to clients without any per-tool code
+      (the model field is ``read_only_hint``; camelCase is the wire alias).
     """
 
     def __init__(self, target: Any, tier: int) -> None:

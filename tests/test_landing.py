@@ -196,13 +196,17 @@ def test_render_page_read_only_and_partial_tiers_are_called_out():
     page = render_page(_facts(read_only=True, enabled_tiers=frozenset({0, 1, 2, 3, 7})), nonce="n")
     assert "Read-only mode" in page
     assert "Read-only mode is on." in page
-    assert "Tiers 0–3, 7 of 0–10" in page
+    assert "Tiers 0–3, 7 of 0–11" in page
     assert "limited this deployment to tool tiers" in page
 
 
 def test_render_page_tier_0_implies_tier_8():
-    """MCP_TIERS exposing every tool except 8 (which is inside Tier 0) must read as 'all'."""
-    facts = _facts(enabled_tiers=frozenset(tools.ALL_TIERS - {8}))
+    """Every tier but 8 still reads as 'all' — Tier 8's only tool is inside Tier 0.
+
+    The selection deliberately omits 8 and nothing else, so this keeps testing
+    the implication rather than merely tracking however many tiers exist.
+    """
+    facts = _facts(enabled_tiers=frozenset(tools.ALL_TIERS) - {8})
     assert facts.all_tiers_enabled is True
     assert "All tool tiers" in render_page(facts, nonce="n")
     assert _facts(enabled_tiers=frozenset({3, 8})).all_tiers_enabled is False
@@ -446,3 +450,29 @@ def test_landing_middleware_is_installed_when_enabled():
     installed = any(m.cls is LandingPageMiddleware for m in mcp_server._http_middleware)
     assert installed is mcp_server.MCP_LANDING_PAGE
     assert mcp_server.MCP_PATH.startswith("/")
+
+
+def test_annotation_hint_field_names_exist_on_the_model():
+    """The two hint field names must be real fields on ``ToolAnnotations``.
+
+    ``_hint`` reads them with ``getattr(..., None)``, which cannot distinguish
+    "this tool declares nothing" from "this field was renamed". Without this
+    assertion an SDK rename would blank every read-only and destructive badge on
+    the page and every other test would still pass. MCP SDK v2 already renamed
+    these once, from camelCase.
+    """
+    from mcp.types import ToolAnnotations
+
+    fields = set(ToolAnnotations.model_fields)
+    assert landing._READ_ONLY_HINT in fields
+    assert landing._DESTRUCTIVE_HINT in fields
+
+
+def test_hint_reads_declared_values_and_tolerates_no_annotations():
+    from mcp.types import ToolAnnotations
+
+    ann = ToolAnnotations(read_only_hint=True, destructive_hint=False)
+    assert landing._hint(ann, landing._READ_ONLY_HINT) is True
+    assert landing._hint(ann, landing._DESTRUCTIVE_HINT) is False
+    assert landing._hint(None, landing._READ_ONLY_HINT) is None
+    assert landing._hint(ToolAnnotations(), landing._READ_ONLY_HINT) is None
