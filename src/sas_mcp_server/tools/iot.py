@@ -12,12 +12,12 @@ import httpx
 from cachetools import TTLCache
 from fastmcp import Context, FastMCP
 
+from ..config import VIYA_ENDPOINT
 from ..viya_client import logger, make_client
 from ..viya_utils import run_one_snippet
 from ._common import make_session_helpers
 
 data_selection_cache = TTLCache(maxsize=100, ttl=60)
-from ..config import VIYA_ENDPOINT
 
 
 async def _get_json(url, client, params=None, accept="application/json"):
@@ -3229,7 +3229,8 @@ def register(
         but it will successfully trigger the load in the background.
         
         Args:
-            fqa_base_path (str): The absolute Linux path on the CAS server where the FQA Demo_Data_transformed directory resides 
+            fqa_base_path (str): The absolute Linux path on the CAS server where the FQA Demo_Data_transformed
+                                 directory resides
                                  (e.g., "/export/sas-viya/homes/germsz/AIoT/FQA/Demo_Data_transformed").
         """
         logger.info("--- TOOL USED: reload_fqa_metadata_tool (%s) ---", fqa_base_path)
@@ -3521,7 +3522,8 @@ def register(
         ctx: Context,
         folder_id: str | None = None,
     ) -> dict[str, Any]:
-        """Creates a child data selection from a parent data selection with new filters and parent links, and launches it in CAS.
+        """Creates a child data selection from a parent data selection
+        with new filters and parent links, and launches it in CAS.
 
         Args:
             parent_data_selection_id (str): The ID of the parent data selection to copy.
@@ -3559,7 +3561,9 @@ def register(
                     "excludeFlag": f.get("excludeFlag", False),
                     "componentTypeCode": f.get("componentTypeCode", f.get("component", "PRODUCT")),
                     "component": f.get("component", "PRODUCT"),
-                    "filterAttributeId": f.get("filterAttributeId", f"{f.get('columnName')}_{f.get('component', 'PRODUCT')}"),
+                    "filterAttributeId": f.get(
+                        "filterAttributeId", f"{f.get('columnName')}_{f.get('component', 'PRODUCT')}"
+                    ),
                     "groupId": "0",
                     "uiDisplay": False,
                     "values": f.get("values", [])
@@ -3585,17 +3589,28 @@ def register(
             resp_put.raise_for_status()
             
             cols = [
-                {"columnName": "PRODUCTION_DATE", "columnNameLabel": "Production Date", "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
-                {"columnName": "SELLING_DEALER_COUNTRY_CD", "columnNameLabel": "Selling Dealer Country", "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
-                {"columnName": "MODEL_CD", "columnNameLabel": "Model Code", "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
-                {"columnName": "SELLING_DEALER_CD", "columnNameLabel": "Selling Dealer Code", "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
-                {"columnName": "INSERVICE_DATE", "columnNameLabel": "In Service Date", "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
-                {"columnName": "CSTMR_STATE_CD", "columnNameLabel": "Customer State", "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
-                {"columnName": "PRIM_REPL_PART_CD", "columnNameLabel": "Primary Part Code", "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
-                {"columnName": "CLAIMCOST", "columnNameLabel": "Total Claim Cost", "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
-                {"columnName": "PRIM_LABOR_CD", "columnNameLabel": "Primary Labor Code", "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
-                {"columnName": "EVENT_SUBMIT_DATE", "columnNameLabel": "Claim Submit Date", "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
-                {"columnName": "REPL_PART_CD", "columnNameLabel": "Replaced Part Code", "columnTableName": "PART", "columnTableNameLabel": "Parts"}
+                {"columnName": "PRODUCTION_DATE", "columnNameLabel": "Production Date",
+                        "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "SELLING_DEALER_COUNTRY_CD", "columnNameLabel": "Selling Dealer Country",
+                        "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "MODEL_CD", "columnNameLabel": "Model Code",
+                        "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "SELLING_DEALER_CD", "columnNameLabel": "Selling Dealer Code",
+                        "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "INSERVICE_DATE", "columnNameLabel": "In Service Date",
+                        "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "CSTMR_STATE_CD", "columnNameLabel": "Customer State",
+                        "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "PRIM_REPL_PART_CD", "columnNameLabel": "Primary Part Code",
+                        "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
+                {"columnName": "CLAIMCOST", "columnNameLabel": "Total Claim Cost",
+                        "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
+                {"columnName": "PRIM_LABOR_CD", "columnNameLabel": "Primary Labor Code",
+                        "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
+                {"columnName": "EVENT_SUBMIT_DATE", "columnNameLabel": "Claim Submit Date",
+                        "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
+                {"columnName": "REPL_PART_CD", "columnNameLabel": "Replaced Part Code",
+                        "columnTableName": "PART", "columnTableNameLabel": "Parts"}
             ]
             
             launch_body = {
@@ -3663,7 +3678,8 @@ def register(
         folder_id: str | None = None,
         parameter_overrides: dict[str, str] | None = None,
     ) -> dict[str, Any]:
-        """Creates a child analysis instance, configures step parameters with overrides, runs the job, and links it in a project folder.
+        """Creates a child analysis instance, configures step parameters with overrides, runs the job,
+        and links it in a project folder.
 
         Args:
             name (str): The name for the new analysis instance.
