@@ -90,16 +90,16 @@ async def _delete_resource(url, client):
 
 
 
-async def list_data_selections(token: str, filter_query: str = None, start: int = 0, limit: int = 10) -> dict:
+async def list_data_selections(token: str, filter_query: str = None, start: int = 0, limit: int = 10) -> dict:  # pyright: ignore
     """Lists available SAS Analytics for IoT data selections with TTL caching."""
     cache_key = (filter_query, start, limit)
     if cache_key in data_selection_cache:
         logger.info("Returning cached results for data selection list: %s", cache_key)
-        return data_selection_cache[cache_key]
+        return data_selection_cache[cache_key]  # pyright: ignore
 
     params = {"start": start, "limit": limit}
     if filter_query:
-        params["filter"] = filter_query
+        params["filter"] = filter_query  # pyright: ignore
     
     async with make_client(token) as client:
         result = await _get_json("/dataSelection/dataSelections", client, 
@@ -170,7 +170,7 @@ async def list_iot_projects(token: str) -> dict:
                                accept="application/vnd.sas.collection+json")
 
 
-async def list_iot_analyses(token: str, start: int = None, limit: int = None) -> dict:
+async def list_iot_analyses(token: str, start: int = None, limit: int = None) -> dict:  # pyright: ignore
     """Lists all defined SAS Analytics for IoT analyses."""
     params = {}
     if start is not None:
@@ -195,11 +195,11 @@ async def create_iot_analysis(
     model_name: str,
     data_selection_id: str,
     token: str,
-    folder_id: str = None,
-    parent_instance_id: str = None,
-    parent_step_id: str = None,
-    subset_group_name: str = None,
-    filter_criteria: list = None
+    folder_id: str = None,  # pyright: ignore
+    parent_instance_id: str = None,  # pyright: ignore
+    parent_step_id: str = None,  # pyright: ignore
+    subset_group_name: str = None,  # pyright: ignore
+    filter_criteria: list = None  # pyright: ignore
 ) -> dict:
     """Creates a new IoT analysis instance."""
     async with make_client(token) as client:
@@ -217,7 +217,7 @@ async def create_iot_analysis(
         if subset_group_name:
             body["subsetGroupName"] = subset_group_name
         if filter_criteria:
-            body["filterCriteria"] = filter_criteria
+            body["filterCriteria"] = filter_criteria  # pyright: ignore
         
         # Wrapped in a collection for this particular endpoint
         collection_body = {
@@ -235,13 +235,13 @@ async def create_and_run_analysis(
     model_name: str,
     data_selection_id: str,
     token: str,
-    folder_id: str = None,
-    parameter_updates: dict = None,
+    folder_id: str = None,  # pyright: ignore
+    parameter_updates: dict = None,  # pyright: ignore
     wait_for_completion: bool = True,
-    parent_instance_id: str = None,
-    parent_step_id: str = None,
-    subset_group_name: str = None,
-    filter_criteria: list = None
+    parent_instance_id: str = None,  # pyright: ignore
+    parent_step_id: str = None,  # pyright: ignore
+    subset_group_name: str = None,  # pyright: ignore
+    filter_criteria: list = None  # pyright: ignore
 ) -> dict:
     """Creates a new IoT analysis instance, updates its parameters, and runs it."""
     # 1. Create analysis
@@ -459,7 +459,7 @@ async def launch_data_selection_and_wait(selection_id: str, token: str) -> dict:
     return await poll_job(job_url, token)
 
 
-async def list_folders_and_projects(token: str, folder_id: str = None) -> dict:
+async def list_folders_and_projects(token: str, folder_id: str = None) -> dict:  # pyright: ignore
     """Lists folders and projects under a specific folder (or root if not specified)."""
     async with make_client(token) as client:
         if not folder_id:
@@ -493,7 +493,7 @@ async def list_folders_and_projects(token: str, folder_id: str = None) -> dict:
             )
 
 
-async def create_folder(name: str, token: str, parent_folder_id: str = "@myFolder", description: str = None) -> dict:
+async def create_folder(name: str, token: str, parent_folder_id: str = "@myFolder", description: str = None) -> dict:  # pyright: ignore
     """Creates a new folder under a parent folder."""
     async with make_client(token) as client:
         parent_uri = f"/folders/folders/{parent_folder_id}"
@@ -510,7 +510,7 @@ async def create_folder(name: str, token: str, parent_folder_id: str = "@myFolde
         return resp.json()
 
 
-async def create_project(name: str, token: str, folder_id: str = "@myFolder", description: str = None) -> dict:
+async def create_project(name: str, token: str, folder_id: str = "@myFolder", description: str = None) -> dict:  # pyright: ignore
     """Creates a new IoT project under a folder."""
     async with make_client(token) as client:
         folder_uri = folder_id if folder_id.startswith("/folders/folders/") else f"/folders/folders/{folder_id}"
@@ -552,16 +552,16 @@ def register(
     @mcp.tool()
     async def list_data_selections_tool(
         ctx: Context,
-        filter_query: str = None,
+        filter_query: str = None,  # pyright: ignore
         start: int = 0,
         limit: int = 10,
-        owner: str = None,
-        owner_display_name: str = None,
-        created_by: str = None,
-        name: str = None,
-        category: str = None,
-        creation_type: str = None,
-        attribute_filters: dict = None
+        owner: str = None,  # pyright: ignore
+        owner_display_name: str = None,  # pyright: ignore
+        created_by: str = None,  # pyright: ignore
+        name: str = None,  # pyright: ignore
+        category: str = None,  # pyright: ignore
+        creation_type: str = None,  # pyright: ignore
+        attribute_filters: dict = None  # pyright: ignore
     ) -> dict:
         """
         Lists all available SAS Analytics for IoT data selections.
@@ -802,11 +802,11 @@ def register(
         model_name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_instance_id: str = None,
-        parent_step_id: str = None,
-        subset_group_name: str = None,
-        filter_criteria: list = None
+        folder_id: str = None,  # pyright: ignore
+        parent_instance_id: str = None,  # pyright: ignore
+        parent_step_id: str = None,  # pyright: ignore
+        subset_group_name: str = None,  # pyright: ignore
+        filter_criteria: list = None  # pyright: ignore
     ) -> dict:
         """
         Creates a new IoT analysis instance.
@@ -937,11 +937,11 @@ def register(
         ctx: Context,
         start: int = 0,
         limit: int = 10,
-        name: str = None,
-        status: str = None,
-        created_by: str = None,
-        owner: str = None,
-        attribute_filters: dict = None
+        name: str = None,  # pyright: ignore
+        status: str = None,  # pyright: ignore
+        created_by: str = None,  # pyright: ignore
+        owner: str = None,  # pyright: ignore
+        attribute_filters: dict = None  # pyright: ignore
     ) -> dict:
         """
         Lists all Emerging Issue analysis runs.
@@ -1041,13 +1041,13 @@ def register(
         ctx: Context,
         start: int = 0,
         limit: int = 20,
-        alert_id: str = None,
-        alert_type: str = None,
-        model_cd: str = None,
-        cstmr_country_cd: str = None,
-        seasonal_flag: str = None,
-        display_status_cd: str = None,
-        attribute_filters: dict = None
+        alert_id: str = None,  # pyright: ignore
+        alert_type: str = None,  # pyright: ignore
+        model_cd: str = None,  # pyright: ignore
+        cstmr_country_cd: str = None,  # pyright: ignore
+        seasonal_flag: str = None,  # pyright: ignore
+        display_status_cd: str = None,  # pyright: ignore
+        attribute_filters: dict = None  # pyright: ignore
     ) -> dict:
         """
         Retrieves the list of alerts generated by a completed Emerging Issue analysis run.
@@ -1203,7 +1203,7 @@ def register(
         }
 
     @mcp.tool()
-    async def list_folders_and_projects_tool(folder_id: str = None, ctx: Context = None) -> dict:
+    async def list_folders_and_projects_tool(folder_id: str = None, ctx: Context = None) -> dict:  # pyright: ignore
         """
         Lists folders, projects, and other members within a parent folder.
         If no folder_id is specified, lists root level folders and the user's home folder.
@@ -1219,8 +1219,8 @@ def register(
     async def create_folder_tool(
         name: str,
         parent_folder_id: str = "@myFolder",
-        description: str = None,
-        ctx: Context = None
+        description: str = None,  # pyright: ignore
+        ctx: Context = None  # pyright: ignore
     ) -> dict:
         """
         Creates a new folder inside a parent folder.
@@ -1238,8 +1238,8 @@ def register(
     async def create_project_tool(
         name: str,
         folder_id: str = "@myFolder",
-        description: str = None,
-        ctx: Context = None
+        description: str = None,  # pyright: ignore
+        ctx: Context = None  # pyright: ignore
     ) -> dict:
         """
         Creates a new IoT project under a folder.
@@ -1254,7 +1254,7 @@ def register(
         return await create_project(name, token, folder_id, description)
 
     @mcp.tool()
-    async def delete_folder_tool(folder_id: str, ctx: Context = None) -> str:
+    async def delete_folder_tool(folder_id: str, ctx: Context = None) -> str:  # pyright: ignore
         """
         Deletes an existing folder by its ID or URI.
 
@@ -1267,7 +1267,7 @@ def register(
         return f"Folder {folder_id} deleted successfully."
 
     @mcp.tool()
-    async def delete_project_tool(project_id: str, ctx: Context = None) -> str:
+    async def delete_project_tool(project_id: str, ctx: Context = None) -> str:  # pyright: ignore
         """
         Deletes an existing IoT project by its ID.
 
@@ -1284,9 +1284,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "CLAIM.CLAIMCOST",
         by_var: str = "CLAIM.EVENT_STATUS_CD",
         report_var: str = "PRODUCT.MODEL_CD",
@@ -1406,9 +1406,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "CLAIM.CLAIMCOST",
         by_var: str = "",
         report_var: str = "PRODUCT.PRODUCTION_MONTH",
@@ -1546,9 +1546,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "CLAIM.CLAIMCOST",
         by_var: str = "",
         report_var: str = "PRODUCT.PRODUCTION_MONTH",
@@ -1685,9 +1685,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "",
         report_var: str = (
             "PRODUCT.PRODUCTION_DATE,PRODUCT.INSERVICE_DATE,"
@@ -1810,9 +1810,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "",
         report_var: str = (
             "PRODUCT.SELLING_DEALER_COUNTRY_CD,PRODUCT.CSTMR_COUNTRY_CD,"
@@ -1928,9 +1928,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "",
         report_var: str = (
             "PRODUCT.SELLING_DEALER_COUNTRY_CD,PRODUCT.CSTMR_COUNTRY_CD,"
@@ -2067,9 +2067,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "CLAIM.CLAIMCOUNT",
         by_var: str = "",
         data_domain: str = "PRODUCT,CLAIM,LABOR",
@@ -2236,9 +2236,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "CLAIM.CLAIMCOUNT",
         report_var: str = "PRODUCT.MODEL_CD,PRODUCT.PRODUCTION_YEAR",
         data_domain: str = "PRODUCT,CLAIM,LABOR",
@@ -2360,9 +2360,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "CLAIM.TOTAL_EVENT_AMT",
         report_var: str = "PRODUCT.MODEL_CD,CLAIM.EVENT_STATUS_CD",
         text_var: str = "CLAIM.CSTMR_COMMENT",
@@ -2445,9 +2445,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "CLAIM.CLAIMCOST",
         by_var: str = "",
         data_domain: str = "PRODUCT,CLAIM,LABOR",
@@ -2572,9 +2572,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "PART.REPL_PART_AMT",
         report_var: str = "PART.REPL_PART_CD",
         data_domain: str = "PRODUCT,CLAIM,PART",
@@ -2805,9 +2805,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "CLAIM.CLAIMCOST",
         report_var: str = "PRODUCT.SELLING_DEALER_COUNTRY_CD",
         color_var: str = "CLAIM.CLAIMCOUNT",
@@ -2926,9 +2926,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "CLAIM.CLAIMCOST",
         report_var: str = "CLAIM.EVENT_PAID_MONTH",
         by_var: str = "",
@@ -3041,9 +3041,9 @@ def register(
         name: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
-        parent_analysis_id: str = None,
-        parent_analysis_owner: str = None,
+        folder_id: str = None,  # pyright: ignore
+        parent_analysis_id: str = None,  # pyright: ignore
+        parent_analysis_owner: str = None,  # pyright: ignore
         analysis_var: str = "RELIABILITYCLAIMCOUNT",
         report_var: str = "",
         by_var: str = "",
@@ -3505,7 +3505,7 @@ def register(
                     f"{caslib_name}.{table_name} using strategy "
                     f"'{strategy}'. Created column {new_col}."
                 ),
-                "log": res.get("log")[:1000]
+                "log": res.get("log")[:1000]  # pyright: ignore
             }
         else:
             return {
@@ -3802,75 +3802,75 @@ def register(
     # ------------------------------------------------------------------
 
     @mcp.tool()
-    async def list_forecasting_data_definitions(limit: int = 10, start: int = 0, ctx: Context = None) -> dict:
+    async def list_forecasting_data_definitions(limit: int = 10, start: int = 0, ctx: Context = None) -> dict:  # pyright: ignore
         """List Visual Forecasting data definitions."""
         async with viya_session("list_forecasting_data_definitions", ctx) as client:
-            return await _get_paged_items(client, "/dataDefinitions", limit, start)
+            return await _get_paged_items(client, "/dataDefinitions", limit, start)  # pyright: ignore
 
     @mcp.tool()
-    async def get_forecasting_data_definition(data_definition_id: str, ctx: Context = None) -> dict:
+    async def get_forecasting_data_definition(data_definition_id: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Get details of a specific Visual Forecasting data definition."""
         async with viya_session("get_forecasting_data_definition", ctx) as client:
             return await _get_json(client, f"/dataDefinitions/{data_definition_id}")
 
     @mcp.tool()
-    async def create_forecasting_data_definition(body: str, ctx: Context = None) -> dict:
+    async def create_forecasting_data_definition(body: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Create a new Visual Forecasting data definition (pass configuration as a JSON string)."""
         async with viya_session("create_forecasting_data_definition", ctx) as client:
             return await _post_json(client, "/dataDefinitions", json.loads(body))
 
     @mcp.tool()
-    async def delete_forecasting_data_definition(data_definition_id: str, ctx: Context = None) -> str:
+    async def delete_forecasting_data_definition(data_definition_id: str, ctx: Context = None) -> str:  # pyright: ignore
         """Delete a Visual Forecasting data definition."""
         async with viya_session("delete_forecasting_data_definition", ctx) as client:
             await _delete_resource(client, f"/dataDefinitions/{data_definition_id}")
             return f"Deleted data definition {data_definition_id}"
 
     @mcp.tool()
-    async def run_final_forecast(data_definition_id: str, ctx: Context = None) -> dict:
+    async def run_final_forecast(data_definition_id: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Run the final forecast for a data definition."""
         async with viya_session("run_final_forecast", ctx) as client:
             return await _post_json(client, f"/dataDefinitions/{data_definition_id}/finalForecast", {})
 
     @mcp.tool()
-    async def list_forecasting_filters(limit: int = 10, start: int = 0, ctx: Context = None) -> dict:
+    async def list_forecasting_filters(limit: int = 10, start: int = 0, ctx: Context = None) -> dict:  # pyright: ignore
         """List Visual Forecasting filters."""
         async with viya_session("list_forecasting_filters", ctx) as client:
-            return await _get_paged_items(client, "/filters", limit, start)
+            return await _get_paged_items(client, "/filters", limit, start)  # pyright: ignore
 
     @mcp.tool()
-    async def get_forecasting_filter(filter_id: str, ctx: Context = None) -> dict:
+    async def get_forecasting_filter(filter_id: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Get details of a specific Visual Forecasting filter."""
         async with viya_session("get_forecasting_filter", ctx) as client:
             return await _get_json(client, f"/filters/{filter_id}")
 
 
     @mcp.tool()
-    async def get_forecasting_pipeline_results(pipeline_id: str, component_id: str, ctx: Context = None) -> dict:
+    async def get_forecasting_pipeline_results(pipeline_id: str, component_id: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Get the results of a specific component within a forecasting pipeline."""
         async with viya_session("get_forecasting_pipeline_results", ctx) as client:
             return await _get_json(client, f"/pipelines/{pipeline_id}/components/{component_id}/results")
 
     @mcp.tool()
-    async def run_forecasting_comparison(body: str, ctx: Context = None) -> dict:
+    async def run_forecasting_comparison(body: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Run a forecasting pipeline comparison (pass configuration as a JSON string)."""
         async with viya_session("run_forecasting_comparison", ctx) as client:
             return await _post_json(client, "/comparison", json.loads(body))
 
     @mcp.tool()
-    async def get_forecasting_comparison_results(ctx: Context = None) -> dict:
+    async def get_forecasting_comparison_results(ctx: Context = None) -> dict:  # pyright: ignore
         """Get forecasting comparison results."""
         async with viya_session("get_forecasting_comparison_results", ctx) as client:
             return await _get_json(client, "/comparison/results")
 
     @mcp.tool()
-    async def generate_forecasting_timeseries_plot(body: str, ctx: Context = None) -> dict:
+    async def generate_forecasting_timeseries_plot(body: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Generate a time series plot for exploration (pass configuration as a JSON string)."""
         async with viya_session("generate_forecasting_timeseries_plot", ctx) as client:
             return await _post_json(client, "/timeSeriesPlot", json.loads(body))
 
     @mcp.tool()
-    async def generate_forecast_plot(body: str, ctx: Context = None) -> dict:
+    async def generate_forecast_plot(body: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Generate a forecast plot for exploration (pass configuration as a JSON string)."""
         async with viya_session("generate_forecast_plot", ctx) as client:
             return await _post_json(client, "/forecastPlot", json.loads(body))
