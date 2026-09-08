@@ -113,7 +113,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
                 ],
             )
             # resource_uri is derived from the item's links, not a flat field.
-            for out, src in zip(items, raw_items, strict=True):
+            for out, src in zip(items, raw_items, strict=False):
                 out["resource_uri"] = resource_uri_of(src)
             return {
                 "count": data.get("count", len(items)),

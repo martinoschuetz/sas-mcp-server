@@ -32,7 +32,7 @@ def register(
     @mcp.tool()
     async def get_genai_agent(agent_id: str, ctx: Context) -> dict[str, Any]:
         """Get details for a specific Generative AI retrieval agent."""
-        logger.info(f"--- TOOL USED: get_genai_agent ({agent_id}) ---")
+        logger.info("--- TOOL USED: get_genai_agent (%s) ---", agent_id)
         async with viya_session("get_genai_agent", ctx) as client:
             resp = await client.get(f"{config.VIYA_ENDPOINT}/retrievalAgentManager/agents/{agent_id}")
             resp.raise_for_status()
@@ -71,7 +71,7 @@ def register(
             query: The user prompt or question to send.
             session_id: Optional ID for continuing an existing query session.
         """
-        logger.info(f"--- TOOL USED: query_genai_agent (agent: {agent_id}) ---")
+        logger.info("--- TOOL USED: query_genai_agent (agent: %s) ---", agent_id)
         payload = {
             "agentId": agent_id,
             "content": query,

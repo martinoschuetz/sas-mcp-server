@@ -94,7 +94,7 @@ async def list_data_selections(token: str, filter_query: str = None, start: int 
     """Lists available SAS Analytics for IoT data selections with TTL caching."""
     cache_key = (filter_query, start, limit)
     if cache_key in data_selection_cache:
-        logger.info(f"Returning cached results for data selection list: {cache_key}")
+        logger.info("Returning cached results for data selection list: %s", cache_key)
         return data_selection_cache[cache_key]
 
     params = {"start": start, "limit": limit}
@@ -582,7 +582,7 @@ def register(
             attribute_filters (dict): Optional dictionary mapping any attribute name to target value
                                       for dynamic filtering
         """
-        logger.info(f"--- TOOL USED: list_data_selections (filter: {filter_query}) ---")
+        logger.info("--- TOOL USED: list_data_selections (filter: %s) ---", filter_query)
         token = await get_token(ctx)
 
         # To support local filtering across the entire collection, fetch all items in batches
@@ -670,7 +670,7 @@ def register(
         Args:
             selection_id (str): The unique identifier of the data selection.
         """
-        logger.info(f"--- TOOL USED: get_data_selection_details ({selection_id}) ---")
+        logger.info("--- TOOL USED: get_data_selection_details (%s) ---", selection_id)
         token = await get_token(ctx)
         return await get_data_selection(selection_id, token)
 
@@ -683,7 +683,7 @@ def register(
             selection_id (str): The unique identifier of the data selection.
             selection_data (dict): The complete data selection definition to update.
         """
-        logger.info(f"--- TOOL USED: update_data_selection ({selection_id}) ---")
+        logger.info("--- TOOL USED: update_data_selection (%s) ---", selection_id)
         token = await get_token(ctx)
         return await update_data_selection(selection_id, selection_data, token)
 
@@ -695,7 +695,7 @@ def register(
         Args:
             selection_id (str): The unique identifier of the data selection.
         """
-        logger.info(f"--- TOOL USED: delete_data_selection ({selection_id}) ---")
+        logger.info("--- TOOL USED: delete_data_selection (%s) ---", selection_id)
         token = await get_token(ctx)
         await delete_data_selection(selection_id, token)
         return f"Data selection {selection_id} deleted successfully."
@@ -711,7 +711,7 @@ def register(
             start_date (str): The start date in ISO 8601 format (e.g., '2024-07-01T00:00:00Z').
             end_date (str): The end date in ISO 8601 format (e.g., '2024-09-30T23:59:59Z').
         """
-        logger.info(f"--- TOOL USED: set_data_selection_date_range ({selection_id}) ---")
+        logger.info("--- TOOL USED: set_data_selection_date_range (%s) ---", selection_id)
         token = await get_token(ctx)
         return await set_data_selection_date_range(selection_id, start_date, end_date, token)
 
@@ -723,7 +723,7 @@ def register(
         Args:
             selection_id (str): The unique identifier of the data selection to launch.
         """
-        logger.info(f"--- TOOL USED: launch_data_selection ({selection_id}) ---")
+        logger.info("--- TOOL USED: launch_data_selection (%s) ---", selection_id)
         token = await get_token(ctx)
         return await launch_data_selection(selection_id, token)
 
@@ -735,7 +735,7 @@ def register(
         Args:
             selection_id (str): The unique identifier of the data selection to launch.
         """
-        logger.info(f"--- TOOL USED: launch_data_selection_and_wait ({selection_id}) ---")
+        logger.info("--- TOOL USED: launch_data_selection_and_wait (%s) ---", selection_id)
         token = await get_token(ctx)
         return await launch_data_selection_and_wait(selection_id, token)
 
@@ -750,7 +750,7 @@ def register(
             new_name (str): The name for the new data selection.
             new_description (str): Optional description for the new data selection.
         """
-        logger.info(f"--- TOOL USED: copy_data_selection ({selection_id} -> {new_name}) ---")
+        logger.info("--- TOOL USED: copy_data_selection (%s -> %s) ---", selection_id, new_name)
         token = await get_token(ctx)
         return await copy_data_selection(selection_id, new_name, token, new_description)
 
@@ -762,7 +762,7 @@ def register(
         Args:
             selection_ids (list[str]): List of data selection identifiers to copy.
         """
-        logger.info(f"--- TOOL USED: copy_data_selections ({len(selection_ids)} items) ---")
+        logger.info("--- TOOL USED: copy_data_selections (%s items) ---", len(selection_ids))
         token = await get_token(ctx)
         return await copy_data_selections(selection_ids, token)
 
@@ -792,7 +792,7 @@ def register(
         Args:
             analysis_id (str): The unique identifier of the analysis.
         """
-        logger.info(f"--- TOOL USED: get_iot_analysis_details ({analysis_id}) ---")
+        logger.info("--- TOOL USED: get_iot_analysis_details (%s) ---", analysis_id)
         token = await get_token(ctx)
         return await get_iot_analysis(analysis_id, token)
 
@@ -821,7 +821,7 @@ def register(
             subset_group_name (str): Optional subset group name (required if parent linking is used).
             filter_criteria (list): Optional filter criteria list (required if parent linking is used).
         """
-        logger.info(f"--- TOOL USED: create_iot_analysis ({name}) ---")
+        logger.info("--- TOOL USED: create_iot_analysis (%s) ---", name)
         token = await get_token(ctx)
         return await create_iot_analysis(
             name, model_name, data_selection_id, token, folder_id,
@@ -836,7 +836,7 @@ def register(
         Args:
             analysis_id (str): The unique identifier of the analysis.
         """
-        logger.info(f"--- TOOL USED: delete_iot_analysis ({analysis_id}) ---")
+        logger.info("--- TOOL USED: delete_iot_analysis (%s) ---", analysis_id)
         token = await get_token(ctx)
         await delete_iot_analysis(analysis_id, token)
         return f"Analysis {analysis_id} deleted successfully."
@@ -849,7 +849,7 @@ def register(
         Args:
             analysis_id (str): The unique identifier of the analysis to run.
         """
-        logger.info(f"--- TOOL USED: run_iot_analysis ({analysis_id}) ---")
+        logger.info("--- TOOL USED: run_iot_analysis (%s) ---", analysis_id)
         token = await get_token(ctx)
         return await run_iot_analysis(analysis_id, token)
 
@@ -861,7 +861,7 @@ def register(
         Args:
             analysis_id (str): The unique identifier of the analysis to run.
         """
-        logger.info(f"--- TOOL USED: run_iot_analysis_and_wait ({analysis_id}) ---")
+        logger.info("--- TOOL USED: run_iot_analysis_and_wait (%s) ---", analysis_id)
         token = await get_token(ctx)
         return await run_iot_analysis_and_wait(analysis_id, token)
 
@@ -873,7 +873,7 @@ def register(
         Args:
             analysis_ids (list[str]): List of analysis identifiers to copy.
         """
-        logger.info(f"--- TOOL USED: copy_iot_analyses ({len(analysis_ids)} items) ---")
+        logger.info("--- TOOL USED: copy_iot_analyses (%s items) ---", len(analysis_ids))
         token = await get_token(ctx)
         return await copy_iot_analyses(analysis_ids, token)
 
@@ -886,7 +886,7 @@ def register(
             analysis_id (str): The identifier of the analysis.
             job_id (str): The identifier of the specific job run.
         """
-        logger.info(f"--- TOOL USED: get_iot_analysis_results ({analysis_id}, {job_id}) ---")
+        logger.info("--- TOOL USED: get_iot_analysis_results (%s, %s) ---", analysis_id, job_id)
         token = await get_token(ctx)
         return await get_iot_analysis_job(analysis_id, job_id, token)
 
@@ -898,7 +898,7 @@ def register(
         Args:
             analysis_id (str): The unique identifier of the analysis.
         """
-        logger.info(f"--- TOOL USED: get_iot_analysis_output_tables ({analysis_id}) ---")
+        logger.info("--- TOOL USED: get_iot_analysis_output_tables (%s) ---", analysis_id)
         token = await get_token(ctx)
         analysis = await get_iot_analysis(analysis_id, token)
         
@@ -928,7 +928,7 @@ def register(
         Args:
             model_name (str): The name/ID of the model (e.g., 'EXPLORATION_ASSET').
         """
-        logger.info(f"--- TOOL USED: get_iot_model_definition ({model_name}) ---")
+        logger.info("--- TOOL USED: get_iot_model_definition (%s) ---", model_name)
         token = await get_token(ctx)
         return await get_iot_model(model_name, token)
 
@@ -1065,7 +1065,7 @@ def register(
             display_status_cd (str): Optional case-insensitive filter for display status code (e.g., 'Active')
             attribute_filters (dict): Optional dictionary of additional attribute-value filters
         """
-        logger.info(f"--- TOOL USED: list_alerts_for_run ({analysis_id}) ---")
+        logger.info("--- TOOL USED: list_alerts_for_run (%s) ---", analysis_id)
         token = await get_token(ctx)
 
         # 1. Retrieve the analysis definition to check its shortId
@@ -1095,7 +1095,7 @@ def register(
         
         if matches:
             matched_table = matches[0].upper()
-            logger.info(f"Dynamically discovered alerts table name: {matched_table}")
+            logger.info("Dynamically discovered alerts table name: %s", matched_table)
         else:
             matched_table = f"{prefix}_ALERTS_{short_id}".upper()
             logger.warning(
@@ -1132,7 +1132,7 @@ def register(
         
         json_str = "\n".join(json_lines)
         if not json_str.strip():
-            logger.error(f"No JSON output from PROC JSON. Check log: {export_log}")
+            logger.error("No JSON output from PROC JSON. Check log: %s", export_log)
             return {
                 "items": [],
                 "total": 0,
@@ -1211,7 +1211,7 @@ def register(
         Args:
             folder_id (str): Optional parent folder ID or URI.
         """
-        logger.info(f"--- TOOL USED: list_folders_and_projects (folder_id={folder_id}) ---")
+        logger.info("--- TOOL USED: list_folders_and_projects (folder_id=%s) ---", folder_id)
         token = await get_token(ctx)
         return await list_folders_and_projects(token, folder_id)
 
@@ -1230,7 +1230,7 @@ def register(
             parent_folder_id (str): Parent folder ID or shortcut (defaults to '@myFolder').
             description (str): Optional folder description.
         """
-        logger.info(f"--- TOOL USED: create_folder (name={name}, parent={parent_folder_id}) ---")
+        logger.info("--- TOOL USED: create_folder (name=%s, parent=%s) ---", name, parent_folder_id)
         token = await get_token(ctx)
         return await create_folder(name, token, parent_folder_id, description)
 
@@ -1249,7 +1249,7 @@ def register(
             folder_id (str): Folder ID to place the project in (defaults to '@myFolder').
             description (str): Optional project description.
         """
-        logger.info(f"--- TOOL USED: create_project (name={name}, folder={folder_id}) ---")
+        logger.info("--- TOOL USED: create_project (name=%s, folder=%s) ---", name, folder_id)
         token = await get_token(ctx)
         return await create_project(name, token, folder_id, description)
 
@@ -1261,7 +1261,7 @@ def register(
         Args:
             folder_id (str): The ID of the folder to delete.
         """
-        logger.info(f"--- TOOL USED: delete_folder (folder_id={folder_id}) ---")
+        logger.info("--- TOOL USED: delete_folder (folder_id=%s) ---", folder_id)
         token = await get_token(ctx)
         await delete_folder(folder_id, token)
         return f"Folder {folder_id} deleted successfully."
@@ -1274,7 +1274,7 @@ def register(
         Args:
             project_id (str): The ID of the project to delete.
         """
-        logger.info(f"--- TOOL USED: delete_project (project_id={project_id}) ---")
+        logger.info("--- TOOL USED: delete_project (project_id=%s) ---", project_id)
         token = await get_token(ctx)
         await delete_project(project_id, token)
         return f"Project {project_id} deleted successfully."
@@ -1357,7 +1357,7 @@ def register(
             value_var (str): Value variable (default: 'ACTUAL_VALUE').
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_pareto_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_pareto_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -1491,7 +1491,7 @@ def register(
             user_footnote (str): Custom user footnote.
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_trend_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_trend_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -1630,7 +1630,7 @@ def register(
             user_footnote (str): Custom user footnote.
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_trend_by_exposure_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_trend_by_exposure_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -1762,7 +1762,7 @@ def register(
             user_footnote (str): Custom user footnote.
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_detail_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_detail_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -1881,7 +1881,7 @@ def register(
             display_type (str): Display type (default: 'CODE').
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_statistical_driver_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_statistical_driver_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -2013,7 +2013,7 @@ def register(
             display_type (str): Display type (default: 'CODE').
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_decision_tree_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_decision_tree_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -2171,7 +2171,7 @@ def register(
             user_footnote (str): Custom user footnote.
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_event_forecasting_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_event_forecasting_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -2310,7 +2310,7 @@ def register(
             display_type (str): Display type (default: 'CODE').
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_summary_tables_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_summary_tables_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -2408,7 +2408,7 @@ def register(
             user_footnote (str): Custom user footnote.
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_text_mining_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_text_mining_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -2521,7 +2521,7 @@ def register(
             user_footnote (str): Custom user footnote.
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_exposure_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_exposure_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -2718,7 +2718,7 @@ def register(
             user_footnote (str): Custom user footnote.
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_failure_relationships_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_failure_relationships_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -2877,7 +2877,7 @@ def register(
             user_footnote (str): Custom user footnote.
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_geographic_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_geographic_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -2994,7 +2994,7 @@ def register(
             user_footnote (str): Custom user footnote.
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_time_of_event_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_time_of_event_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -3099,7 +3099,7 @@ def register(
             user_footnote (str): Custom user footnote.
             wait_for_completion (bool): If True, waits for job completion (default: True).
         """
-        logger.info(f"--- TOOL USED: run_reliability_analysis ({name}) ---")
+        logger.info("--- TOOL USED: run_reliability_analysis (%s) ---", name)
         token = await get_token(ctx)
         params = {
             "ANALYSISVAR": analysis_var,
@@ -3149,7 +3149,7 @@ def register(
             caslib_name: The name of the caslib.
             table_name: The table to drop.
         """
-        logger.info(f"--- TOOL USED: drop_table_from_memory ({caslib_name}.{table_name}) ---")
+        logger.info("--- TOOL USED: drop_table_from_memory (%s.%s) ---", caslib_name, table_name)
         token = await get_token(ctx)
         code = f"""
         cas mySession;
@@ -3183,7 +3183,7 @@ def register(
             caslib_name: The name of the caslib.
             table_name: The table to reload.
         """
-        logger.info(f"--- TOOL USED: reload_table_to_memory ({caslib_name}.{table_name}) ---")
+        logger.info("--- TOOL USED: reload_table_to_memory (%s.%s) ---", caslib_name, table_name)
         token = await get_token(ctx)
         code = f"""
         cas mySession;
@@ -3232,7 +3232,7 @@ def register(
             fqa_base_path (str): The absolute Linux path on the CAS server where the FQA Demo_Data_transformed directory resides 
                                  (e.g., "/export/sas-viya/homes/germsz/AIoT/FQA/Demo_Data_transformed").
         """
-        logger.info(f"--- TOOL USED: reload_fqa_metadata_tool ({fqa_base_path}) ---")
+        logger.info("--- TOOL USED: reload_fqa_metadata_tool (%s) ---", fqa_base_path)
         token = await get_token(ctx)
         
         code = f"""
@@ -3293,7 +3293,7 @@ def register(
             strategy: Remediation strategy ('binning', 'temporal', or 'target_encoding').
             target_column: Name of the target variable for target encoding or target inservice_date for temporal.
         """
-        logger.info(f"--- TOOL USED: remediate_high_cardinality ({caslib_name}.{table_name}.{column_name}) ---")
+        logger.info("--- TOOL USED: remediate_high_cardinality (%s.%s.%s) ---", caslib_name, table_name, column_name)
         token = await get_token(ctx)
         
         column_name = column_name.upper()
@@ -3532,7 +3532,7 @@ def register(
         """
         import uuid
         async with viya_session("create_child_data_selection_and_launch", ctx) as client:
-            logger.info(f"Copying parent data selection {parent_data_selection_id} to '{new_name}'")
+            logger.info("Copying parent data selection %s to '%s'", parent_data_selection_id, new_name)
             copy_url = f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{parent_data_selection_id}/copies?name={new_name}"
             resp_copy = await client.post(copy_url)
             resp_copy.raise_for_status()
@@ -3673,7 +3673,7 @@ def register(
             parameter_overrides (dict, optional): Parameter overrides to update in the analysis step.
         """
         async with viya_session("create_child_analysis_and_run", ctx) as client:
-            logger.info(f"Creating new analysis '{name}' on data selection {data_selection_id}")
+            logger.info("Creating new analysis '%s' on data selection %s", name, data_selection_id)
             analysis_body = {
                 "name": name,
                 "modelName": model_name,
