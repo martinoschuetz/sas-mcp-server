@@ -36,6 +36,15 @@ tags:
 - name: Pod
   description: Contains the operations for querying pods that are running in a Kubernetes
     cluster.
+- name: Project Container Job
+  description: Contains the operations for creating the container job.
+- name: Project Container Image
+  description: Contains the operations for managing container images.
+- name: Project Container Registry
+  description: Contains the operations for managing container registries.
+- name: Project Container Dependencies
+  description: Contains the operations for managing the Arm64 dependencies of project
+    containers.
 - name: Root
   description: Contains the operations for the root resource.
 paths:
@@ -68,10 +77,906 @@ paths:
               examples:
                 example:
                   $ref: "#/components/examples/rootResponse200"
+  /container/registry:
+    post:
+      summary: Create a container registry
+      description: Creates a container registry.
+      operationId: createProjectContainerRegistry
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.esp.containers.registry+json:
+            examples:
+              example:
+                $ref: '#/components/examples/projectContainerRegistryRepresentation'
+            schema:
+              $ref: '#/components/schemas/projectContainerRegistryRepresentation'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/projectContainerRegistryRepresentation'
+            schema:
+              $ref: '#/components/schemas/projectContainerRegistryRepresentation'
+      responses:
+        '201':
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          description: The container registry was created.
+        '400':
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/errorResponse400'
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+          description: The supplied registry information is invalid.
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '409':
+          description: An error response when a container registry already exists.
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                example:
+                  value:
+                    errorCode: 5114
+                    message: A registry with the name "A registry name" already exists.
+                    details: []
+                    version: 1
+                    httpStatusCode: 409
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+        '503':
+          $ref: '#/components/responses/errorResponse503ProjectContainersNotAvailable'
+      tags:
+      - Project Container Registry
+    put:
+      summary: Update a container registry
+      description: Updates a container registry.
+      operationId: updateProjectContainerRegistry
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.esp.containers.registry+json:
+            examples:
+              example:
+                $ref: '#/components/examples/projectContainerRegistryRepresentation'
+            schema:
+              $ref: '#/components/schemas/projectContainerRegistryRepresentation'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/projectContainerRegistryRepresentation'
+            schema:
+              $ref: '#/components/schemas/projectContainerRegistryRepresentation'
+      responses:
+        '200':
+          headers:
+            ETag:
+              description: The response contains an entity tag for the updated registry.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.esp.containers.registry+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectContainerRegistryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectContainerRegistryRepresentation'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectContainerRegistryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectContainerRegistryRepresentation'
+          description: The container registry was updated.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          $ref: '#/components/responses/errorResponse404ProjectContainerRegistryDoesNotExist'
+        '412':
+          $ref: '#/components/responses/errorResponse412IfMatch'
+        '428':
+          $ref: '#/components/responses/errorResponse428PreconditionRequired'
+        '503':
+          $ref: '#/components/responses/errorResponse503ProjectContainersNotAvailable'
+      tags:
+      - Project Container Registry
+    get:
+      summary: Get container registries
+      description: Returns a resource collection of container registries.
+      operationId: getProjectContainerRegistries
+      parameters:
+      - description: The first registry to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - description: The maximum number of registries to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers: {}
+          content:
+            application/vnd.sas.collection+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionProjectContainerRegistryRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionProjectContainerRegistryRepresentation'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionProjectContainerRegistryRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionProjectContainerRegistryRepresentation'
+          description: The response contains a list of container registries.
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '503':
+          $ref: '#/components/responses/errorResponse503ProjectContainersNotAvailable'
+      tags:
+      - Project Container Registry
+  /container/registry/{registryName}:
+    head:
+      summary: Check if a container registry exists
+      description: Returns the header information for a container registry with the
+        specified name.
+      operationId: headersForGetContainerRegistry
+      parameters:
+      - description: The name of the registry to check.
+        in: path
+        name: registryName
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers: {}
+          description: Returns the header information for the container registry.
+        '404':
+          $ref: '#/components/responses/errorResponse404ProjectContainerRegistryDoesNotExist'
+      tags:
+      - Project Container Registry
+    get:
+      summary: Get a container registry
+      description: Returns a container registry.
+      operationId: getContainerRegistry
+      parameters:
+      - description: The name of the registry.
+        in: path
+        name: registryName
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers:
+            ETag:
+              description: The response contains an entity tag for the container registry.
+              schema:
+                type: string
+          content:
+            application/vnd.sas.collection+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectContainerRegistryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectContainerRegistryRepresentation'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectContainerRegistryRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectContainerRegistryRepresentation'
+          description: The response contains a container registry.
+        '404':
+          $ref: '#/components/responses/errorResponse404ProjectContainerRegistryDoesNotExist'
+      tags:
+      - Project Container Registry
+    delete:
+      summary: Delete a container registry
+      description: Deletes a container registry.
+      operationId: deleteProjectContainerRegistry
+      parameters:
+      - description: The name of the registry to be deleted.
+        in: path
+        name: registryName
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          headers: {}
+          description: The container registry was deleted.
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          $ref: '#/components/responses/errorResponse404ProjectContainerRegistryDoesNotExist'
+        '503':
+          $ref: '#/components/responses/errorResponse503ProjectContainersNotAvailable'
+      tags:
+      - Project Container Registry
+  /container/job:
+    post:
+      summary: Create a container job
+      description: Creates a container job to initiate the creation of a project container.
+        The project container is created some time later.
+      operationId: createProjectContainerJob
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.esm.container-create-job+json:
+            examples:
+              example:
+                $ref: '#/components/examples/projectContainerCreateJobRequest'
+            schema:
+              $ref: '#/components/schemas/projectContainerCreateJobRequest'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/projectContainerCreateJobRequest'
+            schema:
+              $ref: '#/components/schemas/projectContainerCreateJobRequest'
+      responses:
+        '201':
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          description: The creation of the project container was initialized.
+          content:
+            application/vnd.sas.esm.container-create-job+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectContainerCreateJobResponse'
+              schema:
+                $ref: '#/components/schemas/projectContainerCreateJobResponse'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectContainerCreateJobResponse'
+              schema:
+                $ref: '#/components/schemas/projectContainerCreateJobResponse'
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '502':
+          $ref: '#/components/responses/errorResponse502SecretNotFound'
+        '503':
+          $ref: '#/components/responses/errorResponse503ProjectContainersNotAvailable'
+      tags:
+      - Project Container Job
+    get:
+      summary: Get container jobs
+      description: Returns a collection of container jobs, including jobs for project
+        containers that were created, those that are still being created, and those
+        that failed to be created.
+      operationId: getProjectContainerJobs
+      parameters:
+      - description: The first container creation job to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - description: The maximum number of container creation jobs to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      - description: The filter parameter.
+        in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          headers: {}
+          description: Returns the header information for the jobs that are creating
+            project containers.
+          content:
+            application/vnd.sas.esm.container-job-representation+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionProjectContainerJobRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionProjectContainerJobRepresentation'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionProjectContainerJobRepresentation'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionProjectContainerJobRepresentation'
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '503':
+          $ref: '#/components/responses/errorResponse503ProjectContainersNotAvailable'
+      tags:
+      - Project Container Job
+  /container/job/{jobId}:
+    head:
+      summary: Check a container job by ID
+      description: Returns the header information for a container job by ID.
+      operationId: headersForGetProjectContainerJob
+      parameters:
+      - description: The ID of the job to be retrieved.
+        in: path
+        name: jobId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          headers: {}
+          description: Returns the header information for a container job.
+      tags:
+      - Project Container Job
+    get:
+      summary: Get a container job
+      description: Returns a container job.
+      operationId: getProjectContainerJob
+      parameters:
+      - description: The ID of the job to be retrieved.
+        in: path
+        name: jobId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          headers: {}
+          description: The job that is creating the project container.
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectContainerJobRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectContainerJobRepresentation'
+            application/vnd.sas.esm.container-job-representation+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/projectContainerJobRepresentation'
+              schema:
+                $ref: '#/components/schemas/projectContainerJobRepresentation'
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+      tags:
+      - Project Container Job
+    patch:
+      summary: Update a container job
+      description: Updates a job that was used to create a project container.
+      operationId: patchProjectContainerJob
+      parameters:
+      - description: The ID of the job to be updated.
+        in: path
+        name: jobId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - in: header
+        name: If-Unmodified-Since
+        description: If-Unmodified-Since
+        required: false
+        schema:
+          format: HTTP-date
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.esm.patch-container-job+json:
+            examples:
+              example:
+                $ref: '#/components/examples/projectContainerCreateJobPatchRepresentation'
+            schema:
+              $ref: '#/components/schemas/projectContainerCreateJobPatchRepresentation'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/projectContainerCreateJobPatchRepresentation'
+            schema:
+              $ref: '#/components/schemas/projectContainerCreateJobPatchRepresentation'
+      responses:
+        '200':
+          headers: {}
+          description: The request succeeded.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+        '412':
+          $ref: '#/components/responses/errorResponse412IfUnmodifiedSince'
+      tags:
+      - Project Container Job
+    delete:
+      summary: Delete a container job
+      description: Deletes a container job.
+      operationId: deleteProjectContainerJob
+      parameters:
+      - description: The ID of the job to be deleted.
+        in: path
+        name: jobId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '204':
+          headers: {}
+          description: The project container was deleted.
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          description: The error response when a project container with the specified
+            jobId does not exist.
+          content:
+            application/vnd.sas.error+json:
+              examples:
+                example:
+                  description: An example of a Not Found error response when a project
+                    container with the specified jobId does not exist.
+                  value:
+                    errorCode: 404
+                    message: No project container with ID 1234 exists.
+                    details:
+                    - 'path: /SASEventStreamManager'
+                    version: 2
+                    httpStatusCode: 404
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+        '503':
+          $ref: '#/components/responses/errorResponse503ProjectContainersNotAvailable'
+      tags:
+      - Project Container Job
+  /container/dependencies:
+    post:
+      summary: Create an Arm64 dependencies job
+      description: Creates the job that initiates the creation of the Arm64 dependencies.
+        The images are created some time later.
+      operationId: createGenerateArmImageDependencies
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.generate-arm-dependencies-request+json:
+            examples:
+              example:
+                $ref: '#/components/examples/generateArmDependenciesRequest'
+            schema:
+              $ref: '#/components/schemas/generateArmDependenciesRequest'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/generateArmDependenciesRequest'
+            schema:
+              $ref: '#/components/schemas/generateArmDependenciesRequest'
+      responses:
+        '201':
+          headers:
+            Location:
+              description: The URL of the created or updated resource.
+              schema:
+                type: string
+          description: The creation of the Arm64 dependencies was initialized.
+          content:
+            application/vnd.sas.esm.dependencies-job+json:
+              schema:
+                type: string
+              example: 0302d176-e2e1-4093-a34c-3ec120d26dd8
+            application/json:
+              schema:
+                type: string
+              example: 0302d176-e2e1-4093-a34c-3ec120d26dd8
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '422':
+          $ref: '#/components/responses/errorResponse422'
+        '502':
+          $ref: '#/components/responses/errorResponse502SecretNotFound'
+      tags:
+      - Project Container Dependencies
+  /container/dependenciesJob/{kubernetesJobId}:
+    head:
+      summary: Check the status of an Arm64 dependencies job
+      description: Returns the header information for an Arm64 dependencies job.
+      operationId: headersForGetDependenciesJob
+      parameters:
+      - description: The ID of the Kubernetes job to retrieve.
+        in: path
+        name: kubernetesJobId
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers: {}
+          description: Returns the header information for the status of an Arm64 dependencies
+            job.
+      tags:
+      - Project Container Dependencies
+    get:
+      summary: Get the status of an Arm64 dependencies job
+      description: Returns the status of an Arm64 dependencies job.
+      operationId: getDependenciesJob
+      parameters:
+      - description: The ID of the Kubernetes job to retrieve.
+        in: path
+        name: kubernetesJobId
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          headers: {}
+          description: The status of the job that is creating the Arm64 dependencies.
+          content:
+            application/vnd.sas.esm.dependencies-job+json:
+              schema:
+                type: string
+              example: SUCCESS
+            application/json:
+              schema:
+                type: string
+              example: SUCCESS
+      tags:
+      - Project Container Dependencies
+  /container/defaultImages:
+    get:
+      summary: Get default images for the creation of project containers
+      description: Returns the default images that are available for the creation
+        of project containers.
+      operationId: getDefaultImages
+      responses:
+        '200':
+          headers: {}
+          description: The default images that are available for the creation of project
+            containers.
+          content:
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/defaultImages'
+            application/vnd.sas.collection+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/defaultImages'
+      tags:
+      - Project Container Image
+  /container/defaultImages/{cadenceVersion}/{architecture}:
+    head:
+      summary: Check for a default image
+      description: Returns the header information for default image availability for
+        the specified release and architecture.
+      operationId: headersForGetDefaultImagesCadenceArch
+      parameters:
+      - description: The SAS Event Stream Processing release.
+        in: path
+        name: cadenceVersion
+        required: true
+        schema:
+          type: string
+      - description: The architecture of the image, `x86_64` or `arm64`.
+        in: path
+        name: architecture
+        required: true
+        schema:
+          type: string
+          enum:
+          - x86_64
+          - arm64
+      responses:
+        '200':
+          headers: {}
+          description: Returns the header information for the availability of a default
+            image.
+          content:
+            application/vnd.sas.esm.default-image-availability+json:
+              schema:
+                type: boolean
+              example: true
+            application/json:
+              schema:
+                type: boolean
+              example: true
+      tags:
+      - Project Container Image
+    get:
+      summary: Get default image availability
+      description: Returns information about whether a default image is available
+        for the specified release and architecture.
+      operationId: getDefaultImagesCadenceArch
+      parameters:
+      - description: The SAS Event Stream Processing release.
+        in: path
+        name: cadenceVersion
+        required: true
+        schema:
+          type: string
+      - description: The architecture of the image, `x86_64` or `arm64`.
+        in: path
+        name: architecture
+        required: true
+        schema:
+          type: string
+          enum:
+          - x86_64
+          - arm64
+      responses:
+        '200':
+          headers: {}
+          description: A boolean response that indicates whether the default image
+            exists.
+          content:
+            application/vnd.sas.esm.default-image-availability+json:
+              schema:
+                type: boolean
+              example: true
+            application/json:
+              schema:
+                type: boolean
+              example: true
+      tags:
+      - Project Container Image
+  /container/image/promote:
+    post:
+      summary: Add a promotion tag to a container image
+      description: Promote a container image by one level. The specified promotion
+        level must exist, and be no higher than the level that this instance of SAS
+        Event Stream Manager is configured to manage.
+      operationId: createPromoteProjectImage
+      parameters:
+      - description: The name of the project for which to promote an image.
+        in: query
+        name: projectName
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.esm.container-promotion-or-demotion-target+json:
+            examples:
+              example:
+                $ref: '#/components/examples/projectContainerImagePromoteOrDemoteTarget'
+            schema:
+              $ref: '#/components/schemas/projectContainerImagePromoteOrDemoteTarget'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/projectContainerImagePromoteOrDemoteTarget'
+            schema:
+              $ref: '#/components/schemas/projectContainerImagePromoteOrDemoteTarget'
+      responses:
+        '201':
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          description: The container image was promoted by one level.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+        '409':
+          $ref: '#/components/responses/errorResponse409'
+      tags:
+      - Project Container Image
+  /container/image/demote:
+    post:
+      summary: Add a demotion tag to a container image
+      description: Demote a container image by one level. The specified promotion
+        level must exist, be the highest promotion level for the container image,
+        and be no higher than the level that this instance of SAS Event Stream Manager
+        is configured to manage.
+      operationId: createDemoteProjectImage
+      parameters:
+      - description: The name of the project for which to demote an image.
+        in: query
+        name: projectName
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/vnd.sas.esm.container-promotion-or-demotion-target+json:
+            examples:
+              example:
+                $ref: '#/components/examples/projectContainerImagePromoteOrDemoteTarget'
+            schema:
+              $ref: '#/components/schemas/projectContainerImagePromoteOrDemoteTarget'
+          application/json:
+            examples:
+              example:
+                $ref: '#/components/examples/projectContainerImagePromoteOrDemoteTarget'
+            schema:
+              $ref: '#/components/schemas/projectContainerImagePromoteOrDemoteTarget'
+      responses:
+        '201':
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          description: The container image was demoted by one level.
+        '400':
+          $ref: '#/components/responses/errorResponse400'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+        '409':
+          $ref: '#/components/responses/errorResponse409'
+      tags:
+      - Project Container Image
+  /container/images/{projectName}:
+    head:
+      summary: Check available Docker container images for a project
+      description: Returns the header information for the available Docker container
+        images for a project.
+      operationId: headersForGetProjectImages
+      parameters:
+      - description: The name of the project for which to get images.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: The version of the project for which to get images. If not specified,
+          images for all versions of the project are returned.
+        in: query
+        name: version
+        required: false
+        schema:
+          default: -1
+          format: int32
+          type: integer
+      - description: The first container image to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - description: The maximum number of container images to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      responses:
+        '200':
+          headers: {}
+          description: Returns the header information for the container images of
+            a project.
+      tags:
+      - Project Container Image
+    get:
+      summary: Get available Docker container images for a project
+      description: Returns the available Docker container images for a project.
+      operationId: getProjectImages
+      parameters:
+      - description: The name of the project for which to get images.
+        in: path
+        name: projectName
+        required: true
+        schema:
+          type: string
+      - description: The version of the project for which to get images. If not specified,
+          images for all versions of the project are returned.
+        in: query
+        name: version
+        required: false
+        schema:
+          default: -1
+          format: int32
+          type: integer
+      - description: The first container creation image to be returned.
+        in: query
+        name: start
+        required: false
+        schema:
+          default: 0
+          format: int64
+          type: integer
+          minimum: 0
+      - description: The maximum number of container images to be returned.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          format: int32
+          type: integer
+          minimum: 1
+          maximum: 10000
+      responses:
+        '200':
+          headers: {}
+          description: The container images for the specified project, and optionally,
+            the specified version.
+          content:
+            application/vnd.sas.esm.container-image-representation+json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionContainerImageData'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionContainerImageData'
+            application/json:
+              examples:
+                example:
+                  $ref: '#/components/examples/resourceCollectionContainerImageData'
+              schema:
+                $ref: '#/components/schemas/resourceCollectionContainerImageData'
+        '401':
+          $ref: '#/components/responses/errorResponse401'
+        '403':
+          $ref: '#/components/responses/errorResponse403'
+        '404':
+          $ref: '#/components/responses/errorResponse404'
+        '503':
+          $ref: '#/components/responses/errorResponse503ProjectContainersNotAvailable'
+      tags:
+      - Project Container Image
   /deployments:
     get:
       summary: Get all deployments
-      description: Returns a list of all deployments, including details of the deployments
+      description: Returns a list of all deployments, including details of the deployments,
         such as assigned ESP servers and running projects.
       operationId: getListDeployments
       parameters:
@@ -1081,31 +1986,12 @@ paths:
       description: Returns a specified project from the Kubernetes cluster.
       operationId: getClusterServerProject
       parameters:
-      - description: The maximum number of records to be returned.
-        in: query
-        name: limit
-        required: false
-        schema:
-          default: 50
-          format: int32
-          type: integer
-          minimum: 1
-          maximum: 10000
       - description: The filter parameter.
         in: query
         name: filter
         required: false
         schema:
           type: string
-      - description: The number of the first record to be returned.
-        in: query
-        name: start
-        required: false
-        schema:
-          default: 0
-          format: int64
-          type: integer
-          minimum: 0
       - in: path
         name: deploymentName
         description: The name of the deployment.
@@ -1626,7 +2512,7 @@ paths:
           default: true
           type: boolean
       - in: query
-        description: If set to `false`, then these tasks will are not included.
+        description: If set to `false`, then these tasks are not included.
         name: completedWithFailures
         required: false
         schema:
@@ -2093,6 +2979,21 @@ components:
           schema:
             $ref: '#/components/schemas/errorResponse'
       description: No resource exists at the requested path.
+    errorResponse404ProjectContainerRegistryDoesNotExist:
+      description: An error response when a container registry with the specified
+        name does not exist.
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              value:
+                errorCode: 5115
+                message: A registry with the name "A registry name" does not exist.
+                details: []
+                version: 1
+                httpStatusCode: 404
+          schema:
+            $ref: '#/components/schemas/errorResponse'
     errorResponse409:
       description: The request could not be completed due to a conflict with the current
         state of the resource.
@@ -2123,6 +3024,15 @@ components:
             $ref: '#/components/schemas/errorResponse'
       description: The `If-Match` request header did not match the resource's entity
         tag.
+    errorResponse422:
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            example:
+              $ref: '#/components/examples/errorResponse422'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+      description: No resource exists at the requested path.
     errorResponse428PreconditionRequired:
       content:
         application/vnd.sas.error+json:
@@ -2139,6 +3049,19 @@ components:
           examples:
             example:
               $ref: '#/components/examples/errorResponse404'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+    errorResponse502SecretNotFound:
+      description: SAS Event Stream Manager was unable to find a suitable secret for
+        the default container registry, or the default SAS Event Stream Processing
+        license.
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            registrySecretExample:
+              $ref: '#/components/examples/errorResponse502DefaultRegistrySecretNotFound'
+            licenseSecretExample:
+              $ref: '#/components/examples/errorResponse502DefaultLicenseSecretNotFound'
           schema:
             $ref: '#/components/schemas/errorResponse'
     errorResponse503PackagingOrVersioningNotAvailable:
@@ -2166,6 +3089,15 @@ components:
               $ref: '#/components/examples/projectVersioningNotEnabled'
             remoteGitNotEnabled:
               $ref: '#/components/examples/remoteGitNotEnabled'
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+    errorResponse503ProjectContainersNotAvailable:
+      description: Functionality for project containers is not enabled.
+      content:
+        application/vnd.sas.error+json:
+          examples:
+            projectContainersNotEnabled:
+              $ref: '#/components/examples/projectContainersNotEnabled'
           schema:
             $ref: '#/components/schemas/errorResponse'
   parameters:
@@ -3397,7 +4329,7 @@ components:
           $ref: '#/components/schemas/esmEspServerRepresentation'
       type: object
     runningProjectStatusRepresentation:
-      description: Running project status representation.
+      description: A representation of the status of a running project.
       properties:
         status:
           type: string
@@ -3405,7 +4337,7 @@ components:
           type: string
       type: object
     runningQueryRepresentation:
-      description: Running query representation.
+      description: A representation of the running query.
       properties:
         id:
           type: string
@@ -3417,7 +4349,7 @@ components:
           type: array
       type: object
     runningWindowRepresentation:
-      description: Running window representation.
+      description: A representation of a window in a running project.
       properties:
         cpu:
           format: double
@@ -3440,7 +4372,7 @@ components:
           type: string
       type: object
     serverParameterRepresentation:
-      description: Server parameter representation.
+      description: A representation of a server parameter.
       properties:
         name:
           type: string
@@ -3476,7 +4408,7 @@ components:
       type: object
     updateDeploymentServerListRepresentation:
       description: Associates ESP servers with a deployment. A list of ESP server
-        names are used to associate ESP servers with the deployment.
+        names is used to associate ESP servers with the deployment.
       properties:
         serverNames:
           items:
@@ -3495,6 +4427,462 @@ components:
           format: int32
           type: integer
         name:
+          type: string
+      type: object
+    projectContainerCreateJobResponse:
+      description: The schema for initiating the creation of a project container.
+      properties:
+        id:
+          type: string
+          description: A unique ID for the job that creates the project container.
+        containerName:
+          type: string
+          description: The name of the project container.
+        createdBy:
+          type: string
+          description: The name of the user that initiated the creation of the project
+            container.
+        creationTimeStamp:
+          type: string
+          description: The date and time at which the creation of the project container
+            was initiated.
+    projectContainerJobRepresentation:
+      description: The details for a job.
+      properties:
+        id:
+          type: string
+          description: The unique ID number for the job.
+        sequence:
+          type: integer
+        containerName:
+          type: string
+          description: The name of the project container being created by the job.
+        status:
+          type: string
+          description: A short definitive state for the job.
+        statusMessage:
+          type: string
+          description: A long description of the job's status.
+        createdBy:
+          type: string
+          description: The name of the user that created the job.
+        creationTimeStamp:
+          type: string
+          description: The date and time at which the job was created.
+        description:
+          type: string
+          description: An optional description for the project container.
+        podName:
+          type: string
+          description: The name of the Kubernetes pod that is running the job.
+        projectName:
+          type: string
+          description: The name of the ESP project in the project container.
+        projectVersion:
+          type: object
+          properties:
+            major:
+              format: int32
+              type: integer
+              minimum: 1
+            minor:
+              format: int32
+              type: integer
+              minimum: 0
+          description: The version of the project package in the project container.
+        arch:
+          type: string
+          description: The architecture that the project container runs on (for example,
+            "x86_64").
+        gpu:
+          description: A list of the graphics processing units (GPUs) that the project
+            uses (for example, "[nvidia, openvino]").
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        espVersion:
+          type: string
+          description: The release of SAS Event Stream Processing to run.
+        tags:
+          description: |
+            Tags that are applied to the project container. A tag of the form <project.version>-<espServer.version>-<YYYYMMDD.HHmmss date-time> is present.
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+          pattern: '^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$'
+        targetRegistryName:
+          type: string
+          description: The name of the target container registry.
+        targetRegistryPath:
+          type: string
+          description: A path within the target container registry.
+        archived:
+          type: boolean
+          description: Whether the job is archived.
+    projectContainerRegistryRepresentation:
+      type: object
+      description: A response representation for a container registry.
+      properties:
+        name:
+          type: string
+          description: A unique name for the registry.
+        defaultRepository:
+          type: string
+        description:
+          type: string
+          description: Descriptive text for the registry.
+        url:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+    resourceCollectionProjectContainerRegistryRepresentation:
+      description: A list of container registries.
+      properties:
+        accept:
+          type: string
+          xml:
+            attribute: true
+        count:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        items:
+          items:
+            $ref: '#/components/schemas/projectContainerRegistryRepresentation'
+          type: array
+          xml:
+            wrapped: true
+        limit:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+        links:
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+          xml:
+            wrapped: true
+        name:
+          type: string
+          xml:
+            attribute: true
+        start:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        version:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+      type: object
+      xml:
+        name: collection
+    projectContainerCreateJobRequest:
+      description: A description of a job that creates a project container.
+      properties:
+        projectName:
+          type: string
+          description: The name of the project package to be put in the project container.
+        projectVersionAndPromotionLevel:
+          type: object
+          properties:
+            version:
+              format: int32
+              type: integer
+              minimum: 1
+            promotionLevel:
+              format: int32
+              type: integer
+              minimum: 0
+          description: The version and promotion level of the project package to be
+            put in the project container.
+        containerName:
+          type: string
+          description: The name to be given to the project container.
+          pattern: '^[a-z0-9]+(?:(?:\.|_{1,2}|-+)[a-z0-9]+)*$'
+        description:
+          type: string
+          description: An optional description for the project container.
+        arch:
+          type: string
+          description: The architecture that the project container runs on (for example,
+            "x86_64").
+        gpu:
+          description: An optional list of the graphics processing units (GPUs) that
+            the project uses (for example, "[nvidia, openvino]").
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        espVersion:
+          type: string
+        tags:
+          description: |
+            Optional tags that are applied to the project container. 
+            If the first tag is not of the form <project.version>-<espServer.version>-<YYYYMMDD.HHmmss date-time>, then a tag of that form is added automatically. 
+            Each new container is also tagged as "latest".
+          pattern: '^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$'
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        targetRegistryName:
+          description: The name of the target registry.
+          type: string
+        baseImageName:
+          description: The full Docker image name of the base image.
+          type: string
+        baseImageTag:
+          description: The target tag of the base image.
+          type: string
+        baseImageRegistry:
+          description: The name of the optional source registry for the base image.
+          type: string
+        baseImageRegistryPath:
+          description: The path to the base image within the optional source registry.
+          type: string
+        componentsImageName:
+          description: The full Docker image name of the base image
+          type: string
+        componentsImageTag:
+          description: The target tag of the base image
+          type: string
+        componentsImageRegistry:
+          description: The name of the optional source registry for the components
+            image
+          type: string
+        componentsImageRegistryPath:
+          description: The path to the components image within the optional source
+            registry
+          type: string
+        serverImageName:
+          description: The full Docker image name of the ESP server image
+          type: string
+        serverImageTag:
+          description: The target tag of the ESP server image
+          type: string
+        serverImageRegistry:
+          description: The name of the optional source registry for the ESP server
+            image
+          type: string
+        serverImageRegistryPath:
+          description: The path to the ESP server image within the optional source
+            registry
+          type: string
+        buildkitImageName:
+          description: The full Docker image name of the BuildKit image
+          type: string
+        buildkitImageTag:
+          description: The target tag of the BuildKit image
+          type: string
+        buildkitImageRegistry:
+          description: The name of the optional source registry for the BuildKit image
+          type: string
+        buildkitImageRegistryPath:
+          description: The path to the BuildKit image within the optional source registry
+          type: string
+        targetRegistryPath:
+          description: A path within the target registry.
+          type: string
+        pathToProjectPackageDirectory:
+          type: string
+          description: |
+            An optional path to a directory for a project package. 
+            If a path is specified, the project container gets the project from the specified location.
+            If a path is not specified, the project container gets the project from a Git server.
+        includeTestFiles:
+          description: This parameter specifies whether to include the "test_files"
+            folder in the container image.
+          type: boolean
+    resourceCollectionProjectContainerJobRepresentation:
+      description: The schema for the container jobs.
+      properties:
+        accept:
+          type: string
+          xml:
+            attribute: true
+        count:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        items:
+          items:
+            $ref: '#/components/schemas/projectContainerJobRepresentation'
+          type: array
+          xml:
+            wrapped: true
+        limit:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+        links:
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+          xml:
+            wrapped: true
+        name:
+          type: string
+          xml:
+            attribute: true
+        start:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        version:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+      type: object
+      xml:
+        name: collection
+    projectContainerCreateJobPatchRepresentation:
+      description: A description of a job that was used to create the project container
+        that is to be updated.
+      properties:
+        archive:
+          type: boolean
+          description: Archive or unarchive the container job.
+    projectContainerImagePromoteOrDemoteTarget:
+      description: Identifies a container image to be promoted or demoted by one level.
+      properties:
+        projectVersion:
+          format: int32
+          type: integer
+          minimum: 1
+        promotionLevel:
+          format: int32
+          type: integer
+          minimum: 1
+        dockerRegistryUrl:
+          type: string
+        dockerRepositoryName:
+          type: string
+        imageTag:
+          type: string
+          pattern: '^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$'
+        notes:
+          type: string
+          nullable: true
+    resourceCollectionContainerImageData:
+      description: The schema for returning container images.
+      properties:
+        accept:
+          type: string
+          xml:
+            attribute: true
+        count:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        items:
+          items:
+            $ref: '#/components/schemas/containerImageData'
+          type: array
+          xml:
+            wrapped: true
+        limit:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+        links:
+          items:
+            $ref: '#/components/schemas/link'
+          type: array
+          xml:
+            wrapped: true
+        name:
+          type: string
+          xml:
+            attribute: true
+        start:
+          format: int64
+          type: integer
+          xml:
+            attribute: true
+        version:
+          format: int32
+          type: integer
+          xml:
+            attribute: true
+      type: object
+      xml:
+        name: collection
+    containerImageData:
+      description: The details of a container image.
+      properties:
+        imageTag:
+          description: The tag that identifies the image in the Docker repository.
+          type: string
+        dockerRegistryUrl:
+          description: The URL of the Docker registry that contains this image.
+          type: string
+        dockerRepositoryName:
+          description: The name of the Docker repository.
+          type: string
+        projectVersion:
+          description: The version of the ESP project in the project container.
+          type: integer
+          format: int32
+          minimum: 1
+        promotionLevel:
+          description: The promotion level of the ESP project in the project container.
+          type: integer
+          format: int32
+          minimum: 1
+        description:
+          description: An optional text description of the container image.
+          type: string
+        espVersion:
+          description: The version of ESP in the project container (for example, "2026.09").
+          type: string
+        gpu:
+          description: A list of the graphics processing units (GPUs) that the project
+            uses (for example, "[nvidia, openvino]").
+          items:
+            type: string
+          type: array
+          uniqueItems: true
+        architecture:
+          description: The architecture required to run the project container (for
+            example, "arm64" or "x86_64").
+          type: string
+        status:
+          enum:
+          - VALIDATION_REQUIRED
+          - VALID_IMAGE
+          - INVALID_IMAGE
+          type: string
+        registryAvailable:
+          type: boolean
+          description: Indicates whether a container registry is available for this
+            container image. If false, a job cannot be created for this container
+            image.
+    generateArmDependenciesRequest:
+      description: A description of a request that generates the Arm64 dependencies.
+      properties:
+        espVersion:
+          description: The version of SAS Event Stream Processing in the project container.
+          type: string
+        targetRegistryName:
+          description: The name of the target registry.
+          type: string
+        targetRegistryPath:
+          description: A path within the target registry.
           type: string
       type: object
   examples:
@@ -3713,6 +5101,16 @@ components:
           Get the latest representation of the resource, and apply the desired
           changes. Retry the operation with the modified representation and the
           timestamp from the response header field "Last-Modified".
+    errorResponse422:
+      description: An example of a 422 Not Found error response.
+      value:
+        errorCode: 422
+        message: The request was understood but could not be processed because the
+          content is invalid.
+        details:
+        - 'path: /SASEventStreamManager'
+        version: 2
+        httpStatusCode: 422
     errorResponse428PreconditionRequired:
       description: An example of a `428 Precondition Required` error response.
       value:
@@ -3731,6 +5129,28 @@ components:
         httpStatusCode: 502
         message: The ESP server was unable to complete the request.
         version: 2
+    errorResponse502DefaultLicenseSecretNotFound:
+      description: An example of a SAS Event Stream Manager instance being unable
+        to find a suitable secret for the default SAS Event Stream Processing license.
+      value:
+        errorCode: 502
+        message: The application was unable to find a suitable secret for the default
+          license. Contact your system administrator if this problem persists.
+        details:
+        - 'path: /SASEventStreamManager'
+        version: 2
+        httpStatusCode: 502
+    errorResponse502DefaultRegistrySecretNotFound:
+      description: An example of a SAS Event Stream Manager instance being unable
+        to find a suitable secret for the default container registry.
+      value:
+        errorCode: 502
+        message: The application was unable to find a suitable secret for the default
+          container registry. Contact your system administrator if this problem persists.
+        details:
+        - 'path: /SASEventStreamManager'
+        version: 2
+        httpStatusCode: 502
     globalHealthRepresentation:
       description: >-
         An example of the health representation for a pod of an ESP project called
@@ -4432,3 +5852,281 @@ components:
       description: An example of a running project. TODO
       value:
         health: true
+    projectContainerCreateJobResponse:
+      description: A sample response for initiating the creation of a project container.
+      value:
+        id: '123456789'
+        containerName: The name of the project container.
+        createdBy: Mohammed Lee
+        creationTimeStamp: 2024/04/23 16:55:50
+    projectContainerJobRepresentation:
+      description: A sample response showing the status of the model publishing job.
+      value:
+        id: '1234'
+        sequence: 123456789
+        containerName: NewContainer1
+        status: QUEUED
+        statusMessage: The job is queued and waiting to be processed
+        createdBy: Mohammed Lee
+        creationTimeStamp: 2024/04/24 09:11:52
+        projectName: NewProject1
+        projectVersion:
+          major: 1
+          minor: 0
+        description: A description for the new project container
+        arch: x86_64
+        gpu:
+        - nvidia
+        - openvino
+        tags:
+        - user tag
+        - 0.1-2023.04-20241016.174207
+        targetRegistryName: registry3
+        targetRegistryPath: sas-esp-cr-app
+        sourceRegistryName: registry2
+        sourceRegistryPath: sas-esp-cr-base
+        archived: false
+    projectContainerRegistryRepresentation:
+      description: An example description of a container registry. The name is a unique
+        identifier for this registry.
+      value:
+        name: registry name
+        description: An example for a container registry.
+        url: https://example.url:4321
+        username: User name for the container registry
+        password: Password for the container registry
+    projectContainersNotEnabled:
+      description: An error response when functionality for project containers is
+        not enabled.
+      value:
+        errorCode: 5113
+        message: Functionality for project containers is not enabled.
+        details: []
+        version: 1
+        httpStatusCode: 503
+    resourceCollectionProjectContainerRegistryRepresentation:
+      description: This example shows a list that has two container registries, `ContainerRegistryA`
+        and `ContainerRegistryB`.
+      value:
+        name: items
+        accept: application/json
+        start: 0
+        count: 2
+        items:
+        - name: ContainerRegistryA
+          description: This is a registry for a project container
+          url: www.url.com
+          defaultRepository: /path/to/a/default/repository/
+        - name: ContainerRegistryB
+          description: This is a registry for a project container
+          url: www.url.com
+          defaultRepository: /path/to/a/default/repository/
+        limit: 50
+        version: 2
+    projectContainerCreateJobRequest:
+      description: A description of a job that creates a project container.
+      value:
+        projectName: An ESP project
+        projectVersionAndPromotionLevel:
+          version: 1
+          promotionLevel: 3
+        containerName: new_container_name
+        description: A description for the new project container
+        arch: x86_64
+        gpu:
+        - nvidia
+        - openvino
+        tags:
+        - latest
+        - '1'
+        targetRegistryName: registry 5
+        targetRegistryPath: sas-esp-cr-app
+        pathToProjectPackageDirectory: /mnt/data/path/aProjectName/0.1/home
+        includeTestFiles: false
+    resourceCollectionProjectContainerJobRepresentation:
+      description: A sample response for the jobs that are creating project containers.
+      value:
+        start: 0
+        limit: 50
+        count: 3
+        items:
+        - id: '0'
+          sequence: 0
+          containerName: A name for a project container
+          status: QUEUED
+          statusMessage: Not yet processed
+          createdBy: Mohammed Lee
+          creationTimeStamp: 2024/04/24 09:11:52
+          projectName: Project1
+          projectVersion:
+            major: 1
+            minor: 2
+          description: A description for the new project container
+          arch: x86_64
+          gpu:
+          - nvidia
+          - openvino
+          tags:
+          - user tag
+          - 0.1-2023.04-20241016.174207
+          targetRegistryName: registry 5
+          targetRegistryPath: sas-esp-cr-app
+          archived: false
+          podName: thePodName
+        - id: '1'
+          sequence: 0
+          containerName: A name for another project container
+          state: processing
+          status: Processing
+          createdBy: Maria Singh
+          creationTimeStamp: 2024/04/24 09:12:52
+          description: A description for another project container
+          projectName: Project2
+          projectVersion:
+            major: 1
+            minor: 4
+          arch: x86_64
+          gpu:
+          - nvidia
+          tags:
+          - another user tag
+          - more tags
+          - and more tags
+          - 0.1-2023.04-20241016.174207
+          targetRegistryName: registry 2
+          targetRegistryPath: sas-esp-cr-app
+          archived: false
+          podName: thePodName
+        - id: '2'
+          sequence: 0
+          containerName: A name for a third project container
+          state: pass
+          status: Container created
+          createdBy: Nushi Rodriguez
+          creationTimeStamp: 2024/04/24 09:13:52
+          description: A description for the third project container
+          projectName: Project3
+          projectVersion:
+            major: 2
+            minor: 2
+          arch: x86_64
+          gpu: []
+          tags:
+          - a third user tag
+          - 0.1-2023.04-20241016.174207
+          targetRegistryName: registry 3
+          targetRegistryPath: sas-esp-cr-app
+          archived: false
+          podName: thePodName
+        - id: '3'
+          sequence: 0
+          containerName: The name of an archived project container
+          state: fail
+          status: Container creation failed
+          createdBy: John Smith
+          creationTimeStamp: 2024/04/24 09:14:52
+          description: A description of a container job that has been archived
+          projectName: Project4
+          projectVersion:
+            major: 3
+            minor: 12
+          arch: x86_64
+          gpu: []
+          tags:
+          - 0.1-2023.04-20241016.174207
+          targetRegistryName: registry 1
+          targetRegistryPath: sas-esp-cr-app
+          archived: true
+          podName: thePodName
+        - id: '4'
+          sequence: 0
+          containerName: A name for a fifth project container
+          state: cancelled
+          status: Container creation cancelled
+          createdBy: Jane Jones
+          creationTimeStamp: 2024/04/24 09:15:52
+          description: A description for the fifth project container
+          projectName: Project99
+          projectVersion:
+            major: 1
+            minor: 3
+          arch: x86_64
+          gpu:
+          - nvidia
+          - openvino
+          tags:
+          - 0.1-2023.04-20241016.174207
+          targetRegistryName: registry 1
+          targetRegistryPath: sas-esp-cr-app
+          archived: false
+          podName: thePodName
+    projectContainerCreateJobPatchRepresentation:
+      description: A description of a job that is used to update a project container.
+      value:
+        archive: true
+    projectContainerImagePromoteOrDemoteTarget:
+      description: Details of the container image that is to be promoted or demoted
+        by one level.
+      value:
+        projectVersion: 2
+        promotionLevel: 3
+        dockerRegistryUrl: https://espcresm.azurecr.io,
+        dockerRepositoryName: sas-esp-cr-app/container_name-x86_64
+        imageTag: An-image_tag
+        notes: Optional notes for this promotion or demotion.
+    defaultImages:
+      description: Details about a file mounted on the pod.
+      value: |
+        "2026.09" : {
+          "x86_64" : {
+            "sas-esp-base" : "cr.sas.com/cdp-release-x64_oci_linux_2-docker-latest/sas-espcr-base:10.760.0-20250403.1743699475595",
+            "sas-espcr-components" : "cr.sas.com/cdp-release-x64_oci_linux_2-docker-latest/sas-espcr-components-x86_64:10.760.31-20250425.1745597972067",
+            "sas-event-stream-processing-server-app" : "cr.sas.com/cdp-release-x64_oci_linux_2-docker-latest/sas-event-stream-processing-server-app:10.758.25-20250423.1745415080365",
+            "sas-buildkit" : "cr.sas.com/cdp-release-x64_oci_linux_2-docker-latest/sas-buildkit:1.39.1-20250429.1745933583299"
+          },
+          "arm64" : {
+            "sas-esp-base" : null,
+            "sas-espcr-components" : "cr.sas.com/cdp-release-aarch64_oci_linux_2-docker-latest/sas-espcr-components-aarch64:10.760.31-20250425.1745597972066",
+            "sas-event-stream-processing-server-app" : null,
+            "sas-buildkit" : "cr.sas.com/cdp-release-aarch64_oci_linux_2-docker-latest/sas-buildkit:1.39.1-20250429.1745933583300"
+          }
+        }
+    resourceCollectionContainerImageData:
+      description: A sample response for the container images for a project.
+      value:
+        start: 0
+        limit: 50
+        count: 2
+        items:
+        - gitTagName: 1-2026.09-20250522.161540
+          status: VALIDATION_REQUIRED
+          dockerRegistryUrl: https://cr.sas.com
+          dockerRepositoryName: sas-espcr/project55-arm64:1-2026.09-20250522.161540
+          projectVersion: 1
+          promotionLevel: 3
+          description: Container image for v1.3 with an automatically generated image
+            tag
+          espVersion: "2026.09"
+          gpu:
+          - nvidia
+          - openvino
+          architecture: arm64
+        - gitTagName: user_defined_tag
+          status: VALID_IMAGE
+          dockerRegistryUrl: https://cr.sas.com
+          dockerRepositoryName: sas-espcr/project55-x86_64:user_defined_tag
+          projectVersion: 1
+          promotionLevel: 3
+          description: Container image for v1.3 with a user-provided tag
+          espVersion: "2026.09"
+          gpu:
+          - nvidia
+          - openvino
+          architecture: x86_64
+          registryAvailable: true
+    generateArmDependenciesRequest:
+      description: An example of a request to generate the Arm64 dependencies.
+      value:
+        espVersion: "2026.09"
+        targetRegistryName: registryName
+        targetRegistryPath: registryPath

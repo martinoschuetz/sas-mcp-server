@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Compute
-  version: "23"
+  version: "24"
   description: >
     The Compute API enables users to submit and execute SAS code using REST calls.
     Users can manage Compute contexts, create sessions, submit jobs, and access information
@@ -9857,6 +9857,12 @@ components:
           type: string
           readOnly: true
           description: Specifies an optional description for this server.
+        contextId:
+          type: string
+          description: The ID of the context for which this server was started.
+        contextName:
+          type: string
+          description: The name of the context for which this server was started.
         creationTimeStamp:
           type: string
           format: date-time
@@ -9870,10 +9876,6 @@ components:
           type: string
           readOnly: true
           description: Specifies the identifier for this server.
-        state:
-          type: string
-          description: Specifies the current state of this server. The current value
-            is running.
         links:
           type: array
           description: Specifies the links that apply to this server.
@@ -9917,8 +9919,12 @@ components:
           rel: delete
           href: /compute/servers/fc40be99-470c-4142-83c5-2ca7068f28bf
           uri: /compute/servers/fc40be99-470c-4142-83c5-2ca7068f28bf
-        contextName: MyApp
         id: fc40be99-470c-4142-83c5-2ca7068f28bf
+        version: 2
+        contextId: 12345678-1234-1234-1234-123456789012
+        contextName: MyApp
+        createdBy: sas.compute
+        creationTimeStamp: 2024-06-01T12:00:00Z
     serverSummary:
       title: SAS Compute Server Summary
       description: Provides a summary of a SAS Compute Server process that is currently
@@ -14187,57 +14193,40 @@ components:
         columnFormatting:
         - - name: sex
           - format: $GENDER6.
-    fileResource:
-      title: File Resource
-      description: An object representing a file
-      x-sas-media-type:
-        name: application/vnd.sas.file
-        version: 2
-      allOf:
-      - $ref: "#/components/schemas/trackedResource"
-      - type: object
-        properties:
-          parentUri:
-            type: string
-            description: URI of the object which is either associated or linked with
-              file resource
-          properties:
-            type: object
-            description: 'Properties specific to this file. Each property uses a "key"
-              : "value" format and a comma is used as the separator between properties.'
-            additionalProperties:
-              type: string
-          contentDisposition:
-            type: string
-            description: Value for Content Disposition header which will be set in
-              response while downloading the file
-          contentType:
-            type: string
-            description: Type of the content
-          description:
-            type: string
-            description: Description of the document
-          documentType:
-            type: string
-            description: Type of the document
-          encoding:
-            type: string
-            description: Encoding of the document
-          id:
-            type: string
-            description: Id of the file resource
-          links:
-            type: array
-            description: 'Links that apply to this object.  Includes "self", "content",
-              "patch", "update" and "delete"'
-            items:
-              $ref: "#/components/schemas/link"
-          name:
-            type: string
-            description: Name of the document
-          size:
-            type: integer
-            description: Byte size of the document content
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
     error2:
       title: Error
       type: object
@@ -14305,6 +14294,57 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/link"
+    fileResource:
+      title: File Resource
+      description: An object representing a file
+      x-sas-media-type:
+        name: application/vnd.sas.file
+        version: 2
+      allOf:
+      - $ref: "#/components/schemas/trackedResource"
+      - type: object
+        properties:
+          parentUri:
+            type: string
+            description: URI of the object which is either associated or linked with
+              file resource
+          properties:
+            type: object
+            description: 'Properties specific to this file. Each property uses a "key"
+              : "value" format and a comma is used as the separator between properties.'
+            additionalProperties:
+              type: string
+          contentDisposition:
+            type: string
+            description: Value for Content Disposition header which will be set in
+              response while downloading the file
+          contentType:
+            type: string
+            description: Type of the content
+          description:
+            type: string
+            description: Description of the document
+          documentType:
+            type: string
+            description: Type of the document
+          encoding:
+            type: string
+            description: Encoding of the document
+          id:
+            type: string
+            description: Id of the file resource
+          links:
+            type: array
+            description: 'Links that apply to this object.  Includes "self", "content",
+              "patch", "update" and "delete"'
+            items:
+              $ref: "#/components/schemas/link"
+          name:
+            type: string
+            description: Name of the document
+          size:
+            type: integer
+            description: Byte size of the document content
     link:
       title: Link
       type: object
@@ -14342,40 +14382,6 @@ components:
           type: string
           description: The media type or link type of the items in the response body
             for a `PUT`, `POST`, or `PATCH` operation.
-    baseCollection2:
-      title: Base Collection
-      description: This is a base schema used to define paginated collections of resources.
-        This base schema is extended by other schemas in APIs by adding an 'items'
-        array property. These extensions define the application/vnd.sas.collection
-        media type (version 2)
-      properties:
-        name:
-          type: string
-          description: The name of the collection.
-        start:
-          type: integer
-          description: The zero-based index of the first item in the collection.
-          format: int64
-        limit:
-          type: integer
-          description: The number of items that were requested for the collection.
-        count:
-          type: integer
-          description: If populated indicates the number of items in the collection.
-          format: int64
-        accept:
-          type: string
-          description: A space-delimited list of media types from which an `Accept`
-            header may be constructed.
-        links:
-          type: array
-          description: The links that apply to the collection.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the collection representation. This representation
-            is version 2.
     trackedResource:
       title: Tracked Resource
       type: object

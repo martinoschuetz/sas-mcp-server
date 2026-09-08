@@ -609,6 +609,8 @@ paths:
                       - decisions
                       - riskdataprojects
                       - riskmodels
+                      descriptions:
+                        datasets: The name of the dataset.
                       type: text
                     links:
                     - method: GET
@@ -9414,6 +9416,7 @@ paths:
                       - text
                       freeText: true
                       stageName: Name
+                      description: The name of the dataset.
                     resourceId:
                       representation:
                       - keyword
@@ -9443,24 +9446,6 @@ paths:
                       - keyword
                       freeText: true
                       facetDisplay: hidden
-                    topic:
-                      representation:
-                      - keyword
-                      freeText: true
-                      stageName: Topic
-                    topicKeywords:
-                      representation:
-                      - keyword
-                      - ngram
-                      - text
-                      freeText: true
-                      stageName: TopicKeywords
-                      suggestionsRepresentation: csv
-                    topicParent:
-                      representation:
-                      - keyword
-                      freeText: true
-                      stageName: TopicParent
                     type:
                       representation:
                       - keyword
@@ -14022,8 +14007,9 @@ paths:
       summary: Download data flow lineage as CSV
       description: |
         Downloads data flow lineage for a single data flow instance with a specific ID or URI, returned as CSV.
-        The `level` query parameter controls the level or degree of complexity of metadata to be included in the response.
-        Note: This is only available with the `DATAPREP-67225_LineageCSVExport` feature flag enabled.
+        The `level` query parameter controls the level of detail in the CSV. At `node` level, each row represents a lineage relationship at a flow step and includes flow, step, node, consuming dataset, providing dataset, purpose, and optionally transformation details. At `flow` level, intermediate nodes and step metadata are removed and each row represents a unique providing-column-to-consuming-column lineage path.
+        The request body can contain `filters` to restrict the lineage walk to one or more datasets. Each filter requires a dataset in `<library>.<table>` format. If `columns` is omitted or empty, all columns in that dataset are included; otherwise only the named columns are used as lineage inputs.
+        The `includeControlDependencies` option includes control-dependency rows in the CSV. It does not add columns. The `includeTransformationDetails` option applies only at `node` level and adds the `Details` column containing transformation expressions.
       tags:
       - Lineage
       parameters:
@@ -14033,14 +14019,16 @@ paths:
       - $ref: "#/paths/~1lineage/get/parameters/3"
       - name: level
         in: query
-        description: The level or degree of complexity of metadata to be included.
+        description: The level of detail to include in the CSV. `node` emits one row
+          per lineage relationship at a flow step. `flow` collapses intermediate steps
+          into providing-column-to-consuming-column paths.
         schema:
           type: string
           format: enumeration
           enum:
-          - NODE
-          - FLOW
-          default: NODE
+          - node
+          - flow
+          default: node
       - name: delimiter
         in: query
         description: |
@@ -14076,6 +14064,8 @@ paths:
               type: object
               properties:
                 filters:
+                  description: "Restricts the lineage walk to the listed datasets\
+                    \ and, when specified, columns."
                   type: array
                   items:
                     type: object
@@ -14086,21 +14076,30 @@ paths:
                         type: string
                         description: Dataset in `<library>.<table>` format.
                       columns:
+                        description: "Columns to use as lineage inputs. If omitted\
+                          \ or empty, all columns in the dataset are included."
                         type: array
                         items:
                           type: string
                 options:
+                  description: Controls which rows or columns are included in the
+                    CSV.
                   type: object
                   properties:
                     includeControlDependencies:
                       type: boolean
+                      description: Includes control-dependency rows. This does not
+                        change the CSV columns.
                     includeTransformationDetails:
                       type: boolean
+                      description: "At `node` level, adds the `Details` column containing\
+                        \ transformation expressions. This option has no effect at\
+                        \ `flow` level."
             examples:
               Lineage Download Request:
                 summary: Lineage Download Request
-                description: Request to export data flow lineage as CSV using NODE
-                  level.
+                description: Request to export data flow lineage as CSV using node
+                  level with transformation details.
                 value:
                   filters:
                   - dataset: SASHELP.CLASS
@@ -14133,35 +14132,36 @@ paths:
               schema:
                 type: string
               examples:
-                Lineage Download - NODE:
-                  summary: Lineage Download Response - NODE
-                  description: NODE-level CSV output for a single data flow with transformation
-                    details included. Filtered to include lineage for the Height and
-                    Weight columns of the SASHELP.CLASS dataset and Upper and Lower
-                    columns of the SASHELP.CLASSFIT dataset.
-                  value: "Flow Name,Swimlane,Step Priority,Output Port,Node Name,Node\
-                    \ Type,Node Identifier,Consuming Dataset Name,Consuming Attribute\
-                    \ Table Name,Consuming Attribute Column Name,Passthrough Flag,Providing\
-                    \ Dataset Name,Providing Attribute Table Name,Providing Attribute\
-                    \ Column Name,Purpose,Details MDM_Sample.flw,0,0,0,Calculate BMI,Query,b877b67c-7513-4b03-af2f-1715630914a9,WORK,CLASS_ENRICHED,Height,true,SASHELP,CLASS,Height,Use-as-is,\
-                    \ MDM_Sample.flw,0,0,0,Calculate BMI,Query,b877b67c-7513-4b03-af2f-1715630914a9,WORK,CLASS_ENRICHED,BMI,false,SASHELP,CLASS,Height,Directly\
-                    \ used in the computation of a measure,t1.Height/t1.Weight MDM_Sample.flw,0,0,0,Calculate\
-                    \ BMI,Query,b877b67c-7513-4b03-af2f-1715630914a9,WORK,CLASS_ENRICHED,Weight,true,SASHELP,CLASS,Weight,Use-as-is,\
-                    \ MDM_Sample.flw,0,0,0,Calculate BMI,Query,b877b67c-7513-4b03-af2f-1715630914a9,WORK,CLASS_ENRICHED,BMI,false,SASHELP,CLASS,Weight,Directly\
-                    \ used in the computation of a measure,t1.Height/t1.Weight MDM_Sample.flw,0,1,0,Query\
-                    \ Bigger 12 years,Query,250e2486-87c9-4215-8308-48d588d8307a,TRGLIB,MyCLASS,Range,false,SASHELP,CLASSFIT,lower,Directly\
-                    \ used in the computation of a measure,t2.'upper'n-t2.'lower'n\
-                    \ MDM_Sample.flw,0,1,0,Query Bigger 12 years,Query,250e2486-87c9-4215-8308-48d588d8307a,TRGLIB,MyCLASS,BMI,true,WORK,CLASS_ENRICHED,BMI,Use-as-is,\
-                    \ MDM_Sample.flw,0,1,0,Query Bigger 12 years,Query,250e2486-87c9-4215-8308-48d588d8307a,TRGLIB,MyCLASS,Range,false,SASHELP,CLASSFIT,upper,Directly\
-                    \ used in the computation of a measure,t2.'upper'n-t2.'lower'n\
-                    \ MDM_Sample.flw,0,2,0,Manage Columns,Manage Columns,c60042a3-1fb6-4ed5-92f9-c07987929bad,WORK,_Manage\
-                    \ Columns,BMI,true,TRGLIB,MYCLASS,BMI,Use-as-is, MDM_Sample.flw,0,2,0,Manage\
-                    \ Columns,Manage Columns,c60042a3-1fb6-4ed5-92f9-c07987929bad,WORK,_Manage\
-                    \ Columns,Range,true,TRGLIB,MYCLASS,Range,Use-as-is, MDM_Sample.flw,0,3,0,Query\
-                    \ Sex ,Query,47b48d43-b2fb-422d-823f-b0dcabbb5e82,TRGLIB,MyClassStats,AVG_BMI,false,WORK,_Manage\
-                    \ Columns,BMI,Directly used in the computation of a measure, MDM_Sample.flw,0,3,0,Query\
-                    \ Sex ,Query,47b48d43-b2fb-422d-823f-b0dcabbb5e82,TRGLIB,MyClassStats,AVG_Range,false,WORK,_Manage\
-                    \ Columns,Range,Directly used in the computation of a measure,"
+                Lineage Download - node:
+                  summary: Lineage Download Response - node
+                  description: Node-level CSV output for a single data flow with transformation
+                    details included. The filter selects Height and Weight from SASHELP.CLASS
+                    and Upper and Lower from SASHELP.CLASSFIT. The Details column
+                    is present because includeTransformationDetails is true.
+                  value: |-
+                    Flow Name,Swimlane,Step Priority,Output Port,Node Name,Node Type,Node Identifier,Consuming Library,Consuming Table,Consuming Column,Passthrough Flag,Providing Library,Providing Table,Providing Column,Purpose,Details
+                    MDM_Sample.flw,0,0,0,Calculate BMI,Query,b877b67c-7513-4b03-af2f-1715630914a9,WORK,CLASS_ENRICHED,Height,true,SASHELP,CLASS,Height,Use-as-is,
+                    MDM_Sample.flw,0,0,0,Calculate BMI,Query,b877b67c-7513-4b03-af2f-1715630914a9,WORK,CLASS_ENRICHED,BMI,false,SASHELP,CLASS,Height,Directly used in the computation of a measure,t1.Height/t1.Weight
+                    MDM_Sample.flw,0,0,0,Calculate BMI,Query,b877b67c-7513-4b03-af2f-1715630914a9,WORK,CLASS_ENRICHED,Weight,true,SASHELP,CLASS,Weight,Use-as-is,
+                    MDM_Sample.flw,0,0,0,Calculate BMI,Query,b877b67c-7513-4b03-af2f-1715630914a9,WORK,CLASS_ENRICHED,BMI,false,SASHELP,CLASS,Weight,Directly used in the computation of a measure,t1.Height/t1.Weight
+                    MDM_Sample.flw,0,1,0,Query Bigger 12 years,Query,250e2486-87c9-4215-8308-48d588d8307a,TRGLIB,MyCLASS,Range,false,SASHELP,CLASSFIT,lower,Directly used in the computation of a measure,t2.'upper'n-t2.'lower'n
+                    MDM_Sample.flw,0,1,0,Query Bigger 12 years,Query,250e2486-87c9-4215-8308-48d588d8307a,TRGLIB,MyCLASS,BMI,true,WORK,CLASS_ENRICHED,BMI,Use-as-is,
+                    MDM_Sample.flw,0,1,0,Query Bigger 12 years,Query,250e2486-87c9-4215-8308-48d588d8307a,TRGLIB,MyCLASS,Range,false,SASHELP,CLASSFIT,upper,Directly used in the computation of a measure,t2.'upper'n-t2.'lower'n
+                    MDM_Sample.flw,0,2,0,Manage Columns,Manage Columns,c60042a3-1fb6-4ed5-92f9-c07987929bad,WORK,_Manage Columns,BMI,true,TRGLIB,MYCLASS,BMI,Use-as-is,
+                    MDM_Sample.flw,0,2,0,Manage Columns,Manage Columns,c60042a3-1fb6-4ed5-92f9-c07987929bad,WORK,_Manage Columns,Range,true,TRGLIB,MYCLASS,Range,Use-as-is,
+                    MDM_Sample.flw,0,3,0,Query Sex ,Query,47b48d43-b2fb-422d-823f-b0dcabbb5e82,TRGLIB,MyClassStats,AVG_BMI,false,WORK,_Manage Columns,BMI,Directly used in the computation of a measure,
+                    MDM_Sample.flw,0,3,0,Query Sex ,Query,47b48d43-b2fb-422d-823f-b0dcabbb5e82,TRGLIB,MyClassStats,AVG_Range,false,WORK,_Manage Columns,Range,Directly used in the computation of a measure,
+                Lineage Download - flow:
+                  summary: Lineage Download Response - flow
+                  description: Flow-level CSV output for a single data flow. Flow-level
+                    output removes node-specific columns and contains one row for
+                    each providing-column-to-consuming-column lineage path.
+                  value: |-
+                    Flow Name,Swimlane,Step Priority,Output Port,Consuming Library,Consuming Table,Consuming Column,Passthrough Flag,Providing Library,Providing Table,Providing Column,Purpose
+                    MDM_Sample.flw,0,0,0,WORK,CLASS_ENRICHED,Height,true,SASHELP,CLASS,Height,Use-as-is
+                    MDM_Sample.flw,0,0,0,WORK,CLASS_ENRICHED,BMI,false,SASHELP,CLASS,Height,Directly used in the computation of a measure
+                    MDM_Sample.flw,0,0,0,WORK,CLASS_ENRICHED,Weight,true,SASHELP,CLASS,Weight,Use-as-is
+                    MDM_Sample.flw,0,0,0,WORK,CLASS_ENRICHED,BMI,false,SASHELP,CLASS,Weight,Directly used in the computation of a measure
         "400":
           $ref: "#/paths/~1mcp/post/responses/400"
         "401":
@@ -15163,6 +15163,12 @@ components:
           type: array
           items:
             type: string
+        descriptions:
+          description: |
+            A map of index names to descriptions for this facet. This allows for different indices to provide different descriptions for the same facet.
+          type: object
+          additionalProperties:
+            type: string
         type:
           description: |
             The data type defined in the index or indices listed.
@@ -15961,6 +15967,9 @@ components:
                 description: |
                   The fully-qualified path to the facet that the property values should be copied to. The path should include only dot-separated facet names, not stage names.
                 type: string
+              description:
+                description: A description of the property in the search index.
+                type: string
               additionalFacets:
                 description: A list of additional facets that will be searchable for
                   this property.
@@ -15992,6 +16001,9 @@ components:
               name:
                 description: the name of the relationship within the index definition.
                 type: string
+              description:
+                description: a description of the relationship within the index definition.
+                type: string
               inverse:
                 description: "if true, indicates the search index traverses the relationship\
                   \ from endpoint 2 to endpoint 1; otherwise, the search index traverses\
@@ -16018,6 +16030,9 @@ components:
                 properties:
                   name:
                     description: The name of the peer in the search index.
+                    type: string
+                  description:
+                    description: A description of the peer in the search index.
                     type: string
                   typeDefinition:
                     description: the name of the type definition for this part of
@@ -16072,6 +16087,9 @@ components:
               name:
                 description: |
                   The name of the tag in the search index. Must be unique across the set of property names for the object where it appears.
+                type: string
+              description:
+                description: A description of the tag in the search index.
                 type: string
               stageName:
                 description: The name that is searchable for this object. Required

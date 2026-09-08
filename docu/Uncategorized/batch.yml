@@ -1462,6 +1462,11 @@ components:
             description: Flag indicating whether XCMD is allowed in this context.
               Allowed in version 4 and later of the context.
             example: true
+          enableAllowedPaths:
+            type: boolean
+            description: Flag indicating whether data-sources allowed-path processing
+              is enabled in this context. Allowed in version 5 and later of the context.
+            example: true
           isMultiServer:
             type: boolean
             description: Flag indicating that this context is for a reusable Batch
@@ -1542,7 +1547,7 @@ components:
             description: Specifies the version number of this representation schema.
               This is version 1.
             minimum: 1
-            maximum: 4
+            maximum: 5
     contextCollection:
       title: Batch Context Collection
       description: Provides an array of context-information objects that satisfies
@@ -1577,6 +1582,11 @@ components:
           type: boolean
           description: Flag indicating whether XCMD is allowed in this context. Allowed
             in version 4 and later of the context.
+          example: true
+        enableAllowedPaths:
+          type: boolean
+          description: Flag indicating whether data-sources allowed-path processing
+            is enabled in this context. Allowed in version 5 and later of the context.
           example: true
         launcherContextId:
           type: string
@@ -1616,7 +1626,7 @@ components:
           description: Specifies the version number of this representation schema.
             This is version 1.
           minimum: 1
-          maximum: 4
+          maximum: 5
     contextMultipartFormData:
       title: Batch Context Import Create Request
       description: Provides information to create a Batch context through the transfer
@@ -1667,6 +1677,10 @@ components:
                   type: string
                 allowXcmd:
                   description: Flag indicating whether XCMD is allowed in this context
+                  type: boolean
+                enableAllowedPaths:
+                  description: Flag indicating whether data-sources allowed-path processing
+                    is enabled in this context
                   type: boolean
             links:
               description: Specifies links that apply to the context.
@@ -2369,73 +2383,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/link"
-    api:
-      title: API
-      description: The list of links to top-level resources and operations available
-        from the root of the API.
-      x-sas-media-type:
-        name: application/vnd.sas.api
-        version: 1
-      required:
-      - version
-      - links
-      properties:
-        version:
-          type: integer
-          description: The version number of the API representation. This is version
-            1.
-          minimum: 1
-        links:
-          description: The API's top-level links.
-          type: array
-          items:
-            $ref: "#/components/schemas/link"
-    error2:
-      title: Error
-      type: object
-      description: The representation of an error.
-      x-sas-media-type:
-        name: application/vnd.sas.error
-        version: 2
-      required:
-      - httpStatusCode
-      - version
-      properties:
-        message:
-          type: string
-          description: The message for the error.
-        id:
-          type: string
-          description: The string ID for the error.
-        errorCode:
-          type: integer
-          description: The numeric ID for the error.
-        httpStatusCode:
-          type: integer
-          description: The HTTP status code for the error.
-        details:
-          type: array
-          description: Messages that provide additional details about the cause of
-            the error.
-          items:
-            type: string
-        remediation:
-          type: string
-          description: A message that describes how to resolve the error.
-        errors:
-          type: array
-          description: Any additional errors that occurred.
-          items:
-            $ref: "#/components/schemas/error2"
-        links:
-          type: array
-          description: The links that apply to the error.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the error representation. This representation
-            is version 2.
     transferObjectConnector:
       title: Transfer Object Connector
       description: Content providers implementing the Transfer Object Provider contract
@@ -2472,27 +2419,6 @@ components:
             in the target system
           items:
             type: string
-    trackedResource:
-      title: Tracked Resource
-      type: object
-      description: This class is used to provide common attributes and behaviors around
-        tracking who and when objects were created and modified to representation
-        objects.
-      properties:
-        createdBy:
-          type: string
-          description: The username of whoever created the resource.
-        modifiedBy:
-          type: string
-          description: The username of whoever last modified the resource.
-        creationTimeStamp:
-          type: string
-          format: date-time
-          description: The timestamp for when the resource was created.
-        modifiedTimeStamp:
-          type: string
-          format: date-time
-          description: The timestamp for when the resource was last modified.
     baseCollection2:
       title: Base Collection
       description: This is a base schema used to define paginated collections of resources.
@@ -2564,6 +2490,52 @@ components:
           type: string
           description: The media type or link type of the items in the response body
             for a `PUT`, `POST`, or `PATCH` operation.
+    error2:
+      title: Error
+      type: object
+      description: The representation of an error.
+      x-sas-media-type:
+        name: application/vnd.sas.error
+        version: 2
+      required:
+      - httpStatusCode
+      - version
+      properties:
+        message:
+          type: string
+          description: The message for the error.
+        id:
+          type: string
+          description: The string ID for the error.
+        errorCode:
+          type: integer
+          description: The numeric ID for the error.
+        httpStatusCode:
+          type: integer
+          description: The HTTP status code for the error.
+        details:
+          type: array
+          description: Messages that provide additional details about the cause of
+            the error.
+          items:
+            type: string
+        remediation:
+          type: string
+          description: A message that describes how to resolve the error.
+        errors:
+          type: array
+          description: Any additional errors that occurred.
+          items:
+            $ref: "#/components/schemas/error2"
+        links:
+          type: array
+          description: The links that apply to the error.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the error representation. This representation
+            is version 2.
     summary:
       title: Resource Summary
       type: object
@@ -2614,6 +2586,48 @@ components:
           type: integer
           description: The version number of the resource. This representation is
             version 1.
+    trackedResource:
+      title: Tracked Resource
+      type: object
+      description: This class is used to provide common attributes and behaviors around
+        tracking who and when objects were created and modified to representation
+        objects.
+      properties:
+        createdBy:
+          type: string
+          description: The username of whoever created the resource.
+        modifiedBy:
+          type: string
+          description: The username of whoever last modified the resource.
+        creationTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for when the resource was created.
+        modifiedTimeStamp:
+          type: string
+          format: date-time
+          description: The timestamp for when the resource was last modified.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
   responses:
     Redirect304:
       description: The caller has the most current resource.
@@ -3099,6 +3113,7 @@ components:
       description: Example context returned in responses.
       value:
         allowXcmd: true
+        enableAllowedPaths: true
         createdBy: sas.batch
         creationTimeStamp: "2022-06-13T11:37:08.210222Z"
         description: Default Batch Context
@@ -3132,7 +3147,7 @@ components:
         runServerAs: "myServiceAcct"
         sasOptions: "-memsize 2048"
         serverTimeout: 600
-        version: 4
+        version: 5
     contextCollection:
       summary: Example Context Collection
       description: Example of a SAS collection object full of Batch contexts.
@@ -3145,6 +3160,7 @@ components:
           description: Default Batch Context for commands
           id: 83e4801d-8bc2-4a6e-aaa1-a11f68985798
           allowXcmd: true
+          enableAllowedPaths: true
           isMultiServer: true
           launcherContextId: d9a8437d-7f6b-4fbd-ae84-938d83cb096c
           links:
@@ -3174,12 +3190,13 @@ components:
           runServerAs: "myServiceAcct"
           sasOptions: ""
           serverTimeout: 600
-          version: 4
+          version: 5
         - createdBy: sas.batch
           creationTimeStamp: "2022-06-13T11:37:08.210222Z"
           description: Default Batch Context
           id: 6794ba8a-6aff-4989-ae77-93f67286aea2
           allowXcmd: false
+          enableAllowedPaths: false
           isMultiServer: false
           launcherContextId: 01a0ce1b-a704-4fd9-8475-11ec1e746a22
           links:
@@ -3209,7 +3226,7 @@ components:
           runServerAs: ""
           sasOptions: "-memsize 2048"
           serverTimeout: 300
-          version: 4
+          version: 5
         limit: 10
         links:
         - method: GET
@@ -3232,6 +3249,7 @@ components:
       description: Example of a request body to create a context.
       value:
         allowXcmd: true
+        enableAllowedPaths: true
         description: Context for High Priority Jobs
         isMultiServer: true
         launcherContextId: 9087b3f5-aced-4aa0-a491-b9d33ce197c2
@@ -3244,7 +3262,7 @@ components:
         runServerAs: "myServiceAcct"
         sasOptions: "-memsize 0"
         serverTimeout: 600
-        version: 4
+        version: 5
     contextTransferObject:
       summary: Example Batch Context Transfer Object
       description: Example of the object used to export and import a context through
@@ -3304,6 +3322,7 @@ components:
         type: batchContext
         properties:
           allowXcmd: true
+          enableAllowedPaths: true
           description: Default Batch Context
           launcherContextName: SAS Batch2 service launcher context
           name: Test Batch Create Context
