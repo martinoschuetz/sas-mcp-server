@@ -8398,11 +8398,6 @@ components:
           description: Indicates whether the model is an ASTORE model, which is determined
             by checking for the presence of the AstoreMetadata.json file. This property
             is included only when the value of the `expand` parameter is "astore".
-        credentialDomainId:
-          type: string
-          description: The ID of a credential domain that stores the API credentials
-            for this model.
-          x-sas-internal: true
         version:
           type: integer
           description: The model representation version. The version is 2.
@@ -9247,6 +9242,10 @@ components:
           type: string
           description: The fit state of the model (for example, underfit, fit, or
             overfit).
+        dataRole:
+          type: string
+          enum: [validate, test]
+          description: The data partition used for comparison with the training data.
     variableImportanceCollection:
       title: Collection of Variable Importances
       description: Contains importance of model variables.
@@ -9541,6 +9540,77 @@ components:
           description: The addresses for the user.
           items:
             $ref: "#/components/schemas/address"
+    link:
+      title: Link
+      type: object
+      description: A link to a related operation or resource.
+      required:
+      - rel
+      properties:
+        method:
+          type: string
+          description: The HTTP method for the link.
+        rel:
+          type: string
+          description: The relationship of the link to the resource.
+        uri:
+          type: string
+          description: The relative URI for the link.
+        href:
+          type: string
+          description: The URL for the link.
+        title:
+          type: string
+          description: The title for the link.
+        type:
+          type: string
+          description: The media type or link type for the link.
+        itemType:
+          type: string
+          description: If this is a link to a container, `itemType` is the media type
+            or link type for the items in the container.
+        responseType:
+          type: string
+          description: The media type or link type of the response body for a `PUT`,
+            `POST`, or `PATCH` operation.
+        responseItemType:
+          type: string
+          description: The media type or link type of the items in the response body
+            for a `PUT`, `POST`, or `PATCH` operation.
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
     error2:
       title: Error
       type: object
@@ -9587,43 +9657,6 @@ components:
           type: integer
           description: The version number of the error representation. This representation
             is version 2.
-    link:
-      title: Link
-      type: object
-      description: A link to a related operation or resource.
-      required:
-      - rel
-      properties:
-        method:
-          type: string
-          description: The HTTP method for the link.
-        rel:
-          type: string
-          description: The relationship of the link to the resource.
-        uri:
-          type: string
-          description: The relative URI for the link.
-        href:
-          type: string
-          description: The URL for the link.
-        title:
-          type: string
-          description: The title for the link.
-        type:
-          type: string
-          description: The media type or link type for the link.
-        itemType:
-          type: string
-          description: If this is a link to a container, `itemType` is the media type
-            or link type for the items in the container.
-        responseType:
-          type: string
-          description: The media type or link type of the response body for a `PUT`,
-            `POST`, or `PATCH` operation.
-        responseItemType:
-          type: string
-          description: The media type or link type of the items in the response body
-            for a `PUT`, `POST`, or `PATCH` operation.
     api:
       title: API
       description: The list of links to top-level resources and operations available
@@ -9645,43 +9678,238 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/link"
-    baseCollection2:
-      title: Base Collection
-      description: This is a base schema used to define paginated collections of resources.
-        This base schema is extended by other schemas in APIs by adding an 'items'
-        array property. These extensions define the application/vnd.sas.collection
-        media type (version 2)
-      properties:
-        name:
-          type: string
-          description: The name of the collection.
-        start:
-          type: integer
-          description: The zero-based index of the first item in the collection.
-          format: int64
-        limit:
-          type: integer
-          description: The number of items that were requested for the collection.
-        count:
-          type: integer
-          description: If populated indicates the number of items in the collection.
-          format: int64
-        accept:
-          type: string
-          description: A space-delimited list of media types from which an `Accept`
-            header may be constructed.
-        links:
-          type: array
-          description: The links that apply to the collection.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the collection representation. This representation
-            is version 2.
   examples:
-    getModelUserProperties:
-      description: The response showing all user-defined properties for a model.
+    getClassificationMatrix:
+      description: The response for retrieving the misclassification metrics for a
+        model.
+      value:
+        validateEventCorrect: 1293
+        validateEventIncorrect: 1059
+        validateNonEventCorrect: 6838
+        validateNonEventIncorrect: 578
+        trainEventCorrect: 2595
+        trainEventIncorrect: 2110
+        trainNonEventCorrect: 13717
+        trainNonEventIncorrect: 1115
+        testEventCorrect: 456
+        testEventIncorrect: 328
+        testNonEventCorrect: 2282
+        testNonEventIncorrect: 190
+        event: "1"
+        nEvent: "0"
+    getLiftData:
+      description: The response for retrieving the lift statistics for a model.
+      value:
+        depth:
+        - "0"
+        - "5"
+        - "10"
+        - "15"
+        - "20"
+        - "25"
+        - "30"
+        - "35"
+        - "40"
+        - "45"
+        - "50"
+        - "55"
+        - "60"
+        - "65"
+        - "70"
+        - "75"
+        - "80"
+        - "85"
+        - "90"
+        - "95"
+        - "100"
+        meanP:
+        - "0.1"
+        - "0.2"
+        - "0.3"
+        - "0.4"
+        - "0.5"
+        - "0.6"
+        - "0.65"
+        - "0.7"
+        - "0.75"
+        - "0.8"
+        - "0.82"
+        - "0.85"
+        - "0.87"
+        - "0.9"
+        - "0.92"
+        - "0.94"
+        - "0.95"
+        - "0.96"
+        - "0.97"
+        - "0.98"
+        meanT:
+        - "0.05"
+        - "0.1"
+        - "0.15"
+        - "0.2"
+        - "0.25"
+        - "0.3"
+        - "0.35"
+        - "0.4"
+        - "0.45"
+        - "0.5"
+        - "0.55"
+        - "0.6"
+        - "0.65"
+        - "0.7"
+        - "0.75"
+        - "0.8"
+        - "0.85"
+        - "0.88"
+        - "0.9"
+        - "0.95"
+    getMetrics:
+      description: The response for retrieving the test, training, and validation
+        metrics for a model.
+      value:
+        test:
+          ase:
+            label: "Average Squared Error"
+            value: 0.08643169
+          c:
+            label: "Area Under ROC"
+            value: 0.8716732
+          div:
+            label: "Divisor for ASE"
+            value: 239
+          gamma:
+            label: "Gamma"
+            value: 0.9210704
+          gini:
+            label: "Gini Coefficient"
+            value: 0.7433464
+          ksPostCutoff:
+            label: "ROC Separation"
+            value: 0.5725349
+          ks:
+            label: "KS (Youden)"
+            value: 0.70778793
+          mce:
+            label: "Misclassification Rate"
+            value: 0.12970711
+          mcll:
+            label: "Multi-Class Log Loss"
+            value: 0.28689444
+          rase:
+            label: "Root Average Squared Error"
+            value: 0.29399267
+          tau:
+            label: "Tau"
+            value: 0.23961885
+          miscEvent: {}
+          miscKS: {}
+          mae: {}
+          msle: {}
+          rmae: {}
+          rmsle: {}
+          rsquare: {}
+        train:
+          ase:
+            label: "Average Squared Error"
+            value: 0.08137366
+          c:
+            label: "Area Under ROC"
+            value: 0.86371505
+          div:
+            label: "Divisor for ASE"
+            value: 1428
+          gamma:
+            label: "Gamma"
+            value: 0.9257925
+          gini:
+            label: "Gini Coefficient"
+            value: 0.7274301
+          ksPostCutoff:
+            label: "ROC Separation"
+            value: 0.62380624
+          ks:
+            label: "KS (Youden)"
+            value: 0.68097806
+          mce:
+            label: "Misclassification Rate"
+            value: 0.10294118
+          mcll:
+            label: "Multi-Class Log Loss"
+            value: 0.28336373
+          rase:
+            label: "Root Average Squared Error"
+            value: 0.28526068
+          tau:
+            label: "Tau"
+            value: 0.23257348
+          miscEvent: {}
+          miscKS: {}
+          mae: {}
+          msle: {}
+          rmae: {}
+          rmsle: {}
+          rsquare: {}
+        validate:
+          ase:
+            label: "Average Squared Error"
+            value: 0.10035806
+          c:
+            label: "Area Under ROC"
+            value: 0.8248931
+          div:
+            label: "Divisor for ASE"
+            value: 714
+          gamma:
+            label: "Gamma"
+            value: 0.88086265
+          gini:
+            label: "Gini Coefficient"
+            value: 0.6497863
+          ksPostCutoff:
+            label: "ROC Separation"
+            value: 0.5558277
+          ks:
+            label: "KS (Youden)"
+            value: 0.60817116
+          mce:
+            label: "Misclassification Rate"
+            value: 0.12885155
+          mcll:
+            label: "Multi-Class Log Loss"
+            value: 0.45096636
+          rase:
+            label: "Root Average Squared Error"
+            value: 0.3167934
+          tau:
+            label: "Tau"
+            value: 0.20844187
+          miscEvent: {}
+          miscKS: {}
+          mae: {}
+          msle: {}
+          rmae: {}
+          rmsle: {}
+          rsquare: {}
+    fileRelativeImportanceNotFoundError:
+      description: The response for when the variable relative importance file (dmcas_relativeimportance.json)
+        does not exist.
+      value:
+        version: 2
+        httpStatusCode: 404
+        message: "Not Found"
+        details:
+        - "File not found. ID: , Name: dmcas_relativeimportance.json"
+        - "path: /modelRepository/models/2a655f00-7061-4dfb6d1187d88/fairnessMetrics"
+        - "correlator: 2f58aae4-dcbd-4297-ae1f-dd72d0deac52"
+    preconditionFailed:
+      description: The `If-Match` request header did not match the resource's entity
+        tag.
+      value:
+        version: 2
+        httpStatusCode: 412
+    getProjectUserProperties:
+      description: The response showing all user-defined properties for a project.
       value:
         version: 2
         accept: "application/json"
@@ -9705,418 +9933,55 @@ components:
         links:
         - method: "GET"
           rel: "collection"
-          href: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
-          uri: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
+          href: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
+          uri: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
           type: "application/vnd.sas.collection"
           itemType: "application/json"
         - method: "GET"
           rel: "next"
-          href: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=20&limit=20&filter=eq%28modelId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
-          uri: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=20&limit=20&filter=eq%28modelId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
+          href: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=20&limit=20&filter=eq%28projectId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
+          uri: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=20&limit=20&filter=eq%28projectId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
           type: "application/vnd.sas.collection"
           itemType: "application/json"
         - method: "GET"
           rel: "self"
-          href: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=0&limit=20&filter=eq%28modelId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
-          uri: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=0&limit=20&filter=eq%28modelId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
+          href: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=0&limit=20&filter=eq%28projectId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
+          uri: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=0&limit=20&filter=eq%28projectId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
           type: "application/vnd.sas.collection"
           itemType: "application/json"
         - method: "POST"
           rel: "create"
-          href: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
-          uri: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
+          href: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
+          uri: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
           type: "application/json"
-    getModelVersionListResponse:
-      description: The response for retrieving all model versions.
+    getModelHealthMetrics:
+      description: The response for retrieving the training health metrics for a model.
       value:
-        version: 2
-        count: 13
-        start: 0
-        limit: 13
-        name: versions
         items:
-        - creationTimeStamp: 2023-08-07T14:40:58.979000Z
-          createdBy: sasdemo
-          modifiedTimeStamp: 2023-08-07T16:40:08.568000Z
-          modifiedBy: sasdemo
-          id: 01508e8d-a6e2-40b9-b955-58f48e1b1604
-          name: QS_Reg1
-          description: Logistic Regression
-          role: champion
-          scoreCodeType: dataStep
-          algorithm: logisticreg
-          function: classification
-          modeler: sasdemo
-          modelType: dataStep
-          trainTable: /dataTables/dataSources/cas/cas-shared-default/Public/tables/HMEQ_TRAIN
-          eventProbVar: EM_EVENTPROBABILITY
-          targetVariable: BAD
-          targetEvent: "1"
-          targetLevel: binary
-          tool: Model Studio
-          toolVersion: 8.3
-          publishTimeStamp: 1691426404971
-          externalModelId: 407fbf89-7085-49c3-811a-7f5d912e4676
-          indirectFolderId: f26f68e5-09ff-4880-8e3e-5c84c31a67b1
-          repositoryId: 8153f0d3-8b87-4415-b66d-537c70e3600b
-          projectId: b38d3663-0187-4690-84f9-56a973e0e6b1
-          projectVersionId: d8c79ea9-5ed8-46a0-b1d7-d9cfe0b20188
-          immutable: false
-          folderRef: /folders/folders/a354fb9f-6dc9-4844-93ae-30aa9dd7e10c
-          location: /Model Repositories/Public/publish delete/Version 1
-          modelVersionName: "12.0"
-          projectName: publish delete
-          projectVersionName: Version 1
-          projectVersionNum: 1.0
-          files:
-          - creationTimeStamp: 2023-08-07T14:40:59.519645Z
-            createdBy: anonymous
-            modifiedTimeStamp: 2023-08-07T14:40:59.519646Z
-            modifiedBy: anonymous
-            version: 2
-            id: 37cd93c8-b7a8-4c75-b920-f5d27486fac9
-            name: ModelProperties.json
-            fileUri: /files/files/0138bd91-f905-4100-836d-32a4090ec45c
-            modelId: 01508e8d-a6e2-40b9-b955-58f48e1b1604
-            links:
-            - method: GET
-              rel: UP
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
-              itemType: application/vnd.sas.models.model.content
-            - method: GET
-              rel: self
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
-              type: application/vnd.sas.models.model.content
-            - method: GET
-              rel: content
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9/content
-              type: application/octet-stream
-            - method: POST
-              rel: create
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
-              type: multipart/form-data
-            - method: PUT
-              rel: update
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
-              type: application/vnd.sas.models.model.content
-            - method: PUT
-              rel: updateContentMultipart
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
-              type: application/vnd.sas.models.model.content
-            - method: DELETE
-              rel: delete
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
-          inputVariables:
-          - creationTimeStamp: 2023-08-07T14:41:01.946216Z
-            createdBy: anonymous
-            modifiedTimeStamp: 2023-08-07T14:43:36.218739Z
-            name: CLNO
-            description: ""
-            role: input
-            type: decimal
-            level: interval
-            format: ""
-            aggregation: ""
-            length: 8
-            tableName: HMEQ_TRAIN
-            id: 3ddb478f-f900-4c9f-bfa9-941d89e15e42
-            holderId: 01508e8d-a6e2-40b9-b955-58f48e1b1604
-            links:
-            - method: GET
-              rel: up
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables
-              type: application/vnd.sas.collection
-            - method: GET
-              rel: self
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
-              type: application/vnd.sas.models.model.variable
-            - method: PUT
-              rel: update
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
-              type: application/vnd.sas.models.model.variable
-            - method: DELETE
-              rel: delete
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
-              type: application/vnd.sas.models.model.variable
-          outputVariables:
-          - creationTimeStamp: 2023-08-07T14:41:02.431147Z
-            createdBy: anonymous
-            modifiedTimeStamp: 2023-08-07T14:43:37.427800Z
-            name: EM_CLASSIFICATION
-            description: ""
-            role: output
-            type: string
-            level: ""
-            format: ""
-            aggregation: ""
-            length: 1
-            tableName: HMEQ_TRAIN
-            id: 3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
-            holderId: 01508e8d-a6e2-40b9-b955-58f48e1b1604
-            links:
-            - method: GET
-              rel: up
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables
-              type: application/vnd.sas.collection
-            - method: GET
-              rel: self
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
-              type: application/vnd.sas.models.model.variable
-            - method: PUT
-              rel: update
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
-              type: application/vnd.sas.models.model.variable
-            - method: DELETE
-              rel: delete
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
-              type: application/vnd.sas.models.model.variable
-          modelVersions:
-          - creationTimeStamp: 2023-08-07T14:43:41.850000Z
-            createdBy: sasdemo
-            modifiedTimeStamp: 2023-08-07T14:43:41.850000Z
-            modifiedBy: sasdemo
-            id: e660c5f8-6ca4-4aae-a3bb-c78042708a92
-            name: QS_Reg1
-            description: Logistic Regression
-            role: champion
-            scoreCodeType: dataStep
-            algorithm: logisticreg
-            function: classification
-            modeler: sasdemo
-            modelType: dataStep
-            trainTable: /dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/HMEQ_TRAIN
-            eventProbVar: EM_EVENTPROBABILITY
-            targetVariable: BAD
-            targetEvent: "1"
-            targetLevel: BINARY
-            tool: Model Studio
-            toolVersion: 8.3
-            externalModelId: 407fbf89-7085-49c3-811a-7f5d912e4676
-            immutable: true
-            folderRef: /folders/folders/a354fb9f-6dc9-4844-93ae-30aa9dd7e10c
-            modelVersionName: "1.0"
-            inputVariables:
-            outputVariables:
-            modelVersions:
-            modelLocks:
-            globalTags:
-            links:
-            - method: GET
-              rel: up
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions
-              type: application/vnd.sas.collection
-              itemType: application/vnd.sas.models.model.version
-            - method: GET
-              rel: self
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions/e660c5f8-6ca4-4aae-a3bb-c78042708a92
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions/e660c5f8-6ca4-4aae-a3bb-c78042708a92
-              type: application/vnd.sas.models.model.version
-            - method: GET
-              rel: contents
-              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions/e660c5f8-6ca4-4aae-a3bb-c78042708a92/contents
-              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions/e660c5f8-6ca4-4aae-a3bb-c78042708a92/contents
-              type: application/vnd.sas.collection
-              itemType: application/vnd.sas.models.model.content
-            version: 0
-            modelLastModifiedBy: sasdemo
-            modelLastModifiedTimeStamp: 2023-08-07T14:43:41.681738Z
-            modelCreatedBy: sasdemo
-            modelCreationTimeStamp: 2023-08-07T14:40:58.979328Z
-          modelLocks:
-          publishedModels:
-            modelId: 01508e8d-a6e2-40b9-b955-58f48e1b1604
-            projectId: b38d3663-0187-4690-84f9-56a973e0e6b1
-            publishName: QS_Reg1_pub1
-            publishResultUrl: QS_Reg1_pub1
-            destinationName: maslocal
-            destinationType: microAnalyticService
-            state: success
-            masUrl: /microanalyticScore/modules/qs_reg1_pub1
-          globalTags:
-          links:
-          - method: GET
-            rel: up
-            href: /modelRepository/models
-            uri: /modelRepository/models
-            type: application/vnd.sas.models.model
-          - method: GET
-            rel: self
-            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
-            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
-            type: application/vnd.sas.models.model
-          - method: PUT
-            rel: update
-            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
-            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
-            type: application/vnd.sas.models.model
-            responseItemType: application/vnd.sas.models.model
-          - method: DELETE
-            rel: delete
-            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
-            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
-          - method: GET
-            rel: scoreCode
-            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/code
-            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/code
-            type: text/plain
-          - method: GET
-            rel: contents
-            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents
-            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents
-            type: application/vnd.sas.collection
-            itemType: application/vnd.sas.models.model.content
-          - method: GET
-            rel: modelVersions
-            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions
-            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions
-            type: application/vnd.sas.collection
-            responseItemType: application/vnd.sas.models.model.version
-          - method: POST
-            rel: addModelVersion
-            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions
-            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions
-            type: application/vnd.sas.models.model.version
-          - method: GET
-            rel: variables
-            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables
-            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables
-            type: application/vnd.sas.collection
-            itemType: application/vnd.sas.models.model.variable
-          version: 0
-          modelLastModifiedTimeStamp: 0001-01-01T00:00:00Z
-          modelCreationTimeStamp: 0001-01-01T00:00:00Z
-    preconditionRequired:
-      description: The request headers did not include a `If-Match` precondition.
-      value:
-        version: 2
-        httpStatusCode: 428
+        - category: "accuracy"
+          metric: "MCE"
+          variable: ""
+          threshold: "0.30000001192092896"
+          value: "0.128852"
+          success: true
+        - category: "generalizability"
+          metric: "MCE Difference"
+          variable: ""
+          threshold: "0.10000000149011612"
+          value: "0.025910"
+          success: true
+        - category: "fairness"
+          metric: "equalOpportunity"
+          variable: "Race"
+          threshold: "0.2"
+          value: "0.545455"
+          success: false
+        isDefault: true
     generalNotFoundError:
       description: The response for a not found error.
       value:
         version: 2
         httpStatusCode: 404
-    projectNotFoundError:
-      description: The response for a not found error.
-      value:
-        version: 2
-        httpStatusCode: 404
-        message: "Not Found"
-        details:
-        - "No project with the ID 'a90e7e33-79e8-4ed6-8b52-152562caca9d' was found."
-    getTableInfo:
-      description: The response for retrieving the information about a data table.
-      value:
-        id: "6187f3e0-df6e-4d93-a0f0-8d04ab52cc4f"
-        name: "ADULT"
-        uri: "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/ADULT"
-        label: ""
-        description: ""
-        attributes:
-          characterSet: "UTF8"
-          columnCount: 11
-          creator: "sasdemo"
-          dateCreated: "2024-10-23T07:04:43.407Z"
-          dateModified: "2024-10-23T07:04:43.423Z"
-          editor: "sasdemo"
-          encoding: "utf-8"
-          isLoaded: true
-          reviewStatus: "none"
-          rowCount: 32561
-          source: "SAS"
-          sourceCaslib: "Public"
-          sourceName: "ADULT.sashdat"
-        sourceTableName: "ADULT.sashdat"
-        library: "Public"
-        server: "cas-shared-default"
-        engine: ""
-        path: ""
-        rowCount: 32561
-        dataSizeBytes: 1024
-        columnCount: 11
-        encoding: "utf-8"
-        responsibleParty:
-        createdBy:
-          id: "sasdemo"
-          name: "sasdemo"
-          title: ""
-          phoneNumbers: []
-          emailAddresses:
-          - type: "work"
-            email: "sasdemo@mycompany.com"
-          addresses:
-          - type: "work"
-            locality: ""
-            region: "NC"
-        modifiedBy:
-          id: "sasdemo"
-          name: "sasdemo"
-          title: ""
-          phoneNumbers: []
-          emailAddresses:
-          - type: "work"
-            email: "sasdemo@mycompany.com"
-          - type: "work"
-            locality: ""
-            region: "NC"
-        dateCreated: "2024-10-23T07:04:43.407Z"
-        dateModified: "2024-10-23T07:04:43.423Z"
-        dateAnalyzed: ""
-        tags: []
-        stats:
-          completenessPercent: 0.9
-          informationPrivacy: ""
-          minTimestamp: ""
-          maxTimestamp: ""
-        region: ""
-        dataLocale: ""
-        extendedTableAttributes: {}
-        businessDescription: ""
-        reviewStatus:
-          name: "none"
-          label: "none"
-          ordinal: 0
-        informationPrivacy:
-          candidate:
-            level: 1
-            label: "Candidate"
-            description: "Candidate for sensitive or private information classification."
-            semanticTypes: []
-            columnsBySemanticType: {}
-          notSensitive:
-            level: 0
-            label: "None"
-            description: "Information that could not be private, sensitive, nor a\
-              \ candidate for sensitive or private information."
-            semanticTypes: []
-            columnsBySemanticType: {}
-          private:
-            level: 3
-            label: "Private"
-            description: "Private information that should be protected."
-            semanticTypes: []
-            columnsBySemanticType: {}
-          sensitive:
-            level: 2
-            label: "Sensitive"
-            description: "Sensitive information that should be protected."
-            semanticTypes: []
-            columnsBySemanticType: {}
-        columns: {}
     getChampionScoreCodeResponse:
       description: "The score code for a champion model that is in these formats:\
         \ ds2, raw, text/plain, and application/json."
@@ -10526,133 +10391,6 @@ components:
           Length EM_PROBABILITY 8;
           LABEL EM_PROBABILITY = "Probability of Classification";
           EM_PROBABILITY = max('P_BAD1'n,'P_BAD0'n);
-    getMetrics:
-      description: The response for retrieving the test, training, and validation
-        metrics for a model.
-      value:
-        test:
-          ase:
-            label: "Average Squared Error"
-            value: 0.08643169
-          c:
-            label: "Area Under ROC"
-            value: 0.8716732
-          div:
-            label: "Divisor for ASE"
-            value: 239
-          gamma:
-            label: "Gamma"
-            value: 0.9210704
-          gini:
-            label: "Gini Coefficient"
-            value: 0.7433464
-          ksPostCutoff:
-            label: "ROC Separation"
-            value: 0.5725349
-          ks:
-            label: "KS (Youden)"
-            value: 0.70778793
-          mce:
-            label: "Misclassification Rate"
-            value: 0.12970711
-          mcll:
-            label: "Multi-Class Log Loss"
-            value: 0.28689444
-          rase:
-            label: "Root Average Squared Error"
-            value: 0.29399267
-          tau:
-            label: "Tau"
-            value: 0.23961885
-          miscEvent: {}
-          miscKS: {}
-          mae: {}
-          msle: {}
-          rmae: {}
-          rmsle: {}
-          rsquare: {}
-        train:
-          ase:
-            label: "Average Squared Error"
-            value: 0.08137366
-          c:
-            label: "Area Under ROC"
-            value: 0.86371505
-          div:
-            label: "Divisor for ASE"
-            value: 1428
-          gamma:
-            label: "Gamma"
-            value: 0.9257925
-          gini:
-            label: "Gini Coefficient"
-            value: 0.7274301
-          ksPostCutoff:
-            label: "ROC Separation"
-            value: 0.62380624
-          ks:
-            label: "KS (Youden)"
-            value: 0.68097806
-          mce:
-            label: "Misclassification Rate"
-            value: 0.10294118
-          mcll:
-            label: "Multi-Class Log Loss"
-            value: 0.28336373
-          rase:
-            label: "Root Average Squared Error"
-            value: 0.28526068
-          tau:
-            label: "Tau"
-            value: 0.23257348
-          miscEvent: {}
-          miscKS: {}
-          mae: {}
-          msle: {}
-          rmae: {}
-          rmsle: {}
-          rsquare: {}
-        validate:
-          ase:
-            label: "Average Squared Error"
-            value: 0.10035806
-          c:
-            label: "Area Under ROC"
-            value: 0.8248931
-          div:
-            label: "Divisor for ASE"
-            value: 714
-          gamma:
-            label: "Gamma"
-            value: 0.88086265
-          gini:
-            label: "Gini Coefficient"
-            value: 0.6497863
-          ksPostCutoff:
-            label: "ROC Separation"
-            value: 0.5558277
-          ks:
-            label: "KS (Youden)"
-            value: 0.60817116
-          mce:
-            label: "Misclassification Rate"
-            value: 0.12885155
-          mcll:
-            label: "Multi-Class Log Loss"
-            value: 0.45096636
-          rase:
-            label: "Root Average Squared Error"
-            value: 0.3167934
-          tau:
-            label: "Tau"
-            value: 0.20844187
-          miscEvent: {}
-          miscKS: {}
-          mae: {}
-          msle: {}
-          rmae: {}
-          rmsle: {}
-          rsquare: {}
     notFoundError:
       description: The response for a not found error.
       value:
@@ -10663,6 +10401,645 @@ components:
         - "A model with the ID '2a655f00-7061-4dfb6d1187d88' could not be found."
         - "path: /modelRepository/models/2a655f00-7061-4dfb6d1187d88/fairnessMetrics"
         - "correlator: 2f58aae4-dcbd-4297-ae1f-dd72d0deac52"
+    getModelContentList:
+      description: The response for retrieving the file contents of a model version.
+      value:
+      - creationTimeStamp: "2025-03-10T14:48:50.565833Z"
+        createdBy: "sasdemo"
+        modifiedTimeStamp: "2025-03-10T14:48:50.565834Z"
+        modifiedBy: "sasdemo"
+        version: 2
+        id: "bb3ea406-13e2-45a9-b518-446faf557fde"
+        name: "ModelProperties.json"
+        fileUri: "/files/files/bb3ea406-13e2-45a9-b518-446faf557fde"
+        modelId: "a02ea190-899c-4ff4-92a7-46c28a1c61e3"
+        versionId: "692ab9b1-69c8-4ded-85cb-1a0edca9796d"
+        links:
+        - method: "GET"
+          rel: "self"
+          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/bb3ea406-13e2-45a9-b518-446faf557fde"
+          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/bb3ea406-13e2-45a9-b518-446faf557fde"
+          itemType: "application/vnd.sas.models.model.content"
+        - method: "GET"
+          rel: "content"
+          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/bb3ea406-13e2-45a9-b518-446faf557fde/content"
+          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/bb3ea406-13e2-45a9-b518-446faf557fde/content"
+          type: "text/plain"
+      - creationTimeStamp: "2025-03-10T14:48:50.756999Z"
+        createdBy: "sasdemo"
+        modifiedTimeStamp: "2025-03-10T14:48:50.757Z"
+        modifiedBy: "sasdemo"
+        version: 2
+        id: "48c8eb71-26d6-4d12-b9d1-26ea2f09a198"
+        name: "ScoreCode1842211620.sas"
+        fileUri: "/files/files/48c8eb71-26d6-4d12-b9d1-26ea2f09a198"
+        modelId: "a02ea190-899c-4ff4-92a7-46c28a1c61e3"
+        versionId: "692ab9b1-69c8-4ded-85cb-1a0edca9796d"
+        links:
+        - method: "GET"
+          rel: "self"
+          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/48c8eb71-26d6-4d12-b9d1-26ea2f09a198"
+          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/48c8eb71-26d6-4d12-b9d1-26ea2f09a198"
+          itemType: "application/vnd.sas.models.model.content"
+        - method: "GET"
+          rel: "content"
+          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/48c8eb71-26d6-4d12-b9d1-26ea2f09a198/content"
+          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/48c8eb71-26d6-4d12-b9d1-26ea2f09a198/content"
+          type: "text/plain"
+    getTableInfo:
+      description: The response for retrieving the information about a data table.
+      value:
+        id: "6187f3e0-df6e-4d93-a0f0-8d04ab52cc4f"
+        name: "ADULT"
+        uri: "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/ADULT"
+        label: ""
+        description: ""
+        attributes:
+          characterSet: "UTF8"
+          columnCount: 11
+          creator: "sasdemo"
+          dateCreated: "2024-10-23T07:04:43.407Z"
+          dateModified: "2024-10-23T07:04:43.423Z"
+          editor: "sasdemo"
+          encoding: "utf-8"
+          isLoaded: true
+          reviewStatus: "none"
+          rowCount: 32561
+          source: "SAS"
+          sourceCaslib: "Public"
+          sourceName: "ADULT.sashdat"
+        sourceTableName: "ADULT.sashdat"
+        library: "Public"
+        server: "cas-shared-default"
+        engine: ""
+        path: ""
+        rowCount: 32561
+        dataSizeBytes: 1024
+        columnCount: 11
+        encoding: "utf-8"
+        responsibleParty:
+        createdBy:
+          id: "sasdemo"
+          name: "sasdemo"
+          title: ""
+          phoneNumbers: []
+          emailAddresses:
+          - type: "work"
+            email: "sasdemo@mycompany.com"
+          addresses:
+          - type: "work"
+            locality: ""
+            region: "NC"
+        modifiedBy:
+          id: "sasdemo"
+          name: "sasdemo"
+          title: ""
+          phoneNumbers: []
+          emailAddresses:
+          - type: "work"
+            email: "sasdemo@mycompany.com"
+          - type: "work"
+            locality: ""
+            region: "NC"
+        dateCreated: "2024-10-23T07:04:43.407Z"
+        dateModified: "2024-10-23T07:04:43.423Z"
+        dateAnalyzed: ""
+        tags: []
+        stats:
+          completenessPercent: 0.9
+          informationPrivacy: ""
+          minTimestamp: ""
+          maxTimestamp: ""
+        region: ""
+        dataLocale: ""
+        extendedTableAttributes: {}
+        businessDescription: ""
+        reviewStatus:
+          name: "none"
+          label: "none"
+          ordinal: 0
+        informationPrivacy:
+          candidate:
+            level: 1
+            label: "Candidate"
+            description: "Candidate for sensitive or private information classification."
+            semanticTypes: []
+            columnsBySemanticType: {}
+          notSensitive:
+            level: 0
+            label: "None"
+            description: "Information that could not be private, sensitive, nor a\
+              \ candidate for sensitive or private information."
+            semanticTypes: []
+            columnsBySemanticType: {}
+          private:
+            level: 3
+            label: "Private"
+            description: "Private information that should be protected."
+            semanticTypes: []
+            columnsBySemanticType: {}
+          sensitive:
+            level: 2
+            label: "Sensitive"
+            description: "Sensitive information that should be protected."
+            semanticTypes: []
+            columnsBySemanticType: {}
+        columns: {}
+    getModelUserProperties:
+      description: The response showing all user-defined properties for a model.
+      value:
+        version: 2
+        accept: "application/json"
+        count: 22
+        start: 0
+        limit: 20
+        name: "userProperties"
+        items:
+        - name: "keyA"
+          value: "valueB"
+          type: "string"
+        - name: "keyB"
+          value: "valueA"
+          type: "string"
+        - name: "priority"
+          value: "high"
+          type: "string"
+        - name: "priority2"
+          value: "high"
+          type: "string"
+        links:
+        - method: "GET"
+          rel: "collection"
+          href: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
+          uri: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
+          type: "application/vnd.sas.collection"
+          itemType: "application/json"
+        - method: "GET"
+          rel: "next"
+          href: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=20&limit=20&filter=eq%28modelId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
+          uri: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=20&limit=20&filter=eq%28modelId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
+          type: "application/vnd.sas.collection"
+          itemType: "application/json"
+        - method: "GET"
+          rel: "self"
+          href: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=0&limit=20&filter=eq%28modelId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
+          uri: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=0&limit=20&filter=eq%28modelId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
+          type: "application/vnd.sas.collection"
+          itemType: "application/json"
+        - method: "POST"
+          rel: "create"
+          href: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
+          uri: "/modelRepository/models/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
+          type: "application/json"
+    getModelVersionHistory:
+      description: The response for retrieving a specific model version from model
+        history.
+      value:
+        creationTimeStamp: "2025-03-10T14:48:50.335Z"
+        createdBy: "sasdemo"
+        modifiedTimeStamp: "2025-03-10T14:48:50.335Z"
+        modifiedBy: "sasdemo"
+        id: "692ab9b1-69c8-4ded-85cb-1a0edca9796d"
+        name: "QS_Reg1"
+        description: "Logistic Regression Model"
+        role: "plain"
+        scoreCodeType: "dataStep"
+        algorithm: "logisticreg"
+        function: "classification"
+        modeler: "sasdemo"
+        modelType: "datastep"
+        trainTable: "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/HMEQ_TRAIN"
+        eventProbVar: "EM_EVENTPROBABILITY"
+        targetVariable: "BAD"
+        targetEvent: "1"
+        targetLevel: "BINARY"
+        tool: "Model Studio"
+        toolVersion: "8.3"
+        externalModelId: "407fbf89-7085-49c3-811a-7f5d912e4676"
+        provider: "Azure"
+        costPerCall: "0"
+        immutable: true
+        folderRef: "/folders/folders/eec95375-cfa7-45a6-813a-0b67436e6d2f"
+        modelVersionName: "1.0"
+        inputVariables: []
+        outputVariables: []
+        modelVersions: []
+        modelLocks:
+        globalTags:
+        links:
+        - method: "GET"
+          rel: "up"
+          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history"
+          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history"
+          type: "application/vnd.sas.collection"
+          itemType: "application/vnd.sas.models.model.version"
+        - method: "GET"
+          rel: "self"
+          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d"
+          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d"
+          type: "application/vnd.sas.models.model.version"
+        - method: "GET"
+          rel: "contents"
+          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents"
+          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents"
+          type: "application/vnd.sas.collection"
+          itemType: "application/vnd.sas.models.model.content"
+        version: 0
+        modelId: "a02ea190-899c-4ff4-92a7-46c28a1c61e3"
+        modelLastModifiedBy: "sasdemo"
+        modelLastModifiedTimeStamp: "2025-03-10T14:48:49.36762Z"
+        modelCreatedBy: "sasdemo"
+        modelCreationTimeStamp: "2025-03-10T14:47:57.912505Z"
+    fileFitstatNotFoundError:
+      description: The response for when the fit statistics file (dmcas_fitstat.json)
+        does not exist.
+      value:
+        version: 2
+        httpStatusCode: 404
+        message: "Not Found"
+        details:
+        - "File not found. ID: , Name: dmcas_fitstat.json"
+        - "path: /modelRepository/models/2a655f00-7061-4dfb6d1187d88/fairnessMetrics"
+        - "correlator: 2f58aae4-dcbd-4297-ae1f-dd72d0deac52"
+    getProjectUserProperty:
+      description: The response showing a single user-defined property for a project.
+      value:
+        name: "priority4"
+        type: "string"
+        value: "high"
+    fileMiscNotFoundError:
+      description: The response for when the misclassification metrics file (dmcas_misc.json)
+        does not exist.
+      value:
+        version: 2
+        httpStatusCode: 404
+        message: "Not Found"
+        details:
+        - "File not found. ID: , Name: dmcas_misc.json"
+        - "path: /modelRepository/models/2a655f00-7061-4dfb6d1187d88/fairnessMetrics"
+        - "correlator: 2f58aae4-dcbd-4297-ae1f-dd72d0deac52"
+    preconditionRequired:
+      description: The request headers did not include a `If-Match` precondition.
+      value:
+        version: 2
+        httpStatusCode: 428
+    getChampionScoreCodeDS2PackageResponse:
+      description: The score code for a champion model that is of type ds2package.
+      value:
+        body: |-
+          ds2_options sas tkgmac scond=none;
+            package &SCOREPACK/overwrite=yes;
+            #_local _P_;
+            #_local _NEW_ID_;
+            #_local _NODE_ID_;
+            #_local _NUMVAL_;
+            #_local _DT_PRED_PROB_;
+            #_local _DT_PRED_LEV_;
+            #_local _I_;
+            #_local _DT_PREDP_;
+            dcl double EM_EVENTPROBABILITY;
+            dcl char(32) EM_CLASSIFICATION;
+            dcl double EM_PROBABILITY;
+            method score(double "CLAGE", double "DEBTINC", double "DELINQ", double
+            "DEROG", double "VALUE", in_out char(12) "EM_CLASSIFICATION", in_out double
+            "EM_EVENTPROBABILITY", in_out double "EM_PROBABILITY", in_out char(12)
+            "I_BAD", in_out double "P_BAD0", in_out double "P_BAD1", in_out double
+            "_leaf_id_");
+            dcl char(12) _STRFMT_;
+              dcl double _DT_FI_10015615_[
+                  2
+            ];
+            dcl char(12) _TLEVNAME_10015615_[
+              2
+            ];
+              _TLEVNAME_10015615_:=('           1', '           0');
+            _STRFMT_ = ' ';
+            _NODE_ID_ = 0.0;
+            _NEW_ID_ = -1.0;
+            NEXTNODE_10015615: if _NODE_ID_ = 0.0 then do ;
+            _STRFMT_ = LEFT(TRIM(put(DELINQ, BEST12.)));
+            if _STRFMT_ in ('4', '1', '0', '3', '2', '.') then do ;
+            _NEW_ID_ = 1.0;
+            end;
+              else if _STRFMT_ in ('10', '5', '7', '6', '8') then do ;
+            _NEW_ID_ = 2.0;
+            end;
+              else do ;
+            _NEW_ID_ = 1.0;
+            end;
+            end;
+              else if _NODE_ID_ = 1.0 then do ;
+            _NUMVAL_ = DEBTINC;
+            if MISSING(_NUMVAL_) then do ;
+            _NODE_ID_ = 3.0;
+            goto NEXTNODE_10015615;
+            end;
+            if (_NUMVAL_ >= 43.5520309368842 & _NUMVAL_ < 143.949604953611) then do
+            ;
+            _NEW_ID_ = 3.0;
+            end;
+              else if (_NUMVAL_ >= 0.52449921542988 & _NUMVAL_ < 43.5520309368842)
+            then do ;
+            _NEW_ID_ = 4.0;
+            end;
+              else if (_NUMVAL_ < 0.52449921542988) then do ;
+            _NEW_ID_ = 4.0;
+            end;
+              else if (_NUMVAL_ >= 143.949604953611) then do ;
+            _NEW_ID_ = 3.0;
+            end;
+              else do ;
+            _NEW_ID_ = 4.0;
+            end;
+            end;
+              else if _NODE_ID_ = 2.0 then do ;
+            _LEAF_ID_ = 2.0;
+            _NEW_ID_ = -1.0;
+            _DT_PRED_LEV_ = 0.0;
+            _DT_PRED_PROB_ = 1.0;
+            _DT_FI_10015615_[
+                1.0
+            ] = 1.0;
+            _DT_FI_10015615_[
+                2.0
+            ] = 0.0;
+            end;
+              else if _NODE_ID_ = 3.0 then do ;
+            _STRFMT_ = LEFT(TRIM(put(DEROG, BEST12.)));
+            if _STRFMT_ in ('1', '0', '2', '.') then do ;
+            _NEW_ID_ = 5.0;
+            end;
+              else if _STRFMT_ in ('4', '7', '6', '3') then do ;
+            _NEW_ID_ = 6.0;
+            end;
+              else do ;
+            _NEW_ID_ = 5.0;
+            end;
+            end;
+              else if _NODE_ID_ = 4.0 then do ;
+            _NUMVAL_ = VALUE;
+            if MISSING(_NUMVAL_) then do ;
+            _NODE_ID_ = 7.0;
+            goto NEXTNODE_10015615;
+            end;
+            if (_NUMVAL_ >= 474844.95 & _NUMVAL_ < 855909.0) then do ;
+            _NEW_ID_ = 7.0;
+            end;
+              else if (_NUMVAL_ >= 9100.0 & _NUMVAL_ < 474844.95) then do ;
+            _NEW_ID_ = 8.0;
+            end;
+              else if (_NUMVAL_ < 9100.0) then do ;
+            _NEW_ID_ = 8.0;
+            end;
+              else if (_NUMVAL_ >= 855909.0) then do ;
+            _NEW_ID_ = 7.0;
+            end;
+              else do ;
+            _NEW_ID_ = 8.0;
+            end;
+            end;
+              else if _NODE_ID_ = 5.0 then do ;
+            _NUMVAL_ = VALUE;
+            if MISSING(_NUMVAL_) then do ;
+            _NODE_ID_ = 9.0;
+            goto NEXTNODE_10015615;
+            end;
+            if (_NUMVAL_ >= 474844.95 & _NUMVAL_ < 855909.0) then do ;
+            _NEW_ID_ = 9.0;
+            end;
+              else if (_NUMVAL_ >= 9100.0 & _NUMVAL_ < 474844.95) then do ;
+            _NEW_ID_ = 10.0;
+            end;
+              else if (_NUMVAL_ < 9100.0) then do ;
+            _NEW_ID_ = 10.0;
+            end;
+              else if (_NUMVAL_ >= 855909.0) then do ;
+            _NEW_ID_ = 9.0;
+            end;
+              else do ;
+            _NEW_ID_ = 10.0;
+            end;
+            end;
+              else if _NODE_ID_ = 6.0 then do ;
+            _LEAF_ID_ = 6.0;
+            _NEW_ID_ = -1.0;
+            _DT_PRED_LEV_ = 0.0;
+            _DT_PRED_PROB_ = 1.0;
+            _DT_FI_10015615_[
+                1.0
+            ] = 1.0;
+            _DT_FI_10015615_[
+                2.0
+            ] = 0.0;
+            end;
+              else if _NODE_ID_ = 7.0 then do ;
+            _LEAF_ID_ = 7.0;
+            _NEW_ID_ = -1.0;
+            _DT_PRED_LEV_ = 0.0;
+            _DT_PRED_PROB_ = 0.72727272727272;
+            _DT_FI_10015615_[
+                1.0
+            ] = 0.72727272727272;
+            _DT_FI_10015615_[
+                2.0
+            ] = 0.27272727272727;
+            end;
+              else if _NODE_ID_ = 8.0 then do ;
+            _LEAF_ID_ = 8.0;
+            _NEW_ID_ = -1.0;
+            _DT_PRED_LEV_ = 1.0;
+            _DT_PRED_PROB_ = 0.94372693726937;
+            _DT_FI_10015615_[
+              1.0
+            ] = 0.05627306273062;
+            _DT_FI_10015615_[
+              2.0
+            ] = 0.94372693726937;
+            end;
+              else if _NODE_ID_ = 9.0 then do ;
+            _LEAF_ID_ = 9.0;
+            _NEW_ID_ = -1.0;
+            _DT_PRED_LEV_ = 0.0;
+            _DT_PRED_PROB_ = 1.0;
+            _DT_FI_10015615_[
+                1.0
+            ] = 1.0;
+            _DT_FI_10015615_[
+                2.0
+            ] = 0.0;
+            end;
+              else if _NODE_ID_ = 10.0 then do ;
+            _NUMVAL_ = DEBTINC;
+            if MISSING(_NUMVAL_) then do ;
+            _NODE_ID_ = 12.0;
+            goto NEXTNODE_10015615;
+            end;
+            if (_NUMVAL_ >= 50.7232862237933 & _NUMVAL_ < 143.949604953611) then do
+            ;
+            _NEW_ID_ = 11.0;
+            end;
+              else if (_NUMVAL_ >= 0.52449921542988 & _NUMVAL_ < 50.7232862237933)
+            then do ;
+            _NEW_ID_ = 12.0;
+            end;
+              else if (_NUMVAL_ < 0.52449921542988) then do ;
+            _NEW_ID_ = 12.0;
+            end;
+              else if (_NUMVAL_ >= 143.949604953611) then do ;
+            _NEW_ID_ = 11.0;
+            end;
+              else do ;
+            _NEW_ID_ = 12.0;
+            end;
+            end;
+              else if _NODE_ID_ = 11.0 then do ;
+            _LEAF_ID_ = 11.0;
+            _NEW_ID_ = -1.0;
+            _DT_PRED_LEV_ = 0.0;
+            _DT_PRED_PROB_ = 1.0;
+            _DT_FI_10015615_[
+                1.0
+            ] = 1.0;
+            _DT_FI_10015615_[
+                2.0
+            ] = 0.0;
+            end;
+              else if _NODE_ID_ = 12.0 then do ;
+            _STRFMT_ = LEFT(TRIM(put(DELINQ, BEST12.)));
+            if _STRFMT_ in ('1', '0', '3', '2', '.') then do ;
+            _NEW_ID_ = 13.0;
+            end;
+              else if _STRFMT_ in ('4') then do ;
+            _NEW_ID_ = 14.0;
+            end;
+              else do ;
+            _NEW_ID_ = 13.0;
+            end;
+            end;
+              else if _NODE_ID_ = 13.0 then do ;
+            _STRFMT_ = LEFT(TRIM(put(DELINQ, BEST12.)));
+            if _STRFMT_ in ('1', '0', '2', '.') then do ;
+            _NEW_ID_ = 15.0;
+            end;
+              else if _STRFMT_ in ('3') then do ;
+            _NEW_ID_ = 16.0;
+            end;
+              else do ;
+            _NEW_ID_ = 15.0;
+            end;
+            end;
+              else if _NODE_ID_ = 14.0 then do ;
+            _LEAF_ID_ = 14.0;
+            _NEW_ID_ = -1.0;
+            _DT_PRED_LEV_ = 0.0;
+            _DT_PRED_PROB_ = 1.0;
+            _DT_FI_10015615_[
+                1.0
+            ] = 1.0;
+            _DT_FI_10015615_[
+                2.0
+            ] = 0.0;
+            end;
+              else if _NODE_ID_ = 15.0 then do ;
+            _NUMVAL_ = CLAGE;
+            if MISSING(_NUMVAL_) then do ;
+            _NODE_ID_ = 18.0;
+            goto NEXTNODE_10015615;
+            end;
+            if (_NUMVAL_ >= 175.235034141696 & _NUMVAL_ < 1168.23356094464) then do
+            ;
+            _NEW_ID_ = 17.0;
+            end;
+              else if (_NUMVAL_ >= 0.0 & _NUMVAL_ < 175.235034141696) then do ;
+            _NEW_ID_ = 18.0;
+            end;
+              else if (_NUMVAL_ < 0.0) then do ;
+            _NEW_ID_ = 18.0;
+            end;
+              else if (_NUMVAL_ >= 1168.23356094464) then do ;
+            _NEW_ID_ = 17.0;
+            end;
+              else do ;
+            _NEW_ID_ = 18.0;
+            end;
+            end;
+              else if _NODE_ID_ = 16.0 then do ;
+            _LEAF_ID_ = 16.0;
+            _NEW_ID_ = -1.0;
+            _DT_PRED_LEV_ = 0.0;
+            _DT_PRED_PROB_ = 0.93333333333333;
+            _DT_FI_10015615_[
+                1.0
+            ] = 0.93333333333333;
+            _DT_FI_10015615_[
+                2.0
+            ] = 0.06666666666666;
+            end;
+              else if _NODE_ID_ = 17.0 then do ;
+            _LEAF_ID_ = 17.0;
+            _NEW_ID_ = -1.0;
+            _DT_PRED_LEV_ = 1.0;
+            _DT_PRED_PROB_ = 0.67;
+            _DT_FI_10015615_[
+                1.0
+            ] = 0.33;
+            _DT_FI_10015615_[
+                2.0
+            ] = 0.67;
+            end;
+              else if _NODE_ID_ = 18.0 then do ;
+            _LEAF_ID_ = 18.0;
+            _NEW_ID_ = -1.0;
+            _DT_PRED_LEV_ = 0.0;
+            _DT_PRED_PROB_ = 0.68181818181818;
+            _DT_FI_10015615_[
+                1.0
+            ] = 0.68181818181818;
+            _DT_FI_10015615_[
+                2.0
+            ] = 0.31818181818181;
+            end;
+            if _NEW_ID_ >= 0.0 then do ;
+            _NODE_ID_ = _NEW_ID_;
+            goto NEXTNODE_10015615;
+            end;
+            I_BAD = _TLEVNAME_10015615_[_DT_PRED_LEV_ + 1.0
+            ];
+            _I_ = 1.0;
+            _DT_PREDP_ = _DT_FI_10015615_[_I_
+            ];
+            P_BAD1 = _DT_PREDP_;
+            _I_ + 1.0;
+            _DT_PREDP_ = _DT_FI_10015615_[_I_
+            ];
+            P_BAD0 = _DT_PREDP_;
+            _I_ + 1.0;
+            if "P_BAD0" = . then "P_BAD0" = 0.8000839983;
+            if "P_BAD1" = . then "P_BAD1" = 0.1999160017;
+            if MISSING("I_BAD") then do ;
+            _P_ = 0.0;
+            if "P_BAD1" > _P_ then do ;
+            _P_ = "P_BAD1";
+            "I_BAD" = '1';
+            end;
+            if "P_BAD0" > _P_ then do ;
+            _P_ = "P_BAD0";
+            "I_BAD" = '0';
+            end;
+            end;
+            EM_EVENTPROBABILITY = "P_BAD1";
+            EM_CLASSIFICATION = "I_BAD";
+            EM_PROBABILITY = MAX("P_BAD1",
+            "P_BAD0");
+            _return: ;
+            end;
+              endpackage;
+    getGeneralizability:
+      description: The response for retrieving the generalizability metrics for a
+        model.
+      value:
+        state: "fit"
+        dataRole: "validate"
     getModelVersionResponse:
       description: The response for retrieving a specific model version.
       value:
@@ -10931,6 +11308,70 @@ components:
         version: 0
         modelLastModifiedTimeStamp: 0001-01-01T00:00:00Z
         modelCreationTimeStamp: 0001-01-01T00:00:00Z
+    badRequest:
+      description: The request was invalid.
+      value:
+        version: 2
+        httpStatusCode: 400
+    getModelVersionHistoryList:
+      description: The response for retrieving all model versions from model history.
+      value:
+        items:
+        - creationTimeStamp: "2025-03-10T14:48:50.335Z"
+          createdBy: "sasdemo"
+          modifiedTimeStamp: "2025-03-10T14:48:50.335Z"
+          modifiedBy: "sasdemo"
+          id: "692ab9b1-69c8-4ded-85cb-1a0edca9796d"
+          name: "QS_Reg1"
+          description: "Logistic Regression Model"
+          role: "plain"
+          scoreCodeType: "dataStep"
+          algorithm: "logisticreg"
+          function: "classification"
+          modeler: "sasdemo"
+          modelType: "datastep"
+          trainTable: "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/HMEQ_TRAIN"
+          eventProbVar: "EM_EVENTPROBABILITY"
+          targetVariable: "BAD"
+          targetEvent: "1"
+          targetLevel: "BINARY"
+          tool: "Model Studio"
+          toolVersion: "8.3"
+          externalModelId: "407fbf89-7085-49c3-811a-7f5d912e4676"
+          provider: "Azure"
+          costPerCall: "0"
+          immutable: true
+          folderRef: "/folders/folders/eec95375-cfa7-45a6-813a-0b67436e6d2f"
+          modelVersionName: "1.0"
+          inputVariables: []
+          outputVariables: []
+          modelVersions: []
+          modelLocks: []
+          globalTags: []
+          links:
+          - method: "GET"
+            rel: "up"
+            href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history"
+            uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history"
+            type: "application/vnd.sas.collection"
+            itemType: "application/vnd.sas.models.model.version"
+          - method: "GET"
+            rel: "self"
+            href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d"
+            uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d"
+            type: "application/vnd.sas.models.model.version"
+          - method: "GET"
+            rel: "contents"
+            href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents"
+            uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents"
+            type: "application/vnd.sas.collection"
+            itemType: "application/vnd.sas.models.model.content"
+          version: 0
+          modelId: "a02ea190-899c-4ff4-92a7-46c28a1c61e3"
+          modelLastModifiedBy: "sasdemo"
+          modelLastModifiedTimeStamp: "2025-03-10T14:48:49.36762Z"
+          modelCreatedBy: "sasdemo"
+          modelCreationTimeStamp: "2025-03-10T14:47:57.912505Z"
     getModelContent:
       description: The response for retrieving a specific file's content of a model
         version.
@@ -10956,51 +11397,354 @@ components:
           href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/bb3ea406-13e2-45a9-b518-446faf557fde/content"
           uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/bb3ea406-13e2-45a9-b518-446faf557fde/content"
           type: "text/plain"
-    getModelContentList:
-      description: The response for retrieving the file contents of a model version.
+    getModelVersionListResponse:
+      description: The response for retrieving all model versions.
       value:
-      - creationTimeStamp: "2025-03-10T14:48:50.565833Z"
-        createdBy: "sasdemo"
-        modifiedTimeStamp: "2025-03-10T14:48:50.565834Z"
-        modifiedBy: "sasdemo"
         version: 2
-        id: "bb3ea406-13e2-45a9-b518-446faf557fde"
-        name: "ModelProperties.json"
-        fileUri: "/files/files/bb3ea406-13e2-45a9-b518-446faf557fde"
-        modelId: "a02ea190-899c-4ff4-92a7-46c28a1c61e3"
-        versionId: "692ab9b1-69c8-4ded-85cb-1a0edca9796d"
-        links:
-        - method: "GET"
-          rel: "self"
-          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/bb3ea406-13e2-45a9-b518-446faf557fde"
-          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/bb3ea406-13e2-45a9-b518-446faf557fde"
-          itemType: "application/vnd.sas.models.model.content"
-        - method: "GET"
-          rel: "content"
-          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/bb3ea406-13e2-45a9-b518-446faf557fde/content"
-          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/bb3ea406-13e2-45a9-b518-446faf557fde/content"
-          type: "text/plain"
-      - creationTimeStamp: "2025-03-10T14:48:50.756999Z"
-        createdBy: "sasdemo"
-        modifiedTimeStamp: "2025-03-10T14:48:50.757Z"
-        modifiedBy: "sasdemo"
+        count: 13
+        start: 0
+        limit: 13
+        name: versions
+        items:
+        - creationTimeStamp: 2023-08-07T14:40:58.979000Z
+          createdBy: sasdemo
+          modifiedTimeStamp: 2023-08-07T16:40:08.568000Z
+          modifiedBy: sasdemo
+          id: 01508e8d-a6e2-40b9-b955-58f48e1b1604
+          name: QS_Reg1
+          description: Logistic Regression
+          role: champion
+          scoreCodeType: dataStep
+          algorithm: logisticreg
+          function: classification
+          modeler: sasdemo
+          modelType: dataStep
+          trainTable: /dataTables/dataSources/cas/cas-shared-default/Public/tables/HMEQ_TRAIN
+          eventProbVar: EM_EVENTPROBABILITY
+          targetVariable: BAD
+          targetEvent: "1"
+          targetLevel: binary
+          tool: Model Studio
+          toolVersion: 8.3
+          publishTimeStamp: 1691426404971
+          externalModelId: 407fbf89-7085-49c3-811a-7f5d912e4676
+          indirectFolderId: f26f68e5-09ff-4880-8e3e-5c84c31a67b1
+          repositoryId: 8153f0d3-8b87-4415-b66d-537c70e3600b
+          projectId: b38d3663-0187-4690-84f9-56a973e0e6b1
+          projectVersionId: d8c79ea9-5ed8-46a0-b1d7-d9cfe0b20188
+          immutable: false
+          folderRef: /folders/folders/a354fb9f-6dc9-4844-93ae-30aa9dd7e10c
+          location: /Model Repositories/Public/publish delete/Version 1
+          modelVersionName: "12.0"
+          projectName: publish delete
+          projectVersionName: Version 1
+          projectVersionNum: 1.0
+          files:
+          - creationTimeStamp: 2023-08-07T14:40:59.519645Z
+            createdBy: anonymous
+            modifiedTimeStamp: 2023-08-07T14:40:59.519646Z
+            modifiedBy: anonymous
+            version: 2
+            id: 37cd93c8-b7a8-4c75-b920-f5d27486fac9
+            name: ModelProperties.json
+            fileUri: /files/files/0138bd91-f905-4100-836d-32a4090ec45c
+            modelId: 01508e8d-a6e2-40b9-b955-58f48e1b1604
+            links:
+            - method: GET
+              rel: UP
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
+              itemType: application/vnd.sas.models.model.content
+            - method: GET
+              rel: self
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
+              type: application/vnd.sas.models.model.content
+            - method: GET
+              rel: content
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9/content
+              type: application/octet-stream
+            - method: POST
+              rel: create
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
+              type: multipart/form-data
+            - method: PUT
+              rel: update
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
+              type: application/vnd.sas.models.model.content
+            - method: PUT
+              rel: updateContentMultipart
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
+              type: application/vnd.sas.models.model.content
+            - method: DELETE
+              rel: delete
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents/37cd93c8-b7a8-4c75-b920-f5d27486fac9
+          inputVariables:
+          - creationTimeStamp: 2023-08-07T14:41:01.946216Z
+            createdBy: anonymous
+            modifiedTimeStamp: 2023-08-07T14:43:36.218739Z
+            name: CLNO
+            description: ""
+            role: input
+            type: decimal
+            level: interval
+            format: ""
+            aggregation: ""
+            length: 8
+            tableName: HMEQ_TRAIN
+            id: 3ddb478f-f900-4c9f-bfa9-941d89e15e42
+            holderId: 01508e8d-a6e2-40b9-b955-58f48e1b1604
+            links:
+            - method: GET
+              rel: up
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables
+              type: application/vnd.sas.collection
+            - method: GET
+              rel: self
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
+              type: application/vnd.sas.models.model.variable
+            - method: PUT
+              rel: update
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
+              type: application/vnd.sas.models.model.variable
+            - method: DELETE
+              rel: delete
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3ddb478f-f900-4c9f-bfa9-941d89e15e42
+              type: application/vnd.sas.models.model.variable
+          outputVariables:
+          - creationTimeStamp: 2023-08-07T14:41:02.431147Z
+            createdBy: anonymous
+            modifiedTimeStamp: 2023-08-07T14:43:37.427800Z
+            name: EM_CLASSIFICATION
+            description: ""
+            role: output
+            type: string
+            level: ""
+            format: ""
+            aggregation: ""
+            length: 1
+            tableName: HMEQ_TRAIN
+            id: 3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
+            holderId: 01508e8d-a6e2-40b9-b955-58f48e1b1604
+            links:
+            - method: GET
+              rel: up
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables
+              type: application/vnd.sas.collection
+            - method: GET
+              rel: self
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
+              type: application/vnd.sas.models.model.variable
+            - method: PUT
+              rel: update
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
+              type: application/vnd.sas.models.model.variable
+            - method: DELETE
+              rel: delete
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables/3c42ee3f-fdf7-46fa-a1b1-9b59a0080401
+              type: application/vnd.sas.models.model.variable
+          modelVersions:
+          - creationTimeStamp: 2023-08-07T14:43:41.850000Z
+            createdBy: sasdemo
+            modifiedTimeStamp: 2023-08-07T14:43:41.850000Z
+            modifiedBy: sasdemo
+            id: e660c5f8-6ca4-4aae-a3bb-c78042708a92
+            name: QS_Reg1
+            description: Logistic Regression
+            role: champion
+            scoreCodeType: dataStep
+            algorithm: logisticreg
+            function: classification
+            modeler: sasdemo
+            modelType: dataStep
+            trainTable: /dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/HMEQ_TRAIN
+            eventProbVar: EM_EVENTPROBABILITY
+            targetVariable: BAD
+            targetEvent: "1"
+            targetLevel: BINARY
+            tool: Model Studio
+            toolVersion: 8.3
+            externalModelId: 407fbf89-7085-49c3-811a-7f5d912e4676
+            immutable: true
+            folderRef: /folders/folders/a354fb9f-6dc9-4844-93ae-30aa9dd7e10c
+            modelVersionName: "1.0"
+            inputVariables:
+            outputVariables:
+            modelVersions:
+            modelLocks:
+            globalTags:
+            links:
+            - method: GET
+              rel: up
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions
+              type: application/vnd.sas.collection
+              itemType: application/vnd.sas.models.model.version
+            - method: GET
+              rel: self
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions/e660c5f8-6ca4-4aae-a3bb-c78042708a92
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions/e660c5f8-6ca4-4aae-a3bb-c78042708a92
+              type: application/vnd.sas.models.model.version
+            - method: GET
+              rel: contents
+              href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions/e660c5f8-6ca4-4aae-a3bb-c78042708a92/contents
+              uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions/e660c5f8-6ca4-4aae-a3bb-c78042708a92/contents
+              type: application/vnd.sas.collection
+              itemType: application/vnd.sas.models.model.content
+            version: 0
+            modelLastModifiedBy: sasdemo
+            modelLastModifiedTimeStamp: 2023-08-07T14:43:41.681738Z
+            modelCreatedBy: sasdemo
+            modelCreationTimeStamp: 2023-08-07T14:40:58.979328Z
+          modelLocks:
+          publishedModels:
+            modelId: 01508e8d-a6e2-40b9-b955-58f48e1b1604
+            projectId: b38d3663-0187-4690-84f9-56a973e0e6b1
+            publishName: QS_Reg1_pub1
+            publishResultUrl: QS_Reg1_pub1
+            destinationName: maslocal
+            destinationType: microAnalyticService
+            state: success
+            masUrl: /microanalyticScore/modules/qs_reg1_pub1
+          globalTags:
+          links:
+          - method: GET
+            rel: up
+            href: /modelRepository/models
+            uri: /modelRepository/models
+            type: application/vnd.sas.models.model
+          - method: GET
+            rel: self
+            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
+            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
+            type: application/vnd.sas.models.model
+          - method: PUT
+            rel: update
+            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
+            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
+            type: application/vnd.sas.models.model
+            responseItemType: application/vnd.sas.models.model
+          - method: DELETE
+            rel: delete
+            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
+            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604
+          - method: GET
+            rel: scoreCode
+            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/code
+            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/code
+            type: text/plain
+          - method: GET
+            rel: contents
+            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents
+            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/contents
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.models.model.content
+          - method: GET
+            rel: modelVersions
+            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions
+            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions
+            type: application/vnd.sas.collection
+            responseItemType: application/vnd.sas.models.model.version
+          - method: POST
+            rel: addModelVersion
+            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions
+            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/modelVersions
+            type: application/vnd.sas.models.model.version
+          - method: GET
+            rel: variables
+            href: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables
+            uri: /modelRepository/models/01508e8d-a6e2-40b9-b955-58f48e1b1604/variables
+            type: application/vnd.sas.collection
+            itemType: application/vnd.sas.models.model.variable
+          version: 0
+          modelLastModifiedTimeStamp: 0001-01-01T00:00:00Z
+          modelCreationTimeStamp: 0001-01-01T00:00:00Z
+    getVariableImportance:
+      description: The response for retrieving the variable importance for model variables.
+      value:
+      - variable: "MORTDUE"
+        importance: 1
+      - variable: "VALUE"
+        importance: 0.78
+      - variable: "LOAN"
+        importance: 0.76
+      - variable: "REASON"
+        importance: 0.35
+      - variable: "JOB"
+        importance: 0.21
+    getFairnessMetrics:
+      description: The response for retrieving the fairness metrics for model variables.
+      value:
+        items:
+          VariableName:
+          - mce:
+              label: "Misclassification Rate"
+              value: 0.07420815
+            mcll:
+              label: "Multi-Class Log Loss"
+              value: 0.19954976
+            tpr:
+              label: "True Positive Rate"
+              value: 0.41747573
+            ks:
+              label: "KS (Youden)"
+              value: 0.6539542
+            ase: {}
+            rase: {}
+            predictedEvent:
+              label: "Average Prediction for Event"
+              value: 0.11574166
+            avgyhat: {}
+            nobs:
+              label: "Number of Observations"
+              value: 1105
+            level:
+              label: "Variable Level"
+              value: "Female"
+          - mce:
+              label: "Misclassification Rate"
+              value: 0.2026964
+            mcll:
+              label: "Multi-Class Log Loss"
+              value: 0.4360413
+            tpr:
+              label: "True Positive Rate"
+              value: 0.606461
+            ks:
+              label: "KS (Youden)"
+              value: 0.5439809
+            ase: {}
+            rase: {}
+            predictedEvent:
+              label: "Average Prediction for Event"
+              value: 0.32324785
+            avgyhat: {}
+            nobs:
+              label: "Number of Observations"
+              value: 2151
+            level:
+              label: "Variable Level"
+              value: "Male"
+    projectNotFoundError:
+      description: The response for a not found error.
+      value:
         version: 2
-        id: "48c8eb71-26d6-4d12-b9d1-26ea2f09a198"
-        name: "ScoreCode1842211620.sas"
-        fileUri: "/files/files/48c8eb71-26d6-4d12-b9d1-26ea2f09a198"
-        modelId: "a02ea190-899c-4ff4-92a7-46c28a1c61e3"
-        versionId: "692ab9b1-69c8-4ded-85cb-1a0edca9796d"
-        links:
-        - method: "GET"
-          rel: "self"
-          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/48c8eb71-26d6-4d12-b9d1-26ea2f09a198"
-          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/48c8eb71-26d6-4d12-b9d1-26ea2f09a198"
-          itemType: "application/vnd.sas.models.model.content"
-        - method: "GET"
-          rel: "content"
-          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/48c8eb71-26d6-4d12-b9d1-26ea2f09a198/content"
-          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/modelVersions/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents/48c8eb71-26d6-4d12-b9d1-26ea2f09a198/content"
-          type: "text/plain"
+        httpStatusCode: 404
+        message: "Not Found"
+        details:
+        - "No project with the ID 'a90e7e33-79e8-4ed6-8b52-152562caca9d' was found."
     getChampionResponse:
       description: The response for retrieving the project champion model.
       value:
@@ -12637,753 +13381,9 @@ components:
           uri: /modelRepository/models/2ba7d14e-616f-49fd-9a87-875f92704e8f/variables
           type: application/vnd.sas.collection
           itemType: application/vnd.sas.models.model.variable
-    getModelHealthMetrics:
-      description: The response for retrieving the training health metrics for a model.
-      value:
-        items:
-        - category: "accuracy"
-          metric: "MCE"
-          variable: ""
-          threshold: "0.30000001192092896"
-          value: "0.128852"
-          success: true
-        - category: "generalizability"
-          metric: "MCE Difference"
-          variable: ""
-          threshold: "0.10000000149011612"
-          value: "0.025910"
-          success: true
-        - category: "fairness"
-          metric: "equalOpportunity"
-          variable: "Race"
-          threshold: "0.2"
-          value: "0.545455"
-          success: false
-        isDefault: true
     getModelUserProperty:
       description: The response showing a single user-defined property for a model.
       value:
         name: "priority4"
         type: "string"
         value: "high"
-    getProjectUserProperty:
-      description: The response showing a single user-defined property for a project.
-      value:
-        name: "priority4"
-        type: "string"
-        value: "high"
-    badRequest:
-      description: The request was invalid.
-      value:
-        version: 2
-        httpStatusCode: 400
-    getClassificationMatrix:
-      description: The response for retrieving the misclassification metrics for a
-        model.
-      value:
-        validateEventCorrect: 1293
-        validateEventIncorrect: 1059
-        validateNonEventCorrect: 6838
-        validateNonEventIncorrect: 578
-        trainEventCorrect: 2595
-        trainEventIncorrect: 2110
-        trainNonEventCorrect: 13717
-        trainNonEventIncorrect: 1115
-        testEventCorrect: 456
-        testEventIncorrect: 328
-        testNonEventCorrect: 2282
-        testNonEventIncorrect: 190
-        event: "1"
-        nEvent: "0"
-    getProjectUserProperties:
-      description: The response showing all user-defined properties for a project.
-      value:
-        version: 2
-        accept: "application/json"
-        count: 22
-        start: 0
-        limit: 20
-        name: "userProperties"
-        items:
-        - name: "keyA"
-          value: "valueB"
-          type: "string"
-        - name: "keyB"
-          value: "valueA"
-          type: "string"
-        - name: "priority"
-          value: "high"
-          type: "string"
-        - name: "priority2"
-          value: "high"
-          type: "string"
-        links:
-        - method: "GET"
-          rel: "collection"
-          href: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
-          uri: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
-          type: "application/vnd.sas.collection"
-          itemType: "application/json"
-        - method: "GET"
-          rel: "next"
-          href: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=20&limit=20&filter=eq%28projectId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
-          uri: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=20&limit=20&filter=eq%28projectId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
-          type: "application/vnd.sas.collection"
-          itemType: "application/json"
-        - method: "GET"
-          rel: "self"
-          href: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=0&limit=20&filter=eq%28projectId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
-          uri: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties?start=0&limit=20&filter=eq%28projectId%2C+%27aaf8ff18-8c32-4772-8e47-40876cafbff7%27%29"
-          type: "application/vnd.sas.collection"
-          itemType: "application/json"
-        - method: "POST"
-          rel: "create"
-          href: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
-          uri: "/modelRepository/projects/aaf8ff18-8c32-4772-8e47-40876cafbff7/userProperties"
-          type: "application/json"
-    getGeneralizability:
-      description: The response for retrieving the generalizability metrics for a
-        model.
-      value:
-        state: "fit"
-    fileMiscNotFoundError:
-      description: The response for when the misclassification metrics file (dmcas_misc.json)
-        does not exist.
-      value:
-        version: 2
-        httpStatusCode: 404
-        message: "Not Found"
-        details:
-        - "File not found. ID: , Name: dmcas_misc.json"
-        - "path: /modelRepository/models/2a655f00-7061-4dfb6d1187d88/fairnessMetrics"
-        - "correlator: 2f58aae4-dcbd-4297-ae1f-dd72d0deac52"
-    fileFitstatNotFoundError:
-      description: The response for when the fit statistics file (dmcas_fitstat.json)
-        does not exist.
-      value:
-        version: 2
-        httpStatusCode: 404
-        message: "Not Found"
-        details:
-        - "File not found. ID: , Name: dmcas_fitstat.json"
-        - "path: /modelRepository/models/2a655f00-7061-4dfb6d1187d88/fairnessMetrics"
-        - "correlator: 2f58aae4-dcbd-4297-ae1f-dd72d0deac52"
-    preconditionFailed:
-      description: The `If-Match` request header did not match the resource's entity
-        tag.
-      value:
-        version: 2
-        httpStatusCode: 412
-    getFairnessMetrics:
-      description: The response for retrieving the fairness metrics for model variables.
-      value:
-        items:
-          VariableName:
-          - mce:
-              label: "Misclassification Rate"
-              value: 0.07420815
-            mcll:
-              label: "Multi-Class Log Loss"
-              value: 0.19954976
-            tpr:
-              label: "True Positive Rate"
-              value: 0.41747573
-            ks:
-              label: "KS (Youden)"
-              value: 0.6539542
-            ase: {}
-            rase: {}
-            predictedEvent:
-              label: "Average Prediction for Event"
-              value: 0.11574166
-            avgyhat: {}
-            nobs:
-              label: "Number of Observations"
-              value: 1105
-            level:
-              label: "Variable Level"
-              value: "Female"
-          - mce:
-              label: "Misclassification Rate"
-              value: 0.2026964
-            mcll:
-              label: "Multi-Class Log Loss"
-              value: 0.4360413
-            tpr:
-              label: "True Positive Rate"
-              value: 0.606461
-            ks:
-              label: "KS (Youden)"
-              value: 0.5439809
-            ase: {}
-            rase: {}
-            predictedEvent:
-              label: "Average Prediction for Event"
-              value: 0.32324785
-            avgyhat: {}
-            nobs:
-              label: "Number of Observations"
-              value: 2151
-            level:
-              label: "Variable Level"
-              value: "Male"
-    getModelVersionHistory:
-      description: The response for retrieving a specific model version from model
-        history.
-      value:
-        creationTimeStamp: "2025-03-10T14:48:50.335Z"
-        createdBy: "sasdemo"
-        modifiedTimeStamp: "2025-03-10T14:48:50.335Z"
-        modifiedBy: "sasdemo"
-        id: "692ab9b1-69c8-4ded-85cb-1a0edca9796d"
-        name: "QS_Reg1"
-        description: "Logistic Regression Model"
-        role: "plain"
-        scoreCodeType: "dataStep"
-        algorithm: "logisticreg"
-        function: "classification"
-        modeler: "sasdemo"
-        modelType: "datastep"
-        trainTable: "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/HMEQ_TRAIN"
-        eventProbVar: "EM_EVENTPROBABILITY"
-        targetVariable: "BAD"
-        targetEvent: "1"
-        targetLevel: "BINARY"
-        tool: "Model Studio"
-        toolVersion: "8.3"
-        externalModelId: "407fbf89-7085-49c3-811a-7f5d912e4676"
-        provider: "Azure"
-        costPerCall: "0"
-        immutable: true
-        folderRef: "/folders/folders/eec95375-cfa7-45a6-813a-0b67436e6d2f"
-        modelVersionName: "1.0"
-        inputVariables: []
-        outputVariables: []
-        modelVersions: []
-        modelLocks:
-        globalTags:
-        links:
-        - method: "GET"
-          rel: "up"
-          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history"
-          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history"
-          type: "application/vnd.sas.collection"
-          itemType: "application/vnd.sas.models.model.version"
-        - method: "GET"
-          rel: "self"
-          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d"
-          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d"
-          type: "application/vnd.sas.models.model.version"
-        - method: "GET"
-          rel: "contents"
-          href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents"
-          uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents"
-          type: "application/vnd.sas.collection"
-          itemType: "application/vnd.sas.models.model.content"
-        version: 0
-        modelId: "a02ea190-899c-4ff4-92a7-46c28a1c61e3"
-        modelLastModifiedBy: "sasdemo"
-        modelLastModifiedTimeStamp: "2025-03-10T14:48:49.36762Z"
-        modelCreatedBy: "sasdemo"
-        modelCreationTimeStamp: "2025-03-10T14:47:57.912505Z"
-    getChampionScoreCodeDS2PackageResponse:
-      description: The score code for a champion model that is of type ds2package.
-      value:
-        body: |-
-          ds2_options sas tkgmac scond=none;
-            package &SCOREPACK/overwrite=yes;
-            #_local _P_;
-            #_local _NEW_ID_;
-            #_local _NODE_ID_;
-            #_local _NUMVAL_;
-            #_local _DT_PRED_PROB_;
-            #_local _DT_PRED_LEV_;
-            #_local _I_;
-            #_local _DT_PREDP_;
-            dcl double EM_EVENTPROBABILITY;
-            dcl char(32) EM_CLASSIFICATION;
-            dcl double EM_PROBABILITY;
-            method score(double "CLAGE", double "DEBTINC", double "DELINQ", double
-            "DEROG", double "VALUE", in_out char(12) "EM_CLASSIFICATION", in_out double
-            "EM_EVENTPROBABILITY", in_out double "EM_PROBABILITY", in_out char(12)
-            "I_BAD", in_out double "P_BAD0", in_out double "P_BAD1", in_out double
-            "_leaf_id_");
-            dcl char(12) _STRFMT_;
-              dcl double _DT_FI_10015615_[
-                  2
-            ];
-            dcl char(12) _TLEVNAME_10015615_[
-              2
-            ];
-              _TLEVNAME_10015615_:=('           1', '           0');
-            _STRFMT_ = ' ';
-            _NODE_ID_ = 0.0;
-            _NEW_ID_ = -1.0;
-            NEXTNODE_10015615: if _NODE_ID_ = 0.0 then do ;
-            _STRFMT_ = LEFT(TRIM(put(DELINQ, BEST12.)));
-            if _STRFMT_ in ('4', '1', '0', '3', '2', '.') then do ;
-            _NEW_ID_ = 1.0;
-            end;
-              else if _STRFMT_ in ('10', '5', '7', '6', '8') then do ;
-            _NEW_ID_ = 2.0;
-            end;
-              else do ;
-            _NEW_ID_ = 1.0;
-            end;
-            end;
-              else if _NODE_ID_ = 1.0 then do ;
-            _NUMVAL_ = DEBTINC;
-            if MISSING(_NUMVAL_) then do ;
-            _NODE_ID_ = 3.0;
-            goto NEXTNODE_10015615;
-            end;
-            if (_NUMVAL_ >= 43.5520309368842 & _NUMVAL_ < 143.949604953611) then do
-            ;
-            _NEW_ID_ = 3.0;
-            end;
-              else if (_NUMVAL_ >= 0.52449921542988 & _NUMVAL_ < 43.5520309368842)
-            then do ;
-            _NEW_ID_ = 4.0;
-            end;
-              else if (_NUMVAL_ < 0.52449921542988) then do ;
-            _NEW_ID_ = 4.0;
-            end;
-              else if (_NUMVAL_ >= 143.949604953611) then do ;
-            _NEW_ID_ = 3.0;
-            end;
-              else do ;
-            _NEW_ID_ = 4.0;
-            end;
-            end;
-              else if _NODE_ID_ = 2.0 then do ;
-            _LEAF_ID_ = 2.0;
-            _NEW_ID_ = -1.0;
-            _DT_PRED_LEV_ = 0.0;
-            _DT_PRED_PROB_ = 1.0;
-            _DT_FI_10015615_[
-                1.0
-            ] = 1.0;
-            _DT_FI_10015615_[
-                2.0
-            ] = 0.0;
-            end;
-              else if _NODE_ID_ = 3.0 then do ;
-            _STRFMT_ = LEFT(TRIM(put(DEROG, BEST12.)));
-            if _STRFMT_ in ('1', '0', '2', '.') then do ;
-            _NEW_ID_ = 5.0;
-            end;
-              else if _STRFMT_ in ('4', '7', '6', '3') then do ;
-            _NEW_ID_ = 6.0;
-            end;
-              else do ;
-            _NEW_ID_ = 5.0;
-            end;
-            end;
-              else if _NODE_ID_ = 4.0 then do ;
-            _NUMVAL_ = VALUE;
-            if MISSING(_NUMVAL_) then do ;
-            _NODE_ID_ = 7.0;
-            goto NEXTNODE_10015615;
-            end;
-            if (_NUMVAL_ >= 474844.95 & _NUMVAL_ < 855909.0) then do ;
-            _NEW_ID_ = 7.0;
-            end;
-              else if (_NUMVAL_ >= 9100.0 & _NUMVAL_ < 474844.95) then do ;
-            _NEW_ID_ = 8.0;
-            end;
-              else if (_NUMVAL_ < 9100.0) then do ;
-            _NEW_ID_ = 8.0;
-            end;
-              else if (_NUMVAL_ >= 855909.0) then do ;
-            _NEW_ID_ = 7.0;
-            end;
-              else do ;
-            _NEW_ID_ = 8.0;
-            end;
-            end;
-              else if _NODE_ID_ = 5.0 then do ;
-            _NUMVAL_ = VALUE;
-            if MISSING(_NUMVAL_) then do ;
-            _NODE_ID_ = 9.0;
-            goto NEXTNODE_10015615;
-            end;
-            if (_NUMVAL_ >= 474844.95 & _NUMVAL_ < 855909.0) then do ;
-            _NEW_ID_ = 9.0;
-            end;
-              else if (_NUMVAL_ >= 9100.0 & _NUMVAL_ < 474844.95) then do ;
-            _NEW_ID_ = 10.0;
-            end;
-              else if (_NUMVAL_ < 9100.0) then do ;
-            _NEW_ID_ = 10.0;
-            end;
-              else if (_NUMVAL_ >= 855909.0) then do ;
-            _NEW_ID_ = 9.0;
-            end;
-              else do ;
-            _NEW_ID_ = 10.0;
-            end;
-            end;
-              else if _NODE_ID_ = 6.0 then do ;
-            _LEAF_ID_ = 6.0;
-            _NEW_ID_ = -1.0;
-            _DT_PRED_LEV_ = 0.0;
-            _DT_PRED_PROB_ = 1.0;
-            _DT_FI_10015615_[
-                1.0
-            ] = 1.0;
-            _DT_FI_10015615_[
-                2.0
-            ] = 0.0;
-            end;
-              else if _NODE_ID_ = 7.0 then do ;
-            _LEAF_ID_ = 7.0;
-            _NEW_ID_ = -1.0;
-            _DT_PRED_LEV_ = 0.0;
-            _DT_PRED_PROB_ = 0.72727272727272;
-            _DT_FI_10015615_[
-                1.0
-            ] = 0.72727272727272;
-            _DT_FI_10015615_[
-                2.0
-            ] = 0.27272727272727;
-            end;
-              else if _NODE_ID_ = 8.0 then do ;
-            _LEAF_ID_ = 8.0;
-            _NEW_ID_ = -1.0;
-            _DT_PRED_LEV_ = 1.0;
-            _DT_PRED_PROB_ = 0.94372693726937;
-            _DT_FI_10015615_[
-              1.0
-            ] = 0.05627306273062;
-            _DT_FI_10015615_[
-              2.0
-            ] = 0.94372693726937;
-            end;
-              else if _NODE_ID_ = 9.0 then do ;
-            _LEAF_ID_ = 9.0;
-            _NEW_ID_ = -1.0;
-            _DT_PRED_LEV_ = 0.0;
-            _DT_PRED_PROB_ = 1.0;
-            _DT_FI_10015615_[
-                1.0
-            ] = 1.0;
-            _DT_FI_10015615_[
-                2.0
-            ] = 0.0;
-            end;
-              else if _NODE_ID_ = 10.0 then do ;
-            _NUMVAL_ = DEBTINC;
-            if MISSING(_NUMVAL_) then do ;
-            _NODE_ID_ = 12.0;
-            goto NEXTNODE_10015615;
-            end;
-            if (_NUMVAL_ >= 50.7232862237933 & _NUMVAL_ < 143.949604953611) then do
-            ;
-            _NEW_ID_ = 11.0;
-            end;
-              else if (_NUMVAL_ >= 0.52449921542988 & _NUMVAL_ < 50.7232862237933)
-            then do ;
-            _NEW_ID_ = 12.0;
-            end;
-              else if (_NUMVAL_ < 0.52449921542988) then do ;
-            _NEW_ID_ = 12.0;
-            end;
-              else if (_NUMVAL_ >= 143.949604953611) then do ;
-            _NEW_ID_ = 11.0;
-            end;
-              else do ;
-            _NEW_ID_ = 12.0;
-            end;
-            end;
-              else if _NODE_ID_ = 11.0 then do ;
-            _LEAF_ID_ = 11.0;
-            _NEW_ID_ = -1.0;
-            _DT_PRED_LEV_ = 0.0;
-            _DT_PRED_PROB_ = 1.0;
-            _DT_FI_10015615_[
-                1.0
-            ] = 1.0;
-            _DT_FI_10015615_[
-                2.0
-            ] = 0.0;
-            end;
-              else if _NODE_ID_ = 12.0 then do ;
-            _STRFMT_ = LEFT(TRIM(put(DELINQ, BEST12.)));
-            if _STRFMT_ in ('1', '0', '3', '2', '.') then do ;
-            _NEW_ID_ = 13.0;
-            end;
-              else if _STRFMT_ in ('4') then do ;
-            _NEW_ID_ = 14.0;
-            end;
-              else do ;
-            _NEW_ID_ = 13.0;
-            end;
-            end;
-              else if _NODE_ID_ = 13.0 then do ;
-            _STRFMT_ = LEFT(TRIM(put(DELINQ, BEST12.)));
-            if _STRFMT_ in ('1', '0', '2', '.') then do ;
-            _NEW_ID_ = 15.0;
-            end;
-              else if _STRFMT_ in ('3') then do ;
-            _NEW_ID_ = 16.0;
-            end;
-              else do ;
-            _NEW_ID_ = 15.0;
-            end;
-            end;
-              else if _NODE_ID_ = 14.0 then do ;
-            _LEAF_ID_ = 14.0;
-            _NEW_ID_ = -1.0;
-            _DT_PRED_LEV_ = 0.0;
-            _DT_PRED_PROB_ = 1.0;
-            _DT_FI_10015615_[
-                1.0
-            ] = 1.0;
-            _DT_FI_10015615_[
-                2.0
-            ] = 0.0;
-            end;
-              else if _NODE_ID_ = 15.0 then do ;
-            _NUMVAL_ = CLAGE;
-            if MISSING(_NUMVAL_) then do ;
-            _NODE_ID_ = 18.0;
-            goto NEXTNODE_10015615;
-            end;
-            if (_NUMVAL_ >= 175.235034141696 & _NUMVAL_ < 1168.23356094464) then do
-            ;
-            _NEW_ID_ = 17.0;
-            end;
-              else if (_NUMVAL_ >= 0.0 & _NUMVAL_ < 175.235034141696) then do ;
-            _NEW_ID_ = 18.0;
-            end;
-              else if (_NUMVAL_ < 0.0) then do ;
-            _NEW_ID_ = 18.0;
-            end;
-              else if (_NUMVAL_ >= 1168.23356094464) then do ;
-            _NEW_ID_ = 17.0;
-            end;
-              else do ;
-            _NEW_ID_ = 18.0;
-            end;
-            end;
-              else if _NODE_ID_ = 16.0 then do ;
-            _LEAF_ID_ = 16.0;
-            _NEW_ID_ = -1.0;
-            _DT_PRED_LEV_ = 0.0;
-            _DT_PRED_PROB_ = 0.93333333333333;
-            _DT_FI_10015615_[
-                1.0
-            ] = 0.93333333333333;
-            _DT_FI_10015615_[
-                2.0
-            ] = 0.06666666666666;
-            end;
-              else if _NODE_ID_ = 17.0 then do ;
-            _LEAF_ID_ = 17.0;
-            _NEW_ID_ = -1.0;
-            _DT_PRED_LEV_ = 1.0;
-            _DT_PRED_PROB_ = 0.67;
-            _DT_FI_10015615_[
-                1.0
-            ] = 0.33;
-            _DT_FI_10015615_[
-                2.0
-            ] = 0.67;
-            end;
-              else if _NODE_ID_ = 18.0 then do ;
-            _LEAF_ID_ = 18.0;
-            _NEW_ID_ = -1.0;
-            _DT_PRED_LEV_ = 0.0;
-            _DT_PRED_PROB_ = 0.68181818181818;
-            _DT_FI_10015615_[
-                1.0
-            ] = 0.68181818181818;
-            _DT_FI_10015615_[
-                2.0
-            ] = 0.31818181818181;
-            end;
-            if _NEW_ID_ >= 0.0 then do ;
-            _NODE_ID_ = _NEW_ID_;
-            goto NEXTNODE_10015615;
-            end;
-            I_BAD = _TLEVNAME_10015615_[_DT_PRED_LEV_ + 1.0
-            ];
-            _I_ = 1.0;
-            _DT_PREDP_ = _DT_FI_10015615_[_I_
-            ];
-            P_BAD1 = _DT_PREDP_;
-            _I_ + 1.0;
-            _DT_PREDP_ = _DT_FI_10015615_[_I_
-            ];
-            P_BAD0 = _DT_PREDP_;
-            _I_ + 1.0;
-            if "P_BAD0" = . then "P_BAD0" = 0.8000839983;
-            if "P_BAD1" = . then "P_BAD1" = 0.1999160017;
-            if MISSING("I_BAD") then do ;
-            _P_ = 0.0;
-            if "P_BAD1" > _P_ then do ;
-            _P_ = "P_BAD1";
-            "I_BAD" = '1';
-            end;
-            if "P_BAD0" > _P_ then do ;
-            _P_ = "P_BAD0";
-            "I_BAD" = '0';
-            end;
-            end;
-            EM_EVENTPROBABILITY = "P_BAD1";
-            EM_CLASSIFICATION = "I_BAD";
-            EM_PROBABILITY = MAX("P_BAD1",
-            "P_BAD0");
-            _return: ;
-            end;
-              endpackage;
-    fileRelativeImportanceNotFoundError:
-      description: The response for when the variable relative importance file (dmcas_relativeimportance.json)
-        does not exist.
-      value:
-        version: 2
-        httpStatusCode: 404
-        message: "Not Found"
-        details:
-        - "File not found. ID: , Name: dmcas_relativeimportance.json"
-        - "path: /modelRepository/models/2a655f00-7061-4dfb6d1187d88/fairnessMetrics"
-        - "correlator: 2f58aae4-dcbd-4297-ae1f-dd72d0deac52"
-    getModelVersionHistoryList:
-      description: The response for retrieving all model versions from model history.
-      value:
-        items:
-        - creationTimeStamp: "2025-03-10T14:48:50.335Z"
-          createdBy: "sasdemo"
-          modifiedTimeStamp: "2025-03-10T14:48:50.335Z"
-          modifiedBy: "sasdemo"
-          id: "692ab9b1-69c8-4ded-85cb-1a0edca9796d"
-          name: "QS_Reg1"
-          description: "Logistic Regression Model"
-          role: "plain"
-          scoreCodeType: "dataStep"
-          algorithm: "logisticreg"
-          function: "classification"
-          modeler: "sasdemo"
-          modelType: "datastep"
-          trainTable: "/dataTables/dataSources/cas~fs~cas-shared-default~fs~Public/tables/HMEQ_TRAIN"
-          eventProbVar: "EM_EVENTPROBABILITY"
-          targetVariable: "BAD"
-          targetEvent: "1"
-          targetLevel: "BINARY"
-          tool: "Model Studio"
-          toolVersion: "8.3"
-          externalModelId: "407fbf89-7085-49c3-811a-7f5d912e4676"
-          provider: "Azure"
-          costPerCall: "0"
-          immutable: true
-          folderRef: "/folders/folders/eec95375-cfa7-45a6-813a-0b67436e6d2f"
-          modelVersionName: "1.0"
-          inputVariables: []
-          outputVariables: []
-          modelVersions: []
-          modelLocks: []
-          globalTags: []
-          links:
-          - method: "GET"
-            rel: "up"
-            href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history"
-            uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history"
-            type: "application/vnd.sas.collection"
-            itemType: "application/vnd.sas.models.model.version"
-          - method: "GET"
-            rel: "self"
-            href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d"
-            uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d"
-            type: "application/vnd.sas.models.model.version"
-          - method: "GET"
-            rel: "contents"
-            href: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents"
-            uri: "/modelRepository/models/a02ea190-899c-4ff4-92a7-46c28a1c61e3/history/692ab9b1-69c8-4ded-85cb-1a0edca9796d/contents"
-            type: "application/vnd.sas.collection"
-            itemType: "application/vnd.sas.models.model.content"
-          version: 0
-          modelId: "a02ea190-899c-4ff4-92a7-46c28a1c61e3"
-          modelLastModifiedBy: "sasdemo"
-          modelLastModifiedTimeStamp: "2025-03-10T14:48:49.36762Z"
-          modelCreatedBy: "sasdemo"
-          modelCreationTimeStamp: "2025-03-10T14:47:57.912505Z"
-    getLiftData:
-      description: The response for retrieving the lift statistics for a model.
-      value:
-        depth:
-        - "0"
-        - "5"
-        - "10"
-        - "15"
-        - "20"
-        - "25"
-        - "30"
-        - "35"
-        - "40"
-        - "45"
-        - "50"
-        - "55"
-        - "60"
-        - "65"
-        - "70"
-        - "75"
-        - "80"
-        - "85"
-        - "90"
-        - "95"
-        - "100"
-        meanP:
-        - "0.1"
-        - "0.2"
-        - "0.3"
-        - "0.4"
-        - "0.5"
-        - "0.6"
-        - "0.65"
-        - "0.7"
-        - "0.75"
-        - "0.8"
-        - "0.82"
-        - "0.85"
-        - "0.87"
-        - "0.9"
-        - "0.92"
-        - "0.94"
-        - "0.95"
-        - "0.96"
-        - "0.97"
-        - "0.98"
-        meanT:
-        - "0.05"
-        - "0.1"
-        - "0.15"
-        - "0.2"
-        - "0.25"
-        - "0.3"
-        - "0.35"
-        - "0.4"
-        - "0.45"
-        - "0.5"
-        - "0.55"
-        - "0.6"
-        - "0.65"
-        - "0.7"
-        - "0.75"
-        - "0.8"
-        - "0.85"
-        - "0.88"
-        - "0.9"
-        - "0.95"
-    getVariableImportance:
-      description: The response for retrieving the variable importance for model variables.
-      value:
-      - variable: "MORTDUE"
-        importance: 1
-      - variable: "VALUE"
-        importance: 0.78
-      - variable: "LOAN"
-        importance: 0.76
-      - variable: "REASON"
-        importance: 0.35
-      - variable: "JOB"
-        importance: 0.21

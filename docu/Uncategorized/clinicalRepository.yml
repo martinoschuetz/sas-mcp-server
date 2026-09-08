@@ -1358,6 +1358,55 @@ paths:
         "409":
           description: A repository item with the same name already exists at the
             specified location.
+  "/repository/items/{itemId}/copy":
+    post:
+      tags:
+      - Repository
+      summary: Copy the specified repository item
+      description: >
+        Only folders and files can be copied. Items that are copied create new items
+        with new identifiers. If a folder is copied, the folder and all readable contents
+        within it are copied. If a versioned file is copied, only the latest version
+        of the file is copied.
+      operationId: createRepositoryItemCopy
+      parameters:
+      - $ref: '#/components/parameters/itemIdPathParameter'
+      - name: destinationPath
+        in: query
+        schema:
+          type: string
+        required: true
+        description: The destination path is the full path to the created copy, which
+          includes the name of the new item.
+      responses:
+        "201":
+          description: Created - the repository item copy was created successfully.
+          headers:
+            ETag:
+              $ref: '#/components/headers/Etag'
+            Last-Modified:
+              $ref: '#/components/headers/Last-Modified'
+          content:
+            application/vnd.sas.clinical.repository.item:
+              schema:
+                $ref: "#/components/schemas/repositoryItem"
+              examples:
+                json:
+                  $ref: "#/components/schemas/repositoryItem/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/repositoryItem"
+              examples:
+                json:
+                  $ref: "#/components/schemas/repositoryItem/example"
+        "400":
+          description: Bad Request
+        "404":
+          description: A repository item with the specified identifier or path could
+            not be found.
+        "409":
+          description: A repository item with the same name already exists at the
+            specified location.
   "/repository/items/{itemId}/children/batch":
     post:
       x-sas-internal: true
@@ -5153,6 +5202,59 @@ paths:
           description: The clinical workflow was successfully deleted.
         "404":
           description: The clinical workflow could not be found.
+  /workflows/{workflowId}/copy:
+    post:
+      tags:
+      - Clinical Workflow
+      summary: Copy a clinical workflow
+      description: Copy a clinical workflow with options to copy process data, activate
+        the newly copied workflow, and set the original workflow owner as the new
+        owner.
+      operationId: createClinicalWorkflowCopy
+      parameters:
+      - $ref: '#/components/parameters/workflowIdPathParameter'
+      requestBody:
+        required: true
+        description: |
+          Specifies information for creating a copy of a clinical workflow
+        content:
+          application/vnd.sas.clinical.workflow.copy+json:
+            schema:
+              $ref: "#/components/schemas/workflowCopyRequestBody"
+            examples:
+              json:
+                $ref: "#/components/schemas/workflowCreateRequestBody/example"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/workflowCreateRequestBody"
+            examples:
+              json:
+                $ref: "#/components/schemas/workflowCreateRequestBody/example"
+      responses:
+        "201":
+          description: Created - the clinical workflow was created successfully.
+          headers:
+            ETag:
+              $ref: '#/components/headers/Etag'
+            Last-Modified:
+              $ref: '#/components/headers/Last-Modified'
+          content:
+            application/vnd.sas.clinical.workflow+json:
+              schema:
+                $ref: "#/components/schemas/workflow"
+              examples:
+                json:
+                  $ref: "#/components/schemas/workflow/example"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/workflow"
+              examples:
+                json:
+                  $ref: "#/components/schemas/workflow/example"
+        "400":
+          description: Bad Request
+        "409":
+          description: A clinical workflow with the same name already exists
   /workflows/{workflowId}/variables:
     get:
       x-sas-internal: true
@@ -5222,7 +5324,7 @@ paths:
           description: Bad Request
         "404":
           description: The clinical workflow could not be found.
-  /workflows/{workflowId}/elementdefinitions:
+  /workflows/{workflowId}/elementDefinitions:
     get:
       tags:
       - Clinical Workflow
@@ -5277,6 +5379,8 @@ paths:
                 - $ref: '#/components/schemas/workflowTagSignalEventSetup'
                 - $ref: '#/components/schemas/workflowNotificationSetup'
                 - $ref: '#/components/schemas/workflowJobSetup'
+                - $ref: '#/components/schemas/workflowRepositoryLockTaskSetup'
+                - $ref: '#/components/schemas/workflowRepositoryTagTaskSetup'
               examples:
                 json:
                   $ref: '#/components/schemas/workflowElementCollection/example'
@@ -5289,6 +5393,8 @@ paths:
                 - $ref: '#/components/schemas/workflowTagSignalEventSetup'
                 - $ref: '#/components/schemas/workflowNotificationSetup'
                 - $ref: '#/components/schemas/workflowJobSetup'
+                - $ref: '#/components/schemas/workflowRepositoryLockTaskSetup'
+                - $ref: '#/components/schemas/workflowRepositoryTagTaskSetup'
               examples:
                 json:
                   $ref: '#/components/schemas/workflowElementCollection/example'
@@ -12404,6 +12510,60 @@ components:
           contextId: 9848b115-388f-43d7-a714-47771b401d10
           definitionId: WF3E1BE1B1-3D96-4794-A9BE-C7F74B43F34E
           description: my new wf
+    workflowCopyRequestBody:
+      title: Create Copy of Clinical Workflow Request Body
+      description: Information to provide in the request body to create a copy of
+        the clinical workflow.
+      properties:
+        version:
+          description: The version of the representation. This is version 1.
+          type: number
+        name:
+          description: The name of the copied workflow.
+          type: string
+        includeProcessData:
+          description: Indicates whether to include process data from the source clinical
+            workflow in the copied workflow.  Default is false.
+          type: boolean
+        activate:
+          description: |
+            Indicates whether to activate the copied clinical workflow once it is created.  Default is false.
+          type: boolean
+        useSourceOwner:
+          description: Indicates whether the owner of the copied workflow should be
+            the same as the source clinical workflow.  Default is false.
+          type: boolean
+      example:
+        value:
+          version: 1
+          name: COPIED
+          includeProcessData: false
+          activate: false
+          useSourceOwner: true
+    workflowTaskType:
+      type: string
+      description: The functional type of the element.
+      enum:
+      - USERTASK
+      - NOTIFICATION
+      - TIMEREVENT
+      - SIGNALEVENT
+      - TAGSIGNALEVENT
+      - JOBTASK
+      - REPOSITORYLOCKTASK
+      - REPOSITORYTAGTASK
+    workflowElementType:
+      type: string
+      description: The display type of the element.
+      enum:
+      - USER_TASK
+      - TIMER_INTERMEDIATE_CATCH_EVENT
+      - SIGNAL_INTERMEDIATE_CATCH_EVENT
+      - NOTIFICATION_TASK
+      - SYSTEM_JOB_EXEC
+      - SYSTEM_JOB_EXEC_NO_WAIT
+      - SYSTEM_REPOSITORY_LOCK_ACTION
+      - SYSTEM_REPOSITORY_TAG_ACTION
     workflowCommonElementSetup:
       title: Get Clinical Workflow Element Setup Details
       description: Details for the clinical workflow definition elements and the associated
@@ -12578,6 +12738,78 @@ components:
           - "/org/folder1/*"
           - "/org/folder2/*"
           signalName: repositoryFilePut1
+    workflowRepositoryLockTaskSetup:
+      title: Repository Lock Task Details
+      description: Details for a repository lock task to lock and unlock files as
+        part of a clinical workflow.
+      allOf:
+      - $ref: '#/components/schemas/workflowCommonElementSetup'
+      - type: object
+        properties:
+          action:
+            type: string
+            description: The name of the lock action. Valid values are LOCK and UNLOCK.
+          locations:
+            type: array
+            description: The locations that are acted on.
+            items:
+              type: string
+      example:
+        value:
+          version: 1
+          workflowId: a909f513-d064-4c6f-9e52-5bdeb652a59f
+          elementId: WFD8C83DB2-A261-437B-A131-727834D71222
+          elementName: Call activity
+          elementType: SYSTEM_REPOSITORY_LOCK_ACTION
+          type: REPOSITORYLOCKTASK
+          action: LOCK
+          locations:
+          - version: 1
+            path: "/RemoteClinicalWorkflowTest/repoTaskFiles/71415114-9751-4b93-93d9-0a6a5643bb9f.txt"
+            type: FILE
+          - version: 1
+            path: "/RemoteClinicalWorkflowTest/repoTaskFiles/694d7ebc-5eeb-4ee1-8de3-d84f10bd02f3.txt"
+            type: FILE
+    workflowRepositoryTagTaskSetup:
+      title: Repository Tag Task Details
+      description: Details for a repository tag task to add and remove tags on repository
+        items as part of a clinical workflow.
+      allOf:
+      - $ref: '#/components/schemas/workflowCommonElementSetup'
+      - type: object
+        properties:
+          action:
+            type: string
+            description: The name of the tag action. Valid values are ADD_TAG and
+              REMOVE_TAG.
+          locations:
+            type: array
+            description: The locations that are acted on.
+            items:
+              type: string
+          tag:
+            type: string
+            description: The tag to add or remove to the repository item.
+      example:
+        value:
+          elementId: WFF576113A-FBAC-462C-B2E5-5E55918BF64E
+          workflowId: 17e4bb92-18c1-4473-989d-a581d65aa67d
+          elementType: SYSTEM_REPOSITORY_TAG_ACTION
+          type: REPOSITORYTAGTASK
+          action: ADD_TAG
+          locations:
+          - version: 1
+            path: "/RemoteClinicalWorkflowTest/tagParentFolder/file1.txt"
+            type: FILE
+          - version: 1
+            path: "/RemoteClinicalWorkflowTest/tagParentFolder/folder2"
+            type: CONTAINER
+            includeChildren: false
+          - version: 1
+            path: "/RemoteClinicalWorkflowTest/tagParentFolder/folder1"
+            type: CONTAINER
+            includeChildren: true
+          tag: tagtesta833c96b0d7d4
     workflowTagSignalEventSetup:
       title: Tag Signal Event Details
       description: Details for a tag signal event in a clinical workflow.
@@ -12761,15 +12993,7 @@ components:
           - SYSTEM_JOB_EXEC
           - SYSTEM_JOB_EXEC_NO_WAIT
         type:
-          type: string
-          description: The functional type of the element.
-          enum:
-          - USERTASK
-          - TIMEREVENT
-          - SIGNALEVENT
-          - TAGSIGNALEVENT
-          - NOTIFICATION
-          - JOBTASK
+          $ref: '#/components/schemas/workflowTaskType'
         description:
           type: string
           description: "The element description from the workflow definition. Note:\
@@ -12819,25 +13043,9 @@ components:
           type: string
           description: A brief summary of details defined in the element.
         elementType:
-          type: string
-          description: The display type of the element.
-          enum:
-          - USER_TASK
-          - TIMER_INTERMEDIATE_CATCH_EVENT
-          - SIGNAL_INTERMEDIATE_CATCH_EVENT
-          - NOTIFICATION_TASK
-          - SYSTEM_JOB_EXEC
-          - SYSTEM_JOB_EXEC_NO_WAIT
+          $ref: '#/components/schemas/workflowElementType'
         type:
-          type: string
-          description: The functional type of the element.
-          enum:
-          - USERTASK
-          - TIMEREVENT
-          - SIGNALEVENT
-          - TAGSIGNALEVENT
-          - NOTIFICATION
-          - JOBTASK
+          $ref: '#/components/schemas/workflowTaskType'
         description:
           type: string
           description: "The element description from the clinical workflow definition.\
@@ -13463,6 +13671,61 @@ components:
         hoursWorked:
           description: The hours worked during this assignment of the task.
           type: number
+    baseCollection2:
+      title: Base Collection
+      description: This is a base schema used to define paginated collections of resources.
+        This base schema is extended by other schemas in APIs by adding an 'items'
+        array property. These extensions define the application/vnd.sas.collection
+        media type (version 2)
+      properties:
+        name:
+          type: string
+          description: The name of the collection.
+        start:
+          type: integer
+          description: The zero-based index of the first item in the collection.
+          format: int64
+        limit:
+          type: integer
+          description: The number of items that were requested for the collection.
+        count:
+          type: integer
+          description: If populated indicates the number of items in the collection.
+          format: int64
+        accept:
+          type: string
+          description: A space-delimited list of media types from which an `Accept`
+            header may be constructed.
+        links:
+          type: array
+          description: The links that apply to the collection.
+          items:
+            $ref: "#/components/schemas/link"
+        version:
+          type: integer
+          description: The version number of the collection representation. This representation
+            is version 2.
+    api:
+      title: API
+      description: The list of links to top-level resources and operations available
+        from the root of the API.
+      x-sas-media-type:
+        name: application/vnd.sas.api
+        version: 1
+      required:
+      - version
+      - links
+      properties:
+        version:
+          type: integer
+          description: The version number of the API representation. This is version
+            1.
+          minimum: 1
+        links:
+          description: The API's top-level links.
+          type: array
+          items:
+            $ref: "#/components/schemas/link"
     error2:
       title: Error
       type: object
@@ -13508,61 +13771,6 @@ components:
         version:
           type: integer
           description: The version number of the error representation. This representation
-            is version 2.
-    api:
-      title: API
-      description: The list of links to top-level resources and operations available
-        from the root of the API.
-      x-sas-media-type:
-        name: application/vnd.sas.api
-        version: 1
-      required:
-      - version
-      - links
-      properties:
-        version:
-          type: integer
-          description: The version number of the API representation. This is version
-            1.
-          minimum: 1
-        links:
-          description: The API's top-level links.
-          type: array
-          items:
-            $ref: "#/components/schemas/link"
-    baseCollection2:
-      title: Base Collection
-      description: This is a base schema used to define paginated collections of resources.
-        This base schema is extended by other schemas in APIs by adding an 'items'
-        array property. These extensions define the application/vnd.sas.collection
-        media type (version 2)
-      properties:
-        name:
-          type: string
-          description: The name of the collection.
-        start:
-          type: integer
-          description: The zero-based index of the first item in the collection.
-          format: int64
-        limit:
-          type: integer
-          description: The number of items that were requested for the collection.
-        count:
-          type: integer
-          description: If populated indicates the number of items in the collection.
-          format: int64
-        accept:
-          type: string
-          description: A space-delimited list of media types from which an `Accept`
-            header may be constructed.
-        links:
-          type: array
-          description: The links that apply to the collection.
-          items:
-            $ref: "#/components/schemas/link"
-        version:
-          type: integer
-          description: The version number of the collection representation. This representation
             is version 2.
     link:
       title: Link

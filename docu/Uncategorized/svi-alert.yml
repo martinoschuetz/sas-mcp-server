@@ -4,7 +4,7 @@ info:
   title: Visual Investigator Alerts
   description: |-
     The Visual Investigator Alerts API supports managing alerts in SAS Visual Investigator.
-  version: '8'
+  version: '9'
   contact:
     name: SAS Developers
     url: 'https://developer.sas.com'
@@ -2462,6 +2462,127 @@ paths:
       - Metrics
       summary: "Retrieve alert metrics"
       operationId: "headersForAlertMetrics"
+      description: Retrieves the headers for today's alert metrics.
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        description: Specifies the current user's identifier.
+        schema:
+          type: "string"
+      - name: "today"
+        in: "query"
+        required: true
+        description: Specifies the current date in UTC at midnight of the local users
+          time zone offset (for example, August 28th 2016 @ 9:00 PM EST -&gt; 2016-08-29T01:00:00Z)
+        schema:
+          type: "string"
+          maxLength: 100
+      - name: "includeQueues"
+        in: "query"
+        required: false
+        description: Specifies whether to include queues metrics in the result (default
+          is true).
+        schema:
+          type: "boolean"
+          default: true
+      responses:
+        "200":
+          description: "The request succeeded."
+          headers:
+            Content-Type:
+              description: Specifies the content type of the response.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/responseEntity"
+              examples:
+                headResponse:
+                  $ref: '#/components/examples/headResponseExample'
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/responseEntity"
+              examples:
+                headResponse:
+                  $ref: '#/components/examples/headResponseExample'
+        '400':
+          description: "The request was invalid."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/validationFailure'
+              examples:
+                error2ValidationFailureResponse:
+                  $ref: '#/components/examples/error2ValidationFailureResponse'
+  /users/{id}/alerts/filteredMetrics:
+    get:
+      tags:
+      - Metrics
+      summary: "Get alert metrics based on alerts that pass the entity authorization\
+        \ rules"
+      operationId: "getFilteredAlertMetrics"
+      description: Returns today's alert metrics that are based on alerts that pass
+        the entity authorization rules.
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        description: Specifies the current user's identifier.
+        schema:
+          type: "string"
+      - name: "today"
+        in: "query"
+        required: true
+        description: Specifies the current date, in UTC, at midnight of the local
+          users time zone offset (for example, August 28th 2016 @ 9:00 PM EST -&gt;
+          2016-08-29T01:00:00Z)
+        schema:
+          type: "string"
+          maxLength: 100
+      - name: "includeQueues"
+        in: "query"
+        required: false
+        description: Specifies whether to include queue metrics in the result. The
+          default value is true.
+        schema:
+          type: "boolean"
+          default: true
+      responses:
+        "200":
+          description: "The request succeeded."
+          headers:
+            Content-Type:
+              description: Specifies the content type of the response.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+            application/xml:
+              schema:
+                type: array
+                items:
+                  type: object
+        '400':
+          description: "The request was invalid."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: '#/components/schemas/validationFailure'
+              examples:
+                error2ValidationFailureResponse:
+                  $ref: '#/components/examples/error2ValidationFailureResponse'
+    head:
+      tags:
+      - Metrics
+      summary: "Get alert metrics based on alerts that pass the entity authorization\
+        \ rules"
+      operationId: "headersForFilteredAlertMetrics"
       description: Retrieves the headers for today's alert metrics.
       parameters:
       - name: "id"
@@ -8827,6 +8948,101 @@ paths:
               examples:
                 error2Response404:
                   $ref: '#/components/examples/error2Response404'
+  /alerts/historicalRescore:
+    post:
+      tags:
+      - Alerts
+      summary: "Rescore historical alerts"
+      description: Rescores historical alerts based on the provided rescore request.
+      parameters:
+      - name: "persistScore"
+        in: "query"
+        required: false
+        description: Specifies the flag indicating whether to persist the historical
+          rescore, which returns the rescore results without actually updating the
+          alert scores.
+        schema:
+          type: "boolean"
+          default: true
+      - name: "Accept"
+        in: "header"
+        required: true
+        description: Specifies the media type of the response.
+        schema:
+          type: "string"
+          enum:
+          - "application/vnd.sas.collection/json"
+          - "application/json"
+          - "application/vnd.sas.fcs.tdc.alert.id+json"
+      - name: "Content-Type"
+        in: "header"
+        required: true
+        description: Specifies the media type of the request.
+        schema:
+          type: "string"
+          enum:
+          - "application/json"
+          - "application/vnd.sas.investigation.triage.historical.rescore.request+json"
+      operationId: "createRescoreAlerts"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/alertRescoreRequestRep"
+            examples:
+              AlertRescoreRequestExample:
+                $ref: "#/components/examples/AlertRescoreRequestExample"
+          application/vnd.sas.investigation.triage.historical.rescore.request+json:
+            schema:
+              $ref: "#/components/schemas/alertRescoreRequestRep"
+            examples:
+              AlertRescoreRequestExample:
+                $ref: "#/components/examples/AlertRescoreRequestExample"
+        required: true
+      responses:
+        "201":
+          description: "The request succeeded."
+          content:
+            application/vnd.sas.fcs.tdc.alert.id:
+              schema:
+                $ref: "#/components/schemas/jobIdRep"
+              examples:
+                historicalRescoreResponseExample:
+                  $ref: "#/components/examples/JobIdExample"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/alertRescoreResultCollectionRep"
+              examples:
+                historicalRescoreResponseExample:
+                  $ref: "#/components/examples/HistoricalRescoreCollectionExample"
+            application/vnd.sas.collection/json:
+              schema:
+                $ref: "#/components/schemas/alertRescoreResultCollectionRep"
+              examples:
+                historicalRescoreResponseExample:
+                  $ref: "#/components/examples/HistoricalRescoreCollectionExample"
+        "400":
+          description: "The request was invalid."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/error2'
+                - $ref: '#/components/schemas/validationFailure'
+              examples:
+                error2Response400:
+                  $ref: '#/components/examples/error2Response400'
+                error2ValidationFailureResponse:
+                  $ref: '#/components/examples/error2ValidationFailureResponse'
+        "403":
+          description: "The user did not have the necessary permissions."
+          content:
+            application/vnd.sas.error+json:
+              schema:
+                $ref: "#/components/schemas/error2"
+              examples:
+                error2Response403:
+                  $ref: '#/components/examples/error2Response403'
   /suppressedScenarios:
     get:
       tags:
@@ -16158,6 +16374,34 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/link'
+    alertRescoreRequestRep:
+      description: An alert rescore request representation.
+      properties:
+        alertIds:
+          type: array
+          items:
+            type: string
+            maxLength: 36
+        batchSize:
+          type: integer
+    alertRescoreResult:
+      description: A rescore result.
+      properties:
+        alertId:
+          type: string
+        score:
+          $ref: '#/components/schemas/scoreRep'
+    alertRescoreResultCollectionRep:
+      title: Alert RescoreCollection
+      description: A collection of alert rescore results.
+      allOf:
+      - $ref: '#/components/schemas/baseCollection2'
+      - type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/alertRescoreResult'
   examples:
     TriageDefinitionExample:
       description: An example of a triage definition response.
@@ -17186,6 +17430,39 @@ components:
           errorText: 'RuntimeException: Installation will be retried'
         version: 1
         accept: application/vnd.sas.investigation.triage.task.execution.history+json
+        description: OK.
+    AlertRescoreRequestExample:
+      description: An example of an alert rescore request.
+      value:
+        alertIds:
+        - 536717b3-192a-4611-ac07-055708e2281b
+        batchSize: 100
+    HistoricalRescoreCollectionExample:
+      description: A collection of alert rescore results.
+      value:
+        name: alertRescores
+        count: 1
+        items:
+        - alertId: 536717b3-192a-4611-ac07-055708e2281b
+          scoreRep:
+            creationTimeStamp: '2026-06-02T16:34:48.914Z'
+            createdBy: sas.svi-alert
+            links:
+            - method: GET
+              rel: collection
+              href: "/svi-alert/alertingEvents/de3c620c-dd36-4a88-bd71-d61e20c9f952/scores"
+              uri: "/svi-alert/alertingEvents/de3c620c-dd36-4a88-bd71-d61e20c9f952/scores"
+              type: application/vnd.sas.collection
+            scoreId: fef932c1-e79d-433a-9d8a-3e22db1340c5
+            alertingEventId: de3c620c-dd36-4a88-bd71-d61e20c9f952
+            score: 600
+            scenarioFiredEventIds:
+            - 252dbd42-ae19-a84c-b700-0e5a8c6454d1
+            suppressedScenarioFiredEventIds: []
+            scoreCalculatedFlag: true
+          version: 2
+        accept: >-
+          application/vnd.sas.investigation.triage.alert.rescore.result+json
         description: OK.
     AlertVersionSummaryCollectionExample:
       description: A collection of alert summaries.

@@ -118,6 +118,13 @@ paths:
                   $ref: '#/components/examples/snapshotResponseRep'
         '400':
           description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                invalidRequest:
+                  $ref: '#/components/examples/invalidRequest'
   /solution/export:
     get:
       x-sas-internal: true
@@ -191,10 +198,24 @@ paths:
                 snapshotResponseRep:
                   $ref: '#/components/examples/snapshotResponseRep'
         '400':
-          description: The reqest was invalid.
+          description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                invalidRequest:
+                  $ref: '#/components/examples/invalidRequest'
         '500':
           description: The request could not be fulfilled because of an unexpected
             server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                unexpectedServerError:
+                  $ref: '#/components/examples/unexpectedServerError'
         '202':
           description: The request has been accepted for processing, but the processing
             has not been completed.
@@ -224,6 +245,13 @@ paths:
                 type: string
         '400':
           description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                invalidRequest:
+                  $ref: '#/components/examples/invalidRequest'
   /snapshot/import:
     post:
       x-sas-internal: true
@@ -269,12 +297,23 @@ paths:
                   $ref: '#/components/examples/snapshotResponseRep'
         '400':
           description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                invalidRequest:
+                  $ref: '#/components/examples/invalidRequest'
         '500':
           description: The request could not be fulfilled because of an unexpected
             server error.
-        '410':
-          description: Access to the target resource is no longer available at the
-            origin server and this condition is likely to be permanent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                unexpectedServerError:
+                  $ref: '#/components/examples/unexpectedServerError'
   /v1/solution/importAll:
     post:
       x-sas-internal: false
@@ -315,9 +354,23 @@ paths:
                   $ref: '#/components/examples/snapshotResponseRep'
         '400':
           description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                invalidRequest:
+                  $ref: '#/components/examples/invalidRequest'
         '500':
           description: The request could not be fulfilled because of an unexpected
             server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                noZipFileFound:
+                  $ref: '#/components/examples/noZipFileFound'
         '202':
           description: The request has been accepted for processing, but the processing
             has not been completed.
@@ -350,6 +403,13 @@ paths:
         '500':
           description: The request could not be fulfilled because of an unexpected
             server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+              examples:
+                unexpectedServerError:
+                  $ref: '#/components/examples/unexpectedServerError'
 servers:
 - url: 'https://example.com/svi-transport'
   description: An example URL including the base path for this API.
@@ -414,6 +474,16 @@ components:
             edits configuration ZIP files.
           items:
             type: string
+        allZipConfigProviders:
+          type: array
+          description: List of all available configuration provider identifiers.
+          items:
+            type: string
+        selectedItemBranchList:
+          type: array
+          description: List of selected item branches for the configuration.
+          items:
+            type: object
     link:
       description: Link to a related operation or resource.
       type: object
@@ -520,6 +590,26 @@ components:
           description: A list of warning messages generated by the import.
           items:
             type: string
+    errorResponse:
+      title: Error Response
+      type: object
+      description: Standard error payload returned by the service.
+      properties:
+        details:
+          type: array
+          description: Additional details about the error.
+          items:
+            type: string
+        errorCode:
+          type: integer
+          format: int32
+          description: Application-specific error code.
+        httpStatusCode:
+          type: integer
+          format: int32
+          description: HTTP status code associated with the error.
+        message:
+          type: string
   examples:
     api:
       description: 'An example of the response from /svi-transport listing the top-level
@@ -537,22 +627,38 @@ components:
               \ ZIP File"}, {method: "POST", rel: "/solution/import", href: "/solution/import",
             uri: "/solution/import", type: "application/vnd.sas.fcs.solution.configuration",
             responseType: "application/vnd.sas.fcs.config.response", title: "Import\
-              \ Configuration with Included ZIP File"}, {method: "POST", rel: "/solution/importAll",
-            href: "/solution/importAll", uri: "/solution/importAll", type: "application/zip",
+              \ Configuration with Included ZIP File"}, {method: "POST", rel: "/v1/solution/importAll",
+            href: "/v1/solution/importAll", uri: "/v1/solution/importAll", type: "application/zip",
             responseType: "application/vnd.sas.fcs.config.response", title: "Import\
-              \ All Configuration from ZIP File in One Step"}, {method: "POST", rel: "/solution/exportAll",
-            href: "/solution/exportAll", uri: "/solution/exportAll", responseType: "application/zip",
+              \ All Configuration from ZIP File in One Step"}, {method: "POST", rel: "/v1/solution/exportAll",
+            href: "/v1/solution/exportAll", uri: "/v1/solution/exportAll", responseType: "application/zip",
             title: "Export All Configuration as ZIP File in One Step"}, {method: "POST",
             rel: "/snapshot/import", href: "/snapshot/import", uri: "/snapshot/import",
             type: "application/zip", responseType: "application/vnd.sas.fcs.config.response",
             title: "Import ZIP File"}]}
     snapshotResponseRep:
       description: 'Example feedback when the import was successful.'
-      value: {"version": 1, "componentConfigServiceResponses": {}, "translatedMessages": [],
-        "httpStatus": 202}
+      value: {"version": 1, "componentServiceResponses": {}, "translatedMessages": [],
+        "warnings": []}
     solutionConfiguration:
       description: 'An example of a solution configuration.'
       value: {"allZipConfigProviders": ["svi-feature", "svi-datahub", "svi-vsd-service",
           "svi-sand", "svi-indexer", "svi-scorecard", "SASVisualInvestigator", "svi-alert"],
         "generalWarnings": [], "includeAll": true, "items": [], "properties": {},
         "selectedItemBranchList": [], "warnings": []}
+    noZipFileFound:
+      description: 'Error response when no ZIP file is present for importAll.'
+      value: {"details": ["path: /svi-transport/v1/solution/importAll"], "errorCode": 10002,
+        "httpStatusCode": 500, "links": [], "message": "No ZIP file was found to import.",
+        "remediation": "Provide a valid ZIP file to filter.", "version": 2}
+    invalidRequest:
+      description: 'Error response when the request is invalid.'
+      value: {"details": ["path: /svi-transport/v1/solution/importAll"], "errorCode": 10001,
+        "httpStatusCode": 400, "links": [], "message": "The request was invalid.",
+        "remediation": "Verify request payload and parameters.", "version": 2}
+    unexpectedServerError:
+      description: 'Error response for unexpected server-side failure.'
+      value: {"details": ["path: /svi-transport/v1/solution/importAll"], "errorCode": 50000,
+        "httpStatusCode": 500, "links": [], "message": "The request could not be fulfilled\
+          \ because of an unexpected server error.", "remediation": "Retry the request\
+          \ or contact support if the issue persists.", "version": 2}
