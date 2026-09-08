@@ -75,7 +75,7 @@ PAGE_TITLE = "SAS Viya MCP Server"
 # --- data --------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class ToolEntry:
     name: str
     summary: str
@@ -94,13 +94,13 @@ class ToolEntry:
         return "destructive" if self.destructive else "write"
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class PromptEntry:
     name: str
     summary: str
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class TierGroup:
     """One tier's slice of the exposed catalogue. ``tier`` is ``None`` for
     tools no registrar claimed."""
@@ -110,7 +110,7 @@ class TierGroup:
     tools: tuple[ToolEntry, ...]
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class ClientSnippet:
     """A copy-paste connection recipe for one MCP client."""
 
@@ -121,7 +121,7 @@ class ClientSnippet:
     note: str = ""  # optional one-line hint rendered under the snippet
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class ServerFacts:
     """Everything the page renders, gathered once at first request.
 

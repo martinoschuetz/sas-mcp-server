@@ -23,7 +23,7 @@ from sas_mcp_server.config import MAX_EXPORT_INLINE_BYTES, VIYA_ENDPOINT
 # so the single ``export_report`` tool can validate inputs and shape its result
 # (text inline, image content, or an embedded binary file) per format. Adding a
 # format the VA service later supports is a one-line change here.
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class ReportExportFormat:
     """A single synchronous VA report export endpoint."""
 
