@@ -110,7 +110,7 @@ async def test_view_tools_advertise_a_resource_that_exists():
     assert set(advertised) == set(ui.VIEW_FOR_TOOL), "every view tool advertises, nothing else does"
     for tool, uri in advertised.items():
         assert uri in by_uri, f"{tool} points at {uri}, which is not a resource"
-        assert by_uri[uri].mimeType == UI_MIME_TYPE
+        assert by_uri[uri].mime_type == UI_MIME_TYPE
     assert {str(r.uri) for r in resources} == set(advertised.values())
 
 
@@ -174,8 +174,8 @@ async def test_view_tools_are_still_ordinary_tools():
     """The view is metadata; the tool's result is what it always was."""
     listed_tools, _ = await _listing(await _server(apps=True))
     grid = next(t for t in listed_tools if t.name == "get_castable_data")
-    assert grid.annotations is not None and grid.annotations.readOnlyHint is True
-    assert "table_name" in grid.inputSchema["properties"]
+    assert grid.annotations is not None and grid.annotations.read_only_hint is True
+    assert "table_name" in grid.input_schema["properties"]
 
 
 async def test_landing_page_marks_view_tools_as_interactive():
@@ -218,7 +218,7 @@ async def test_reading_the_resource_returns_the_document():
     text = content[0].text  # type: ignore[union-attr]
     assert text.startswith("<!doctype html>")
     assert '"tool": "execute_sas_code"' in text
-    assert content[0].mimeType == UI_MIME_TYPE
+    assert content[0].mime_type == UI_MIME_TYPE
 
 
 # --- the document ---------------------------------------------------------------
