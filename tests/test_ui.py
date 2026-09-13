@@ -241,6 +241,21 @@ def test_document_is_self_contained(tool):
     )
 
 
+def test_fullscreen_is_the_shells_and_every_view_can_use_it():
+    """One toggle, one `data-display` attribute, one `fill` rule. A view
+    talking to the display API on its own would have a second, drifting copy."""
+    shell = ui._read("shell.js")
+    assert "toggleFullscreen" in shell and 'availableDisplayModes: ["inline", "fullscreen"]' in shell
+    assert ':root[data-display="fullscreen"] #root > .fill' in ui._read("shell.css")
+    for view in ui.VIEWS:
+        page = ui._read("views/" + view.template)
+        assert "requestDisplayMode" not in page, f"{view.key} bypasses the shell"
+        assert 'id="fullscreen"' not in page, f"{view.key} keeps its own button"
+        assert '<div id="root">' in page and 'class="head"' in page, f"{view.key} has nowhere to mount the toggle"
+        if view.key != "term-editor":  # a form scrolls with the page; nothing to fill
+            assert 'class="scroll fill"' in page or 'class="fill"' in page, f"{view.key} has no fill region"
+
+
 def test_document_is_cached_per_pair():
     a = ui.render_view("data-grid", "query_data", "v")
     b = ui.render_view("data-grid", "query_data", "v")

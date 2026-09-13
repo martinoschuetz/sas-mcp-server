@@ -2,7 +2,6 @@
   #root { --tree-w: 320px; }
   .stats b { font-variant-numeric: tabular-nums; }
   #layout { display: grid; grid-template-columns: var(--tree-w) 6px minmax(0, 1fr); height: min(560px, calc(100vh - 118px)); min-height: 260px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--bg); }
-  :root[data-display="fullscreen"] #layout { height: calc(100vh - 118px); }
   /* Hidden panes leave the grid, so the detail pane must become the only track. */
   #layout.collapsed { grid-template-columns: minmax(0, 1fr); }
   #layout.collapsed #tree-pane, #layout.collapsed #splitter { display: none; }
@@ -89,10 +88,9 @@
     <select id="ftype" aria-label="Term type"><option value="">All term types</option></select>
     <label class="small"><input id="fassets" type="checkbox"> has assets</label>
     <span class="seg" role="group" aria-label="Left pane"><button id="v-tree" type="button" aria-pressed="true">Tree</button><button id="v-sun" type="button" aria-pressed="false">Sunburst</button></span>
-    <button id="fullscreen" type="button" hidden title="Open in fullscreen">⤢</button>
     <span id="progress" class="pill" hidden></span>
   </div>
-  <div id="layout">
+  <div id="layout" class="fill">
     <nav id="tree-pane" aria-label="Term hierarchy">
       <div id="tree-tools">
         <button id="expand-all" type="button">Expand all</button>
@@ -443,22 +441,10 @@
   $("q").addEventListener("input", (e) => { state.q = e.target.value.trim().toLowerCase(); renderTree(); if ($("tree-pane").classList.contains("sun")) drawSun(); });
   $("ftype").addEventListener("change", (e) => { state.type = e.target.value; renderTree(); if ($("tree-pane").classList.contains("sun")) drawSun(); });
   $("fassets").addEventListener("change", (e) => { state.assetsOnly = e.target.checked; renderTree(); });
-  let mode = "inline";
-  $("fullscreen").addEventListener("click", async () => {
-    try { const r = await sas.app.requestDisplayMode({ mode: mode === "fullscreen" ? "inline" : "fullscreen" }); mode = r?.mode || mode; } catch { /* host refused */ }
-    applyDisplay();
-  });
-  function applyDisplay(ctx) {
-    const hc = ctx || sas.app.getHostContext() || {};
-    if (hc.displayMode) mode = hc.displayMode;
-    document.documentElement.dataset.display = mode;
-    $("fullscreen").textContent = mode === "fullscreen" ? "⤡" : "⤢";
-    const modes = hc.availableDisplayModes || sas.app.getHostContext()?.availableDisplayModes || [];
-    $("fullscreen").hidden = !modes.includes("fullscreen");
-    if ($("tree-pane").classList.contains("sun")) drawSun();
-  }
-  sas.onTheme((ctx) => { applyDisplay(ctx); renderTree(); if (state.selected) renderDetail(state.selected); });
-  sas.ready.then(() => applyDisplay());
+  // The fullscreen toggle itself is the shell's; the sunburst is a canvas,
+  // so it is redrawn for the new size.
+  sas.onDisplay(() => { if ($("tree-pane").classList.contains("sun")) drawSun(); });
+  sas.onTheme(() => { renderTree(); if (state.selected) renderDetail(state.selected); });
   new ResizeObserver(() => { if ($("tree-pane").classList.contains("sun")) drawSun(); }).observe($("tree-pane"));
 
   // --- header + entry ----------------------------------------------------------------

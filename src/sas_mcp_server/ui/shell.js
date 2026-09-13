@@ -3,9 +3,10 @@
 //
 // What it does for a view: connects to the host, hands the view the tool's
 // input and result as they arrive, applies the host's theme, reports the
-// view's size, and wraps the few host calls a view needs — call a tool, post
-// a message into the chat, hand the model context — with the result parsing
-// that FastMCP's shapes require. Views never talk to the bridge directly.
+// view's size, owns the fullscreen toggle, and wraps the few host calls a
+// view needs — call a tool, post a message into the chat, hand the model
+// context — with the result parsing that FastMCP's shapes require. Views
+// never talk to the bridge directly.
 const bridge = globalThis.__MCP_EXT_APPS__;
 const meta = globalThis.SAS_VIEW || { tool: "", view: "", title: "SAS Viya", version: "" };
 // Which of this view's companion tools the deployment actually registered.
@@ -18,8 +19,43 @@ const app = new bridge.App(
   { availableDisplayModes: ["inline", "fullscreen"] },
 );
 
-const handlers = { input: [], result: [], theme: [] };
+const handlers = { input: [], result: [], theme: [], display: [] };
 let hostTheme = "";
+let displayMode = "inline";
+
+// --- display mode -------------------------------------------------------------
+// Every view gets the same ⤢ button, in the header's right-hand group, and the
+// same `data-display` attribute on <html> for its CSS to key on. The button
+// exists only where the host says it offers fullscreen: a control the host
+// would refuse is worse than none. Views size their scroll region with the
+// `fill` class (see shell.css) rather than with their own numbers.
+const fullscreenButton = document.createElement("button");
+fullscreenButton.id = "sas-fullscreen";
+fullscreenButton.type = "button";
+fullscreenButton.hidden = true;
+fullscreenButton.addEventListener("click", () => sas.toggleFullscreen());
+
+function mountFullscreenButton() {
+  const head = document.querySelector("#root > .head");
+  if (!head) return;
+  // The header's last child is the pills/badges row; the toggle sits after them.
+  const slot = head.lastElementChild;
+  if (slot && slot.classList.contains("row")) slot.append(fullscreenButton);
+  else head.append(fullscreenButton);
+}
+
+function applyDisplay(ctx) {
+  const hc = ctx || app.getHostContext() || {};
+  if (hc.displayMode) displayMode = hc.displayMode;
+  document.documentElement.dataset.display = displayMode;
+  const full = displayMode === "fullscreen";
+  fullscreenButton.textContent = full ? "⤡" : "⤢";
+  fullscreenButton.title = full ? "Exit fullscreen" : "Open in fullscreen";
+  fullscreenButton.setAttribute("aria-pressed", String(full));
+  const modes = hc.availableDisplayModes || app.getHostContext()?.availableDisplayModes || [];
+  fullscreenButton.hidden = !modes.includes("fullscreen");
+  for (const fn of handlers.display) fn(displayMode);
+}
 
 function applyTheme(ctx) {
   if (!ctx) return;
@@ -35,6 +71,7 @@ function applyTheme(ctx) {
     console.warn("theme not applied", err);
   }
   for (const fn of handlers.theme) fn(ctx);
+  applyDisplay(ctx);
 }
 
 /** Text of a tool result's content blocks, joined. */
@@ -83,6 +120,15 @@ const sas = {
   onTheme(fn) {
     handlers.theme.push(fn);
   },
+  /** The host's current display mode: "inline", "fullscreen" or "pip". */
+  get display() {
+    return displayMode;
+  },
+  /** Called with the mode whenever it changes; a view that draws to a
+   *  canvas or measures itself redraws here. */
+  onDisplay(fn) {
+    handlers.display.push(fn);
+  },
   /** Is *name* a tool this deployment registered? Ask before offering a
    *  control that calls it — `MCP_READ_ONLY` and `MCP_TIERS` withhold tools
    *  from a view exactly as they withhold them from the model. Only the
@@ -113,12 +159,17 @@ const sas = {
       console.info("model context not accepted by this host", err?.message || err);
     }
   },
-  async fullscreen() {
+  /** Ask the host for fullscreen, or back to inline from it. The host has
+   *  the last word: its answer, or its next context change, sets the mode. */
+  async toggleFullscreen() {
+    const want = displayMode === "fullscreen" ? "inline" : "fullscreen";
     try {
-      await app.requestDisplayMode({ mode: "fullscreen" });
+      const r = await app.requestDisplayMode({ mode: want });
+      if (r?.mode) displayMode = r.mode;
     } catch (err) {
       console.info("display mode not accepted by this host", err?.message || err);
     }
+    applyDisplay();
   },
   /** DOM helper: el("td", {class: "num", onclick: fn}, "text", node, ...). */
   el(tag, attrs, ...children) {
@@ -189,6 +240,8 @@ app.ontoolcancelled = (params) => {
   sas.banner(`The call was cancelled${params?.reason ? `: ${params.reason}` : "."}`, "warn");
 };
 app.onhostcontextchanged = (ctx) => applyTheme(ctx);
+
+mountFullscreenButton();
 
 sas.ready = app
   .connect()
