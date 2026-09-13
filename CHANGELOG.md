@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.15.0] - 2026-09-13
 
 ### Added
 - **Interactive views for the results that read worst as text.** Ten tools now also carry a small HTML view, using the MCP Apps extension (`io.modelcontextprotocol/ui`), that clients supporting it — Claude on web, desktop and mobile, ChatGPT, Microsoft 365 Copilot, VS Code with GitHub Copilot, Cursor, Goose — render in a sandboxed frame beside the result. Purely additive: every tool returns exactly what it did, and a client without the extension (Claude Code among them) sees nothing different. Every request a view makes goes through the host to this server as an ordinary `tools/call` with the session's token; the browser never talks to Viya, and a tool withheld by `MCP_TIERS` or `MCP_READ_ONLY` has no view either. `MCP_APPS=false` (env, `server.apps` in the chart) registers none.
