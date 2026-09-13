@@ -15,6 +15,9 @@
 - **`get_compute_table_data` — rows from a table in a SAS library.** The compute-tier counterpart of `get_castable_data`, which existed only for CAS: a page of rows from `libref.table` through the compute session's data API, values formatted as SAS displays them, with the table's total row count and a `truncated` flag. Read-only; visible in the same session as `execute_sas_code`, so WORK tables from earlier calls can be browsed. Tools go 91 → 92, read-only 50 → 51.
 - **`import_glossary_terms` takes `dry_run`.** It validates the batch, resolves every parent into its path and orders the rows exactly as the import would, then returns them without sending anything — a preview the person can confirm before a destructive, partially-failing job runs. In a client that renders views the preview is a table with an Import button.
 
+### Changed
+- **The server now says which version it is.** The first line of the log reads `sas-mcp-server 1.15.0 (fastmcp 4.0.0, stdio) - connecting to SAS Viya at ...`, in both transports. Until now nothing at startup named the version, and the MCP handshake carried FastMCP's version in place of ours (`FastMCP(...)` was never given one), so a client asked "what are you connected to?" answered `4.0.0`. The FastMCP version is named deliberately: both sign-in regressions since the 4.0 upgrade (#54, #58) were specific to it, and a field report that opens with this line skips the first round of questions. The version comes from the checkout's `pyproject.toml` when running from source and from the installed package otherwise — the same source the landing page and telemetry already used.
+
 ## [1.14.2] - 2026-09-11
 
 ### Fixed
