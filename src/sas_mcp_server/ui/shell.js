@@ -38,10 +38,19 @@ fullscreenButton.addEventListener("click", () => sas.toggleFullscreen());
 function mountFullscreenButton() {
   const head = document.querySelector("#root > .head");
   if (!head) return;
-  // The header's last child is the pills/badges row; the toggle sits after them.
+  // The header's last child is the pills/badges row, which every view rebuilds
+  // with replaceChildren() when a result arrives — so the button cannot live
+  // inside it, or it shows while the tool runs and vanishes with the result.
+  // Wrap that row and the button together instead; the view keeps its row.
   const slot = head.lastElementChild;
-  if (slot && slot.classList.contains("row")) slot.append(fullscreenButton);
-  else head.append(fullscreenButton);
+  if (slot && slot !== head.firstElementChild) {
+    const side = document.createElement("div");
+    side.className = "row head-side";
+    head.replaceChild(side, slot);
+    side.append(slot, fullscreenButton);
+  } else {
+    head.append(fullscreenButton);
+  }
 }
 
 function applyDisplay(ctx) {
