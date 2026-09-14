@@ -79,8 +79,9 @@ def test_scrub_host():
     assert scrub_host_deep("hello", None) == "hello"
 
 def test_server_version():
-    from sas_mcp_server.helpers.telemetry_helpers import server_version
     from unittest.mock import patch
+
+    from sas_mcp_server.helpers.telemetry_helpers import server_version
     
     # Test fallback path (no pyproject.toml)
     with patch("pathlib.Path.is_file", return_value=False):

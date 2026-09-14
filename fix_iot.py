@@ -3,7 +3,7 @@ with open('src/sas_mcp_server/tools/iot.py') as f:
     lines = f.readlines()
 
 out = []
-for i, line in enumerate(lines):
+for _i, line in enumerate(lines):
     # Add import json at the top
     if 'import asyncio' in line:
         out.append(line)

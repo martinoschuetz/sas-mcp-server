@@ -1,6 +1,8 @@
 import pytest
-from sas_mcp_server.tools.esp import register
 from fastmcp import FastMCP
+
+from sas_mcp_server.tools.esp import register
+
 
 @pytest.mark.asyncio
 async def test_register():

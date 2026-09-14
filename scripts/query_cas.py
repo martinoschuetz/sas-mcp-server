@@ -79,14 +79,14 @@ async def main():
                             valid_rows.sort(key=lambda x: x[0], reverse=True)
                             print("\nTop 5 rows by score:")
                             for i, (score, r) in enumerate(valid_rows[:5]):
-                                print(f"Rank {i+1} (Score: {score}): {dict(zip(schema, r))}")
+                                print(f"Rank {i+1} (Score: {score}): {dict(zip(schema, r, strict=False))}")
                         else:
                             print("No valid numeric scores found.")
                     else:
                         print("No score column found in table schema.")
                         # Print first 5 rows to inspect
                         for i, r in enumerate(rows[:5]):
-                            print(f"Row {i+1}: {dict(zip(schema, r))}")
+                            print(f"Row {i+1}: {dict(zip(schema, r, strict=False))}")
                 except Exception as ex:
                     print(f"Error fetching rows: {ex}")
                     

@@ -1,5 +1,8 @@
+import contextlib
+
 import pytest
 from fastmcp import Client
+
 
 @pytest.mark.asyncio
 async def test_all_iot_and_genai(mcp_server_with_mock_client):
@@ -13,19 +16,13 @@ async def test_all_iot_and_genai(mcp_server_with_mock_client):
     
     async with Client(mcp) as client:
         for func in funcs:
-            try:
-                await client.call_tool(func, {"id": "dummy", "project_id": "dummy", "analysis_id": "dummy", "name": "dummy"})
-            except Exception:
-                pass
-            try:
+            with contextlib.suppress(Exception):
+                await client.call_tool(
+                    func, {"id": "dummy", "project_id": "dummy", "analysis_id": "dummy", "name": "dummy"}
+                )
+            with contextlib.suppress(Exception):
                 await client.call_tool(func, {})
-            except Exception:
-                pass
-            try:
+            with contextlib.suppress(Exception):
                 await client.call_tool(func, {"agent_id": "dummy", "query": "hello"})
-            except Exception:
-                pass
-            try:
+            with contextlib.suppress(Exception):
                 await client.call_tool(func, {"target_variable": "y", "analysis_type": "PARETO"})
-            except Exception:
-                pass
