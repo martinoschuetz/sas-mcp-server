@@ -9,10 +9,13 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import fastmcp
 import pytest
+from fastmcp import Client
 
 from sas_mcp_server import stdio_server
 from sas_mcp_server.exceptions import AuthenticationError
+from sas_mcp_server.helpers.telemetry_helpers import server_version
 
 
 @pytest.fixture(autouse=True)
@@ -345,3 +348,16 @@ def test_native_device_code_timeout():
          patch("sas_mcp_server.stdio_server.time.sleep"), \
          patch("sas_mcp_server.stdio_server.webbrowser.open"), pytest.raises(AuthenticationError, match="timed out"):
         stdio_server._native_device_code_token()
+
+
+
+@pytest.mark.asyncio
+async def test_handshake_reports_our_version_not_fastmcps():
+    """stdio passes ``version=`` too; it is the transport most people run."""
+    assert server_version() == stdio_server.SERVER_VERSION
+    async with Client(stdio_server.mcp) as client:
+        info = client.server_info
+    assert info is not None
+    assert info.version == stdio_server.SERVER_VERSION
+    assert info.version != fastmcp.__version__
+

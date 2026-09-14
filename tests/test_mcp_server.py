@@ -8,11 +8,14 @@ token getter, and the AuthenticationError type.
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import fastmcp
 import httpx
 import pytest
+from fastmcp import Client
 from mcp.server.auth.provider import AccessToken
 
-from sas_mcp_server import mcp_server
+from sas_mcp_server import mcp_server, viya_client
+from sas_mcp_server.helpers.telemetry_helpers import server_version
 from sas_mcp_server.mcp_server import AuthenticationError
 
 
@@ -20,6 +23,40 @@ from sas_mcp_server.mcp_server import AuthenticationError
 def _force_auth_enabled():
     with patch.object(mcp_server, "AUTH_ENABLED", True):
         yield
+
+
+# --- startup: what is running -------------------------------------------------
+
+
+def test_startup_line_names_our_version_fastmcps_and_the_transport():
+    """The first thing in the log answers a field report's first question."""
+    with patch.object(viya_client.logger, "info") as info:
+        line = viya_client.announce_startup("http", "1.2.3")
+    assert line.startswith("sas-mcp-server 1.2.3 (fastmcp ")
+    assert f"fastmcp {fastmcp.__version__}, http)" in line
+    assert "connecting to SAS Viya at " in line
+    info.assert_called_once_with("%s", line)
+
+
+def test_startup_line_never_hides_a_missing_version():
+    assert viya_client.announce_startup("stdio", None).startswith("sas-mcp-server unknown (")
+
+
+def test_version_is_read_from_the_checkout_not_the_installed_metadata():
+    """The same source the landing page and telemetry use — so the three agree."""
+    assert server_version() == mcp_server.SERVER_VERSION
+    assert mcp_server.SERVER_VERSION not in (None, "", fastmcp.__version__)
+
+
+@pytest.mark.asyncio
+async def test_handshake_reports_our_version_not_fastmcps():
+    """Without ``version=``, FastMCP answers ``initialize`` with its own version,
+    which is what a client shows when asked what it is connected to."""
+    async with Client(mcp_server.mcp) as client:
+        info = client.server_info
+    assert info is not None
+    assert info.version == mcp_server.SERVER_VERSION
+    assert info.version != fastmcp.__version__
 
 
 def test_authentication_error():

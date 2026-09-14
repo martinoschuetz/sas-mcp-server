@@ -1,0 +1,120 @@
+/* Shared shell for every view. Tokens fall back from the host's MCP Apps
+   style variables (--color-*, --font-*) to a neutral palette, so a view looks
+   native where the host provides them and still reads where it does not. */
+:root {
+  --bg: var(--color-background-primary, #ffffff);
+  --bg-2: var(--color-background-secondary, #f4f5f6);
+  --bg-3: var(--color-background-tertiary, #e9ebee);
+  --ink: var(--color-text-primary, #1c2128);
+  --ink-2: var(--color-text-secondary, #5a6470);
+  --line: var(--color-border-primary, #d5dae0);
+  --line-2: var(--color-border-secondary, #c2c9d1);
+  --accent: var(--color-text-info, #0e6e77);
+  --accent-bg: var(--color-background-info, #dcefef);
+  --ok: var(--color-text-success, #2f6b3a);
+  --ok-bg: var(--color-background-success, #e2f0e4);
+  --warn: var(--color-text-warning, #8a5a00);
+  --warn-bg: var(--color-background-warning, #f8ecd0);
+  --bad: var(--color-text-danger, #9b3d33);
+  --bad-bg: var(--color-background-danger, #f6e1de);
+  --sans: var(--font-sans, system-ui, "Segoe UI", Helvetica, Arial, sans-serif);
+  --mono: var(--font-mono, Consolas, "SF Mono", Menlo, monospace);
+  --radius: var(--border-radius-md, 6px);
+  --fs: var(--font-text-md-size, 13.5px);
+  --fs-sm: var(--font-text-sm-size, 12px);
+}
+:root[data-theme="dark"] {
+  --bg: var(--color-background-primary, #1a2026);
+  --bg-2: var(--color-background-secondary, #222a31);
+  --bg-3: var(--color-background-tertiary, #2b343c);
+  --ink: var(--color-text-primary, #e6ebee);
+  --ink-2: var(--color-text-secondary, #a6b1bb);
+  --line: var(--color-border-primary, #36414a);
+  --line-2: var(--color-border-secondary, #46525c);
+  --accent: var(--color-text-info, #66c2ca);
+  --accent-bg: var(--color-background-info, #17343a);
+  --ok: var(--color-text-success, #8fcf99);
+  --ok-bg: var(--color-background-success, #1e3524);
+  --warn: var(--color-text-warning, #e2b35a);
+  --warn-bg: var(--color-background-warning, #3a2d0f);
+  --bad: var(--color-text-danger, #ea9a90);
+  --bad-bg: var(--color-background-danger, #3f2220);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: var(--fs)/1.45 var(--sans);
+}
+#root { padding: 10px 12px 12px; }
+/* Fullscreen: the page becomes a column the height of the frame and the view's
+   `fill` element takes whatever the header and toolbar leave, so no view
+   needs a `calc(100vh - N)` of its own. Inline, `fill` does nothing and the
+   view's max-height applies. */
+:root[data-display="fullscreen"] html, :root[data-display="fullscreen"] body { height: 100%; }
+:root[data-display="fullscreen"] #root { display: flex; flex-direction: column; height: 100vh; min-height: 0; }
+:root[data-display="fullscreen"] #root > .fill { flex: 1 1 auto; min-height: 0; height: auto; max-height: none; }
+.head-side { flex-wrap: nowrap; }
+#sas-fullscreen { padding: 2px 7px; line-height: 1.2; font-size: 14px; flex: none; }
+#sas-fullscreen[hidden] { display: none; }
+h1, h2, h3 { margin: 0; font-weight: 600; }
+h1 { font-size: 15px; }
+h2 { font-size: 13.5px; }
+button, select, input, textarea {
+  font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line-2);
+  border-radius: var(--radius); padding: 4px 8px;
+}
+button { cursor: pointer; background: var(--bg-2); }
+button:hover:not(:disabled) { background: var(--bg-3); }
+button:disabled { opacity: .5; cursor: default; }
+button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+button.primary:hover:not(:disabled) { filter: brightness(1.08); background: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--mono); font-size: 0.93em; }
+.muted { color: var(--ink-2); }
+.small { font-size: var(--fs-sm); }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.spread { justify-content: space-between; }
+.head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 8px; }
+.toolbar .grow { flex: 1 1 140px; min-width: 120px; }
+.pill {
+  display: inline-block; font-size: var(--fs-sm); line-height: 1.3; padding: 1px 8px; border-radius: 999px;
+  background: var(--bg-3); color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.pill.ok { background: var(--ok-bg); color: var(--ok); }
+.pill.warn { background: var(--warn-bg); color: var(--warn); }
+.pill.bad { background: var(--bad-bg); color: var(--bad); }
+.pill.info { background: var(--accent-bg); color: var(--accent); }
+.banner {
+  border-radius: var(--radius); padding: 8px 12px; margin: 6px 0; border: 1px solid var(--line);
+  background: var(--bg-2); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.banner.bad { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
+.banner.ok { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.banner.warn { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+.banner[hidden] { display: none; }
+.empty { color: var(--ink-2); padding: 18px 8px; text-align: center; }
+.scroll { overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); }
+table.grid { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: var(--fs); }
+table.grid th, table.grid td { padding: 4px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; max-width: 420px; overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
+table.grid th { position: sticky; top: 0; background: var(--bg-2); font-weight: 600; font-size: var(--fs-sm); z-index: 1; border-bottom: 1px solid var(--line-2); }
+table.grid tr:last-child td { border-bottom: 0; }
+table.grid td.num, table.grid th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.grid td.idx { color: var(--ink-2); font-size: var(--fs-sm); text-align: right; font-variant-numeric: tabular-nums; background: var(--bg-2); }
+table.grid td.null { color: var(--ink-2); font-style: italic; }
+table.grid tbody tr:hover td { background: var(--bg-2); }
+table.grid tbody tr.selected td { background: var(--accent-bg); }
+.busy { opacity: .55; pointer-events: none; transition: opacity .15s; }
+label.field { display: block; margin-bottom: 10px; }
+label.field > span.name { display: block; font-weight: 600; font-size: var(--fs-sm); margin-bottom: 3px; }
+label.field > span.name em { color: var(--bad); font-style: normal; }
+label.field > span.help { display: block; color: var(--ink-2); font-size: var(--fs-sm); margin-top: 2px; }
+label.field input[type="text"], label.field input[type="date"], label.field input[type="time"], label.field input[type="datetime-local"], label.field select, label.field textarea { width: 100%; }
+label.field textarea { min-height: 56px; resize: vertical; }
+.checks { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.checks label { display: inline-flex; align-items: center; gap: 5px; }
+fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 12px 2px; margin: 0 0 10px; }
+legend { font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); padding: 0 4px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
