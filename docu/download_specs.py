@@ -46,7 +46,6 @@ async def download_all_specs():
     base_url = "https://developer.sas.com/rest-apis"
     
     # We will track visited API pages
-    visited_pages = set()
     # We will track discovered API pages to visit
     to_visit = set()
     
@@ -159,7 +158,7 @@ async def download_all_specs():
                     links = await page.query_selector_all("a")
                     found_any = False
                     for l in links:
-                        text = await l.inner_text()
+                        await l.inner_text()
                         href = await l.get_attribute("href")
                         if href and ("specifications" in href.lower() or "openapi.yml" in href.lower()):
                             found_any = True

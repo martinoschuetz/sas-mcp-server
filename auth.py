@@ -1,6 +1,8 @@
-import httpx
 import os
+
+import httpx
 from dotenv import load_dotenv
+
 load_dotenv()
 r = httpx.post(f'{os.environ["VIYA_ENDPOINT"]}/SASLogon/oauth/token', data={'grant_type': 'password', 'username': os.environ['VIYA_USERNAME'], 'password': os.environ['VIYA_PASSWORD']}, auth=('sas.cli', ''), verify=False, timeout=5.0)
 access_token = r.json()['access_token']
