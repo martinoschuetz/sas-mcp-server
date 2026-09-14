@@ -133,6 +133,7 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
         "list_genai_sources",
         "list_genai_llms",
         "query_genai_agent",
+        "esp_get_project_xml",
     }
 )
 
@@ -243,6 +244,8 @@ WRITE_TOOLS: frozenset[str] = frozenset(
         # Creates/removes a catalog relationship between a term and a column.
         "assign_glossary_term",
         "unassign_glossary_term",
+        "esp_deploy_project",
+        "esp_delete_project",
     }
 )
 
@@ -284,6 +287,7 @@ DESTRUCTIVE_TOOLS: frozenset[str] = frozenset(
         "update_glossary_term_type",
         # update_existing=true overwrites a term already at that path.
         "import_glossary_terms",
+        "esp_delete_project",
     }
 )
 
@@ -312,6 +316,7 @@ IDEMPOTENT_WRITE_TOOLS: frozenset[str] = frozenset(
         # creating a duplicate or failing on an absent one.
         "assign_glossary_term",
         "unassign_glossary_term",
+        "esp_delete_project",
     }
 )
 
