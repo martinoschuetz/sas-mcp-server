@@ -34,6 +34,7 @@ from . import (
     data_ops,
     decisioning,
     discovery,
+    esp,
     genai,
     glossary,
     iot,
@@ -67,6 +68,7 @@ _TIER_REGISTRARS: dict[int, Registrar] = {
     9: glossary.register,
     10: iot.register,
     11: genai.register,
+    12: esp.register,
 }
 
 TIER_TITLES: dict[int, str] = {
@@ -82,6 +84,7 @@ TIER_TITLES: dict[int, str] = {
     9: "Business Glossary (SAS Data Governance)",
     10: "IoT & FQA (Field Quality Analytics)",
     11: "Generative AI",
+    12: "Event Stream Processing (ESP)",
 }
 
 ALL_TIERS: frozenset[int] = frozenset(_TIER_REGISTRARS)
@@ -153,9 +156,7 @@ def _parse_tier_spec(spec: str) -> set[int]:
                 raise ConfigError(f"Invalid tier '{part}' in MCP_TIERS.") from None
     unknown = tiers - ALL_TIERS
     if unknown:
-        raise ConfigError(
-            f"Unknown tier(s) {sorted(unknown)} in MCP_TIERS; valid tiers are {sorted(ALL_TIERS)}."
-        )
+        raise ConfigError(f"Unknown tier(s) {sorted(unknown)} in MCP_TIERS; valid tiers are {sorted(ALL_TIERS)}.")
     return tiers
 
 
