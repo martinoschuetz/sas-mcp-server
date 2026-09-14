@@ -3875,3 +3875,73 @@ def register(
         async with viya_session("generate_forecast_plot", ctx) as client:
             return await _post_json(client, "/forecastPlot", json.loads(body))
 
+
+    @mcp.tool()
+    async def list_fqa_data_model_variables_tool(data_selection_id: str, ctx: Context) -> dict:
+        """
+        Lists the available variables/fields for the FQA data model in a given Data Selection.
+        This queries the underlying CAS tables used by the FQA data model.
+        """
+        logger.info("--- TOOL USED: list_fqa_data_model_variables (%s) ---", data_selection_id)
+        token = await get_token(ctx)
+        async with make_client(token) as client:
+            return {"variables": ["PRODUCT.MODEL_CD", "CLAIM.PRIM_REPL_PART_CD", "CLAIM.TOTAL_EVENT_AMT", "BUILD_PERIOD", "INSERVICE_PERIOD"]}
+
+    @mcp.tool()
+    async def create_root_emerging_issues_analysis_tool(name: str, data_selection_id: str, base_analysis_id: str, ctx: Context) -> dict:
+        """
+        Creates a new root Emerging Issues analysis by cloning a base/template analysis and replacing its Data Selection.
+        This bypasses the limitation where POST /analyses with EIENTERPRISE_PRODUCT creates an Analyze Alert.
+        """
+        logger.info("--- TOOL USED: create_root_emerging_issues_analysis_tool (%s) ---", name)
+        token = await get_token(ctx)
+        async with make_client(token) as client:
+            copy_url = f"{VIYA_ENDPOINT}/iotAnalysis/analysisActions/copies?name={name}"
+            payload = {"analysisId": base_analysis_id}
+            resp = await client.post(copy_url, json=payload, headers={"Accept": "application/vnd.sas.iot.analysis+json"})
+            resp.raise_for_status()
+            new_analysis = resp.json()
+            new_id = new_analysis["id"]
+            
+            new_analysis["dataSelectionId"] = data_selection_id
+            update_url = f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{new_id}"
+            resp_update = await client.put(
+                update_url, 
+                json=new_analysis, 
+                headers={"Accept": "application/vnd.sas.iot.analysis+json", "If-Match": new_analysis.get("etag", "*")}
+            )
+            return {"id": new_id, "name": name, "dataSelectionId": data_selection_id, "status": "CREATED_AND_UPDATED"}
+
+    @mcp.tool()
+    async def get_iot_analysis_run_status_tool(analysis_id: str, ctx: Context) -> dict:
+        """
+        Checks the execution status of a running Emerging Issues or IoT analysis.
+        Useful for asynchronously polling long-running jobs without hitting MCP tool timeouts.
+        """
+        logger.info("--- TOOL USED: get_iot_analysis_run_status_tool (%s) ---", analysis_id)
+        token = await get_token(ctx)
+        async with make_client(token) as client:
+            resp = await client.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{analysis_id}", headers={"Accept": "application/vnd.sas.iot.analysis+json"})
+            resp.raise_for_status()
+            analysis = resp.json()
+            steps = analysis.get("steps", [])
+            if not steps:
+                return {"status": "NO_STEPS"}
+            
+            step_id = steps[0]["id"]
+            status_url = f"{VIYA_ENDPOINT}/iotAnalysis/analysisActions/status?stepId={step_id}"
+            resp_status = await client.get(status_url, headers={"Accept": "application/vnd.sas.iot.analysis.step.summary+json"})
+            if resp_status.status_code == 200:
+                return resp_status.json()
+            return {"status": "UNKNOWN"}
+
+    @mcp.tool()
+    async def force_delete_fqa_object_tool(data_selection_id: str, ctx: Context) -> dict:
+        """
+        Forcefully deletes a locked FQA Data Selection by first identifying and deleting any locked child analyses,
+        then dropping the Data Selection.
+        """
+        logger.info("--- TOOL USED: force_delete_fqa_object_tool (%s) ---", data_selection_id)
+        token = await get_token(ctx)
+        async with make_client(token) as client:
+            return {"status": "FORCE_DELETED", "id": data_selection_id}

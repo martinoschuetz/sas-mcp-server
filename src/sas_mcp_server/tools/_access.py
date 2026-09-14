@@ -50,6 +50,8 @@ from mcp.types import ToolAnnotations
 
 READ_ONLY_TOOLS: frozenset[str] = frozenset(
     {
+        "list_fqa_data_model_variables_tool",
+        "get_iot_analysis_run_status_tool",
         # Tier 0 — Compute Contexts & Code Execution
         "list_compute_contexts",
         # Tier 1 — Data Discovery
@@ -143,6 +145,8 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
 # update / delete.
 WRITE_TOOLS: frozenset[str] = frozenset(
     {
+        "create_root_emerging_issues_analysis_tool",
+        "force_delete_fqa_object_tool",
         # Tier 0
         "execute_sas_code",  # arbitrary code — can perform any verb
         "reset_compute_session",  # destroys the caller's session state
@@ -260,6 +264,7 @@ WRITE_TOOLS: frozenset[str] = frozenset(
 # name-conflict policy that can overwrite. Arbitrary code can do anything.
 DESTRUCTIVE_TOOLS: frozenset[str] = frozenset(
     {
+        "force_delete_fqa_object_tool",
         "execute_sas_code",  # arbitrary code
         "submit_batch_job",  # arbitrary code
         "reset_compute_session",  # destroys the caller's session
@@ -298,6 +303,7 @@ DESTRUCTIVE_TOOLS: frozenset[str] = frozenset(
 # time — or we could not verify otherwise, and the spec's default is "no".
 IDEMPOTENT_WRITE_TOOLS: frozenset[str] = frozenset(
     {
+        "force_delete_fqa_object_tool",
         "update_business_ruleset",
         "update_business_rule",
         "update_decision_flow",
