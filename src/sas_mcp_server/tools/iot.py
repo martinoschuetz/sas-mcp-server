@@ -3948,23 +3948,64 @@ def register(
 
     @mcp.tool()
     async def fqa_template_descriptive_triage_tool(
-        name_prefix: str, 
-        data_selection_id: str, 
-        ctx: Context, 
-        folder_id: str = None, 
-        analysis_var: str = "CLAIM.CLAIMCOST", 
-        usage_type: str = "mileage"
+        name_prefix: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        analysis_var: str = 'CLAIM.CLAIMCOST',
+        by_var: str = 'CLAIM.EVENT_STATUS_CD',
+        report_var: str = 'PRODUCT.MODEL_CD',
+        data_domain: str = 'PRODUCT,CLAIM,LABOR',
+        usage_type: str = 'mileage',
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = '',
+        repair_before_sold: bool = True,
+        failures: str = 'all',
+        maturity_level: str = '',
+        min_sample_size: int = 0,
+        min_sample_size_type: str = '',
+        max_by_var: int = 20,
+        num_bars: int = 20,
+        calc_method: str = 'ASIS',
+        exp_chart_type: str = 'cumulative',
+        exp_measurement_type: int = 1,
+        exposure_type: str = 'TIS',
+        find_first_fail_flag: bool = False,
+        show_immature_exposure: str = 'N',
+        tis_point_of_view: str = 'frombuild',
+        unique_value: bool = False,
+        usage_profile: bool = False,
+        user_title: str = 'ANALYSISNAME',
+        user_subtitle: str = 'CREATEDBY',
+        user_footnote: str = 'CREATEDDATE',
+        value_var: str = 'ACTUAL_VALUE',
+        wait_for_completion: bool = True,
+        color_var: str = 'CLAIM.CLAIMCOUNT',
+        find_exp_measurement: bool = True,
+        max_exp_val: str = '',
+        claim_submit_lag: bool = True,
+        display_type: str = 'CODE',
+        control_charts: bool = True,
+        control_limits_type: str = 'SYSTEM',
+        display_grid: bool = False,
+        ucl: str = '',
+        lcl: str = '',
+        horiz_ref_value: bool = False,
+        horiz_ref_label: bool = False,
+        vert_ref_value: bool = False,
+        vert_ref_label: bool = False
     ) -> dict:
         """
         Executes Phase 1 of the FQA Best Practice workflow (Descriptive Triage and Spatial-Temporal Filtering).
         Automatically creates Pareto, Geographic, and Trend & Control analyses concurrently.
         """
         import asyncio
-        pareto = run_pareto_analysis_tool(name=f"{name_prefix}_Pareto", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, usage_type=usage_type)
-        geo = run_geographic_analysis_tool(name=f"{name_prefix}_Geographic", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, usage_type=usage_type)
-        trend = run_trend_analysis_tool(name=f"{name_prefix}_Trend", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, usage_type=usage_type)
+        pareto = run_pareto_analysis_tool(name=f"{name_prefix}_Pareto", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, by_var=by_var, report_var=report_var, data_domain=data_domain, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, max_by_var=max_by_var, num_bars=num_bars, calc_method=calc_method, exp_chart_type=exp_chart_type, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, tis_point_of_view=tis_point_of_view, unique_value=unique_value, usage_profile=usage_profile, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, value_var=value_var, wait_for_completion=wait_for_completion)
+        geographic = run_geographic_analysis_tool(name=f"{name_prefix}_Geographic", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, color_var=color_var, data_domain=data_domain, exposure_type=exposure_type, tis_point_of_view=tis_point_of_view, calc_method=calc_method, exp_chart_type=exp_chart_type, exp_measurement_type=exp_measurement_type, find_exp_measurement=find_exp_measurement, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, unique_value=unique_value, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, claim_submit_lag=claim_submit_lag, display_type=display_type, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
+        trend = run_trend_analysis_tool(name=f"{name_prefix}_Trend", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, by_var=by_var, report_var=report_var, data_domain=data_domain, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, max_by_var=max_by_var, calc_method=calc_method, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, tis_point_of_view=tis_point_of_view, unique_value=unique_value, usage_profile=usage_profile, control_charts=control_charts, control_limits_type=control_limits_type, display_grid=display_grid, ucl=ucl, lcl=lcl, horiz_ref_value=horiz_ref_value, horiz_ref_label=horiz_ref_label, vert_ref_value=vert_ref_value, vert_ref_label=vert_ref_label, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
 
-        results = await asyncio.gather(pareto, geo, trend, return_exceptions=True)
+        results = await asyncio.gather(pareto, geographic, trend, return_exceptions=True)
         return {
             "pareto": str(results[0]) if isinstance(results[0], Exception) else results[0],
             "geographic": str(results[1]) if isinstance(results[1], Exception) else results[1],
@@ -3973,48 +4014,162 @@ def register(
 
     @mcp.tool()
     async def fqa_template_algorithmic_segmentation_tool(
-        name_prefix: str, 
-        data_selection_id: str, 
-        ctx: Context, 
-        folder_id: str = None, 
-        analysis_var: str = "CLAIM.CLAIMCOST", 
-        usage_type: str = "mileage"
+        name_prefix: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        analysis_var: str = '',
+        report_var: str = 'PRODUCT.SELLING_DEALER_COUNTRY_CD,PRODUCT.CSTMR_COUNTRY_CD,CLAIM.EVENT_TYPE_CD,CLAIM.EVENT_STATUS_CD',
+        data_domain: str = 'PRODUCT,CLAIM,LABOR',
+        alpha_level: float = 0.05,
+        max_report_level: int = 500,
+        area_of_opportunity_unit: int = 1,
+        display_grid: bool = False,
+        usage_type: str = 'mileage',
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = '',
+        repair_before_sold: bool = True,
+        failures: str = 'all',
+        maturity_level: str = '',
+        max_exp_val: str = '',
+        min_sample_size: int = 0,
+        min_sample_size_type: str = '',
+        exp_measurement_type: int = 1,
+        exposure_type: str = 'TIS',
+        find_first_fail_flag: bool = False,
+        show_immature_exposure: str = 'N',
+        tis_point_of_view: str = 'frombuild',
+        user_title: str = 'ANALYSISNAME',
+        user_subtitle: str = 'CREATEDBY',
+        user_footnote: str = 'CREATEDDATE',
+        display_type: str = 'CODE',
+        wait_for_completion: bool = True,
+        max_branch: int = 2,
+        max_depth: int = 5,
+        leaf_size: float = 0.01,
+        min_num_obs: int = 10,
+        max_report_var: int = 25,
+        exp_chart_type: str = 'cumulative',
+        unique_value: bool = False,
+        usage_profile: bool = False
     ) -> dict:
         """
         Executes Phase 2 of the FQA Best Practice workflow (Algorithmic Subpopulation Segmentation).
         Automatically creates Statistical Drivers and Decision Tree analyses concurrently.
         """
         import asyncio
-        stat = run_statistical_driver_analysis_tool(name=f"{name_prefix}_StatDrivers", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, usage_type=usage_type)
-        tree = run_decision_tree_analysis_tool(name=f"{name_prefix}_DecisionTree", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, usage_type=usage_type)
+        statistical = run_statistical_driver_analysis_tool(name=f"{name_prefix}_Statistical", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, data_domain=data_domain, alpha_level=alpha_level, max_report_level=max_report_level, area_of_opportunity_unit=area_of_opportunity_unit, display_grid=display_grid, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, tis_point_of_view=tis_point_of_view, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, display_type=display_type, wait_for_completion=wait_for_completion)
+        decision = run_decision_tree_analysis_tool(name=f"{name_prefix}_Decision", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, data_domain=data_domain, max_branch=max_branch, max_depth=max_depth, leaf_size=leaf_size, alpha_level=alpha_level, min_num_obs=min_num_obs, max_report_level=max_report_level, max_report_var=max_report_var, area_of_opportunity_unit=area_of_opportunity_unit, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, exp_chart_type=exp_chart_type, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, tis_point_of_view=tis_point_of_view, unique_value=unique_value, usage_profile=usage_profile, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, display_type=display_type, wait_for_completion=wait_for_completion)
 
-        results = await asyncio.gather(stat, tree, return_exceptions=True)
+        results = await asyncio.gather(statistical, decision, return_exceptions=True)
         return {
-            "statistical_drivers": str(results[0]) if isinstance(results[0], Exception) else results[0],
-            "decision_tree": str(results[1]) if isinstance(results[1], Exception) else results[1]
+            "statistical": str(results[0]) if isinstance(results[0], Exception) else results[0],
+            "decision": str(results[1]) if isinstance(results[1], Exception) else results[1]
         }
 
     @mcp.tool()
     async def fqa_template_validation_and_forecasting_tool(
-        name_prefix: str, 
-        data_selection_id: str, 
-        ctx: Context, 
-        folder_id: str = None, 
-        analysis_var: str = "CLAIM.CLAIMCOST", 
-        usage_type: str = "mileage"
+        name_prefix: str,
+        data_selection_id: str,
+        ctx: Context,
+        folder_id: str = None,
+        analysis_var: str = 'PART.REPL_PART_AMT',
+        report_var: str = 'PART.REPL_PART_CD',
+        data_domain: str = 'PRODUCT,CLAIM,PART',
+        rv_dim_column: str = 'PART.REPL_PART_CD',
+        threshold_slider_variable: str = 'CONF',
+        xvar1: str = 'iotIncr',
+        dmdb_max_lev: int = 100001,
+        chart_scaling_factor: int = 400,
+        node_tip: str = 'CODE',
+        node_size: str = 'UNIFORM',
+        bin_increment: int = 500,
+        rv_table_name_key: str = 'PART.REPL_PART_CD',
+        rv_table_name_value: str = 'PART.REPL_PART_CD',
+        rv_table_name: str = 'PART.REPL_PART_CD',
+        exposure_type: str = 'TIS',
+        find_first_fail_flag: bool = False,
+        link_tip: str = 'DESC',
+        link_value_variable: str = 'conf',
+        link_width: str = 'UNIFORM',
+        link_width_variable: str = 'count',
+        max_link_number: int = 2000,
+        max_link_width: int = 3,
+        max_node_number: int = 300,
+        min_items: int = 2,
+        nodesize_variable: str = 'count',
+        min_conf_passoc: float = 1.0,
+        bin_length: int = 30,
+        onetrvruledsflag: int = 0,
+        pseudoliftincludeflag: str = 'N',
+        sas_file: int = 1,
+        seq_proc_threshold: int = 301,
+        show_immature_exposure: str = 'N',
+        threshold_slider_scale_type: str = 'PERCENTILE',
+        assoc_table_threshold: int = 100,
+        trule_end_start_flag: str = 'ALL',
+        uniform_link_width: int = 1,
+        rule_type: str = 'TYPE4',
+        perform_repeat_repair: bool = False,
+        wrty_usage_max_mileage: int = 100000,
+        wrty_usage_max_hours: int = 1000,
+        wrty_usage_max_km: str = '',
+        repair_before_sold: bool = True,
+        failures: str = 'all',
+        maturity_level: str = '',
+        max_exp_val: str = '',
+        max_inter_oc_time: int = 3,
+        min_conf_p: str = '',
+        min_lift: str = '',
+        min_cost: int = 15000,
+        no_rules_to_display: str = '',
+        yvar2: str = 'CONF',
+        yvar1: str = 'SUPPORT',
+        xvar2: str = 'iotIncr',
+        rule_filter_criteria: str = 'support',
+        tis_point_of_view: str = 'frombuild',
+        apply_int_oc_time_incr: bool = False,
+        apply_rule_st_criteria: bool = True,
+        min_support_type: str = 'percent',
+        rule_size: str = '1-1,1-2,2-1,2-2',
+        min_support_p: float = 0.01,
+        min_support_c: int = 1,
+        display_type: str = 'CODE',
+        user_title: str = 'ANALYSISNAME',
+        user_subtitle: str = 'CREATEDBY',
+        user_footnote: str = 'CREATEDDATE',
+        wait_for_completion: bool = True,
+        by_var: str = '',
+        calc_method: str = 'ASIS',
+        exp_chart_type: str = 'cumulative',
+        exp_measurement_type: int = 1,
+        find_exp_measurement: bool = True,
+        unique_value: bool = True,
+        usage_profile: bool = False,
+        usage_type: str = 'mileage',
+        min_sample_size: int = 0,
+        min_sample_size_type: str = '',
+        claim_submit_lag: bool = True,
+        display_grid: bool = False,
+        reliab_var: str = 'TIS',
+        projected_values_hours: str = '100,200,300,400,500,600,700,800,900,1000',
+        confidence: float = 0.95,
+        seas_sale_lag: bool = False,
+        max_by_var: int = 20
     ) -> dict:
         """
         Executes Phases 3 & 4 of the FQA Best Practice workflow (Validation, Normalization, and Predictive Forecasting).
         Automatically creates Failure Relationships, Exposure, and Reliability analyses concurrently.
         """
         import asyncio
-        rel = run_failure_relationships_analysis_tool(name=f"{name_prefix}_FailRel", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var)
-        exp = run_exposure_analysis_tool(name=f"{name_prefix}_Exposure", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, usage_type=usage_type)
-        weibull = run_reliability_analysis_tool(name=f"{name_prefix}_Reliability", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var)
+        failure = run_failure_relationships_analysis_tool(name=f"{name_prefix}_Failure", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, data_domain=data_domain, rv_dim_column=rv_dim_column, threshold_slider_variable=threshold_slider_variable, xvar1=xvar1, dmdb_max_lev=dmdb_max_lev, chart_scaling_factor=chart_scaling_factor, node_tip=node_tip, node_size=node_size, bin_increment=bin_increment, rv_table_name_key=rv_table_name_key, rv_table_name_value=rv_table_name_value, rv_table_name=rv_table_name, exposure_type=exposure_type, find_first_fail_flag=find_first_fail_flag, link_tip=link_tip, link_value_variable=link_value_variable, link_width=link_width, link_width_variable=link_width_variable, max_link_number=max_link_number, max_link_width=max_link_width, max_node_number=max_node_number, min_items=min_items, nodesize_variable=nodesize_variable, min_conf_passoc=min_conf_passoc, bin_length=bin_length, onetrvruledsflag=onetrvruledsflag, pseudoliftincludeflag=pseudoliftincludeflag, sas_file=sas_file, seq_proc_threshold=seq_proc_threshold, show_immature_exposure=show_immature_exposure, threshold_slider_scale_type=threshold_slider_scale_type, assoc_table_threshold=assoc_table_threshold, trule_end_start_flag=trule_end_start_flag, uniform_link_width=uniform_link_width, rule_type=rule_type, perform_repeat_repair=perform_repeat_repair, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, max_inter_oc_time=max_inter_oc_time, min_conf_p=min_conf_p, min_lift=min_lift, min_cost=min_cost, no_rules_to_display=no_rules_to_display, yvar2=yvar2, yvar1=yvar1, xvar2=xvar2, rule_filter_criteria=rule_filter_criteria, tis_point_of_view=tis_point_of_view, apply_int_oc_time_incr=apply_int_oc_time_incr, apply_rule_st_criteria=apply_rule_st_criteria, min_support_type=min_support_type, rule_size=rule_size, min_support_p=min_support_p, min_support_c=min_support_c, display_type=display_type, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
+        exposure = run_exposure_analysis_tool(name=f"{name_prefix}_Exposure", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, by_var=by_var, data_domain=data_domain, exposure_type=exposure_type, tis_point_of_view=tis_point_of_view, calc_method=calc_method, exp_chart_type=exp_chart_type, exp_measurement_type=exp_measurement_type, find_exp_measurement=find_exp_measurement, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, unique_value=unique_value, usage_profile=usage_profile, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, claim_submit_lag=claim_submit_lag, display_type=display_type, display_grid=display_grid, bin_increment=bin_increment, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
+        reliability = run_reliability_analysis_tool(name=f"{name_prefix}_Reliability", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, by_var=by_var, reliab_var=reliab_var, data_domain=data_domain, exp_chart_type=exp_chart_type, projected_values_hours=projected_values_hours, confidence=confidence, bin_increment=bin_increment, display_grid=display_grid, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_exp_measurement=find_exp_measurement, show_immature_exposure=show_immature_exposure, seas_sale_lag=seas_sale_lag, max_by_var=max_by_var, find_first_fail_flag=find_first_fail_flag, wrty_usage_max_km=wrty_usage_max_km, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
 
-        results = await asyncio.gather(rel, exp, weibull, return_exceptions=True)
+        results = await asyncio.gather(failure, exposure, reliability, return_exceptions=True)
         return {
-            "failure_relationships": str(results[0]) if isinstance(results[0], Exception) else results[0],
+            "failure": str(results[0]) if isinstance(results[0], Exception) else results[0],
             "exposure": str(results[1]) if isinstance(results[1], Exception) else results[1],
             "reliability": str(results[2]) if isinstance(results[2], Exception) else results[2]
         }
