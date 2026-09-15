@@ -112,6 +112,8 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
         "get_iot_analysis_output_tables_tool",
         "get_iot_analysis_results",
         "get_iot_model_definition_tool",
+        "get_alert_filters_tool",
+        "get_analysis_execution_capabilities",
         "list_alerts_for_run_tool",
         "list_data_selections_tool",
         "list_emerging_issue_runs_tool",
@@ -202,6 +204,7 @@ WRITE_TOOLS: frozenset[str] = frozenset(
         "copy_iot_analyses_tool",
         "create_child_analysis_and_run_tool",
         "create_child_data_selection_and_launch_tool",
+        "combine_data_selections_tool",
         "create_folder_tool",
         "create_forecasting_data_definition",
         "create_iot_analysis_tool",
@@ -239,6 +242,7 @@ WRITE_TOOLS: frozenset[str] = frozenset(
         "run_trend_by_exposure_analysis_tool",
         "set_data_selection_date_range_tool",
         "update_data_selection_tool",
+        "update_data_selection_filters_tool",
         # Tier 9
         "create_glossary_term",
         "update_glossary_term",
@@ -284,6 +288,7 @@ DESTRUCTIVE_TOOLS: frozenset[str] = frozenset(
         "create_report",  # on_conflict="replace" can overwrite a report
         "copy_report",  # result_name_conflict="replace" likewise
         "publish_ml_champion_model",  # re-publish replaces the destination module
+        "update_data_selection_filters_tool",
         "delete_glossary_term",
         "unassign_glossary_term",  # removes an existing term/column assignment
         # PUT replaces the whole term; the tool merges first, but a caller can
@@ -318,6 +323,7 @@ IDEMPOTENT_WRITE_TOOLS: frozenset[str] = frozenset(
         "cancel_job",
         "reset_compute_session",
         "promote_table_to_memory",
+        "update_data_selection_filters_tool",
         "update_glossary_term",
         "delete_glossary_term",
         "update_glossary_term_type",
