@@ -4006,7 +4006,8 @@ def register(
                 "description": analysis_description,
                 "modelName": "EIENTERPRISE_PRODUCT",
                 "dataSelectionId": new_ds_id,
-                "folderID": folder_id
+                "folderID": folder_id,
+                "status": "COMPLETED"
             }
             collection_body = {
                 "name": "analysis",
@@ -4020,10 +4021,12 @@ def register(
             resp_an.raise_for_status()
             
             created_analysis = resp_an.json()["items"][0]
+            analysis_id = created_analysis["id"]
+
             return {
-                "message": "Analyze Alert successfully completed",
+                "message": "Analyze Alert successfully completed. The analysis object is created with 'Completed' status (Analyze Alert runs cannot be executed natively).",
                 "dataSelectionId": new_ds_id,
-                "analysisId": created_analysis["id"]
+                "analysisId": analysis_id
             }
 
     @mcp.tool()
