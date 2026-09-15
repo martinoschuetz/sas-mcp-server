@@ -3951,7 +3951,7 @@ def register(
         name_prefix: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
+        folder_id: str = None,  # pyright: ignore
         analysis_var: str = 'CLAIM.CLAIMCOST',
         by_var: str = 'CLAIM.EVENT_STATUS_CD',
         report_var: str = 'PRODUCT.MODEL_CD',
@@ -4017,7 +4017,7 @@ def register(
         name_prefix: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
+        folder_id: str = None,  # pyright: ignore
         analysis_var: str = '',
         report_var: str = 'PRODUCT.SELLING_DEALER_COUNTRY_CD,PRODUCT.CSTMR_COUNTRY_CD,CLAIM.EVENT_TYPE_CD,CLAIM.EVENT_STATUS_CD',
         data_domain: str = 'PRODUCT,CLAIM,LABOR',
@@ -4073,7 +4073,7 @@ def register(
         name_prefix: str,
         data_selection_id: str,
         ctx: Context,
-        folder_id: str = None,
+        folder_id: str = None,  # pyright: ignore
         analysis_var: str = 'PART.REPL_PART_AMT',
         report_var: str = 'PART.REPL_PART_CD',
         data_domain: str = 'PRODUCT,CLAIM,PART',
