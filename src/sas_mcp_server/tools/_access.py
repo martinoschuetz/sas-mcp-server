@@ -145,6 +145,9 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
 # update / delete.
 WRITE_TOOLS: frozenset[str] = frozenset(
     {
+        "fqa_template_descriptive_triage_tool",
+        "fqa_template_algorithmic_segmentation_tool",
+        "fqa_template_validation_and_forecasting_tool",
         "create_root_emerging_issues_analysis_tool",
         "force_delete_fqa_object_tool",
         # Tier 0
