@@ -149,6 +149,7 @@ WRITE_TOOLS: frozenset[str] = frozenset(
         "fqa_template_algorithmic_segmentation_tool",
         "fqa_template_validation_and_forecasting_tool",
         "create_root_emerging_issues_analysis_tool",
+        "analyze_emerging_issue_alert_tool",
         "force_delete_fqa_object_tool",
         # Tier 0
         "execute_sas_code",  # arbitrary code — can perform any verb
