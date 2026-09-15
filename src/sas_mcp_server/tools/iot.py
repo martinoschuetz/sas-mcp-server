@@ -3921,6 +3921,112 @@ def register(
             return {"id": new_id, "name": name, "dataSelectionId": data_selection_id, "status": "CREATED_AND_UPDATED"}
 
     @mcp.tool()
+    async def analyze_emerging_issue_alert_tool(
+        parent_data_selection_id: str,
+        parent_analysis_id: str,
+        new_ds_name: str,
+        new_analysis_name: str,
+        folder_id: str,
+        new_filters: list[dict],
+        ctx: Context,
+        ds_description: str = "",
+        analysis_description: str = "",
+    ) -> dict:
+        """
+        Executes the 'Analyze Alert' workflow from an Emerging Issues alert.
+        This generates both a pure Data Selection (with Creation Type 'Emerging Issues') 
+        and an Analysis object linked to it, placed inside a specific Project folder.
+
+        Args:
+            parent_data_selection_id (str): The ID of the parent data selection to copy.
+            parent_analysis_id (str): The ID of the parent Emerging Issues run.
+            new_ds_name (str): The name for the newly generated Data Selection.
+            new_analysis_name (str): The name for the newly generated Analysis.
+            folder_id (str): The ID of the project folder where the Analysis should reside.
+            new_filters (list[dict]): Filter criteria to append for the specific alert.
+            ds_description (str, optional): Description for the Data Selection.
+            analysis_description (str, optional): Description for the Analysis.
+        """
+        import uuid
+        logger.info("--- TOOL USED: analyze_emerging_issue_alert_tool (%s) ---", new_analysis_name)
+        token = await get_token(ctx)
+        
+        async with viya_session("analyze_emerging_issue_alert", ctx) as client:
+            # 1. Copy Data Selection with EIENTERPRISE creation type
+            copy_url = f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{parent_data_selection_id}/copy"
+            payload = {
+                "name": new_ds_name,
+                "description": ds_description,
+                "creationType": "EIENTERPRISE"
+            }
+            resp_copy = await client.post(copy_url, json=payload)
+            resp_copy.raise_for_status()
+            new_ds_id = resp_copy.json()["id"]
+
+            # 2. Update the Data Selection with filters and parent linking
+            resp_get = await client.get(
+                f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{new_ds_id}", 
+                headers={"Accept": "application/vnd.sas.data.selection+json"}
+            )
+            ds_details = resp_get.json()
+            etag = resp_get.headers.get("ETag", "")
+
+            filter_criteria = ds_details.get("filterCriteria", {})
+            group_0 = filter_criteria.get("0", [])
+            for f in new_filters:
+                group_0.append({
+                    "id": str(uuid.uuid4()),
+                    "criteriaGroupId": new_ds_id,
+                    "columnName": f["columnName"],
+                    "operatorCode": f["operatorCode"],
+                    "excludeFlag": False,
+                    "componentTypeCode": f["component"],
+                    "component": f["component"],
+                    "filterAttributeId": f"{f['columnName']}_{f['component']}",
+                    "groupId": "0",
+                    "uiDisplay": False,
+                    "values": f["values"]
+                })
+            ds_details["filterCriteria"] = {"0": group_0}
+
+            attrs = ds_details.get("additionalAttributes", [])
+            attrs.append({"name": "parentAnalysisId", "value": parent_analysis_id})
+            ds_details["additionalAttributes"] = attrs
+
+            resp_put = await client.put(
+                f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{new_ds_id}", 
+                json=ds_details, 
+                headers={"If-Match": etag, "Content-Type": "application/json", "Accept": "application/vnd.sas.data.selection+json"}
+            )
+            resp_put.raise_for_status()
+
+            # 3. Create the Analysis Object in the specified folder
+            an_body = {
+                "name": new_analysis_name,
+                "description": analysis_description,
+                "modelName": "EIENTERPRISE_PRODUCT",
+                "dataSelectionId": new_ds_id,
+                "folderID": folder_id
+            }
+            collection_body = {
+                "name": "analysis",
+                "items": [an_body]
+            }
+            resp_an = await client.post(
+                f"{VIYA_ENDPOINT}/iotAnalysis/analyses", 
+                json=collection_body, 
+                headers={"Accept": "application/json", "Content-Type": "application/json"}
+            )
+            resp_an.raise_for_status()
+            
+            created_analysis = resp_an.json()["items"][0]
+            return {
+                "message": "Analyze Alert successfully completed",
+                "dataSelectionId": new_ds_id,
+                "analysisId": created_analysis["id"]
+            }
+
+    @mcp.tool()
     async def get_iot_analysis_run_status_tool(analysis_id: str, ctx: Context) -> dict:
         """
         Checks the execution status of a running Emerging Issues or IoT analysis.
