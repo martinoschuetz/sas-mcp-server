@@ -145,10 +145,12 @@ async def launch_data_selection(selection_id: str, token: str) -> dict:
                                 accept="application/vnd.sas.data.selection.launch+json")
 
 
-async def copy_data_selection(selection_id: str, new_name: str, token: str, new_description: str = "") -> dict:
+async def copy_data_selection(selection_id: str, new_name: str, token: str, new_description: str = "", creation_type: str | None = None) -> dict:
     """Copies a specific SAS AIoT data selection."""
     async with make_client(token) as client:
         body = {"name": new_name, "description": new_description}
+        if creation_type:
+            body["creationType"] = creation_type
         return await _post_json(f"/dataSelection/dataSelections/{selection_id}/copy", client,
                                 body=body,
                                 accept="application/vnd.sas.data.selection+json")
@@ -741,7 +743,7 @@ def register(
 
     @mcp.tool()
     async def copy_data_selection_tool(selection_id: str, new_name: str, 
-                                       ctx: Context, new_description: str = "") -> dict:
+                                       ctx: Context, new_description: str = "", creation_type: str | None = None) -> dict:
         """
         Copies a specific SAS Analytics for IoT data selection.
 
@@ -749,10 +751,11 @@ def register(
             selection_id (str): The unique identifier of the data selection to copy.
             new_name (str): The name for the new data selection.
             new_description (str): Optional description for the new data selection.
+            creation_type (str, optional): Override the creationType (e.g. 'EIENTERPRISE' for Emerging Issues).
         """
         logger.info("--- TOOL USED: copy_data_selection (%s -> %s) ---", selection_id, new_name)
         token = await get_token(ctx)
-        return await copy_data_selection(selection_id, new_name, token, new_description)
+        return await copy_data_selection(selection_id, new_name, token, new_description, creation_type)
 
     @mcp.tool()
     async def copy_data_selections_tool(selection_ids: list[str], ctx: Context) -> dict:
@@ -3521,6 +3524,7 @@ def register(
         parent_analysis_id: str,
         ctx: Context,
         folder_id: str | None = None,
+        creation_type: str | None = None,
     ) -> dict[str, Any]:
         """Creates a child data selection from a parent data selection
         with new filters and parent links, and launches it in CAS.
@@ -3531,12 +3535,16 @@ def register(
             new_filters (list[dict]): List of additional filter criteria to append.
             parent_analysis_id (str): The ID of the parent Decision Tree or analysis to link this child to.
             folder_id (str, optional): The ID of the project folder to add this data selection to.
+            creation_type (str, optional): Override the creationType (e.g. 'EIENTERPRISE' for Emerging Issues).
         """
         import uuid
         async with viya_session("create_child_data_selection_and_launch", ctx) as client:
             logger.info("Copying parent data selection %s to '%s'", parent_data_selection_id, new_name)
-            copy_url = f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{parent_data_selection_id}/copies?name={new_name}"
-            resp_copy = await client.post(copy_url)
+            copy_url = f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{parent_data_selection_id}/copy"
+            payload = {"name": new_name}
+            if creation_type:
+                payload["creationType"] = creation_type
+            resp_copy = await client.post(copy_url, json=payload)
             resp_copy.raise_for_status()
             new_ds = resp_copy.json()
             new_ds_id = new_ds["id"]
