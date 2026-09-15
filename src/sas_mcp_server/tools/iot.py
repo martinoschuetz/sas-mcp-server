@@ -3947,16 +3947,23 @@ def register(
             return {"status": "FORCE_DELETED", "id": data_selection_id}
 
     @mcp.tool()
-    async def fqa_template_descriptive_triage_tool(name_prefix: str, data_selection_id: str, ctx: Context, folder_id: str = None) -> dict:
+    async def fqa_template_descriptive_triage_tool(
+        name_prefix: str, 
+        data_selection_id: str, 
+        ctx: Context, 
+        folder_id: str = None, 
+        analysis_var: str = "CLAIM.CLAIMCOST", 
+        usage_type: str = "mileage"
+    ) -> dict:
         """
         Executes Phase 1 of the FQA Best Practice workflow (Descriptive Triage and Spatial-Temporal Filtering).
         Automatically creates Pareto, Geographic, and Trend & Control analyses concurrently.
         """
         import asyncio
-        pareto = run_pareto_analysis_tool(name=f"{name_prefix}_Pareto", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id)
-        geo = run_geographic_analysis_tool(name=f"{name_prefix}_Geographic", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id)
-        trend = run_trend_analysis_tool(name=f"{name_prefix}_Trend", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id)
-        
+        pareto = run_pareto_analysis_tool(name=f"{name_prefix}_Pareto", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, usage_type=usage_type)
+        geo = run_geographic_analysis_tool(name=f"{name_prefix}_Geographic", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, usage_type=usage_type)
+        trend = run_trend_analysis_tool(name=f"{name_prefix}_Trend", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, usage_type=usage_type)
+
         results = await asyncio.gather(pareto, geo, trend, return_exceptions=True)
         return {
             "pareto": str(results[0]) if isinstance(results[0], Exception) else results[0],
@@ -3965,15 +3972,22 @@ def register(
         }
 
     @mcp.tool()
-    async def fqa_template_algorithmic_segmentation_tool(name_prefix: str, data_selection_id: str, ctx: Context, folder_id: str = None) -> dict:
+    async def fqa_template_algorithmic_segmentation_tool(
+        name_prefix: str, 
+        data_selection_id: str, 
+        ctx: Context, 
+        folder_id: str = None, 
+        analysis_var: str = "CLAIM.CLAIMCOST", 
+        usage_type: str = "mileage"
+    ) -> dict:
         """
         Executes Phase 2 of the FQA Best Practice workflow (Algorithmic Subpopulation Segmentation).
         Automatically creates Statistical Drivers and Decision Tree analyses concurrently.
         """
         import asyncio
-        stat = run_statistical_driver_analysis_tool(name=f"{name_prefix}_StatDrivers", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id)
-        tree = run_decision_tree_analysis_tool(name=f"{name_prefix}_DecisionTree", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id)
-        
+        stat = run_statistical_driver_analysis_tool(name=f"{name_prefix}_StatDrivers", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, usage_type=usage_type)
+        tree = run_decision_tree_analysis_tool(name=f"{name_prefix}_DecisionTree", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, usage_type=usage_type)
+
         results = await asyncio.gather(stat, tree, return_exceptions=True)
         return {
             "statistical_drivers": str(results[0]) if isinstance(results[0], Exception) else results[0],
@@ -3981,16 +3995,23 @@ def register(
         }
 
     @mcp.tool()
-    async def fqa_template_validation_and_forecasting_tool(name_prefix: str, data_selection_id: str, ctx: Context, folder_id: str = None) -> dict:
+    async def fqa_template_validation_and_forecasting_tool(
+        name_prefix: str, 
+        data_selection_id: str, 
+        ctx: Context, 
+        folder_id: str = None, 
+        analysis_var: str = "CLAIM.CLAIMCOST", 
+        usage_type: str = "mileage"
+    ) -> dict:
         """
         Executes Phases 3 & 4 of the FQA Best Practice workflow (Validation, Normalization, and Predictive Forecasting).
         Automatically creates Failure Relationships, Exposure, and Reliability analyses concurrently.
         """
         import asyncio
-        rel = run_failure_relationships_analysis_tool(name=f"{name_prefix}_FailRel", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id)
-        exp = run_exposure_analysis_tool(name=f"{name_prefix}_Exposure", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id)
-        weibull = run_reliability_analysis_tool(name=f"{name_prefix}_Reliability", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id)
-        
+        rel = run_failure_relationships_analysis_tool(name=f"{name_prefix}_FailRel", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var)
+        exp = run_exposure_analysis_tool(name=f"{name_prefix}_Exposure", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, usage_type=usage_type)
+        weibull = run_reliability_analysis_tool(name=f"{name_prefix}_Reliability", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var)
+
         results = await asyncio.gather(rel, exp, weibull, return_exceptions=True)
         return {
             "failure_relationships": str(results[0]) if isinstance(results[0], Exception) else results[0],
