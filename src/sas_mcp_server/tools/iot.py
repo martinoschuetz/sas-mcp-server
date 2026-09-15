@@ -399,7 +399,7 @@ async def get_cas_summary_statistics(server_id: str, caslib_name: str, table_nam
 # High-Level Workflow Orchestration
 # ---------------------------------------------------------------------------
 
-async def poll_job(job_url: str, token: str, poll_interval: int = 5) -> dict:
+async def poll_job(job_url: str, token: str, poll_interval: float = 1.0) -> dict:
     """Polls a job status until it reaches a terminal state."""
     async with make_client(token) as client:
         while True:
@@ -3644,7 +3644,7 @@ def register(
                     break
                 elif launch_status in ("FAILED", "ERROR"):
                     raise RuntimeError(f"Data selection launch failed with status {launch_status}")
-                await asyncio.sleep(5)
+                await asyncio.sleep(1)
                 
             if folder_id:
                 member_body = {
@@ -3768,7 +3768,7 @@ def register(
                     except Exception:
                         pass
                     raise RuntimeError(f"Analysis job failed with status {job_status}")
-                await asyncio.sleep(5)
+                await asyncio.sleep(1)
                 
             if folder_id:
                 member_body = {
@@ -4005,7 +4005,11 @@ def register(
         geographic = run_geographic_analysis_tool(name=f"{name_prefix}_Geographic", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, color_var=color_var, data_domain=data_domain, exposure_type=exposure_type, tis_point_of_view=tis_point_of_view, calc_method=calc_method, exp_chart_type=exp_chart_type, exp_measurement_type=exp_measurement_type, find_exp_measurement=find_exp_measurement, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, unique_value=unique_value, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, claim_submit_lag=claim_submit_lag, display_type=display_type, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
         trend = run_trend_analysis_tool(name=f"{name_prefix}_Trend", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, by_var=by_var, report_var=report_var, data_domain=data_domain, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, max_by_var=max_by_var, calc_method=calc_method, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, tis_point_of_view=tis_point_of_view, unique_value=unique_value, usage_profile=usage_profile, control_charts=control_charts, control_limits_type=control_limits_type, display_grid=display_grid, ucl=ucl, lcl=lcl, horiz_ref_value=horiz_ref_value, horiz_ref_label=horiz_ref_label, vert_ref_value=vert_ref_value, vert_ref_label=vert_ref_label, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
 
-        results = await asyncio.gather(pareto, geographic, trend, return_exceptions=True)
+        async with asyncio.TaskGroup() as tg:
+            t1 = tg.create_task(pareto)
+            t2 = tg.create_task(geographic)
+            t3 = tg.create_task(trend)
+        results = [t1.result(), t2.result(), t3.result()]
         return {
             "pareto": str(results[0]) if isinstance(results[0], Exception) else results[0],
             "geographic": str(results[1]) if isinstance(results[1], Exception) else results[1],
@@ -4062,7 +4066,10 @@ def register(
         statistical = run_statistical_driver_analysis_tool(name=f"{name_prefix}_Statistical", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, data_domain=data_domain, alpha_level=alpha_level, max_report_level=max_report_level, area_of_opportunity_unit=area_of_opportunity_unit, display_grid=display_grid, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, tis_point_of_view=tis_point_of_view, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, display_type=display_type, wait_for_completion=wait_for_completion)
         decision = run_decision_tree_analysis_tool(name=f"{name_prefix}_Decision", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, data_domain=data_domain, max_branch=max_branch, max_depth=max_depth, leaf_size=leaf_size, alpha_level=alpha_level, min_num_obs=min_num_obs, max_report_level=max_report_level, max_report_var=max_report_var, area_of_opportunity_unit=area_of_opportunity_unit, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, exp_chart_type=exp_chart_type, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, tis_point_of_view=tis_point_of_view, unique_value=unique_value, usage_profile=usage_profile, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, display_type=display_type, wait_for_completion=wait_for_completion)
 
-        results = await asyncio.gather(statistical, decision, return_exceptions=True)
+        async with asyncio.TaskGroup() as tg:
+            t1 = tg.create_task(statistical)
+            t2 = tg.create_task(decision)
+        results = [t1.result(), t2.result()]
         return {
             "statistical": str(results[0]) if isinstance(results[0], Exception) else results[0],
             "decision": str(results[1]) if isinstance(results[1], Exception) else results[1]
@@ -4167,7 +4174,11 @@ def register(
         exposure = run_exposure_analysis_tool(name=f"{name_prefix}_Exposure", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, by_var=by_var, data_domain=data_domain, exposure_type=exposure_type, tis_point_of_view=tis_point_of_view, calc_method=calc_method, exp_chart_type=exp_chart_type, exp_measurement_type=exp_measurement_type, find_exp_measurement=find_exp_measurement, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, unique_value=unique_value, usage_profile=usage_profile, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, claim_submit_lag=claim_submit_lag, display_type=display_type, display_grid=display_grid, bin_increment=bin_increment, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
         reliability = run_reliability_analysis_tool(name=f"{name_prefix}_Reliability", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, by_var=by_var, reliab_var=reliab_var, data_domain=data_domain, exp_chart_type=exp_chart_type, projected_values_hours=projected_values_hours, confidence=confidence, bin_increment=bin_increment, display_grid=display_grid, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_exp_measurement=find_exp_measurement, show_immature_exposure=show_immature_exposure, seas_sale_lag=seas_sale_lag, max_by_var=max_by_var, find_first_fail_flag=find_first_fail_flag, wrty_usage_max_km=wrty_usage_max_km, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
 
-        results = await asyncio.gather(failure, exposure, reliability, return_exceptions=True)
+        async with asyncio.TaskGroup() as tg:
+            t1 = tg.create_task(failure)
+            t2 = tg.create_task(exposure)
+            t3 = tg.create_task(reliability)
+        results = [t1.result(), t2.result(), t3.result()]
         return {
             "failure": str(results[0]) if isinstance(results[0], Exception) else results[0],
             "exposure": str(results[1]) if isinstance(results[1], Exception) else results[1],
