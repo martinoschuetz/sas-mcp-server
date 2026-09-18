@@ -122,11 +122,7 @@ async def test_env_var_drives_default(monkeypatch):
 
 async def test_explicit_argument_overrides_env_var(monkeypatch):
     monkeypatch.setattr(tools, "MCP_READ_ONLY", True)
-<<<<<<< HEAD
     assert len(await _register(read_only=False)) == len(READ_ONLY_TOOLS) + len(WRITE_TOOLS)
-=======
-    assert len(await _register(read_only=False)) == 92
->>>>>>> v1.15.0
     monkeypatch.setattr(tools, "MCP_READ_ONLY", False)
     assert await _register(read_only=True) == set(READ_ONLY_TOOLS)
 
