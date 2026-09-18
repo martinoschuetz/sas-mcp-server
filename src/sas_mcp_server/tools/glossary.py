@@ -59,6 +59,7 @@ from ..helpers.glossary_helpers import (
     parse_import_log,
     readable_attributes,
     resolve_import_paths,
+    term_csv_header,
     unmet_required,
 )
 from ..viya_client import (
@@ -1562,6 +1563,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         term_type: str | None = None,
         update_existing: bool = False,
         timeout_seconds: int = 600,
+        dry_run: bool = False,
     ) -> dict[str, Any]:
         """Create many business terms, and their hierarchy, in one call.
 
@@ -1615,6 +1617,13 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
             update_existing: Replace a term that already exists at the same path
                 (default false, which leaves it untouched).
             timeout_seconds: How long to wait for the import job (default 600).
+            dry_run: Validate and show what *would* be imported without
+                importing anything: the rows in the order they would be sent,
+                each with its resolved parent path and encoded attributes.
+                Use it to let the person confirm a batch first — in a client
+                that renders interactive views the preview appears as a table
+                with an Import button; elsewhere, call again with
+                ``dry_run=false`` once they agree.
         """
         if not terms:
             raise ValueError("terms is empty; there is nothing to import.")
@@ -1701,6 +1710,30 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
             ordered = resolve_import_paths(rows)
             columns = [used_labels[key] for key in sorted(used_labels)]
             payload = build_term_csv(ordered, columns)
+
+            if dry_run:
+                return {
+                    "dry_run": True,
+                    "requested": len(ordered),
+                    "order": [row["name"] for row in ordered],
+                    "rows": [
+                        {
+                            "name": row["name"],
+                            "term_type": row["term_type"],
+                            "path": row.get("_path", ""),
+                            "definition": row.get("definition", ""),
+                            "description": row.get("description", ""),
+                            "attributes": row.get("attributes") or {},
+                        }
+                        for row in ordered
+                    ],
+                    "columns": term_csv_header(columns),
+                    "update_existing": update_existing,
+                    "note": (
+                        "Nothing was imported. These are the rows, in the order they would "
+                        "be sent; call again with dry_run=false to run the import."
+                    ),
+                }
 
             started = await client.post(
                 f"{VIYA_ENDPOINT}{_GLOSSARY}/importTerms",

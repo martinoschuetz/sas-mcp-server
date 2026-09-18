@@ -462,6 +462,26 @@ async def test_compute_discovery_workflow(integration_mcp_server):
         assert isinstance(columns, list)
         assert len(columns) > 0, f"No columns returned for {library}.{table}"
 
+        rows = (
+            await client.call_tool(
+                "get_compute_table_data",
+                {
+                    "compute_context_name": CONTEXT_NAME,
+                    "library_name": library,
+                    "table_name": table,
+                    "limit": 3,
+                },
+            )
+        ).data
+        assert rows["columns"], f"No columns in the row page for {library}.{table}"
+        # list_compute_columns paged at 100; the row page names every column.
+        assert {c["name"] for c in columns} <= set(rows["columns"])
+        assert len(rows["rows"]) <= 3
+        for row in rows["rows"]:
+            assert set(row) == set(rows["columns"]), "each row is keyed by the column names"
+        if rows["count"] > 3:
+            assert rows["truncated"] is True
+
 
 # -----------------------------------------------------------------------
 # Compute Session Reuse + Reset Workflow
@@ -1762,6 +1782,7 @@ TOOL_COVERAGE = {
     "list_compute_libraries": "test_compute_discovery_workflow",
     "list_compute_tables": "test_compute_discovery_workflow",
     "list_compute_columns": "test_compute_discovery_workflow",
+    "get_compute_table_data": "test_compute_discovery_workflow",
     "reset_compute_session": "test_compute_session_reuse_and_reset",
     "catalog_search": "test_catalog_table_profile_loop",
     "catalog_search_helper": "test_catalog_table_profile_loop",
@@ -2978,20 +2999,34 @@ async def test_glossary_bulk_import(integration_mcp_server):
             ).data["term_type_id"]
 
             # Deliberately out of order: the leaf comes before its ancestors.
+            terms = [
+                {"name": f"{prefix} Leaf", "parent": f"{prefix} Mid",
+                 "attributes": {"Tier": "Silver", "Masked": False}},
+                {"name": f"{prefix} Root", "definition": "imported root",
+                 "description": "imported root overview",
+                 "attributes": {"Tier": "Gold", "Masked": True}},
+                {"name": f"{prefix} Mid", "parent": f"{prefix} Root"},
+            ]
+
+            # A dry run shows the resolved order and paths and creates nothing.
+            preview = (
+                await client.call_tool(
+                    "import_glossary_terms",
+                    {"term_type": type_id, "terms": terms, "dry_run": True},
+                )
+            ).data
+            assert preview["dry_run"] is True
+            assert preview["order"] == [f"{prefix} Root", f"{prefix} Mid", f"{prefix} Leaf"]
+            assert preview["rows"][2]["path"] == f"{prefix} Root\\{prefix} Mid"
+            nothing_yet = (
+                await client.call_tool("list_glossary_terms", {"term_type": type_id, "limit": 5})
+            ).data
+            assert nothing_yet["items"] == [], "a dry run must not create terms"
+
             result = (
                 await client.call_tool(
                     "import_glossary_terms",
-                    {
-                        "term_type": type_id,
-                        "terms": [
-                            {"name": f"{prefix} Leaf", "parent": f"{prefix} Mid",
-                             "attributes": {"Tier": "Silver", "Masked": False}},
-                            {"name": f"{prefix} Root", "definition": "imported root",
-                             "description": "imported root overview",
-                             "attributes": {"Tier": "Gold", "Masked": True}},
-                            {"name": f"{prefix} Mid", "parent": f"{prefix} Root"},
-                        ],
-                    },
+                    {"term_type": type_id, "terms": terms},
                 )
             ).data
             assert result["failures"] == [], f"import reported failures: {result['failures']}"

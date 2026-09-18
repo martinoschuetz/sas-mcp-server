@@ -30,11 +30,12 @@ from .config import (
     viya_auth,
 )
 from .exceptions import AuthenticationError
+from .helpers.telemetry_helpers import server_version
 from .landing import LandingPageMiddleware, ServerFacts, collect_facts
 from .prompts import register_prompts
 from .telemetry import install_telemetry
 from .tools import register_tools
-from .viya_client import logger
+from .viya_client import announce_startup, logger
 from .viya_utils import shutdown_session_cache
 
 # Load environment variables before accessing them
@@ -77,8 +78,9 @@ async def _lifespan(server: FastMCP) -> AsyncIterator[dict]:
 
 
 # Initialize the FastMCP server
-logger.info("Connecting to SAS Viya at %s", VIYA_ENDPOINT)
-_mcp_kwargs: dict[str, Any] = {"lifespan": _lifespan}
+SERVER_VERSION = server_version()
+announce_startup("http", SERVER_VERSION)
+_mcp_kwargs: dict[str, Any] = {"lifespan": _lifespan, "version": SERVER_VERSION}
 if AUTH_ENABLED:
     _mcp_kwargs["auth"] = viya_auth
 else:

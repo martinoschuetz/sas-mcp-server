@@ -104,7 +104,7 @@ async def test_composes_with_tier_selection():
 
 async def test_composes_with_tier_range():
     names = await _register(tiers="0-4", read_only=True)
-    assert len(names) == 28
+    assert len(names) == 29
     assert "list_compute_contexts" in names  # tier 0, read
     assert "execute_sas_code" not in names  # tier 0, write
     assert "list_mas_modules" not in names  # tier 6, not selected
@@ -122,7 +122,11 @@ async def test_env_var_drives_default(monkeypatch):
 
 async def test_explicit_argument_overrides_env_var(monkeypatch):
     monkeypatch.setattr(tools, "MCP_READ_ONLY", True)
+<<<<<<< HEAD
     assert len(await _register(read_only=False)) == len(READ_ONLY_TOOLS) + len(WRITE_TOOLS)
+=======
+    assert len(await _register(read_only=False)) == 92
+>>>>>>> v1.15.0
     monkeypatch.setattr(tools, "MCP_READ_ONLY", False)
     assert await _register(read_only=True) == set(READ_ONLY_TOOLS)
 

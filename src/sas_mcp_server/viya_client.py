@@ -15,12 +15,32 @@ without creating an import cycle.
 import json
 from typing import Any
 
+import fastmcp
 import httpx
 from fastmcp.utilities.logging import get_logger
 
 from .config import SSL_VERIFY, VIYA_ENDPOINT
 
 logger = get_logger(__name__)
+
+
+def announce_startup(transport: str, version: str | None) -> str:
+    """Log, and return, the first line of the server log: what is running.
+
+    A field report's first question is "which version?", and the answer was
+    nowhere in the log — nor in the MCP handshake, which carried FastMCP's
+    version in place of ours until the entry points began passing ``version=``.
+    FastMCP's version is named as well: the two sign-in regressions after the
+    4.0 upgrade (#54, #58) were specific to it, and the transport, because the
+    stdio and HTTP paths authenticate differently and fail differently.
+    """
+    line = (
+        f"sas-mcp-server {version or 'unknown'} (fastmcp {fastmcp.__version__}, {transport})"
+        f" - connecting to SAS Viya at {VIYA_ENDPOINT}"  # ASCII: cp1252 consoles print an em dash as ?
+    )
+    logger.info("%s", line)
+    return line
+
 
 # Viya REST calls can be slow (compute session spin-up, large log fetches);
 # give them a generous client timeout.

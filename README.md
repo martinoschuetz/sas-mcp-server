@@ -4,7 +4,8 @@ A Model Context Protocol (MCP) server for executing SAS code, training AutoML pr
 
 ## Features
 
-- 91 tools across 10 selectable tiers, spanning the Analytics Life Cycle on SAS Viya
+- 92 tools across 10 selectable tiers, spanning the Analytics Life Cycle on SAS Viya
+- Interactive views (MCP Apps) for data, SAS logs and glossary editing in clients that render them — Claude, ChatGPT, Microsoft 365 Copilot, VS Code, Cursor
 - Prompt Templates for improving your SAS Code
 - OAuth2 authentication with PKCE flow
 - HTTP-based MCP server compatible with MCP clients
@@ -165,7 +166,7 @@ MCP_TIERS=0-3 uv run app
 
 ### Read-only mode
 
-Set `MCP_READ_ONLY=true` to expose only tools that neither change server-side state nor cause server-side work — 50 of the 91 tools. Withheld tools are never registered, so they are absent from the client's tool list entirely: the model cannot see them, so it cannot attempt them.
+Set `MCP_READ_ONLY=true` to expose only tools that neither change server-side state nor cause server-side work — 51 of the 92 tools. Withheld tools are never registered, so they are absent from the client's tool list entirely: the model cannot see them, so it cannot attempt them.
 
 This is a filter over the tiers, not a tier of its own — the read/write split cuts across every tier (Tier 3 has both `get_report` and `delete_report`). The two settings compose:
 
@@ -200,6 +201,22 @@ The same classification is **advertised** to every client as [MCP tool annotatio
 | `openWorldHint` | only tools that can reach beyond Viya: arbitrary code and the upload tools' `url` source |
 
 Clients use these to shape their approval UX — e.g. Claude groups read-only tools for one-click approval and warns before destructive ones — and to decide when to interrupt the user. They are hints, not enforcement: the spec tells clients to treat them as untrusted unless the server is trusted, and `MCP_READ_ONLY` remains the server-side control. Without annotations a client must assume the spec's pessimistic defaults (writable, destructive, open-world) for every tool, so this only ever reduces friction. The browser landing page marks each tool `read-only` / `write` / `destructive` from the same hints.
+
+### Interactive views (MCP Apps)
+
+Some results read badly as text however well the tool shapes them: a hundred rows of a table, a SAS log, a form's worth of typed attributes. Ten tools therefore also carry a small HTML view, using the [MCP Apps extension](https://modelcontextprotocol.io/extensions/apps/overview), that a supporting client renders in a sandboxed frame beside the result:
+
+| View | Tools | What it does |
+|---|---|---|
+| Data grid | `query_data`, `get_castable_data`, `get_compute_table_data` | Sort, filter and page through rows. Paging calls the same tool again from the view, so the person can walk a large table while the model holds only the first page. |
+| SAS log | `execute_sas_code`, `get_job_log`, `submit_batch_job` | Colour-coded `ERROR` / `WARNING` / `NOTE` lines, jump to the next problem, problems-only and hide-notes filters, the listing on its own tab. A submitted batch job is polled from the view until it ends, then its log is fetched. |
+| Glossary term editor | `get_glossary_term_type`, `get_glossary_term` | A form generated from the term type — a real checkbox for a boolean, a date picker, a multi-select — so attribute values cannot be mistyped. Creates or updates the term and tells the assistant what was saved. A term that is still a draft can be published from here, which is the only way the API allows it. |
+| Glossary browser | `list_glossary_terms` | The whole glossary as a navigable tree beside a detail pane: search across names, definitions, descriptions and attribute values; filter by term type or "has assets"; breadcrumbs, children cards, attributes, assigned assets, and a sunburst of the hierarchy. The tree pane can be resized by dragging the divider or hidden altogether. The listing's own filters become the starting filters; the rest of the glossary is loaded by the view in pages, so the model still holds only the first page. A draft — invisible to everyone but its author, which is why the tree is where you notice one — can be published from its detail pane. |
+| Glossary import | `import_glossary_terms` | With `dry_run=true`, the rows in the order they would be sent, with resolved parent paths and the CSV's own `Definition` and `Description` columns kept apart, and an Import button. After a real import, each row's outcome and the id of the term it became — including whether the term was new or already there, which the import job itself counts as successful either way. |
+
+Every view has a ⤢ button that opens it fullscreen where the host offers that (Claude does), which is where a wide table or a long log is meant to be read; the button does not appear on a host without it.
+
+Everything about this is additive. The tool's return value is unchanged, so a client without the extension — Claude Code, a script, an older client — sees exactly what it saw before. Clients that render views today include Claude (web, desktop and mobile), ChatGPT, Microsoft 365 Copilot, VS Code with GitHub Copilot, Cursor and Goose. Every request a view makes travels through the host to this server as an ordinary tool call with the session's token; the browser never talks to Viya, and a tool a deployment withholds through `MCP_TIERS` or `MCP_READ_ONLY` has no view either — nor does any control inside a view that would have called it, so a read-only deployment shows the glossary browser without its Publish button rather than with one that can only fail. The pages are fully inlined — the vendored `@modelcontextprotocol/ext-apps` bridge included — so they render on hosts that ignore CSP declarations and on an air-gapped Viya. `MCP_APPS=false` registers no views.
 
 ### Available Tools
 
@@ -236,6 +253,7 @@ The headings below match the numbered **tiers** above, so `MCP_TIERS` maps direc
 - **list_compute_libraries**: List the SAS libraries (librefs) assigned in a compute context
 - **list_compute_tables**: List the tables in a SAS library within a compute context
 - **list_compute_columns**: List the columns of a table in a SAS library
+- **get_compute_table_data**: Fetch a page of rows from a table in a SAS library, values formatted as SAS displays them — the compute-tier counterpart of `get_castable_data`
 
 #### Tier 2 — Data Operations & Files
 - **upload_data**: Upload a data file into a CAS table — read **server-side** so the data never passes through the model's context — from `file_path` (the server reads it off disk) or `url` (the server fetches it and converts it to the multipart upload the endpoint requires). Ingests the formats the casManagement `uploadTable` API accepts — csv, tsv (csv + tab delimiter), xls, xlsx (single sheet), sas7bdat, sashdat — auto-detected from the extension or set with `data_format`. parquet is not accepted by that endpoint and is rejected up front with guidance (load via a path-based caslib + `promote_table_to_memory`, or convert to csv/sas7bdat).
@@ -318,7 +336,7 @@ Two things about the glossary are worth knowing before you start, because both a
 
 *Authoring:*
 - **create_glossary_term**: Create a term. **Publishes by default** — the underlying API creates an invisible draft unless told otherwise; `update_glossary_term(publish=true)` promotes one later
-- **import_glossary_terms**: Create many terms, and their hierarchy, in one call. Children name their parent instead of needing its id, so rows can be given in any order and no id is threaded between levels; per-row failures are reported individually. Returns the `term_id` of each row's term, so the next step needs no lookup, and separates rows that were genuinely new from rows whose term already existed — the import job counts both as successful. A row is written whole, so `update_existing` *replaces* the term at that path rather than merging into it
+- **import_glossary_terms**: Create many terms, and their hierarchy, in one call. Children name their parent instead of needing its id, so rows can be given in any order and no id is threaded between levels; per-row failures are reported individually. Returns the `term_id` of each row's term, so the next step needs no lookup, and separates rows that were genuinely new from rows whose term already existed — the import job counts both as successful. A row is written whole, so `update_existing` *replaces* the term at that path rather than merging into it. `dry_run=true` shows the resolved rows without importing — the interactive view turns that into a table with an Import button
 - **update_glossary_term**: Change a term's text, parent or attributes. Merges onto the current term, so omitted fields are left alone rather than blanked; `parent_id` moves it in the hierarchy, and `publish` promotes a draft. A draft is a separate resource in the API, so this routes the write accordingly — editing one otherwise fails with a bare 404
 - **delete_glossary_term**: Permanently delete a term and every assignment that referenced it. There is no cascade — a term with children is refused, so delete a subtree leaf-first
 - **assign_glossary_term** / **unassign_glossary_term**: Attach a term to a table column, or detach it. This is the step that makes a term govern data — a term with no assigned assets governs nothing
@@ -560,7 +578,7 @@ tsv, and `file_path`/`data_format` coverage needs no extra deps. Generating a
 `sas7bdat`/`sashdat` fixture requires SAS itself, so those two formats are covered by
 unit-level payload tests only, not live.
 
-Every one of the 91 tools and 9 prompt templates has an integration test, enforced by the
+Every one of the 92 tools and 9 prompt templates has an integration test, enforced by the
 `test_every_tool_has_integration_coverage` / `test_every_prompt_has_integration_coverage`
 guards — adding a new tool or prompt without integration coverage fails the suite. The
 resource-dependent tests discover real targets on the instance: `score_data` scores the most

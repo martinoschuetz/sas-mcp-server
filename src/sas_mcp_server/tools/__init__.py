@@ -25,8 +25,10 @@ from typing import Any, cast
 
 from fastmcp import Context, FastMCP
 
-from ..config import MCP_READ_ONLY, MCP_TIERS
+from ..config import MCP_APPS, MCP_READ_ONLY, MCP_TIERS
 from ..exceptions import ConfigError
+from ..helpers.telemetry_helpers import server_version
+from ..ui import app_config, register_views
 from ..viya_client import logger
 from . import (
     automl,
@@ -109,15 +111,24 @@ class _TierRecorder:
       read/write classification) unless the tier passed its own, so every tool
       advertises ``readOnlyHint`` & co. to clients without any per-tool code
       (the model field is ``read_only_hint``; camelCase is the wire alias).
+    * ``app=`` is filled in from :func:`sas_mcp_server.ui.app_config` the same
+      way, so a tool that has an interactive view advertises it without the
+      tier knowing views exist. ``seen`` collects the names that passed
+      through, which is what the views are registered against afterwards.
     """
 
-    def __init__(self, target: Any, tier: int) -> None:
+    def __init__(self, target: Any, tier: int, *, apps: bool, seen: list[str]) -> None:
         self._target = target
         self._tier = tier
+        self._apps = apps
+        self._seen = seen
 
     def _record(self, name: str, kwargs: dict[str, Any]) -> None:
         TOOL_TIERS[name] = self._tier
+        self._seen.append(name)
         kwargs.setdefault("annotations", annotations_for(name))
+        if self._apps:
+            kwargs.setdefault("app", app_config(name, enabled=True))
 
     def tool(self, name_or_fn: Any = None, **kwargs: Any) -> Any:
         if callable(name_or_fn):  # bare @mcp.tool
@@ -183,6 +194,7 @@ def register_tools(
     get_token: Callable[[Context], Awaitable[str]],
     tiers: str | Iterable[int] | None = None,
     read_only: bool | None = None,
+    apps: bool | None = None,
 ) -> None:
     """Register the enabled tiers' tools on *mcp*.
 
@@ -197,26 +209,41 @@ def register_tools(
         read_only: When true, register only the read-only tools of the enabled
             tiers; mutating tools are never registered, so they do not appear in
             ``list_tools``. ``None`` uses the ``MCP_READ_ONLY`` env var.
+        apps: When true, tools that have an interactive view (see
+            :mod:`sas_mcp_server.ui`) advertise it and the view's ``ui://``
+            resource is registered; when false, no view metadata or resource
+            exists. ``None`` uses the ``MCP_APPS`` env var.
     """
     enabled = resolve_enabled_tiers(tiers)
     ro = MCP_READ_ONLY if read_only is None else bool(read_only)
+    with_apps = MCP_APPS if apps is None else bool(apps)
     gate = ReadOnlyGate(mcp) if ro else None
     # The gate stands in for the server by duck-typing ``tool()`` — deliberate,
     # so the tiers register unmodified — which a static type cannot express.
     target = cast(FastMCP, gate) if gate is not None else mcp
-    logger.info("Registering tool tiers: %s (read_only=%s)", sorted(enabled), ro)
+    logger.info(
+        "Registering tool tiers: %s (read_only=%s, apps=%s)", sorted(enabled), ro, with_apps
+    )
+    seen: list[str] = []
     for tier in sorted(enabled):
         # Tier 8's sole tool is already included when Tier 0 is enabled.
         if tier == 8 and 0 in enabled:
             continue
         # Wrapped per tier so TOOL_TIERS learns the tier each tool came from.
-        _TIER_REGISTRARS[tier](cast(FastMCP, _TierRecorder(target, tier)), get_token)
+        recorder = _TierRecorder(target, tier, apps=with_apps, seen=seen)
+        _TIER_REGISTRARS[tier](cast(FastMCP, recorder), get_token)
     if gate is not None:
         logger.info(
             "Read-only mode: withheld %d mutating tool(s): %s",
             len(gate.withheld),
             ", ".join(sorted(gate.withheld)),
         )
+    if with_apps:
+        # Only tools that actually registered get a view: the recorder saw every
+        # name, the gate says which of those it withheld.
+        registered = set(seen) - set(gate.withheld if gate is not None else ())
+        views = register_views(mcp, registered, version=server_version() or "")
+        logger.info("Registered %d interactive view(s)", len(views))
 
 
 __all__ = [
