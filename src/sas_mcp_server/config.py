@@ -106,6 +106,13 @@ MCP_READ_ONLY = env_bool("MCP_READ_ONLY", False)
 # tool names + one-line summaries) — set false to hide it and get the 401 back.
 # Rendering lives in sas_mcp_server.landing.
 MCP_LANDING_PAGE = env_bool("MCP_LANDING_PAGE", True)
+# Interactive views (MCP Apps, default: true). Tools whose results read badly
+# as text — data grids, SAS logs, glossary forms — also carry a small HTML view
+# that hosts supporting the MCP Apps extension (Claude, ChatGPT, M365 Copilot,
+# VS Code, Cursor) render beside the result. Purely additive: the tool's return
+# value is unchanged, and a host without the extension sees nothing different.
+# Set false to register no views. The views live in sas_mcp_server.ui.
+MCP_APPS = env_bool("MCP_APPS", True)
 
 _mcp_base_url = os.getenv("MCP_BASE_URL", "").strip()
 # An empty value is the documented .env.sample default. Also ignore values
@@ -144,8 +151,34 @@ viya_auth = PermissiveOAuthProxy(
     upstream_token_endpoint=TOKEN_ENDPOINT,
     upstream_client_id=CLIENT_ID,
     upstream_client_secret=None,
+    # Keep in step with upstream_client_secret above: sas-mcp is registered as a
+    # public client (allowpublic, no secret — see examples/register_mcp_client.py),
+    # so the token exchange must present no password at all. Say so explicitly
+    # rather than leave it inferred. FastMCP 4.0 replaced authlib's OAuth2 client
+    # with its own, and the replacement defaults to client_secret_basic whether or
+    # not a secret exists, where authlib chose "none" when there was none. The
+    # None above was f-string interpolated into Basic base64("sas-mcp:None") and
+    # SAS Logon rejected every browser sign-in with "invalid_client: Missing
+    # credentials" (#54). If a client secret ever becomes configurable, this has
+    # to become conditional on it.
+    token_endpoint_auth_method="none",
     jwt_signing_key=MCP_SIGNING_KEY,
     base_url=MCP_BASE_URL,
+    # An MCP client opens a fresh loopback port for every sign-in. FastMCP 4.0
+    # turns CIMD on by default, and a client whose client_id is an HTTPS URL
+    # (GitHub Copilot CLI is one) then has its callback checked against the
+    # redirect URIs in its own published metadata document — which lists fixed
+    # ports and gets no loopback exemption, so the check can never pass. It
+    # cannot be widened from here either: the document check runs first, and
+    # allowed_client_redirect_uris only narrows what the document already
+    # permits. Off, those client IDs take the ordinary dynamic-registration
+    # path, which does let loopback ports vary (RFC 8252 §7.3) and is what every
+    # other MCP client already uses. The trade is that this server no longer
+    # advertises client_id_metadata_document_supported or private_key_jwt —
+    # correct, since with CIMD off it supports neither (#58). The underlying
+    # asymmetry is FastMCP's: its DCR path implements the loopback rule and its
+    # CIMD path does not; drop this line if that is ever reconciled.
+    enable_cimd=False,
     forward_pkce=True,
     token_verifier=token_verifier,
     valid_scopes=["openid"],

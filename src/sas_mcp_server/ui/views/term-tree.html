@@ -1,0 +1,495 @@
+<style>
+  #root { --tree-w: 320px; }
+  .stats b { font-variant-numeric: tabular-nums; }
+  #layout { display: grid; grid-template-columns: var(--tree-w) 6px minmax(0, 1fr); height: min(560px, calc(100vh - 118px)); min-height: 260px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--bg); }
+  /* Hidden panes leave the grid, so the detail pane must become the only track. */
+  #layout.collapsed { grid-template-columns: minmax(0, 1fr); }
+  #layout.collapsed #tree-pane, #layout.collapsed #splitter { display: none; }
+  #tree-pane { min-width: 0; overflow: auto; background: var(--bg-2); border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+  #splitter { cursor: col-resize; background: var(--line); position: relative; }
+  #splitter:hover, #splitter.active { background: var(--accent); }
+  #splitter::after { content: ""; position: absolute; inset: 0 -4px; }
+  #detail { min-width: 0; overflow: auto; padding: 14px 18px 20px; }
+  @media (max-width: 640px) {
+    /* Stacked: the splitter is gone, so two rows — tree above, detail below. */
+    #layout { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(120px, 40%) minmax(0, 1fr); height: min(560px, 80vh); }
+    #layout.collapsed { grid-template-rows: minmax(0, 1fr); }
+    #splitter { display: none; }
+    #tree-pane { border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+  #tree { list-style: none; margin: 0; padding: 6px 4px 12px; flex: 1; }
+  #tree ul { list-style: none; margin: 0; padding: 0 0 0 14px; }
+  .node { display: flex; align-items: center; gap: 5px; padding: 2px 6px; border-radius: 4px; cursor: pointer; line-height: 1.35; }
+  .node:hover { background: var(--bg-3); }
+  .node.sel { background: var(--accent-bg); color: var(--accent); }
+  .node .tw { width: 14px; height: 14px; flex: none; display: inline-flex; align-items: center; justify-content: center; color: var(--ink-2); font-size: 10px; }
+  .node .tw.leaf { visibility: hidden; }
+  .node .dot { width: 8px; height: 8px; border-radius: 2px; flex: none; background: var(--c, var(--ink-2)); }
+  .node .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .node .nm.l0 { font-weight: 600; }
+  .node .nm mark { background: var(--warn-bg); color: inherit; border-radius: 2px; }
+  .node .cnt { font-size: 10.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .node .ast { font-size: 10px; padding: 0 5px; border-radius: 999px; background: var(--ok-bg); color: var(--ok); font-weight: 600; }
+  .node .drf { font-size: 10px; padding: 0 5px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); }
+  li.hidden { display: none; }
+  #tree-tools { display: flex; gap: 6px; padding: 6px; border-bottom: 1px solid var(--line); background: var(--bg-2); position: sticky; top: 0; z-index: 1; }
+  #tree-tools button { padding: 2px 7px; font-size: var(--fs-sm); }
+  #tree-tools .grow { flex: 1; }
+  #sun-pane { display: none; flex-direction: column; align-items: stretch; padding: 8px; gap: 6px; flex: 1; }
+  #sun-pane canvas { width: 100%; aspect-ratio: 1; display: block; border-radius: var(--radius); }
+  #sun-hover { font-size: var(--fs-sm); min-height: 2.6em; color: var(--ink-2); }
+  #tree-pane.sun #tree { display: none; } #tree-pane.sun #sun-pane { display: flex; }
+  .crumbs { display: flex; flex-wrap: wrap; gap: 2px 6px; color: var(--ink-2); font-size: var(--fs-sm); margin-bottom: 6px; }
+  .crumbs a { color: var(--ink-2); cursor: pointer; text-decoration: none; }
+  .crumbs a:hover { color: var(--accent); text-decoration: underline; }
+  .crumbs .sep { opacity: .5; }
+  #detail h2.name { font-size: 20px; line-height: 1.2; margin-bottom: 6px; }
+  .def { font-size: 15px; line-height: 1.45; max-width: 68ch; margin: 10px 0 8px; white-space: pre-wrap; }
+  .prose { max-width: 72ch; color: var(--ink-2); white-space: pre-wrap; margin-bottom: 10px; }
+  .section { margin-top: 16px; }
+  .section h3 { font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-2); margin: 0 0 6px; font-weight: 600; }
+  .metagrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px; }
+  .metagrid .m { padding: 6px 9px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); }
+  .metagrid .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); font-weight: 600; }
+  .metagrid .v { font-size: var(--fs); margin-top: 1px; overflow-wrap: anywhere; }
+  table.kv { border-collapse: collapse; font-size: var(--fs-sm); }
+  table.kv td { padding: 3px 10px 3px 0; vertical-align: top; border-bottom: 1px solid var(--line); }
+  table.kv td:first-child { color: var(--ink-2); white-space: nowrap; }
+  .kids { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+  .kid { padding: 6px 9px; border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; display: flex; flex-direction: column; gap: 2px; background: var(--bg); }
+  .kid:hover { border-color: var(--accent); }
+  .kid b { font-weight: 600; font-size: var(--fs); }
+  .kid span { font-size: var(--fs-sm); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .assets { display: flex; flex-direction: column; gap: 4px; }
+  .asset { display: flex; gap: 8px; align-items: baseline; font-size: var(--fs-sm); padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--radius); }
+  .asset .col { font-family: var(--mono); }
+  .asset .tbl { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .idrow { display: flex; gap: 8px; align-items: center; margin-top: 16px; flex-wrap: wrap; font-size: var(--fs-sm); color: var(--ink-2); }
+  .idrow code { user-select: all; }
+  .typedot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--c, var(--ink-2)); margin-right: 5px; vertical-align: middle; }
+  .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: var(--radius); overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; background: var(--bg); padding: 3px 9px; font-size: var(--fs-sm); }
+  .seg button + button { border-left: 1px solid var(--line-2); }
+  .seg button[aria-pressed="true"] { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+  #progress { font-variant-numeric: tabular-nums; }
+</style>
+<div id="root">
+  <div class="head">
+    <div>
+      <h1 id="title">Glossary</h1>
+      <div id="meta" class="small muted"></div>
+    </div>
+    <div class="row stats" id="stats"></div>
+  </div>
+  <div id="banner" class="banner" hidden></div>
+  <div class="toolbar">
+    <button id="toggle-tree" type="button" title="Hide or show the tree (also drag the divider to resize it)" aria-pressed="false">◧ Tree</button>
+    <input id="q" class="grow" type="search" placeholder="Search names, definitions, descriptions, attribute values…" aria-label="Search terms">
+    <select id="ftype" aria-label="Term type"><option value="">All term types</option></select>
+    <label class="small"><input id="fassets" type="checkbox"> has assets</label>
+    <span class="seg" role="group" aria-label="Left pane"><button id="v-tree" type="button" aria-pressed="true">Tree</button><button id="v-sun" type="button" aria-pressed="false">Sunburst</button></span>
+    <span id="progress" class="pill" hidden></span>
+  </div>
+  <div id="layout" class="fill">
+    <nav id="tree-pane" aria-label="Term hierarchy">
+      <div id="tree-tools">
+        <button id="expand-all" type="button">Expand all</button>
+        <button id="collapse-all" type="button">Collapse all</button>
+        <span class="grow"></span>
+        <button id="scope-up" type="button" hidden title="Show the whole glossary">↑ Whole glossary</button>
+      </div>
+      <ul id="tree" role="tree"></ul>
+      <div id="sun-pane"><canvas id="sun" width="600" height="600" aria-label="Sunburst of the hierarchy"></canvas><div id="sun-hover">Hover a slice; click to select.</div></div>
+    </nav>
+    <div id="splitter" role="separator" aria-orientation="vertical" aria-label="Resize the tree" tabindex="0"></div>
+    <section id="detail"><div class="empty">Waiting for terms…</div></section>
+  </div>
+</div>
+<script type="module">
+  const { el, fmt } = sas;
+  const $ = (id) => document.getElementById(id);
+  const PAGE = 200, CAP = 5000;
+  const state = {
+    args: {}, terms: new Map(), kids: new Map(), roots: [], loaded: false, total: 0,
+    scopeRoot: null, selected: null, open: new Set(), q: "", type: "", assetsOnly: false,
+    attributeFilter: null, hover: null, assetCache: new Map(), arcs: [],
+  };
+
+  // --- persistence for the layout choices (per browser; may be unavailable) --
+  const store = {
+    get(k) { try { return localStorage.getItem(`sas-glossary:${k}`); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(`sas-glossary:${k}`, v); } catch { /* sandbox without storage */ } },
+  };
+
+  // --- colours: one hue per term type, stable across renders ----------------
+  function hue(label) { let h = 0; for (const ch of String(label || "")) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; }
+  function typeColor(label) { const dark = document.documentElement.dataset.theme === "dark"; return `hsl(${hue(label)} 45% ${dark ? 62 : 38}%)`; }
+
+  // --- data ------------------------------------------------------------------
+  function ingest(items) {
+    for (const t of items || []) {
+      if (!t.term_id) continue;
+      const prev = state.terms.get(t.term_id) || {};
+      state.terms.set(t.term_id, { ...prev, ...t });
+    }
+  }
+  function build() {
+    state.kids.clear(); state.roots = [];
+    const ids = [...state.terms.keys()].sort((a, b) => String(state.terms.get(a).name).localeCompare(String(state.terms.get(b).name), undefined, { numeric: true }));
+    for (const id of ids) {
+      const t = state.terms.get(id);
+      const p = t.parent_id && state.terms.has(t.parent_id) ? t.parent_id : null;
+      if (p) { if (!state.kids.has(p)) state.kids.set(p, []); state.kids.get(p).push(id); } else state.roots.push(id);
+    }
+    const types = [...new Set([...state.terms.values()].map((t) => t.term_type).filter(Boolean))].sort();
+    const sel = $("ftype"); const cur = sel.value;
+    sel.replaceChildren(el("option", { value: "" }, "All term types"), ...types.map((t) => el("option", { value: t }, t)));
+    sel.value = types.includes(cur) ? cur : types.includes(state.type) ? state.type : "";
+    state.type = sel.value;
+  }
+  const childrenOf = (id) => state.kids.get(id) || [];
+  const depthOf = (id) => { let d = 0, t = state.terms.get(id); while (t && t.parent_id && state.terms.has(t.parent_id)) { d++; t = state.terms.get(t.parent_id); } return d; };
+  function ancestors(id) { const out = []; let t = state.terms.get(id); while (t && t.parent_id && state.terms.has(t.parent_id)) { out.unshift(t.parent_id); t = state.terms.get(t.parent_id); } return out; }
+  function descendants(id) { const out = []; const stack = [...childrenOf(id)]; while (stack.length) { const c = stack.pop(); out.push(c); stack.push(...childrenOf(c)); } return out; }
+  const topRoots = () => (state.scopeRoot && state.terms.has(state.scopeRoot) ? childrenOf(state.scopeRoot) : state.roots);
+
+  async function loadAll() {
+    const base = { limit: PAGE, include_drafts: !!state.args.include_drafts, include_attributes: true };
+    let start = 0, total = Infinity;
+    $("progress").hidden = false;
+    try {
+      while (start < total && start < CAP) {
+        const page = await sas.call("list_glossary_terms", { ...base, start });
+        const items = page.items || [];
+        ingest(items);
+        total = typeof page.count === "number" ? page.count : start + items.length;
+        state.total = total;
+        start += items.length;
+        $("progress").textContent = `loading ${fmt.int(Math.min(start, total))} of ${fmt.int(total)}…`;
+        if (!items.length) break;
+        if (start % (PAGE * 3) === 0) { build(); renderAll(); }
+      }
+      if (start >= CAP && start < total) sas.banner(`Loaded the first ${fmt.int(CAP)} of ${fmt.int(total)} terms; narrow the listing with term_type to see the rest.`, "warn");
+    } catch (err) {
+      sas.banner(`Could not load the whole glossary: ${sas.errorText(err)}. Showing what was loaded.`, "warn");
+    }
+    state.loaded = true;
+    $("progress").hidden = true;
+    build();
+    if (state.scopeRoot && !state.terms.has(state.scopeRoot)) state.scopeRoot = null;
+    renderAll();
+  }
+
+  // --- filtering ----------------------------------------------------------------
+  function attrMatches(t) {
+    if (!state.attributeFilter) return true;
+    const attrs = t.attributes || {};
+    return Object.entries(state.attributeFilter).every(([label, want]) => {
+      const key = Object.keys(attrs).find((k) => k.toLowerCase() === String(label).toLowerCase());
+      if (key === undefined) return false;
+      const have = attrs[key];
+      const eq = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+      return Array.isArray(have) ? have.some((v) => eq(v, want)) : eq(have, want);
+    });
+  }
+  function textOf(t) {
+    const attrs = Object.entries(t.attributes || {}).map(([k, v]) => `${k} ${Array.isArray(v) ? v.join(" ") : v}`).join(" ");
+    return `${t.name || ""} ${t.definition || ""} ${t.description || ""} ${attrs}`.toLowerCase();
+  }
+  function matches(t) {
+    if (state.type && t.term_type !== state.type) return false;
+    if (state.assetsOnly && !(t.assigned_asset_count > 0)) return false;
+    if (!attrMatches(t)) return false;
+    if (state.q && !textOf(t).includes(state.q)) return false;
+    return true;
+  }
+  const filtering = () => !!(state.q || state.type || state.assetsOnly || state.attributeFilter);
+
+  // --- tree ------------------------------------------------------------------------
+  function highlight(name) {
+    if (!state.q) return name;
+    const i = name.toLowerCase().indexOf(state.q);
+    if (i < 0) return name;
+    return [name.slice(0, i), el("mark", {}, name.slice(i, i + state.q.length)), name.slice(i + state.q.length)];
+  }
+  function renderTree() {
+    const tree = $("tree");
+    tree.replaceChildren();
+    const visible = new Set();
+    if (filtering()) {
+      for (const [id, t] of state.terms) if (matches(t)) { visible.add(id); for (const a of ancestors(id)) visible.add(a); }
+    }
+    const scoped = state.scopeRoot ? new Set([state.scopeRoot, ...descendants(state.scopeRoot)]) : null;
+    let shown = 0;
+    const node = (id, depth) => {
+      const t = state.terms.get(id);
+      const kids = childrenOf(id);
+      if (scoped && !scoped.has(id)) return null;
+      if (filtering() && !visible.has(id)) return null;
+      const open = filtering() ? true : state.open.has(id) || depth === 0;
+      const li = el("li", { role: "none" });
+      const row = el("div", { class: `node${state.selected === id ? " sel" : ""}`, role: "treeitem", tabindex: 0, "aria-expanded": kids.length ? String(open) : null, style: `padding-left:${6 + depth * 12}px` },
+        el("span", { class: `tw${kids.length ? "" : " leaf"}`, onclick: (e) => { e.stopPropagation(); toggle(id); } }, open ? "▾" : "▸"),
+        el("span", { class: "dot", style: `--c:${typeColor(t.term_type)}`, title: t.term_type || "" }),
+        el("span", { class: `nm${depth === 0 ? " l0" : ""}` }, ...[].concat(highlight(t.name || "(unnamed)"))),
+        kids.length ? el("span", { class: "cnt" }, String(kids.length)) : null,
+        t.is_draft ? el("span", { class: "drf" }, "draft") : null,
+        t.assigned_asset_count ? el("span", { class: "ast", title: "assigned assets" }, String(t.assigned_asset_count)) : null,
+      );
+      row.addEventListener("click", () => select(id));
+      row.addEventListener("dblclick", () => toggle(id));
+      row.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(id); }
+        if (e.key === "ArrowRight" && !open) toggle(id);
+        if (e.key === "ArrowLeft" && open) toggle(id);
+      });
+      li.append(row);
+      shown++;
+      if (kids.length && open) {
+        const ul = el("ul", { role: "group" });
+        for (const k of kids) { const c = node(k, depth + 1); if (c) ul.append(c); }
+        if (ul.childElementCount) li.append(ul);
+      }
+      return li;
+    };
+    for (const id of topRoots()) { const n = node(id, 0); if (n) tree.append(n); }
+    if (!shown) tree.append(el("li", { class: "empty" }, filtering() ? "No terms match." : "No terms."));
+    $("scope-up").hidden = !state.scopeRoot;
+  }
+  function toggle(id) { if (state.open.has(id)) state.open.delete(id); else state.open.add(id); renderTree(); }
+
+  // --- detail ------------------------------------------------------------------------
+  function metaBlock(text) {
+    // A convention some glossaries use: a trailing "[k=v | k=v]" block in the
+    // description. Rendered as a grid when present; harmless when absent.
+    const m = /\[([^[\]]*=[^[\]]*)\]\s*$/.exec(text || "");
+    if (!m) return { prose: text || "", pairs: [] };
+    const pairs = m[1].split("|").map((p) => p.trim()).filter(Boolean).map((p) => { const i = p.indexOf("="); return i < 0 ? [p, ""] : [p.slice(0, i).trim(), p.slice(i + 1).trim()]; });
+    return { prose: text.slice(0, m.index).trim(), pairs };
+  }
+  async function renderDetail(id) {
+    const box = $("detail");
+    const t = state.terms.get(id);
+    if (!t) { box.replaceChildren(el("div", { class: "empty" }, "Select a term.")); return; }
+    const crumbs = el("div", { class: "crumbs" });
+    for (const a of ancestors(id)) {
+      crumbs.append(el("a", { onclick: () => select(a) }, state.terms.get(a).name), el("span", { class: "sep" }, "›"));
+    }
+    const { prose, pairs } = metaBlock(t.description);
+    const kids = childrenOf(id);
+    box.replaceChildren(
+      crumbs,
+      el("h2", { class: "name" }, t.name || ""),
+      el("div", { class: "row" },
+        t.term_type ? el("span", { class: "pill" }, el("span", { class: "typedot", style: `--c:${typeColor(t.term_type)}` }), t.term_type) : null,
+        t.status ? el("span", { class: `pill ${t.is_draft ? "warn" : "ok"}` }, t.is_draft ? "draft" : t.status) : null,
+        el("span", { class: `pill ${t.assigned_asset_count ? "ok" : ""}` }, t.assigned_asset_count ? `${t.assigned_asset_count} asset${t.assigned_asset_count === 1 ? "" : "s"}` : "no assets"),
+        kids.length ? el("span", { class: "pill" }, `${kids.length} child${kids.length === 1 ? "" : "ren"}`) : null,
+      ),
+      t.definition ? el("p", { class: "def" }, t.definition) : el("p", { class: "def muted" }, "No definition."),
+      prose ? el("p", { class: "prose" }, prose) : null,
+    );
+    if (pairs.length) box.append(el("div", { class: "section" }, el("h3", {}, "Metadata"), el("div", { class: "metagrid" }, ...pairs.map(([k, v]) => el("div", { class: "m" }, el("div", { class: "k" }, k), el("div", { class: "v" }, v || "—"))))));
+    const attrs = Object.entries(t.attributes || {}).filter(([, v]) => v != null && v !== "" && !(Array.isArray(v) && !v.length));
+    if (attrs.length) box.append(el("div", { class: "section" }, el("h3", {}, "Attributes"), el("table", { class: "kv" }, el("tbody", {}, ...attrs.map(([k, v]) => el("tr", {}, el("td", {}, k), el("td", {}, v === true ? "Yes" : v === false ? "No" : Array.isArray(v) ? v.join(", ") : String(v))))))));
+    const assetsBox = el("div", { class: "section" }, el("h3", {}, "Assigned assets"));
+    box.append(assetsBox);
+    if (kids.length) box.append(el("div", { class: "section" }, el("h3", {}, "Children"), el("div", { class: "kids" }, ...kids.map((k) => { const c = state.terms.get(k); return el("div", { class: "kid", onclick: () => select(k), tabindex: 0, onkeydown: (e) => { if (e.key === "Enter") select(k); } }, el("b", {}, c.name), el("span", { title: c.definition || "" }, c.definition || c.term_type || "")); }))));
+    box.append(el("div", { class: "idrow" },
+      el("span", {}, "term_id ", el("code", {}, t.term_id)),
+      el("button", { type: "button", onclick: () => copy(t.term_id) }, "Copy id"),
+      el("button", { type: "button", onclick: () => sas.say(`Let's work on the glossary term "${t.name}" (term_id ${t.term_id}).`) }, "Ask the assistant about this term"),
+      // A draft is visible to nobody but its author, so the tree is exactly
+      // where you notice one — and publishing is a single call away. Withheld
+      // in a read-only deployment, where the call could only fail.
+      t.is_draft && sas.can("update_glossary_term")
+        ? el("button", { type: "button", onclick: () => publish(id) }, "Publish draft")
+        : null,
+      t.modified ? el("span", {}, `modified ${t.modified}${t.modified_by ? ` by ${t.modified_by}` : ""}`) : null,
+    ));
+    renderAssets(id, assetsBox);
+  }
+  async function publish(id) {
+    const t = state.terms.get(id);
+    sas.busy(true);
+    try {
+      const r = await sas.call("update_glossary_term", { term_id: id, publish: true });
+      Object.assign(t, { is_draft: false, status: r.status || t.status });
+      sas.busy(false);
+      sas.banner(`Published “${t.name}”.`, "ok");
+      renderTree();
+      renderDetail(id);
+      await sas.say(`Published the glossary draft "${t.name}" (term_id ${id}) from the glossary browser.`);
+    } catch (err) {
+      sas.busy(false);
+      sas.banner(`Not published: ${sas.errorText(err)}`, "bad");
+    }
+  }
+  async function renderAssets(id, box) {
+    const t = state.terms.get(id);
+    if (!t.assigned_asset_count) { box.append(el("p", { class: "small muted" }, "This term is assigned to nothing — it governs no column yet.")); return; }
+    let assets = state.assetCache.get(id);
+    if (!assets) {
+      box.append(el("p", { class: "small muted" }, "Loading…"));
+      try {
+        const r = await sas.call("list_term_assets", { term_id: id, limit: 100 });
+        assets = r.assets || [];
+        if (r.truncated) assets.push({ asset_name: `… ${fmt.int(r.count - assets.length)} more`, table_name: "" });
+        state.assetCache.set(id, assets);
+      } catch (err) {
+        box.lastChild.textContent = `Could not load assets: ${sas.errorText(err)}`;
+        return;
+      }
+      if (state.selected !== id) return;
+      box.lastChild.remove();
+    }
+    box.append(el("div", { class: "assets" }, ...assets.map((a) => el("div", { class: "asset" }, el("span", { class: "col" }, a.asset_name || a.asset_id || ""), el("span", { class: "tbl", title: a.table_resource_uri || "" }, a.table_name || a.asset_type || "")))));
+  }
+  function copy(text) {
+    try { navigator.clipboard.writeText(text).then(() => sas.banner("Copied.", "ok")).catch(() => sas.banner(text, "")); }
+    catch { sas.banner(text, ""); }
+    setTimeout(() => sas.banner(""), 1500);
+  }
+  function select(id) {
+    state.selected = id;
+    for (const a of ancestors(id)) state.open.add(a);
+    renderTree();
+    renderDetail(id);
+    const t = state.terms.get(id);
+    if (t) sas.context(`The user selected the glossary term "${t.name}" (term_id ${t.term_id}, type ${t.term_type || "?"}).`);
+    const row = $("tree").querySelector(".node.sel");
+    if (row) row.scrollIntoView({ block: "nearest" });
+    if ($("tree-pane").classList.contains("sun")) drawSun();
+  }
+
+  // --- sunburst --------------------------------------------------------------------
+  function weight(id) { const kids = childrenOf(id); return kids.length ? kids.reduce((s, k) => s + weight(k), 0) : 1; }
+  function drawSun() {
+    const canvas = $("sun");
+    const size = Math.max(200, Math.min(canvas.clientWidth || 300, 720));
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = size * dpr; canvas.height = size * dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, size, size);
+    const cx = size / 2, cy = size / 2, rings = 4, r0 = size * 0.08, ring = (size / 2 - r0 - 4) / rings;
+    const roots = topRoots().filter((id) => !filtering() || [id, ...descendants(id)].some((d) => matches(state.terms.get(d))));
+    const total = roots.reduce((s, id) => s + weight(id), 0) || 1;
+    const bg = getComputedStyle(document.body).getPropertyValue("--bg").trim() || "#fff";
+    state.arcs = [];
+    const arc = (id, depth, a0, a1, base) => {
+      if (depth >= rings) return;
+      const t = state.terms.get(id);
+      const inner = r0 + depth * ring, outer = inner + ring - 1.5;
+      const light = document.documentElement.dataset.theme === "dark" ? 62 - depth * 6 : 42 + depth * 9;
+      const selected = state.selected === id;
+      ctx.beginPath(); ctx.arc(cx, cy, outer, a0, a1); ctx.arc(cx, cy, inner, a1, a0, true); ctx.closePath();
+      ctx.fillStyle = `hsl(${base} ${selected ? 80 : 50}% ${light}%)`;
+      ctx.fill(); ctx.strokeStyle = bg; ctx.lineWidth = 1; ctx.stroke();
+      state.arcs.push({ id, inner, outer, a0, a1 });
+      let a = a0; const w = weight(id);
+      for (const k of childrenOf(id)) { const span = (a1 - a0) * (weight(k) / w); arc(k, depth + 1, a, a + span, base); a += span; }
+    };
+    let a = -Math.PI / 2;
+    roots.forEach((id, i) => { const span = Math.PI * 2 * (weight(id) / total); arc(id, 0, a, a + span, (hue(state.terms.get(id).name) + i * 47) % 360); a += span; });
+    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue("--ink-2").trim() || "#666";
+    ctx.font = `11px ${getComputedStyle(document.body).fontFamily}`; ctx.textAlign = "center";
+    ctx.fillText(state.scopeRoot ? (state.terms.get(state.scopeRoot)?.name || "").slice(0, 14) : `${fmt.int(state.terms.size)} terms`, cx, cy + 4);
+  }
+  function hitArc(e) {
+    const canvas = $("sun"); const rect = canvas.getBoundingClientRect();
+    const scale = (canvas.clientWidth || rect.width) / rect.width;
+    const x = (e.clientX - rect.left) * scale - rect.width * scale / 2, y = (e.clientY - rect.top) * scale - rect.height * scale / 2;
+    const r = Math.hypot(x, y); let ang = Math.atan2(y, x); if (ang < -Math.PI / 2) ang += Math.PI * 2;
+    return state.arcs.find((s) => r >= s.inner && r <= s.outer && ang >= s.a0 && ang <= s.a1);
+  }
+  $("sun").addEventListener("mousemove", (e) => { const s = hitArc(e); const t = s && state.terms.get(s.id); $("sun-hover").replaceChildren(t ? el("span", {}, el("b", {}, t.name), ` · ${t.term_type || ""} · ${childrenOf(s.id).length} children`) : "Hover a slice; click to select."); $("sun").style.cursor = s ? "pointer" : "default"; });
+  $("sun").addEventListener("click", (e) => { const s = hitArc(e); if (s) select(s.id); });
+
+  // --- layout: collapse / resize / fullscreen ----------------------------------------
+  function setCollapsed(on) {
+    $("layout").classList.toggle("collapsed", on);
+    $("toggle-tree").setAttribute("aria-pressed", String(on));
+    $("toggle-tree").textContent = on ? "◨ Tree" : "◧ Tree";
+    store.set("collapsed", on ? "1" : "0");
+  }
+  function setTreeWidth(px) {
+    const max = Math.max(200, $("layout").clientWidth * 0.7);
+    const w = Math.min(max, Math.max(160, px));
+    $("root").style.setProperty("--tree-w", `${w}px`);
+    store.set("treeWidth", String(w));
+    if ($("tree-pane").classList.contains("sun")) drawSun();
+  }
+  {
+    const sp = $("splitter"); let startX = 0, startW = 0;
+    sp.addEventListener("pointerdown", (e) => { startX = e.clientX; startW = $("tree-pane").getBoundingClientRect().width; sp.classList.add("active"); sp.setPointerCapture(e.pointerId); });
+    sp.addEventListener("pointermove", (e) => { if (sp.classList.contains("active")) setTreeWidth(startW + e.clientX - startX); });
+    const end = () => sp.classList.remove("active");
+    sp.addEventListener("pointerup", end); sp.addEventListener("pointercancel", end);
+    sp.addEventListener("dblclick", () => setTreeWidth(320));
+    sp.addEventListener("keydown", (e) => { const w = $("tree-pane").getBoundingClientRect().width; if (e.key === "ArrowLeft") setTreeWidth(w - 24); if (e.key === "ArrowRight") setTreeWidth(w + 24); });
+    const saved = parseInt(store.get("treeWidth") || "", 10);
+    if (saved) $("root").style.setProperty("--tree-w", `${saved}px`);
+    if (store.get("collapsed") === "1") setCollapsed(true);
+  }
+  $("toggle-tree").addEventListener("click", () => setCollapsed(!$("layout").classList.contains("collapsed")));
+  $("v-tree").addEventListener("click", () => { $("tree-pane").classList.remove("sun"); $("v-tree").setAttribute("aria-pressed", "true"); $("v-sun").setAttribute("aria-pressed", "false"); });
+  $("v-sun").addEventListener("click", () => { $("tree-pane").classList.add("sun"); $("v-sun").setAttribute("aria-pressed", "true"); $("v-tree").setAttribute("aria-pressed", "false"); if ($("layout").classList.contains("collapsed")) setCollapsed(false); drawSun(); });
+  $("expand-all").addEventListener("click", () => { for (const id of state.terms.keys()) if (childrenOf(id).length) state.open.add(id); renderTree(); });
+  $("collapse-all").addEventListener("click", () => { state.open.clear(); renderTree(); });
+  $("scope-up").addEventListener("click", () => { state.scopeRoot = null; renderAll(); });
+  $("q").addEventListener("input", (e) => { state.q = e.target.value.trim().toLowerCase(); renderTree(); if ($("tree-pane").classList.contains("sun")) drawSun(); });
+  $("ftype").addEventListener("change", (e) => { state.type = e.target.value; renderTree(); if ($("tree-pane").classList.contains("sun")) drawSun(); });
+  $("fassets").addEventListener("change", (e) => { state.assetsOnly = e.target.checked; renderTree(); });
+  // The fullscreen toggle itself is the shell's; the sunburst is a canvas,
+  // so it is redrawn for the new size.
+  sas.onDisplay(() => { if ($("tree-pane").classList.contains("sun")) drawSun(); });
+  sas.onTheme(() => { renderTree(); if (state.selected) renderDetail(state.selected); });
+  new ResizeObserver(() => { if ($("tree-pane").classList.contains("sun")) drawSun(); }).observe($("tree-pane"));
+
+  // --- header + entry ----------------------------------------------------------------
+  function scopeText(args) {
+    const parts = [];
+    if (args.parent_id && state.terms.get(args.parent_id)) parts.push(`under “${state.terms.get(args.parent_id).name}”`);
+    else if (args.parent_id) parts.push(`under ${args.parent_id}`);
+    if (args.term_type) parts.push(`type ${args.term_type}`);
+    if (args.name_contains) parts.push(`name contains “${args.name_contains}”`);
+    if (args.attribute_filter) parts.push(`attributes ${JSON.stringify(args.attribute_filter)}`);
+    if (args.include_drafts) parts.push("drafts included");
+    return parts.length ? `Listed: ${parts.join(" · ")}` : "";
+  }
+  function renderAll() {
+    const withAssets = [...state.terms.values()].filter((t) => t.assigned_asset_count > 0).length;
+    const types = new Set([...state.terms.values()].map((t) => t.term_type).filter(Boolean)).size;
+    $("stats").replaceChildren(
+      el("span", { class: "pill" }, el("b", {}, fmt.int(state.terms.size)), " terms"),
+      el("span", { class: "pill" }, el("b", {}, fmt.int(state.roots.length)), " roots"),
+      el("span", { class: "pill" }, el("b", {}, fmt.int(types)), " types"),
+      el("span", { class: `pill ${withAssets ? "ok" : ""}` }, el("b", {}, fmt.int(withAssets)), " with assets"),
+    );
+    $("meta").textContent = scopeText(state.args);
+    renderTree();
+    if ($("tree-pane").classList.contains("sun")) drawSun();
+    if (state.selected && state.terms.has(state.selected)) renderDetail(state.selected);
+    else if (!state.selected) $("detail").replaceChildren(el("div", { class: "empty" }, state.loaded ? "Select a term to see its definition, attributes and assigned assets." : "Loading the glossary…"));
+  }
+
+  sas.onInput((args) => { state.args = { ...args }; $("meta").textContent = scopeText(args); });
+  sas.onResult((data) => {
+    sas.busy(false);
+    if (!data || typeof data !== "object") { sas.banner(String(data ?? "No result."), "bad"); return; }
+    const args = state.args;
+    // The listing's filters become the view's starting filters; the whole
+    // glossary is then loaded so the tree is complete and search is instant.
+    if (args.parent_id) state.scopeRoot = args.parent_id;
+    if (args.name_contains) { state.q = String(args.name_contains).toLowerCase(); $("q").value = args.name_contains; }
+    if (args.attribute_filter && typeof args.attribute_filter === "object") state.attributeFilter = args.attribute_filter;
+    if (args.term_type) state.type = String(args.term_type);
+    ingest(data.items || []);
+    // The type filter may have been given as an id; map it to the label the items carry.
+    if (state.type) { const hit = (data.items || []).find((t) => t.term_type_id === state.type || t.term_type === state.type); if (hit) state.type = hit.term_type; }
+    build(); renderAll();
+    if ((data.items || []).length === 1 && !state.selected) select(data.items[0].term_id);
+    loadAll();
+  });
+</script>

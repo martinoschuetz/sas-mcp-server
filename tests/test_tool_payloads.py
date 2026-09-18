@@ -206,6 +206,50 @@ async def test_list_castables_request(mcp_server_with_mock_client):
     assert params["limit"] == 10
 
 
+async def test_caslib_read_409_points_at_the_data_source_not_permissions(
+    mcp_server_with_mock_client,
+):
+    """A 409 listing a caslib's tables must say it is the data source, not access rights.
+
+    casManagement answers a caslib read with 409 when CAS cannot connect to the
+    library's underlying data source. Verified against two database caslibs on
+    one deployment -- postgres ("password authentication failed") and Oracle
+    ("ORA-00257: archiver error") -- both arriving as this same 409. The status
+    on its own reads as an authorization problem, so the reporter of #56 checked
+    caslib permissions, found them fine, and was left with nowhere to go.
+    """
+    mcp, mock_client = mcp_server_with_mock_client
+    url = "https://viya.example.com/casManagement/servers/cas1/caslibs/ALMReporting/tables"
+    mock_client.get.return_value = httpx.Response(
+        409,
+        request=httpx.Request("GET", url),
+        content=json.dumps(
+            {
+                "errorCode": 310002,
+                "message": (
+                    "Function failed. The connection to the data source driver failed."
+                ),
+            }
+        ).encode(),
+        headers={"Content-Type": "application/vnd.sas.error+json"},
+    )
+
+    async with Client(mcp) as client:
+        with pytest.raises(Exception) as excinfo:
+            await client.call_tool(
+                "list_castables",
+                {"server_id": "cas1", "caslib_name": "ALMReporting"},
+            )
+
+    text = str(excinfo.value)
+    # Viya's own reason still comes through -- the hint adds to it, never replaces it.
+    assert "connection to the data source driver failed" in text
+    assert "not a Viya authorization failure" in text
+    assert "ALMReporting" in text
+    # The one concrete next step: prove it independently of MCP.
+    assert "directly in SAS Viya" in text
+
+
 async def test_list_source_tables_request(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
     async with Client(mcp) as client:
@@ -3497,3 +3541,62 @@ async def test_query_data_returns_view_sql_without_executing_it(mcp_server_with_
 
     assert result.data["create_view_sql"] == "create view v1 as\nselect a from Public.T;"
     assert "create view" not in submitted["code"].lower()
+
+
+async def test_get_compute_table_data_request(mcp_server_with_mock_client):
+    """Rows come from the compute session's data API, zipped onto column names."""
+    mcp, mock_client = mcp_server_with_mock_client
+    context_resp = _make_mock_response({"items": [{"id": "test-context-id"}]})
+    columns_resp = _make_mock_response(
+        {
+            "items": [
+                {"name": "Name", "type": "char", "format": {"name": "$"}},
+                {"name": "Age", "type": "num", "format": {"name": "BEST"}},
+            ],
+            "count": 2,
+        }
+    )
+    rows_resp = _make_mock_response(
+        {"items": [{"cells": ["Alfred", "14"]}, {"cells": ["Alice", "13"]}], "count": 19}
+    )
+    original_get = mock_client.get.return_value
+
+    def route_get(url, **kwargs):
+        if url.endswith("/compute/contexts"):
+            return context_resp
+        if "/compute/sessions/test-session-id/data/SASHELP/CLASS/columns" in url:
+            return columns_resp
+        if "/compute/sessions/test-session-id/data/SASHELP/CLASS/rows" in url:
+            return rows_resp
+        return original_get
+
+    mock_client.get.side_effect = route_get
+    mock_client.post.return_value = _make_mock_response({"id": "test-session-id"}, status_code=201)
+
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "get_compute_table_data",
+            {
+                "compute_context_name": "Test Context",
+                "library_name": "SASHELP",
+                "table_name": "CLASS",
+                "limit": 2,
+                "start": 5,
+            },
+        )
+
+    mock_client.get.side_effect = None
+    mock_client.get.return_value = original_get
+
+    rows_call = next(
+        c for c in mock_client.get.call_args_list
+        if "/compute/sessions/test-session-id/data/SASHELP/CLASS/rows" in c[0][0]
+    )
+    assert rows_call[1]["params"]["start"] == 5
+    assert rows_call[1]["params"]["limit"] == 2
+
+    assert result.data["columns"] == ["Name", "Age"]
+    assert result.data["rows"] == [{"Name": "Alfred", "Age": "14"}, {"Name": "Alice", "Age": "13"}]
+    assert result.data["count"] == 19
+    assert result.data["truncated"] is True, "5 + 2 rows read of 19"
+    assert result.data["column_types"] == {"Name": "char", "Age": "num"}

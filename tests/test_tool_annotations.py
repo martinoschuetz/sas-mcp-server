@@ -171,7 +171,7 @@ class _Spy:
 
 def test_tier_recorder_injects_annotations_for_every_calling_form():
     spy = _Spy()
-    rec = tools._TierRecorder(spy, tier=1)
+    rec = tools._TierRecorder(spy, tier=1, apps=False, seen=[])
 
     @rec.tool
     def list_caslibs(): ...
@@ -195,7 +195,7 @@ def test_tier_recorder_injects_annotations_for_every_calling_form():
 
 def test_tier_recorder_keeps_annotations_a_tier_passed_explicitly():
     spy = _Spy()
-    rec = tools._TierRecorder(spy, tier=3)
+    rec = tools._TierRecorder(spy, tier=3, apps=False, seen=[])
     mine = ToolAnnotations(read_only_hint=False, destructive_hint=False, title="Custom")
 
     @rec.tool(annotations=mine)

@@ -1,0 +1,171 @@
+<style>
+  #meta { font-family: var(--mono); color: var(--ink-2); font-size: var(--fs-sm); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #grid-wrap { max-height: 520px; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--accent); }
+  th .dir { color: var(--accent); margin-left: 4px; }
+  th .type { display: block; font-weight: 400; color: var(--ink-2); font-size: 10.5px; letter-spacing: .02em; }
+  #pager { font-variant-numeric: tabular-nums; }
+</style>
+<div id="root">
+  <div class="head">
+    <div>
+      <h1 id="title">Data grid</h1>
+      <div id="meta"></div>
+    </div>
+    <div class="row" id="counts"></div>
+  </div>
+  <div id="banner" class="banner" hidden></div>
+  <div class="toolbar">
+    <input id="filter" class="grow" type="search" placeholder="Filter rows on this page…" aria-label="Filter rows">
+    <label class="small muted">Rows <select id="limit" aria-label="Rows per page"><option>25</option><option>50</option><option>100</option><option>250</option><option>500</option></select></label>
+    <span id="pager" class="row">
+      <button id="prev" type="button" title="Previous page">‹ Prev</button>
+      <span id="range" class="small muted"></span>
+      <button id="next" type="button" title="Next page">Next ›</button>
+    </span>
+  </div>
+  <div id="grid-wrap" class="scroll fill"><div class="empty">Waiting for rows…</div></div>
+  <div id="foot" class="small muted" style="margin-top:6px"></div>
+</div>
+<script type="module">
+  const { el, fmt } = sas;
+  const $ = (id) => document.getElementById(id);
+  const state = { data: null, columns: [], rows: [], sort: null, filter: "", selected: new Set(), args: {} };
+
+  function source(args) {
+    if (args.query) return { title: "Query result", meta: String(args.query).replace(/\s+/g, " ").trim() };
+    if (args.caslib_name) return { title: `${args.caslib_name}.${args.table_name}`, meta: `CAS · ${args.server_id || ""}` };
+    if (args.library_name) return { title: `${args.library_name}.${args.table_name}`, meta: `SAS library · ${args.compute_context_name || ""}` };
+    return { title: "Data grid", meta: "" };
+  }
+
+  function typeOf(name) {
+    const t = state.data?.column_types?.[name];
+    if (t) return t;
+    const sample = state.rows.find((r) => r[name] != null);
+    return sample && fmt.isNumeric(sample[name]) ? "number" : "";
+  }
+  const numeric = (name) => /num|double|int|float|decimal|number/i.test(typeOf(name));
+
+  function visibleRows() {
+    let rows = state.rows.map((r, i) => ({ r, i }));
+    const needle = state.filter.trim().toLowerCase();
+    if (needle) rows = rows.filter(({ r }) => Object.values(r).some((v) => v != null && String(v).toLowerCase().includes(needle)));
+    if (state.sort) {
+      const { col, dir } = state.sort;
+      const num = numeric(col);
+      rows.sort((a, b) => {
+        const x = a.r[col], y = b.r[col];
+        if (x == null && y == null) return 0;
+        if (x == null) return 1;
+        if (y == null) return -1;
+        const c = num ? Number(x) - Number(y) : String(x).localeCompare(String(y), undefined, { numeric: true });
+        return dir === "asc" ? c : -c;
+      });
+    }
+    return rows;
+  }
+
+  function renderTable() {
+    const wrap = $("grid-wrap");
+    wrap.replaceChildren();
+    if (!state.columns.length) {
+      wrap.append(el("div", { class: "empty" }, "No columns."));
+      return;
+    }
+    const rows = visibleRows();
+    const head = el("tr", {}, el("th", { class: "idx" }, "#"), ...state.columns.map((c) => {
+      const active = state.sort?.col === c;
+      return el("th", {
+        class: `sortable${numeric(c) ? " num" : ""}`,
+        title: "Sort",
+        onclick: () => {
+          state.sort = active && state.sort.dir === "asc" ? { col: c, dir: "desc" } : active ? null : { col: c, dir: "asc" };
+          renderTable();
+        },
+      }, c, active ? el("span", { class: "dir" }, state.sort.dir === "asc" ? "▲" : "▼") : null, el("span", { class: "type" }, typeOf(c)));
+    }));
+    const body = el("tbody", {}, ...rows.map(({ r, i }) =>
+      el("tr", {
+        class: state.selected.has(i) ? "selected" : "",
+        onclick: () => { toggle(i); renderTable(); },
+      }, el("td", { class: "idx" }, String((state.data.start || 0) + i + 1)), ...state.columns.map((c) => {
+        const v = fmt.cell(r[c]);
+        return el("td", { class: `${numeric(c) ? "num" : ""}${v == null ? " null" : ""}`, title: v ?? "" }, v ?? "null");
+      })),
+    ));
+    wrap.append(el("table", { class: "grid" }, el("thead", {}, head), body));
+    if (!rows.length) wrap.append(el("div", { class: "empty" }, state.filter ? "No rows match the filter." : "No rows."));
+    $("foot").textContent = state.filter ? `${rows.length} of ${state.rows.length} rows on this page match “${state.filter}”.` : "";
+  }
+
+  let contextTimer = null;
+  function toggle(i) {
+    if (state.selected.has(i)) state.selected.delete(i); else state.selected.add(i);
+    clearTimeout(contextTimer);
+    contextTimer = setTimeout(() => {
+      const picked = [...state.selected].sort((a, b) => a - b).map((i) => state.rows[i]);
+      if (!picked.length) return;
+      sas.context(`The user selected ${picked.length} row(s) in the data grid: ${JSON.stringify(picked).slice(0, 4000)}`);
+    }, 600);
+  }
+
+  function render(data) {
+    sas.busy(false);
+    state.data = data;
+    state.selected.clear();
+    const src = source(state.args);
+    $("title").textContent = src.title;
+    $("meta").textContent = src.meta;
+    $("meta").title = src.meta;
+    if (!data || typeof data !== "object" || data.status) {
+      sas.banner(data?.message || (typeof data === "string" ? data : "The tool returned no rows."), "bad");
+      state.columns = []; state.rows = [];
+      renderTable();
+      $("counts").replaceChildren();
+      return;
+    }
+    sas.banner("");
+    state.columns = data.columns || Object.keys((data.rows || [])[0] || {});
+    state.rows = data.rows || [];
+    const start = data.start || 0, n = state.rows.length;
+    const total = typeof data.count === "number" && data.count > n ? data.count : null;
+    const more = data.truncated === true || (total != null && start + n < total);
+    $("range").textContent = n ? `${fmt.int(start + 1)}–${fmt.int(start + n)}${total != null ? ` of ${fmt.int(total)}` : more ? " of more" : ""}` : "no rows";
+    $("prev").disabled = start <= 0;
+    $("next").disabled = !more;
+    $("counts").replaceChildren(
+      el("span", { class: "pill" }, `${fmt.int(state.columns.length)} columns`),
+      el("span", { class: "pill" }, `${fmt.int(n)} rows on page`),
+      more ? el("span", { class: "pill info" }, "more available") : null,
+    );
+    const limit = data.limit || state.args.limit || 100;
+    if (![...$("limit").options].some((o) => +o.value === +limit)) $("limit").append(el("option", {}, String(limit)));
+    $("limit").value = String(limit);
+    renderTable();
+  }
+
+  async function page(start, limit) {
+    const args = { ...state.args, start: Math.max(0, start), limit };
+    delete args.create_view_name;
+    sas.busy(true);
+    sas.banner("");
+    try {
+      const data = await sas.call(sas.tool, args);
+      state.args = args;
+      render(data);
+    } catch (err) {
+      sas.busy(false);
+      sas.banner(`Could not fetch that page: ${sas.errorText(err)}`, "bad");
+    }
+  }
+
+  $("filter").addEventListener("input", (e) => { state.filter = e.target.value; renderTable(); });
+  $("prev").addEventListener("click", () => page((state.data?.start || 0) - +$("limit").value, +$("limit").value));
+  $("next").addEventListener("click", () => page((state.data?.start || 0) + state.rows.length, +$("limit").value));
+  $("limit").addEventListener("change", () => page(state.data?.start || 0, +$("limit").value));
+
+  sas.onInput((args) => { state.args = { ...args }; const s = source(args); $("title").textContent = s.title; $("meta").textContent = s.meta; });
+  sas.onResult((data) => render(data));
+</script>

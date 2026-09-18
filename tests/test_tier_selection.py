@@ -57,7 +57,7 @@ async def test_register_all_tiers_registers_everything():
 
 async def test_register_subset_excludes_other_tiers():
     names = await _register("0-4")
-    assert len(names) == 43
+    assert len(names) == 44
     assert "execute_sas_code" in names  # tier 0
     assert "list_jobs" in names  # tier 4
     assert "list_mas_modules" not in names  # tier 6

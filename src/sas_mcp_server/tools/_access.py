@@ -72,6 +72,7 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
         "get_castable_info",
         "get_castable_columns",
         "get_castable_data",
+        "get_compute_table_data",
         # Tier 2 — Data Operations & Files
         "list_files",
         "download_file",

@@ -734,6 +734,17 @@ def resolve_import_paths(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return ordered
 
 
+def term_csv_header(attribute_columns: list[str]) -> list[str]:
+    """The import CSV's header row, so a preview can state it without guessing.
+
+    :func:`build_term_csv` writes exactly this, and ``import_glossary_terms``
+    reports it for ``dry_run``. One definition, so the preview cannot drift
+    from the file the import actually sends — which it silently did when
+    ``Definition`` joined the system columns.
+    """
+    return ["Name", "Type", "Path", "Definition", "Description", *attribute_columns]
+
+
 def build_term_csv(rows: list[dict[str, Any]], attribute_columns: list[str]) -> str:
     """Render ordered rows as the CSV the import expects.
 
@@ -747,7 +758,7 @@ def build_term_csv(rows: list[dict[str, Any]], attribute_columns: list[str]) -> 
     one comes back holding. Both are always written, empty when unset, so the
     field a reader actually sees is the one the caller wrote.
     """
-    header = ["Name", "Type", "Path", "Definition", "Description", *attribute_columns]
+    header = term_csv_header(attribute_columns)
     buffer = io.StringIO()
     # Records are CRLF-terminated, as a CSV export from the UI produces.
     writer = csv.writer(buffer, lineterminator="\r\n")
@@ -880,6 +891,7 @@ __all__ = [
     "resolve_import_paths",
     "parse_import_log",
     "build_term_csv",
+    "term_csv_header",
     "PATH_SEPARATOR",
     "IMPORT_SYSTEM_COLUMNS",
     "ATTRIBUTE_TYPES",

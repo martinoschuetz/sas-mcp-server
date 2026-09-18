@@ -1994,3 +1994,47 @@ async def test_update_leaves_the_parent_alone_when_not_given():
     async with glossary_client(fake) as client:
         await client.call_tool("update_glossary_term", {"term_id": TERM_ID, "name": "Renamed"})
     assert fake.put_bodies[0]["parentId"] == TERM["parentId"]
+
+
+
+async def test_import_dry_run_shows_the_rows_and_sends_nothing():
+    """The preview is the import's own ordering and encoding, minus the POST."""
+    fake = FakeViya()
+    async with glossary_client(fake) as client:
+        result = result_of(
+            await client.call_tool(
+                "import_glossary_terms",
+                {
+                    "term_type": "BCBS239",
+                    "dry_run": True,
+                    "terms": [
+                        {"name": "Child", "parent": "Parent", "definition": "a child",
+                         "attributes": {"Scope": "Group"}},
+                        {"name": "Parent",
+                         "attributes": {"Scope": "Group", "Used in Risk": True}},
+                    ],
+                },
+            )
+        )
+    assert result["dry_run"] is True
+    assert result["requested"] == 2
+    assert result["order"] == ["Parent", "Child"]
+    # The preview states the header the import will actually write, Definition
+    # included — the column whose absence made the service fill the definition
+    # in with the term's own name.
+    assert result["columns"] == [
+        "Name", "Type", "Path", "Definition", "Description", "Scope", "Used in Risk",
+    ]
+    assert result["rows"][0] == {
+        "name": "Parent",
+        "term_type": "BCBS239",
+        "path": "",
+        "definition": "",
+        "description": "",
+        "attributes": {"Scope": "Group", "Used in Risk": "true"},
+    }
+    assert result["rows"][1]["path"] == "Parent"
+    # A row's definition previews as a definition, not as its description.
+    assert result["rows"][1]["definition"] == "a child"
+    assert result["rows"][1]["description"] == ""
+    assert not [p for p in fake.posted if p["path"] == "/glossary/importTerms"]

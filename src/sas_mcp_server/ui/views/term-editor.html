@@ -1,0 +1,249 @@
+<style>
+  #form { max-width: 720px; }
+  :root[data-display="fullscreen"] #form { max-width: 960px; }
+  #attrs:empty { display: none; }
+  .fmt { font-family: var(--mono); color: var(--ink-2); font-size: 11px; }
+  #done { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: var(--fs-sm); margin-top: 8px; }
+  #done dt { color: var(--ink-2); } #done dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
+</style>
+<div id="root">
+  <div class="head">
+    <div>
+      <h1 id="title">Glossary term</h1>
+      <div id="meta" class="small muted"></div>
+    </div>
+    <div class="row" id="badges"></div>
+  </div>
+  <div id="banner" class="banner" hidden></div>
+  <form id="form" hidden>
+    <fieldset>
+      <legend>Term</legend>
+      <label class="field"><span class="name">Name <em>*</em></span><input type="text" name="name" required autocomplete="off"></label>
+      <label class="field"><span class="name">Definition</span><textarea name="definition"></textarea><span class="help">What a reader sees first.</span></label>
+      <label class="field"><span class="name">Description</span><textarea name="description"></textarea></label>
+      <label class="field"><span class="name">Parent term id</span><input type="text" name="parent_id" placeholder="leave empty for a root term" autocomplete="off"></label>
+      <label class="field" id="publish-field"><span class="name">Publish</span><label class="row small"><input type="checkbox" name="publish" checked> <span id="publish-label">Publish immediately (otherwise saved as a draft)</span></label><span class="help" id="publish-help" hidden>A draft is visible to nobody but its author. Publishing cannot be undone through this API.</span></label>
+    </fieldset>
+    <fieldset id="attrs-set"><legend id="attrs-legend">Attributes</legend><div id="attrs"></div></fieldset>
+    <div class="row">
+      <button id="save" class="primary" type="submit">Create term</button>
+      <span id="saving" class="small muted"></span>
+    </div>
+  </form>
+  <dl id="done" hidden></dl>
+</div>
+<script type="module">
+  const { el } = sas;
+  const $ = (id) => document.getElementById(id);
+  const state = { mode: "create", type: null, term: null, initial: {} };
+
+  const isEmpty = (v) => v == null || v === "" || (Array.isArray(v) && v.length === 0);
+
+  function widget(def, current) {
+    const key = `attr:${def.label}`;
+    const value = current !== undefined ? current : def.default;
+    const t = String(def.type || "").toLowerCase();
+    if (t === "multi-line") return el("textarea", { name: key }, isEmpty(value) ? "" : String(value));
+    if (t === "boolean") {
+      // The glossary has no empty boolean: once one holds a value it can be
+      // flipped but never cleared — `""` comes back as "The value "" for the
+      // field is invalid". Offer "not set" only while it genuinely is.
+      const set = value === true || value === "true" || value === false || value === "false";
+      const sel = el("select", { name: key },
+        def.required || set ? null : el("option", { value: "" }, "— not set —"),
+        el("option", { value: "true" }, "Yes"), el("option", { value: "false" }, "No"));
+      sel.value = value === true || value === "true" ? "true" : value === false || value === "false" ? "false" : def.required ? "false" : "";
+      return sel;
+    }
+    if (t === "single-select") {
+      const sel = el("select", { name: key }, el("option", { value: "" }, def.required ? "— choose —" : "— not set —"),
+        ...(def.allowed_values || []).map((v) => el("option", { value: v }, v)));
+      sel.value = isEmpty(value) ? "" : String(value);
+      return sel;
+    }
+    if (t === "multi-select") {
+      const chosen = new Set(Array.isArray(value) ? value : isEmpty(value) ? [] : String(value).split(","));
+      return el("div", { class: "checks", dataset: { multi: key } },
+        ...(def.allowed_values || []).map((v) => el("label", {}, el("input", { type: "checkbox", name: key, value: v, checked: chosen.has(v) }), v)));
+    }
+    if (t === "date") return el("input", { type: "date", name: key, value: isEmpty(value) ? "" : String(value).slice(0, 10) });
+    if (t === "date-time") {
+      const v = isEmpty(value) ? "" : String(value).replace(/Z$/, "").replace(/([+-]\d\d:\d\d)$/, "").slice(0, 19);
+      return el("input", { type: "datetime-local", name: key, step: 1, value: v });
+    }
+    if (t === "time") return el("input", { type: "time", name: key, step: 1, value: isEmpty(value) ? "" : String(value).replace(/Z$/, "").slice(0, 8) });
+    return el("input", { type: "text", name: key, value: isEmpty(value) ? "" : String(value), autocomplete: "off" });
+  }
+
+  function readWidget(def) {
+    const key = `attr:${def.label}`;
+    const t = String(def.type || "").toLowerCase();
+    const form = $("form");
+    if (t === "multi-select") return [...form.querySelectorAll(`input[name="${CSS.escape(key)}"]:checked`)].map((i) => i.value);
+    const node = form.elements[key];
+    if (!node) return "";
+    if (t === "boolean") return node.value === "" ? "" : node.value === "true";
+    return node.value;
+  }
+
+  // The form saves through create_ or update_glossary_term; a read-only
+  // deployment has neither, so show the term rather than an unusable form.
+  const canSave = () => sas.can(state.mode === "edit" ? "update_glossary_term" : "create_glossary_term");
+
+  function buildForm() {
+    const { type, term } = state;
+    $("form").hidden = false;
+    $("done").hidden = true;
+    const f = $("form");
+    f.elements.name.value = term?.name || "";
+    f.elements.definition.value = term?.definition || "";
+    f.elements.description.value = term?.description || "";
+    f.elements.parent_id.value = term?.parent_id || "";
+    // A draft is a separate resource: it can be edited *and* promoted, but only
+    // through update_glossary_term(publish=true). Editing a published term has
+    // nothing to publish, so the control only appears where it does something.
+    const draft = state.mode === "edit" && !!term?.is_draft;
+    // The fields stay readable — only saving is withheld, and saying so beats
+    // a form that looks live and fails on submit.
+    const writable = canSave();
+    $("save").disabled = !writable;
+    $("save").title = writable ? "" : "This deployment does not expose the tool that would save it.";
+    if (!writable) sas.banner("Read-only deployment: the term is shown but cannot be saved from here.", "warn");
+    $("publish-field").hidden = (state.mode === "edit" && !draft) || !writable;
+    $("publish-help").hidden = !draft;
+    $("publish-label").textContent = draft
+      ? "Publish this draft (it is invisible to everyone else until you do)"
+      : "Publish immediately (otherwise saved as a draft)";
+    // Deliberate on an existing draft; the default for a brand-new term.
+    f.elements.publish.checked = !draft;
+    $("save").textContent = state.mode === "edit" ? (draft ? "Save draft" : "Save changes") : "Create term";
+    $("title").textContent = state.mode === "edit" ? term.name : `New ${type.label || type.name} term`;
+    $("meta").textContent = state.mode === "edit" ? `${term.term_type || ""} · ${term.term_id}` : type.description || "";
+    $("badges").replaceChildren(
+      state.mode === "edit" && term.status ? el("span", { class: `pill ${term.is_draft ? "warn" : "ok"}` }, term.is_draft ? "draft" : term.status) : null,
+      state.mode === "edit" && term.assigned_asset_count ? el("span", { class: "pill" }, `${term.assigned_asset_count} assets`) : null,
+    );
+    const attrs = $("attrs");
+    attrs.replaceChildren();
+    const defs = type.attributes || [];
+    $("attrs-set").hidden = !defs.length;
+    $("attrs-legend").textContent = `Attributes of ${type.label || type.name}`;
+    for (const def of defs) {
+      const current = term?.attributes ? term.attributes[def.label] : undefined;
+      attrs.append(el("label", { class: "field" },
+        el("span", { class: "name" }, def.label, def.required ? el("em", {}, " *") : null, " ", el("span", { class: "fmt" }, def.type)),
+        widget(def, current),
+        def.description || def.value_format ? el("span", { class: "help" }, def.description || "", def.description && def.value_format ? " · " : "", def.value_format || "") : null,
+      ));
+    }
+    state.initial = collect();
+  }
+
+  function collect() {
+    const f = $("form");
+    const attributes = {};
+    for (const def of state.type?.attributes || []) attributes[def.label] = readWidget(def);
+    return {
+      name: f.elements.name.value.trim(),
+      definition: f.elements.definition.value,
+      description: f.elements.description.value,
+      parent_id: f.elements.parent_id.value.trim(),
+      publish: f.elements.publish.checked,
+      attributes,
+    };
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    const now = collect();
+    const missing = (state.type.attributes || []).filter((d) => d.required && isEmpty(now.attributes[d.label])).map((d) => d.label);
+    if (!now.name) { sas.banner("A name is required.", "bad"); return; }
+    if (missing.length) { sas.banner(`Required attributes are empty: ${missing.join(", ")}.`, "bad"); return; }
+    let args, tool;
+    if (state.mode === "edit") {
+      tool = "update_glossary_term";
+      args = { term_id: state.term.term_id };
+      for (const k of ["name", "definition", "description"]) if (now[k] !== state.initial[k]) args[k] = now[k];
+      if (now.parent_id !== state.initial.parent_id) args.parent_id = now.parent_id;
+      const changed = {};
+      for (const [k, v] of Object.entries(now.attributes)) if (JSON.stringify(v) !== JSON.stringify(state.initial.attributes[k])) changed[k] = v;
+      if (Object.keys(changed).length) args.attributes = changed;
+      // Publishing is a change in its own right, so an untouched draft can be
+      // promoted without inventing an edit to hang it on.
+      if (state.term.is_draft && now.publish) args.publish = true;
+      if (Object.keys(args).length === 1) { sas.banner("Nothing changed.", "warn"); return; }
+    } else {
+      tool = "create_glossary_term";
+      const attributes = {};
+      for (const [k, v] of Object.entries(now.attributes)) if (!isEmpty(v)) attributes[k] = v;
+      args = { name: now.name, term_type: state.type.term_type_id, publish: now.publish };
+      if (now.definition) args.definition = now.definition;
+      if (now.description) args.description = now.description;
+      if (now.parent_id) args.parent_id = now.parent_id;
+      if (Object.keys(attributes).length) args.attributes = attributes;
+    }
+    sas.busy(true);
+    sas.banner("");
+    $("saving").textContent = "Saving…";
+    try {
+      const result = await sas.call(tool, args);
+      sas.busy(false);
+      $("saving").textContent = "";
+      const verb = state.mode === "edit" ? "Updated" : "Created";
+      const published = args.publish && result.is_draft === false;
+      sas.banner(`${verb} “${result.name || now.name}”${published ? " and published it" : ""}.`, "ok");
+      const dl = $("done");
+      dl.replaceChildren();
+      for (const [k, v] of [["Term id", result.term_id], ["Status", result.is_draft ? "draft" : result.status], ["Type", result.term_type], ["Parent", result.parent_id]]) if (v) dl.append(el("dt", {}, k), el("dd", {}, String(v)));
+      dl.hidden = false;
+      if (state.mode === "create") {
+        state.mode = "edit";
+        state.term = { ...result, definition: now.definition, description: now.description, attributes: result.attributes || now.attributes };
+        buildForm();
+      } else if (published) {
+        // It is no longer a draft, so the publish control has nothing left to
+        // do and the badge is stale — rebuild rather than leave both wrong.
+        // The update's result carries no definition or description, so keep
+        // what was just saved rather than blanking the fields with undefined.
+        state.term = {
+          ...state.term, ...result,
+          definition: now.definition, description: now.description,
+          attributes: result.attributes || now.attributes,
+          is_draft: false,
+        };
+        buildForm();
+        $("done").hidden = false;
+      } else {
+        state.initial = now;
+      }
+      await sas.say(`${verb} the glossary term "${result.name || now.name}" (id ${result.term_id})${published ? " and published it" : ""} using the form.`);
+    } catch (err) {
+      sas.busy(false);
+      $("saving").textContent = "";
+      sas.banner(`Not saved: ${sas.errorText(err)}`, "bad");
+    }
+  }
+
+  $("form").addEventListener("submit", submit);
+
+  sas.onResult(async (data) => {
+    sas.busy(false);
+    if (!data || typeof data !== "object") { sas.banner(String(data ?? "No result."), "bad"); return; }
+    if (sas.tool === "get_glossary_term_type") {
+      state.mode = "create"; state.type = data; state.term = null;
+      buildForm();
+      return;
+    }
+    state.mode = "edit"; state.term = data;
+    $("title").textContent = data.name || "Term";
+    try {
+      sas.busy(true);
+      state.type = await sas.call("get_glossary_term_type", { term_type_id: data.term_type_id });
+      sas.busy(false);
+      buildForm();
+    } catch (err) {
+      sas.busy(false);
+      sas.banner(`Could not read the term type, so the attribute form is unavailable: ${sas.errorText(err)}`, "bad");
+    }
+  });
+</script>

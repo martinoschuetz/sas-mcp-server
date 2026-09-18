@@ -1,0 +1,201 @@
+<style>
+  #log { max-height: 560px; font-family: var(--mono); font-size: 12px; line-height: 1.45; }
+  #log ol { list-style: none; margin: 0; padding: 4px 0; counter-reset: line; }
+  #log li { display: flex; gap: 10px; padding: 0 10px; white-space: pre; }
+  #log.wrap li { white-space: pre-wrap; overflow-wrap: anywhere; }
+  #log li .n { color: var(--ink-2); min-width: 3.5em; text-align: right; user-select: none; flex: none; }
+  #log li.error { background: var(--bad-bg); color: var(--bad); }
+  #log li.warning { background: var(--warn-bg); color: var(--warn); }
+  #log li.note { color: var(--ink-2); }
+  #log li.source { color: var(--ink); }
+  #log li.macro { color: var(--accent); }
+  #log li.current { outline: 2px solid var(--accent); outline-offset: -2px; }
+  #log.hide-notes li.note { display: none; }
+  #log.only-problems li:not(.error):not(.warning) { display: none; }
+  #listing { max-height: 560px; font-family: var(--mono); font-size: 12px; white-space: pre; padding: 8px 12px; margin: 0; }
+  .tabs button[aria-selected="true"] { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+  #job { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: var(--fs-sm); margin-bottom: 8px; }
+  #job dt { color: var(--ink-2); } #job dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
+</style>
+<div id="root">
+  <div class="head">
+    <div class="row">
+      <h1 id="title">SAS log</h1>
+      <span id="state" class="pill"></span>
+    </div>
+    <div class="row" id="counts"></div>
+  </div>
+  <div id="banner" class="banner" hidden></div>
+  <dl id="job" hidden></dl>
+  <div class="toolbar">
+    <span class="tabs row" role="tablist">
+      <button id="tab-log" type="button" role="tab" aria-selected="true">Log</button>
+      <button id="tab-listing" type="button" role="tab" aria-selected="false" hidden>Listing</button>
+    </span>
+    <span class="row" id="log-tools">
+      <button id="prev-problem" type="button" title="Previous error or warning">▲</button>
+      <button id="next-problem" type="button" title="Next error or warning">▼ Next problem</button>
+      <label class="small"><input id="only-problems" type="checkbox"> Problems only</label>
+      <label class="small"><input id="hide-notes" type="checkbox"> Hide notes</label>
+      <label class="small"><input id="wrap" type="checkbox"> Wrap</label>
+    </span>
+    <span class="grow"></span>
+    <button id="refresh" type="button" hidden>Refresh</button>
+  </div>
+  <div id="log" class="scroll fill"><div class="empty">Waiting for the log…</div></div>
+  <pre id="listing" class="scroll fill" hidden></pre>
+</div>
+<script type="module">
+  const { el, fmt } = sas;
+  const $ = (id) => document.getElementById(id);
+  const TERMINAL = new Set(["completed", "failed", "error", "warning", "canceled", "cancelled", "timedOut", "timedout"]);
+  let problems = [], cursor = -1, job = null, pollTimer = null;
+
+  function classify(line, previous) {
+    if (/^ERROR(\s|\d|:|-)/.test(line)) return "error";
+    if (/^WARNING(\s|\d|:|-)/.test(line)) return "warning";
+    if (/^NOTE(\s|\d|:|-)/.test(line)) return "note";
+    if (/^(MPRINT|MLOGIC|SYMBOLGEN|MAUTOSOURCE)/.test(line)) return "macro";
+    if (/^\s*\d+\s{2,}/.test(line) || /^\d+\s/.test(line)) return "source";
+    if (/^\s+\S/.test(line) && previous && previous !== "source") return previous; // continuation
+    return "";
+  }
+
+  function renderLog(text) {
+    const box = $("log");
+    box.replaceChildren();
+    problems = []; cursor = -1;
+    const lines = String(text || "").replace(/\r\n?/g, "\n").split("\n");
+    if (lines.length && lines[lines.length - 1] === "") lines.pop();
+    let previous = "";
+    let counts = { error: 0, warning: 0, note: 0 };
+    const list = el("ol");
+    lines.forEach((line, i) => {
+      const kind = classify(line, previous);
+      previous = kind;
+      if (kind in counts) counts[kind] += 1;
+      const item = el("li", { class: kind }, el("span", { class: "n" }, String(i + 1)), el("span", {}, line || " "));
+      if (kind === "error" || kind === "warning") problems.push(item);
+      list.append(item);
+    });
+    box.append(list);
+    if (!lines.length) box.append(el("div", { class: "empty" }, "The log is empty."));
+    $("counts").replaceChildren(
+      el("span", { class: `pill ${counts.error ? "bad" : ""}` }, `${fmt.int(counts.error)} errors`),
+      el("span", { class: `pill ${counts.warning ? "warn" : ""}` }, `${fmt.int(counts.warning)} warnings`),
+      el("span", { class: "pill" }, `${fmt.int(counts.note)} notes`),
+      el("span", { class: "pill" }, `${fmt.int(lines.length)} lines`),
+    );
+    $("prev-problem").disabled = $("next-problem").disabled = !problems.length;
+    if (problems.length) jump(0);
+  }
+
+  function jump(index) {
+    if (!problems.length) return;
+    cursor = (index + problems.length) % problems.length;
+    problems.forEach((p, i) => p.classList.toggle("current", i === cursor));
+    problems[cursor].scrollIntoView({ block: "center" });
+  }
+
+  function badge(state) {
+    const s = String(state || "").toLowerCase();
+    const kind = s === "completed" ? "ok" : /error|fail|cancel|timed/.test(s) ? "bad" : /warn/.test(s) ? "warn" : /run|pend|queue/.test(s) ? "info" : "";
+    $("state").className = `pill ${kind}`;
+    $("state").textContent = state ? String(state) : "";
+  }
+
+  function showTab(which) {
+    $("tab-log").setAttribute("aria-selected", String(which === "log"));
+    $("tab-listing").setAttribute("aria-selected", String(which === "listing"));
+    $("log").hidden = which !== "log";
+    $("log-tools").hidden = which !== "log";
+    $("listing").hidden = which !== "listing";
+  }
+
+  function renderJob(data) {
+    const dl = $("job");
+    dl.replaceChildren();
+    const fields = [["Job", data.name], ["Id", data.id], ["Submitted", data.creationTimeStamp], ["Ended", data.endTimeStamp], ["Error", data.error?.message]];
+    for (const [k, v] of fields) if (v) dl.append(el("dt", {}, k), el("dd", {}, String(v)));
+    dl.hidden = !dl.childElementCount;
+  }
+
+  async function pollJob(id) {
+    clearTimeout(pollTimer);
+    try {
+      job = await sas.call("get_job_status", { job_id: id });
+      renderJob(job);
+      badge(job.state);
+      if (TERMINAL.has(String(job.state))) {
+        const log = await sas.call("get_job_log", { job_id: id });
+        renderLog(typeof log === "string" ? log : JSON.stringify(log, null, 2));
+        sas.busy(false);
+        $("refresh").hidden = false;
+        return;
+      }
+      $("log").replaceChildren(el("div", { class: "empty" }, `Job is ${job.state}… checking again in a moment.`));
+      pollTimer = setTimeout(() => pollJob(id), 2500);
+    } catch (err) {
+      sas.busy(false);
+      sas.banner(`Could not read the job: ${sas.errorText(err)}`, "bad");
+      $("refresh").hidden = false;
+    }
+  }
+
+  function render(data) {
+    sas.busy(false);
+    sas.banner("");
+    if (sas.tool === "submit_batch_job") {
+      if (!data || typeof data !== "object" || !data.id) {
+        sas.banner(typeof data === "string" ? data : "The job was not submitted.", "bad");
+        return;
+      }
+      $("title").textContent = data.name || "Batch job";
+      renderJob(data);
+      badge(data.state);
+      pollJob(data.id);
+      return;
+    }
+    if (sas.tool === "get_job_log") {
+      $("title").textContent = `Job ${sas.input?.job_id || ""}`.trim();
+      renderLog(typeof data === "string" ? data : JSON.stringify(data, null, 2));
+      $("refresh").hidden = false;
+      return;
+    }
+    // execute_sas_code: {snippet_id, state, log, listing}
+    if (!data || typeof data !== "object") {
+      renderLog(String(data ?? ""));
+      return;
+    }
+    badge(data.state);
+    renderLog(data.log || "");
+    const listing = (data.listing || "").trim();
+    $("tab-listing").hidden = !listing;
+    $("listing").textContent = listing;
+    if (listing && !/^ERROR/m.test(data.log || "") && data.state === "completed") showTab("listing"); else showTab("log");
+  }
+
+  $("tab-log").addEventListener("click", () => showTab("log"));
+  $("tab-listing").addEventListener("click", () => showTab("listing"));
+  $("next-problem").addEventListener("click", () => jump(cursor + 1));
+  $("prev-problem").addEventListener("click", () => jump(cursor - 1));
+  $("only-problems").addEventListener("change", (e) => $("log").classList.toggle("only-problems", e.target.checked));
+  $("hide-notes").addEventListener("change", (e) => $("log").classList.toggle("hide-notes", e.target.checked));
+  $("wrap").addEventListener("change", (e) => $("log").classList.toggle("wrap", e.target.checked));
+  $("refresh").addEventListener("click", async () => {
+    const id = job?.id || sas.input?.job_id;
+    if (!id) return;
+    sas.busy(true);
+    if (sas.tool === "get_job_log") {
+      try { renderLog(await sas.call("get_job_log", { job_id: id })); } catch (err) { sas.banner(sas.errorText(err), "bad"); }
+      sas.busy(false);
+    } else {
+      pollJob(id);
+    }
+  });
+
+  sas.onInput((args) => {
+    if (sas.tool === "get_job_log" && args.job_id) $("title").textContent = `Job ${args.job_id}`;
+  });
+  sas.onResult((data) => render(data));
+</script>
