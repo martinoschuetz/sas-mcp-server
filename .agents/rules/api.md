@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # SAS Viya APIs Documentation Directory
 
 **Version:** 2026.09
