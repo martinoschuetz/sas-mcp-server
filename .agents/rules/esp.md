@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # SAS Event Stream Processing (ESP) Context Material
 
 The following resources and documentation links represent the core context material provided for SAS Event Stream Processing (ESP). Use these resources to troubleshoot connectors, Kafka offsets, and general ESP project configurations.

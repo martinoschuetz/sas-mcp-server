@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 
 # SAS Visual Forecasting & ATSM Context Material
 
