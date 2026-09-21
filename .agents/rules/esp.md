@@ -24,3 +24,11 @@ The following are the permanent, latest-version links for the ESP manuals origin
 ## Key Known Issues & Workarounds
 - **Kafka Offset Reset Configurations:** In ESP Kafka Connectors, use smallest instead of arliest (which is used in Python kafka-python). If the consumer group (e.g. sas-consumer-germsz) already has committed offsets, uto.offset.reset=earliest will not load from the beginning. You must reset offsets via a Kafka script or use a new consumer group ID.
 - **Specific Kafka Connector Document (v0.75):** [Configuring smallest vs earliest](https://go.documentation.sas.com/doc/en/espcdc/v_075/espca/p0sbfix2ql9xpln1l1x4t9017aql.htm)
+
+## Example Projects & Templates
+The official **[ESP Studio Examples Repository](https://github.com/sassoftware/esp-studio-examples)** provides ready-to-use XML templates demonstrating practical real-time stream processing use cases:
+- **Practical Use Cases:** ctivitytracker, geofence, sailing, 	rades.
+- **Advanced Lua & Python Integration:** Extensive examples showing how to embed Lua and Python via lua_compute, lua_connector, python_compute, python_connector, and patterns.
+- **Machine Learning & Computer Vision:** Includes templates for ONNX integration (onnx_object_detection, onnx_pose_estimation, onnx_voice_transcription).
+- **Streaming Analytics:** Shows how to use the Calculate/Train/Score windows for real-time algorithms like *K-Means clustering*, *Subspace Tracking (SST)*, *Support Vector Machines*, *TFIDF text mining*, and *Linear Regression*.
+- **Custom Windows:** Examples like lert_suppression and vent_sorter.
