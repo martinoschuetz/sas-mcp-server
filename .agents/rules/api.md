@@ -1,5 +1,7 @@
 # SAS Viya APIs Documentation Directory
 
+**Version:** 2026.09
+
 The docs/APIs directory contains OpenAPI specifications and documentation for various SAS Viya endpoints, organized by category.
 
 ## Auto Machine Learning
