@@ -2285,7 +2285,7 @@ async def test_execute_sas_code_request(mcp_server_with_mock_client):
         async with Client(mcp) as client:
             result = await client.call_tool("execute_sas_code", {"sas_code": "data test; x=1; run;"})
 
-        mock_run.assert_called_once_with("data test; x=1; run;", "1", "test-token")
+        mock_run.assert_called_once_with("data test; x=1; run;", "1", "test-token", html_results=True)
         assert result.data == {
             "snippet_id": "1",
             "state": "completed",
@@ -2310,7 +2310,20 @@ async def test_execute_sas_code_fresh_session_resets_first(mcp_server_with_mock_
             )
         mock_reset.assert_awaited_once()
         assert mock_reset.await_args[0][0] == "CLIENT"
-        mock_run.assert_called_once_with("data _null_; run;", "1", "test-token")
+        mock_run.assert_called_once_with("data _null_; run;", "1", "test-token", html_results=True)
+
+
+async def test_execute_sas_code_html_results_can_be_turned_off(mcp_server_with_mock_client):
+    """html_results is on by default; off submits the code exactly as given."""
+    mcp, _ = mcp_server_with_mock_client
+    with patch("sas_mcp_server.tools.compute.run_one_snippet") as mock_run:
+        mock_run.return_value = {"snippet_id": "1", "state": "completed", "log": "", "listing": ""}
+        async with Client(mcp) as client:
+            tools = {t.name: t for t in await client.list_tools()}
+            await client.call_tool("execute_sas_code", {"sas_code": "data _null_; run;", "html_results": False})
+        assert tools["execute_sas_code"].input_schema["properties"]["html_results"]["default"] is True
+        assert "html_results" not in tools["execute_sas_code"].input_schema.get("required", [])
+        mock_run.assert_called_once_with("data _null_; run;", "1", "test-token", html_results=False)
 
 
 async def test_execute_sas_code_default_keeps_session(mcp_server_with_mock_client):
@@ -2954,7 +2967,7 @@ async def test_reset_compute_session_no_active_session(mcp_server_with_mock_clie
 
 
 # -----------------------------------------------------------------------
-# Information Catalog (Tier 7)
+# SAS Data Governance catalog (Tier 7)
 # -----------------------------------------------------------------------
 
 

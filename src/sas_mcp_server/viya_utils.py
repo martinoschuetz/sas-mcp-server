@@ -21,6 +21,8 @@ import base64
 import binascii
 import hashlib
 import json
+import re
+import secrets
 from contextlib import nullcontext
 
 import httpx
@@ -311,18 +313,165 @@ async def wait_job(
         await asyncio.sleep(poll)
 
 
+# --- HTML results -------------------------------------------------------------
+# The compute context opens no HTML destination of its own — SAS Data and AI
+# Studio's HTML comes from ODS statements it adds to every submit — so a job
+# submitted here yields a listing and nothing else. To get the page SAS Data
+# and AI Studio would show, the code is wrapped: ODS HTML5 into a body file named for this one call (so two
+# calls sharing a session never read each other's page), then the magic string
+# that ends whatever the code left open — an unterminated statement, quote or
+# comment would otherwise swallow the close — and the close. HTML5 embeds
+# graphs as inline SVG by default, so the page needs nothing else to render.
+#
+# The guard ends with run;quit;, not Enterprise Guide's quit;run;: probed live,
+# quit; inside an unfinished DATA step is ERROR 180-322 — on a line the caller
+# never wrote — and once even left the session unable to run the next job,
+# while run; first ends that step and quit; then closes an open PROC. Both
+# wrapper lines stay well under the smallest LINESIZE (64), so the log's
+# source echo never wraps them.
+_HTML_ODS_ID = "sasmcp"
+_HTML_GUARD = ";*';*\";*/;run;quit;"
+_GUARD_START = ";*';*\";*/;"
+# ODS writes a complete page even when nothing was printed; its body is empty.
+_EMPTY_HTML_BODY = re.compile(rb"<body[^>]*>\s*</body>", re.IGNORECASE)
+# A line of code as the log echoes it: its number, "!" when the echo resumes
+# after output that the line's own statements produced, then the code.
+_SOURCE_ECHO = re.compile(r"^\s*(\d+)(\s+!)?\s+(.*?)\s*$")
+
+
+def new_html_body_file() -> str:
+    """A body-file name unique to one call."""
+    return f"sasmcp-{secrets.token_hex(4)}.htm"
+
+
+def _html_wrapper_lines(body_file: str) -> tuple[str, str]:
+    return (
+        f'ods html5 (id={_HTML_ODS_ID}) file="{body_file}";',
+        f"{_HTML_GUARD}ods html5 (id={_HTML_ODS_ID}) close;",
+    )
+
+
+def wrap_for_html(code: str, body_file: str) -> str:
+    """Wrap *code* so that its ODS output is also written as HTML to *body_file*."""
+    opening, closing = _html_wrapper_lines(body_file)
+    return f"{opening}\n{code}\n{closing}"
+
+
+def strip_html_wrapper(log_text: str, body_file: str) -> str:
+    """Remove the wrapper's own lines from *log_text*.
+
+    Those are the echoes of the two wrapper lines and the note ODS writes when
+    it opens the body file. What is left is the log of the code as it was
+    given, so the model reads no statement it did not write.
+
+    The closing line is found by its number, not its whole text: when its
+    run; ends a step the code left open, the log echoes the line up to that
+    statement, then the step's own notes, then the rest as a continuation
+    (``3  !   quit;ods html5 (id=sasmcp) close;``). The step's notes stay.
+    """
+    opening, closing = _html_wrapper_lines(body_file)
+    note = f"NOTE: Writing HTML5({_HTML_ODS_ID.upper()}) Body file: {body_file}"
+    lines = log_text.split("\n")
+    echoes = [(i, m.groups()) for i, line in enumerate(lines) if (m := _SOURCE_ECHO.match(line))]
+    # The closing line is the last thing submitted, so its first echo is the
+    # last one that starts like it.
+    close_no = next(
+        (num for _, (num, cont, text) in reversed(echoes)
+         if not cont and text.startswith(_GUARD_START) and closing.startswith(text)),
+        None,
+    )
+    drop = {
+        i for i, (num, cont, text) in echoes
+        if (not cont and text == opening)
+        or (num == close_no and (closing.startswith(text) if not cont else text in closing))
+    }
+    return "\n".join(line for i, line in enumerate(lines) if i not in drop and line.strip() != note)
+
+
+async def fetch_html_result(
+    client: httpx.AsyncClient, session_id: str, job_id: str, body_file: str
+) -> bytes | None:
+    """Return the page the job wrote to *body_file*, or ``None`` if it printed nothing.
+
+    A job's results collection lists only what that job wrote, even in a
+    session reused across many calls.
+    """
+    url = f"{VIYA_ENDPOINT}/compute/sessions/{session_id}/jobs/{job_id}/results"
+    resp = await client.get(url, params={"limit": 1000})
+    raise_for_viya_status(resp)
+    for item in resp.json().get("items", []):
+        if item.get("name") != body_file:
+            continue
+        href = next((link.get("href") for link in item.get("links", []) if link.get("rel") == "self"), None)
+        if not href:
+            return None
+        page = await client.get(f"{VIYA_ENDPOINT}{href}", headers={"Accept": "text/html"})
+        raise_for_viya_status(page)
+        return None if _EMPTY_HTML_BODY.search(page.content) else page.content
+    return None
+
+
+async def store_html_result(client: httpx.AsyncClient, page: bytes, job_id: str) -> str:
+    """Save *page* to the Viya Files service and return the new file's id.
+
+    The file has no parent folder, so Viya's default rules let only the person
+    who created it (and administrators) read it. It is saved without an
+    expiration, the Files service's default, so it stays until deleted.
+    """
+    resp = await client.post(
+        f"{VIYA_ENDPOINT}/files/files",
+        content=page,
+        headers={
+            "Content-Type": "text/html",
+            # inline: a browser shows the page rather than downloading it.
+            "Content-Disposition": f'inline; filename="sas-results-{job_id}.html"',
+        },
+    )
+    raise_for_viya_status(resp)
+    return resp.json()["id"]
+
+
+async def _publish_html(
+    client: httpx.AsyncClient, session_id: str, job_id: str, body_file: str
+) -> dict[str, str]:
+    """Fetch the job's HTML page and save it where a browser can open it.
+
+    Returns the fields to add to the result: the page's URL and file id, nothing
+    when the code printed nothing, or ``html_results_error`` when either step
+    failed. The log and listing are the result the caller asked for, so a
+    failure here is reported alongside them rather than raised.
+    """
+    try:
+        page = await fetch_html_result(client, session_id, job_id, body_file)
+        if page is None:
+            return {}
+        file_id = await store_html_result(client, page, job_id)
+    except Exception as exc:
+        logger.warning("Could not publish the HTML results of job %s", job_id, exc_info=True)
+        return {"html_results_error": f"The HTML results could not be saved: {exc}"}
+    return {
+        "html_results_url": f"{VIYA_ENDPOINT}/files/files/{file_id}/content",
+        "html_results_file_id": file_id,
+    }
+
+
 async def run_one_snippet(
-    snippet_data: str, snippet_id: str, token: str
+    snippet_data: str, snippet_id: str, token: str, html_results: bool = False
 ) -> dict[str, str]:
     """Execute one SAS snippet end to end and return its structured result.
 
     Returns a dict with keys ``snippet_id``, ``state``, ``log`` and ``listing``.
-    The snippet runs in the caller's cached compute session, so SAS state (WORK
-    tables, macro variables, assigned librefs) persists across calls until the
-    session is reset via ``reset_cached_session`` or reaped by Viya. The session
-    is intentionally *not* torn down here so the next call can reuse it.
+    With *html_results*, the code's ODS output is also written as HTML and saved
+    to the Files service, adding ``html_results_url`` and
+    ``html_results_file_id`` (or ``html_results_error``) when it printed
+    anything. The snippet runs in the caller's cached compute session, so SAS
+    state (WORK tables, macro variables, assigned librefs) persists across
+    calls until the session is reset via ``reset_cached_session`` or reaped by
+    Viya. The session is intentionally *not* torn down here so the next call
+    can reuse it.
     """
-    code = snippet_data
+    body_file = new_html_body_file() if html_results else None
+    code = wrap_for_html(snippet_data, body_file) if body_file else snippet_data
 
     logger.info("Running snippet (token length: %d)", len(token))
 
@@ -337,12 +486,16 @@ async def run_one_snippet(
                 logger.info("Job submitted: %s", jid)
                 state, log_text, listing_text = await wait_job(client, sid, jid)
             logger.info("Job completed: %s", state)
-            return {
+            result = {
                 "snippet_id": snippet_id,
                 "state": state,
                 "log": log_text,
                 "listing": listing_text,
             }
+            if body_file:
+                result["log"] = strip_html_wrapper(log_text, body_file)
+                result.update(await _publish_html(client, sid, jid, body_file))
+            return result
         except Exception:
             logger.exception("Error executing SAS job")
             raise
