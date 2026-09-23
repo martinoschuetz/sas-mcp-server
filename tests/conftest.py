@@ -272,3 +272,9 @@ def integration_mcp_server(viya_token):
     register_tools(mcp, real_get_token)
     register_prompts(mcp)
     return mcp
+
+import pytest
+@pytest.fixture(autouse=True)
+def _clear_viya_client_cache():
+    from sas_mcp_server.viya_client import clear_client_cache
+    clear_client_cache()

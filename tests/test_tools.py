@@ -242,7 +242,7 @@ async def test_delete_resource_success(mock_httpx_client, mock_env_vars):
 
 def test_make_client_adds_bearer_prefix(mock_env_vars):
     """Test make_client adds Bearer prefix when missing."""
-    with patch("sas_mcp_server.viya_client.httpx.AsyncClient") as mock_cls:
+    with patch("sas_mcp_server.viya_client._PersistentAsyncClient") as mock_cls:
         mock_cls.return_value = MagicMock()
         make_client("my-token")
         call_kwargs = mock_cls.call_args[1]
@@ -251,7 +251,7 @@ def test_make_client_adds_bearer_prefix(mock_env_vars):
 
 def test_make_client_preserves_bearer_prefix(mock_env_vars):
     """Test make_client does not double-prefix Bearer."""
-    with patch("sas_mcp_server.viya_client.httpx.AsyncClient") as mock_cls:
+    with patch("sas_mcp_server.viya_client._PersistentAsyncClient") as mock_cls:
         mock_cls.return_value = MagicMock()
         make_client("Bearer my-token")
         call_kwargs = mock_cls.call_args[1]
@@ -260,7 +260,7 @@ def test_make_client_preserves_bearer_prefix(mock_env_vars):
 
 def test_make_client_without_token_omits_auth_header(mock_env_vars):
     """make_client(None) should send no Authorization header."""
-    with patch("sas_mcp_server.viya_client.httpx.AsyncClient") as mock_cls:
+    with patch("sas_mcp_server.viya_client._PersistentAsyncClient") as mock_cls:
         mock_cls.return_value = MagicMock()
         make_client(None)
         call_kwargs = mock_cls.call_args[1]

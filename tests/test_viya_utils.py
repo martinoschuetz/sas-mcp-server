@@ -239,7 +239,7 @@ async def test_run_one_snippet_success(
     sample_sas_code, mock_access_token, mock_env_vars
 ):
     """Test successful execution of a SAS code snippet returns a structured dict."""
-    with patch("sas_mcp_server.viya_client.httpx.AsyncClient") as mock_client_class:
+    with patch("sas_mcp_server.viya_client._PersistentAsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
@@ -299,7 +299,7 @@ async def test_run_one_snippet_with_bearer_prefix(sample_sas_code, mock_env_vars
     """Test that Bearer prefix is handled correctly."""
     token_with_bearer = "Bearer test-token"
 
-    with patch("sas_mcp_server.viya_client.httpx.AsyncClient") as mock_client_class:
+    with patch("sas_mcp_server.viya_client._PersistentAsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
@@ -380,7 +380,7 @@ async def test_run_one_snippet_propagates_error_and_keeps_session(
     sample_sas_code, mock_access_token, mock_env_vars
 ):
     """On failure the error propagates; the session is kept (not deleted) for reuse."""
-    with patch("sas_mcp_server.viya_client.httpx.AsyncClient") as mock_client_class:
+    with patch("sas_mcp_server.viya_client._PersistentAsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 

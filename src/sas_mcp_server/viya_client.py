@@ -223,16 +223,36 @@ async def delete_resource(url: str, client: httpx.AsyncClient) -> None:
     raise_for_viya_status(resp)
 
 
+class _PersistentAsyncClient(httpx.AsyncClient):
+    async def __aenter__(self):
+        return self
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+_CLIENT_CACHE: dict[str, _PersistentAsyncClient] = {}
+
+def clear_client_cache():
+    _CLIENT_CACHE.clear()
+
 def make_client(token: str | None) -> httpx.AsyncClient:
-    """Create an :class:`httpx.AsyncClient` with auth headers for Viya API calls."""
+    """Create or retrieve a persistent :class:httpx.AsyncClient with auth headers for Viya API calls."""
     headers: dict[str, str] = {}
     if token:
         if not token.startswith("Bearer "):
             token = f"Bearer {token}"
         headers["Authorization"] = token
-    return httpx.AsyncClient(
-        headers=headers, verify=SSL_VERIFY, timeout=_CLIENT_TIMEOUT
-    )
+    
+    cache_key = token or "anon"
+    
+    # Cap cache to prevent memory leaks from rolling tokens
+    if len(_CLIENT_CACHE) > 10:
+        _CLIENT_CACHE.clear()
+        
+    if cache_key not in _CLIENT_CACHE:
+        _CLIENT_CACHE[cache_key] = _PersistentAsyncClient(
+            headers=headers, verify=SSL_VERIFY, timeout=_CLIENT_TIMEOUT
+        )
+    return _CLIENT_CACHE[cache_key]
 
 
 def return_items(
