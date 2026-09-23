@@ -196,7 +196,9 @@ def test_render_page_read_only_and_partial_tiers_are_called_out():
     page = render_page(_facts(read_only=True, enabled_tiers=frozenset({0, 1, 2, 3, 7})), nonce="n")
     assert "Read-only mode" in page
     assert "Read-only mode is on." in page
-    assert "Tiers 0–3, 7 of 0–12" in page
+    # The "of" range is the full tier set, so derive it rather than pinning a
+    # number that every new tier invalidates.
+    assert f"Tiers 0–3, 7 of 0–{max(tools.ALL_TIERS)}" in page
     assert "limited this deployment to tool tiers" in page
 
 

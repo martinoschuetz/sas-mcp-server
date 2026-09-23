@@ -139,6 +139,20 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
         "list_genai_llms",
         "query_genai_agent",
         "esp_get_project_xml",
+        # Tier 13 — Custom Analysis Framework
+        "describe_caf_schema",  # bundled catalog, no network
+        "list_analysis_types",
+        "get_analysis_type",
+        "get_analysis_type_steps",
+        "export_analysis_type",
+        "list_analysis_type_lookups",
+        # Both are pure functions over their arguments: they render and check a
+        # package in memory and upload nothing.
+        "validate_analysis_type_spec",
+        "build_output_contract",
+        # GETs a report's content and rewrites the XML in memory. The report is
+        # untouched; the rewritten copy is returned to the caller.
+        "templatize_va_report",
     }
 )
 
@@ -259,6 +273,11 @@ WRITE_TOOLS: frozenset[str] = frozenset(
         "unassign_glossary_term",
         "esp_deploy_project",
         "esp_delete_project",
+        # Tier 13 — Custom Analysis Framework
+        "create_analysis_type",
+        "update_analysis_type",
+        "set_analysis_type_state",
+        "delete_analysis_type",
     }
 )
 
@@ -303,6 +322,14 @@ DESTRUCTIVE_TOOLS: frozenset[str] = frozenset(
         # update_existing=true overwrites a term already at that path.
         "import_glossary_terms",
         "esp_delete_project",
+        "delete_analysis_type",
+        # PUT replaces the whole package — input.xml, every step's SAS code and
+        # every report template — and analyses already created from the type
+        # start running against the replacement.
+        "update_analysis_type",
+        # Withdraws a type from users. Reversible, but it changes what an
+        # existing deployment offers.
+        "set_analysis_type_state",
     }
 )
 
@@ -334,6 +361,9 @@ IDEMPOTENT_WRITE_TOOLS: frozenset[str] = frozenset(
         "assign_glossary_term",
         "unassign_glossary_term",
         "esp_delete_project",
+        "update_analysis_type",
+        "delete_analysis_type",
+        "set_analysis_type_state",
     }
 )
 
