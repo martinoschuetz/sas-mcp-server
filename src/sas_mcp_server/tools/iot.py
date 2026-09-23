@@ -412,6 +412,8 @@ async def poll_job(job_url: str, token: str, poll_interval: float = 1.0) -> dict
             if state in ["completed", "failed", "cancelled"]:
                 return status_data
             await asyncio.sleep(poll_interval)
+            # Exponential backoff up to 10s
+            poll_interval = min(poll_interval * 1.5, 10.0)
 
 
 async def set_data_selection_date_range(selection_id: str, start_date: str, end_date: str, token: str) -> dict:
@@ -3642,6 +3644,7 @@ def register(
             launch_id = resp_launch.json()["id"]
             
             import asyncio
+            poll_interval = 1.0
             while True:
                 resp_status = await client.get(
                     f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{new_ds_id}/launches/{launch_id}",
@@ -3652,7 +3655,8 @@ def register(
                     break
                 elif launch_status in ("FAILED", "ERROR"):
                     raise RuntimeError(f"Data selection launch failed with status {launch_status}")
-                await asyncio.sleep(1)
+                await asyncio.sleep(poll_interval)
+                poll_interval = min(poll_interval * 1.5, 10.0)
                 
             if folder_id:
                 member_body = {
@@ -3763,6 +3767,7 @@ def register(
             job_link = resp_run.json()["links"][0]["href"]
             
             import asyncio
+            poll_interval = 1.0
             while True:
                 resp_job = await client.get(f"{VIYA_ENDPOINT}{job_link}")
                 job_status = resp_job.json().get("state", "")
