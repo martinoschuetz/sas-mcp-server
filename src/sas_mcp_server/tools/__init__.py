@@ -32,6 +32,7 @@ from ..ui import app_config, register_views
 from ..viya_client import logger
 from . import (
     automl,
+    caf,
     compute,
     data_ops,
     decisioning,
@@ -71,6 +72,7 @@ _TIER_REGISTRARS: dict[int, Registrar] = {
     10: iot.register,
     11: genai.register,
     12: esp.register,
+    13: caf.register,
 }
 
 TIER_TITLES: dict[int, str] = {
@@ -87,6 +89,7 @@ TIER_TITLES: dict[int, str] = {
     10: "IoT & FQA (Field Quality Analytics)",
     11: "Generative AI",
     12: "Event Stream Processing (ESP)",
+    13: "Custom Analysis Framework (AIoT analysis types)",
 }
 
 ALL_TIERS: frozenset[int] = frozenset(_TIER_REGISTRARS)

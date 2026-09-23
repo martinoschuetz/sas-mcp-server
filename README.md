@@ -357,6 +357,30 @@ Terms assigned this way also become searchable through Tier 1's **catalog_search
 - **list_genai_sources** / **list_genai_llms**: Discover available data sources and Large Language Models (LLMs) configured in Viya.
 - **query_genai_agent**: Query a specific GenAI retrieval agent with a prompt, supporting session IDs for continuing existing conversations.
 
+#### Tier 13 — Custom Analysis Framework (AIoT analysis types)
+
+Tier 10 runs the analyses a deployment already offers. This tier builds the **types** those analyses are instances of — the input form, the SAS code, and the Visual Analytics report the results render into — packaged as the zip `/iotAnalysisModels` transports. The format fails in a particular way: a report token with no producer renders a blank page and raises nothing, so these tools validate before they upload and report what is wrong in terms of the fix. The vocabularies they check against were extracted from 34 shipped packages, every one of which round-trips through the renderer.
+
+*Learning the format:*
+- **describe_caf_schema**: Progressive disclosure over the whole format — `overview`, `package`, `registration`, `parameters`, `lookups`, `containers`, `interactions`, `code`, `output`, `tokens`, `gotchas`, plus per-display-control detail. This is what lets a model author correctly without the reference being in context
+
+*Reading what is deployed:*
+- **list_analysis_types** / **get_analysis_type**: The types installed here, then one in detail — its steps, what each publishes, and which tokens its report template reads, without returning the XML
+- **export_analysis_type**: The package's actual `input.xml`, and one step's report template on request. The fastest answer to a format question is a SAS-shipped type that already works; templates are withheld by default because a single one can exceed 800KB
+- **get_analysis_type_steps** / **list_analysis_type_lookups**: The service's own view of the steps, and the shared platform lookups a parameter can reference by id instead of carrying its own
+
+*Authoring, offline:*
+- **validate_analysis_type_spec**: The check the write tools run, exposed on its own. Catches unknown display controls and `#ctx` methods, lookups that interpolate a live value without `RESOLVEONUI`, self-retriggering cascades, form items pointing at parameters that do not exist, and above all report tokens with no producer
+- **build_output_contract**: Writes the SAS tail that publishes a step's outputs (`g_output_table_N` + `%afi_caf_postprocess`) and names the tokens it creates — the half of the name mapping that lives in SAS
+- **templatize_va_report**: Converts a report that already works in Visual Analytics into a step template, rewriting both attributes that carry a table name — `CasResource/@table` and the enclosing `DataSource/@label`. Tokenizing only the first is the mistake most often made by hand, and the report still loads; it just binds nothing
+
+*Writing to the deployment:*
+- **create_analysis_type** / **update_analysis_type**: Render `input.xml` and a template per step, zip under a folder named after the type, upload. Update is a whole-package replacement rather than a merge, and analyses already created from the type run against the new definition
+- **set_analysis_type_state**: Activate or deactivate. Deactivating is how a type is withdrawn without breaking the analyses created from it — the reversible alternative to deletion
+- **delete_analysis_type**: Remove a type permanently
+
+Authoring rules for agents are in `.agents/rules/caf.md`.
+
 ### Prompt Templates
 
 - **debug_sas_log**: Analyze SAS log for errors with root-cause explanations
