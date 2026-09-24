@@ -12,7 +12,7 @@ import httpx
 from cachetools import TTLCache
 from fastmcp import Context, FastMCP
 
-from ..config import VIYA_ENDPOINT
+from ..config import AIOT_LAUNCH_KEY_DIM, AIOT_LAUNCH_TRANSPOSE, VIYA_ENDPOINT
 from ..viya_client import logger, make_client
 from ..viya_utils import run_one_snippet
 from ._common import make_session_helpers
@@ -137,11 +137,31 @@ async def delete_data_selection(selection_id: str, token: str) -> None:
         await _delete_resource(f"/dataSelection/dataSelections/{selection_id}", client)
 
 
-async def launch_data_selection(selection_id: str, token: str) -> dict:
-    """Triggers a launch job for a specific data selection."""
+async def launch_data_selection(selection_id: str, token: str, table_name: str | None = None,
+                                launch_key_dim: str | None = None,
+                                launch_app_name: str = "CAS",
+                                transpose_flag: bool = AIOT_LAUNCH_TRANSPOSE) -> dict:
+    """Triggers a launch job for a specific data selection.
+
+    ``launch_key_dim`` falls back to AIOT_LAUNCH_KEY_DIM rather than being
+    omitted — the service rejects a launch that names no key dimension.
+    """
+    body: dict[str, Any] = {
+        "tableName": table_name or f"DS_{selection_id.replace('-', '_')[:24]}",
+        "launchAppName": launch_app_name,
+        # Sent as 0/1, the form the documented createLaunch request uses; the
+        # service reports it back as a boolean. bool is an int, so a caller
+        # passing either spelling lands on the same wire value.
+        "transposeFlag": int(transpose_flag),
+        "launchColumnTables": [],
+        "launchColumns": [],
+    }
+    key_dim = launch_key_dim or AIOT_LAUNCH_KEY_DIM
+    if key_dim:
+        body["launchKeyDim"] = key_dim
     async with make_client(token) as client:
         return await _post_json(f"/dataSelection/dataSelections/{selection_id}/launches", client,
-                                body={},
+                                body=body,
                                 accept="application/vnd.sas.data.selection.launch+json")
 
 
@@ -455,11 +475,11 @@ async def run_iot_analysis_and_wait(analysis_id: str, token: str) -> dict:
     return await poll_job(job_url, token)
 
 
-async def launch_data_selection_and_wait(selection_id: str, token: str) -> dict:
+async def launch_data_selection_and_wait(selection_id: str, token: str, **launch_kwargs) -> dict:
     """Launches a data selection and waits for completion."""
-    launch_result = await launch_data_selection(selection_id, token)
-    # Launches in AIoT are jobs too
-    job_url = f"/jobExecution/jobs/{launch_result.get('id')}"
+    launch_result = await launch_data_selection(selection_id, token, **launch_kwargs)
+    # The launch resource's own id differs from the id of the job executing it.
+    job_url = f"/jobExecution/jobs/{launch_result['jobId']}"
     return await poll_job(job_url, token)
 
 
@@ -720,28 +740,46 @@ def register(
         return await set_data_selection_date_range(selection_id, start_date, end_date, token)
 
     @mcp.tool()
-    async def launch_data_selection_tool(selection_id: str, ctx: Context) -> dict:
+    async def launch_data_selection_tool(selection_id: str, ctx: Context,
+                                         table_name: str | None = None,
+                                         launch_key_dim: str | None = None,
+                                         transpose_flag: bool = AIOT_LAUNCH_TRANSPOSE) -> dict:
         """
         Triggers a launch job for a specific data selection, loading the data into CAS for analysis.
 
         Args:
             selection_id (str): The unique identifier of the data selection to launch.
+            table_name (str, optional): Name for the resulting CAS table. Defaults to a name derived from selection_id.
+            launch_key_dim (str, optional): Key dimension for the launch, e.g. 'ASSET', 'PRODUCT' or 'BATCH'.
+                Defaults to this deployment's AIOT_LAUNCH_KEY_DIM.
+            transpose_flag (bool, optional): Whether to transpose the launched table.
         """
         logger.info("--- TOOL USED: launch_data_selection (%s) ---", selection_id)
         token = await get_token(ctx)
-        return await launch_data_selection(selection_id, token)
+        return await launch_data_selection(selection_id, token, table_name=table_name,
+                                           launch_key_dim=launch_key_dim,
+                                           transpose_flag=transpose_flag)
 
     @mcp.tool()
-    async def launch_data_selection_and_wait_tool(selection_id: str, ctx: Context) -> dict:
+    async def launch_data_selection_and_wait_tool(selection_id: str, ctx: Context,
+                                                  table_name: str | None = None,
+                                                  launch_key_dim: str | None = None,
+                                                  transpose_flag: bool = AIOT_LAUNCH_TRANSPOSE) -> dict:
         """
         Launches a data selection and waits for the job to complete.
 
         Args:
             selection_id (str): The unique identifier of the data selection to launch.
+            table_name (str, optional): Name for the resulting CAS table. Defaults to a name derived from selection_id.
+            launch_key_dim (str, optional): Key dimension for the launch, e.g. 'ASSET', 'PRODUCT' or 'BATCH'.
+                Defaults to this deployment's AIOT_LAUNCH_KEY_DIM.
+            transpose_flag (bool, optional): Whether to transpose the launched table.
         """
         logger.info("--- TOOL USED: launch_data_selection_and_wait (%s) ---", selection_id)
         token = await get_token(ctx)
-        return await launch_data_selection_and_wait(selection_id, token)
+        return await launch_data_selection_and_wait(selection_id, token, table_name=table_name,
+                                                    launch_key_dim=launch_key_dim,
+                                                    transpose_flag=transpose_flag)
 
     @mcp.tool()
     async def copy_data_selection_tool(selection_id: str, new_name: str, 
@@ -3761,10 +3799,19 @@ def register(
             logger.info("Submitting step run job...")
             resp_run = await client.post(
                 f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{analysis_id}/steps/{step_id}/jobs",
+                json={},
                 headers={"Accept": "application/json"}
             )
             resp_run.raise_for_status()
-            job_link = resp_run.json()["links"][0]["href"]
+            job_link = next(
+                (link["href"] for link in resp_run.json().get("links", [])
+                 if link.get("rel") == "job"),
+                None
+            )
+            if not job_link:
+                raise RuntimeError(
+                    f"No job link in run response for analysis {analysis_id} step {step_id}"
+                )
             
             import asyncio
             poll_interval = 1.0

@@ -1,15 +1,22 @@
 # Copyright © 2025, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import json
+
 import pytest
 import respx
 from httpx import Response
 
-from sas_mcp_server.config import VIYA_ENDPOINT
+from sas_mcp_server.config import (
+    AIOT_LAUNCH_KEY_DIM,
+    AIOT_LAUNCH_TRANSPOSE,
+    VIYA_ENDPOINT,
+)
 from sas_mcp_server.tools.iot import (
     get_data_selection,
     get_iot_analysis_job,
     launch_data_selection,
+    launch_data_selection_and_wait,
     list_data_selections,
     list_iot_analyses,
     list_iot_models,
@@ -45,6 +52,43 @@ async def test_launch_data_selection(mock_env_vars):
     )
     result = await launch_data_selection("1", "fake_token")
     assert result["id"] == "job_1"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_launch_data_selection_sends_launch_payload(mock_env_vars):
+    route = respx.post(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/1/launches").mock(
+        return_value=Response(201, json={"id": "launch_1", "jobId": "job_1"})
+    )
+    await launch_data_selection("1", "fake_token", launch_key_dim="BATCH")
+    body = json.loads(route.calls.last.request.content)
+    assert body["tableName"]
+    assert body["launchAppName"] == "CAS"
+    assert body["launchKeyDim"] == "BATCH"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_launch_data_selection_defaults_key_dim(mock_env_vars):
+    """A caller that names no key dimension still sends one -- omitting it 400s."""
+    route = respx.post(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/1/launches").mock(
+        return_value=Response(201, json={"id": "launch_1", "jobId": "job_1"})
+    )
+    await launch_data_selection("1", "fake_token")
+    body = json.loads(route.calls.last.request.content)
+    assert body["launchKeyDim"] == AIOT_LAUNCH_KEY_DIM
+    assert body["transposeFlag"] == int(AIOT_LAUNCH_TRANSPOSE)
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_launch_data_selection_and_wait_polls_job_id(mock_env_vars):
+    respx.post(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/1/launches").mock(
+        return_value=Response(201, json={"id": "launch_1", "jobId": "job_1"})
+    )
+    job_route = respx.get(f"{VIYA_ENDPOINT}/jobExecution/jobs/job_1").mock(
+        return_value=Response(200, json={"id": "job_1", "state": "completed"})
+    )
+    result = await launch_data_selection_and_wait("1", "fake_token")
+    assert job_route.called
+    assert result["state"] == "completed"
 
 @pytest.mark.asyncio
 @respx.mock
