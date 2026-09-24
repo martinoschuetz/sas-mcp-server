@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.16.0] - 2026-09-23
+
+### Added
+- **`execute_sas_code` returns the HTML results, as SAS Data and AI Studio would show them.** (#62) The compute context opens no HTML destination of its own — SAS Data and AI Studio's page comes from ODS statements it adds to every submit — so a job submitted through the API yielded a listing and nothing else, and a graph could not be seen at all. The code now runs between an `ods html5` statement and its close, with `;*';*";*/;run;quit;` before the close so that an unterminated statement, quote or comment, or a step without `run;`, cannot swallow it; none of this appears in the log the model reads. When the code printed something, the page is saved to the Viya Files service and the result gains `html_results_url` — opening it asks for a SAS Viya sign-in, and the file sits in no folder, so only the person who ran the code (and administrators) can open it — plus `html_results_file_id`; `html_results_error` reports a page that could not be saved without failing the call. `html_results=false` submits the code exactly as given. The page never enters the model's context; only the link does.
+  - **The SAS log view gains a Results tab** showing that page, chosen first when the code ran cleanly, with an "Open in browser" link. The tab reads the page through `download_file`, so a deployment without Tier 2 gets the link but not the tab.
+  - The guard is `run;quit;`, not the `quit;run;` of SAS Enterprise Guide: probed live, `quit;` inside an unfinished DATA step is `ERROR 180-322` on a line the caller never wrote, and once left the session unable to run the next job.
+- **`MCP_STATELESS_HTTP`** (#62) (chart: `server.statelessHttp`, default `false`) serves HTTP requests without an MCP session. The 2026-07-28 protocol revision has no session and opens with `server/discover`, which the default stateful transport refuses with "Missing session ID"; a client that speaks only that revision — claude.ai's custom-connector backend — could not connect at all. The legacy `initialize` handshake keeps working either way.
+
+### Changed
+- **Views survive the hosts' caches and bridges.** (#62) Three changes, each forced by a host: the view binding is repeated on the `tools/call` result (both spellings the extension has used) and `_meta.ui.csp` on the `resources/read` item, where some hosts read it; view URIs carry a fingerprint of the page — `ui://sas-viya/sas-log/execute_sas_code.<hash>.html`, from the ui package's files, the version and the tier and read-only selection — because hosts cache a page by its URI, claude.ai even across a connector being removed and added again, so a changed page was served stale; the plain URI is served too, for hosts holding an older tool listing. Chart 0.3.0 → 0.4.0 for the new value.
+- **Product names:** (#62) SAS Studio is SAS Data and AI Studio and SAS Information Catalog is SAS Data Governance throughout tool descriptions, docs and tests; API paths and tool names are unchanged.
+
+### Known issue
+- **Claude Desktop 2.2553 no longer renders views from a server configured in `claude_desktop_config.json`** (which accepts stdio servers only). Since 22 September 2026 Desktop passes a local server's tools to the chat through a bridge that rebuilds each tool's metadata and drops the view binding, so the chat never asks for the page; the tools work as before and `execute_sas_code` still returns its HTML results link. Reported as [anthropics/claude-ai-mcp#1069](https://github.com/anthropics/claude-ai-mcp/issues/1069). The views render when the HTTP server is added to Claude as a custom connector, with `MCP_STATELESS_HTTP=true`; the README's "Interactive views" section has the table of clients.
+
 ## [1.15.0] - 2026-09-13
 
 ### Added

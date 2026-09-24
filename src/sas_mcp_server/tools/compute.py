@@ -21,7 +21,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
 
     @mcp.tool()
     async def execute_sas_code(
-        sas_code: str, ctx: Context, fresh_session: bool = False
+        sas_code: str, ctx: Context, fresh_session: bool = False, html_results: bool = True
     ) -> dict[str, str]:
         """
         Executes the provided SAS code in the Viya environment and returns information about the completed Job.
@@ -44,14 +44,30 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
             fresh_session: When True, discard any cached compute session first
                 so the code runs with no inherited SAS state (equivalent to
                 calling ``reset_compute_session`` immediately before).
+            html_results: When True (the default), the output is also written
+                as an HTML page, as SAS Data and AI Studio shows it, graphs
+                included, and
+                saved so the person can open it in a browser. The code runs
+                between an ``ods html5`` statement and its close, preceded by
+                ``;*';*";*/;run;quit;`` so that an unterminated statement or
+                quote cannot swallow the close; neither appears in the log.
+                Pass False to submit the code exactly as given.
 
         Returns:
-            A dictionary with four string fields describing the executed job:
+            A dictionary of string fields describing the executed job:
             ``snippet_id`` (the job's snippet identifier), ``state`` (the final
             job state, e.g. ``completed``/``error``/``warning``), ``log`` (the
             full SAS log — execution details, notes, and any errors/warnings),
             and ``listing`` (the SAS listing output, i.e. the intended results
-            when the code ran successfully).
+            when the code ran successfully). When the code printed output and
+            ``html_results`` is on, also ``html_results_url``: the same output
+            as an HTML page, as SAS Data and AI Studio shows it. Put this URL in
+            your reply so the person can open it; they may not see the tool
+            result itself.
+            It opens in their browser after they sign in to SAS Viya, for them
+            only. Do not fetch it yourself: ``listing`` already holds the same
+            output as text. ``html_results_error`` instead says why the page
+            could not be saved.
         """
         logger.info("--- TOOL USED: execute_sas_code ---")
         token = await get_token(ctx)
@@ -60,7 +76,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
             # creates a new cached session transparently after the reset.
             async with make_client(token) as client:
                 await reset_cached_session(client, CONTEXT_NAME, token)
-        return await run_one_snippet(sas_code, "1", token)
+        return await run_one_snippet(sas_code, "1", token, html_results=html_results)
 
     @mcp.tool()
     async def list_compute_contexts(
