@@ -207,6 +207,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         ctx: Context,
         dry_run: bool = False,
         response_format: str = "concise",
+        save_as: bool = False,
         result_report_name: str | None = None,
         result_folder: str | None = None,
         result_name_conflict: str = "rename",
@@ -266,9 +267,15 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
             response_format: ``concise`` (default) returns the created page/object/
                 data-source names+labels; ``detailed`` also echoes the full VA
                 response.
-            result_report_name: Save-as — apply the operations to a NEW report
-                with this name, leaving the source report untouched (atomic
-                template instantiation; pairs with ``changeData``).
+            save_as: False (default) edits the report in place. True applies the
+                operations to a NEW report instead, leaving the source untouched
+                (atomic template instantiation; pairs with ``changeData``), named
+                by ``result_report_name`` and/or placed by ``result_folder`` — at
+                least one is required. This flag alone decides the mode: a
+                ``result_report_name`` or ``result_folder`` given while it is
+                False is refused rather than acted on, so the source can never
+                be edited or cloned by surprise. Blank values count as not given.
+            result_report_name: Save-as name for the new report.
             result_folder: Save-as target folder URI; omit for My Folder.
             result_name_conflict: Save-as name-conflict policy — ``rename``
                 (default), ``abort``, or ``replace``.
@@ -278,14 +285,27 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
                 "status": "invalid_request",
                 "message": f"result_name_conflict must be one of {sorted(report_authoring_registry.CONFLICT_VALUES)}.",
             }
-        for param_name, value in (("result_report_name", result_report_name), ("result_folder", result_folder)):
-            # A blank save-as target would silently fall back to editing the
-            # SOURCE report in place — refuse it instead.
-            if value is not None and not str(value).strip():
-                return {
-                    "status": "invalid_request",
-                    "message": f"{param_name}, if given, must be non-empty (blank would edit the source in place).",
-                }
+        # Blank means not given. A client that must send every parameter (some
+        # host layers do) can only say "no name" with an empty string, and the
+        # explicit save_as flag is what decides the mode, not the name.
+        result_report_name = (result_report_name or "").strip() or None
+        result_folder = (result_folder or "").strip() or None
+        if not save_as and (result_report_name or result_folder):
+            given = " and ".join(
+                p for p, v in (("result_report_name", result_report_name), ("result_folder", result_folder)) if v
+            )
+            return {
+                "status": "invalid_request",
+                "message": (
+                    f"{given} given but save_as is false. Set save_as=true to apply the "
+                    f"operations to a new report, or drop it to edit report '{report_id}' in place."
+                ),
+            }
+        if save_as and not (result_report_name or result_folder):
+            return {
+                "status": "invalid_request",
+                "message": "save_as is true but neither result_report_name nor result_folder is given.",
+            }
         ops = report_authoring_helpers.normalize_operations(operations)
         error = report_authoring_helpers.validate_operations(ops)
         if error is not None:
