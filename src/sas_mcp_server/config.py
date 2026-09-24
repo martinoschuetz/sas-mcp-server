@@ -134,6 +134,17 @@ MAX_EXPORT_INLINE_BYTES = int(os.getenv("MAX_EXPORT_INLINE_BYTES", str(25 * 1024
 # deploy/SCALING.md).
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(100 * 1024 * 1024)))
 
+# --- AIoT data-selection launch defaults ------------------------------------
+# Launching a data selection requires naming the key dimension to pivot on, and
+# the data selection resource exposes no equivalent field — so the value cannot
+# be derived from the selection being launched and has to be supplied. These
+# defaults describe the deployment at VIYA_ENDPOINT (this server targets one),
+# taken from the launches that actually exist there; a site whose data model
+# keys on something else overrides them per call or in .env. Omitting the key
+# dimension is not a safe fallback: it is what made POST .../launches 400.
+AIOT_LAUNCH_KEY_DIM = os.getenv("AIOT_LAUNCH_KEY_DIM", "ASSET")
+AIOT_LAUNCH_TRANSPOSE = env_bool("AIOT_LAUNCH_TRANSPOSE", True)
+
 if not VIYA_ENDPOINT:
     raise ConfigError(
         "VIYA_ENDPOINT is not set. Please set it in the environment variables."
