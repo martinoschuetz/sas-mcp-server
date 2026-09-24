@@ -1325,6 +1325,7 @@ async def execute_operations(
     created = summarize_created(operations, data)
     result: dict[str, Any] = {
         "status": "applied",
+        "mode": "save_as" if save_as else "in_place",
         "report_id": report_id,
         "created": created,
     }
