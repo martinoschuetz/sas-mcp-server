@@ -113,6 +113,15 @@ MCP_LANDING_PAGE = env_bool("MCP_LANDING_PAGE", True)
 # value is unchanged, and a host without the extension sees nothing different.
 # Set false to register no views. The views live in sas_mcp_server.ui.
 MCP_APPS = env_bool("MCP_APPS", True)
+# Stateless HTTP (default: false). The 2026-07-28 protocol revision has no
+# session: each request carries its own protocol version and capabilities, and
+# the handshake is ``server/discover``. FastMCP's default (stateful) transport
+# refuses that request with "Missing session ID", so a client that speaks only
+# the new revision — claude.ai's connector backend does — cannot talk to the
+# server. Set true to serve every request without a session; the legacy
+# ``initialize`` handshake keeps working either way. Costs a fresh transport per
+# request, which is why it is not the default.
+MCP_STATELESS_HTTP = env_bool("MCP_STATELESS_HTTP", False)
 
 _mcp_base_url = os.getenv("MCP_BASE_URL", "").strip()
 # An empty value is the documented .env.sample default. Also ignore values

@@ -13,6 +13,10 @@
   #log.hide-notes li.note { display: none; }
   #log.only-problems li:not(.error):not(.warning) { display: none; }
   #listing { max-height: 560px; font-family: var(--mono); font-size: 12px; white-space: pre; padding: 8px 12px; margin: 0; }
+  /* SAS's own page, styled by SAS: white like a document in either theme, as
+     tall as its content up to the log's height. --page-h is measured on load. */
+  #results { display: block; width: 100%; height: min(var(--page-h, 560px), 560px); border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
+  #results[hidden] { display: none; }
   .tabs button[aria-selected="true"] { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
   #job { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: var(--fs-sm); margin-bottom: 8px; }
   #job dt { color: var(--ink-2); } #job dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
@@ -30,7 +34,11 @@
   <div class="toolbar">
     <span class="tabs row" role="tablist">
       <button id="tab-log" type="button" role="tab" aria-selected="true">Log</button>
+      <button id="tab-results" type="button" role="tab" aria-selected="false" hidden>Results</button>
       <button id="tab-listing" type="button" role="tab" aria-selected="false" hidden>Listing</button>
+    </span>
+    <span class="row" id="results-tools" hidden>
+      <a id="open-results" href="#" target="_blank" rel="noopener noreferrer" hidden>Open in browser ↗</a>
     </span>
     <span class="row" id="log-tools">
       <button id="prev-problem" type="button" title="Previous error or warning">▲</button>
@@ -44,6 +52,11 @@
   </div>
   <div id="log" class="scroll fill"><div class="empty">Waiting for the log…</div></div>
   <pre id="listing" class="scroll fill" hidden></pre>
+  <!-- No allow-scripts: the page's own tooltip script stays inert, and nothing
+       in it can reach this view. allow-same-origin only lets the view measure
+       the page's height. -->
+  <iframe id="results" class="fill" sandbox="allow-same-origin" title="HTML results" hidden></iframe>
+  <div id="results-note" class="empty" hidden></div>
 </div>
 <script type="module">
   const { el, fmt } = sas;
@@ -105,11 +118,62 @@
   }
 
   function showTab(which) {
-    $("tab-log").setAttribute("aria-selected", String(which === "log"));
-    $("tab-listing").setAttribute("aria-selected", String(which === "listing"));
+    for (const tab of ["log", "results", "listing"]) $(`tab-${tab}`).setAttribute("aria-selected", String(which === tab));
     $("log").hidden = which !== "log";
     $("log-tools").hidden = which !== "log";
     $("listing").hidden = which !== "listing";
+    $("results-tools").hidden = which !== "results";
+    $("results").hidden = which !== "results" || !results?.loaded;
+    $("results-note").hidden = which !== "results" || !!results?.loaded;
+    if (which === "results") loadResults();
+  }
+
+  // --- HTML results --------------------------------------------------------
+  // execute_sas_code saves SAS's own HTML page to the Files service and returns
+  // its link and id. The page is fetched through download_file only when the
+  // tab is first shown; where the deployment withheld that tool, the tab still
+  // offers the link.
+  let results = null;
+
+  function resultsNote(text) {
+    $("results-note").textContent = text;
+  }
+
+  async function loadResults() {
+    if (!results || results.loaded || results.loading) return;
+    if (!sas.can("download_file")) {
+      resultsNote("The page cannot be shown here. Open it in your browser instead.");
+      return;
+    }
+    results.loading = true;
+    resultsNote("Loading the results…");
+    try {
+      const page = await sas.call("download_file", { file_id: results.fileId });
+      const frame = $("results");
+      frame.onload = () => {
+        const height = frame.contentDocument?.documentElement?.scrollHeight;
+        if (height) frame.style.setProperty("--page-h", `${height + 2}px`);
+      };
+      frame.srcdoc = typeof page === "string" ? page : String(page ?? "");
+      results.loaded = true;
+      if ($("tab-results").getAttribute("aria-selected") === "true") showTab("results");
+    } catch (err) {
+      resultsNote(`Could not load the results: ${sas.errorText(err)}`);
+    } finally {
+      results.loading = false;
+    }
+  }
+
+  function setResults(data) {
+    results = data.html_results_file_id ? { url: data.html_results_url, fileId: data.html_results_file_id, loaded: false } : null;
+    $("tab-results").hidden = !results;
+    $("results").removeAttribute("srcdoc");
+    $("results").style.removeProperty("--page-h");
+    const link = $("open-results");
+    link.hidden = !results?.url;
+    link.href = results?.url || "#";
+    link.title = results?.url || "";
+    if (data.html_results_error) sas.banner(data.html_results_error, "warn");
   }
 
   function renderJob(data) {
@@ -162,7 +226,7 @@
       $("refresh").hidden = false;
       return;
     }
-    // execute_sas_code: {snippet_id, state, log, listing}
+    // execute_sas_code: {snippet_id, state, log, listing, html_results_url?, html_results_file_id?}
     if (!data || typeof data !== "object") {
       renderLog(String(data ?? ""));
       return;
@@ -172,11 +236,21 @@
     const listing = (data.listing || "").trim();
     $("tab-listing").hidden = !listing;
     $("listing").textContent = listing;
-    if (listing && !/^ERROR/m.test(data.log || "") && data.state === "completed") showTab("listing"); else showTab("log");
+    setResults(data);
+    const clean = !/^ERROR/m.test(data.log || "") && data.state === "completed";
+    showTab(clean && results ? "results" : clean && listing ? "listing" : "log");
   }
 
   $("tab-log").addEventListener("click", () => showTab("log"));
+  $("tab-results").addEventListener("click", () => showTab("results"));
   $("tab-listing").addEventListener("click", () => showTab("listing"));
+  // A view sits in a sandboxed frame where a plain link may do nothing; hosts
+  // that can open one for the person are asked to.
+  $("open-results").addEventListener("click", async (e) => {
+    if (!results?.url || !sas.canOpenLinks) return;
+    e.preventDefault();
+    if (!(await sas.openLink(results.url))) sas.banner(`The host did not open the link: ${results.url}`, "warn");
+  });
   $("next-problem").addEventListener("click", () => jump(cursor + 1));
   $("prev-problem").addEventListener("click", () => jump(cursor - 1));
   $("only-problems").addEventListener("change", (e) => $("log").classList.toggle("only-problems", e.target.checked));

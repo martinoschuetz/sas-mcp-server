@@ -25,6 +25,7 @@ from .config import (
     MCP_BASE_URL,
     MCP_LANDING_PAGE,
     MCP_READ_ONLY,
+    MCP_STATELESS_HTTP,
     SERVER_NAME,
     VIYA_ENDPOINT,
     viya_auth,
@@ -145,4 +146,4 @@ if MCP_LANDING_PAGE:
         StarletteMiddleware(LandingPageMiddleware, path=MCP_PATH, facts=_landing_facts)
     )
 
-app = mcp.http_app(middleware=_http_middleware or None)
+app = mcp.http_app(middleware=_http_middleware or None, stateless_http=MCP_STATELESS_HTTP)

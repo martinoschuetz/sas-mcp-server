@@ -13,8 +13,8 @@ rather than of the data.
 
 Two of the glossary's shapes need translating before a caller can work with them:
 
-* **A term has two identities** — a Glossary object and an Information Catalog
-  entity, with different ids, joined by the entity's ``resourceId``. See
+* **A term has two identities** — a Glossary object and a SAS Data Governance
+  catalog entity, with different ids, joined by the entity's ``resourceId``. See
   :func:`glossary_id_from_resource`.
 * **Custom attributes are keyed by attribute-definition UUID**, with the human
   label held on the *term type*, and each attribute type has its own wire format

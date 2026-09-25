@@ -1550,7 +1550,7 @@ async def test_prompt_renders_through_live_server(integration_mcp_server, prompt
 
 
 # -----------------------------------------------------------------------
-# Information Catalog Workflows
+# SAS Data Governance Catalog Workflows
 # -----------------------------------------------------------------------
 
 
@@ -1569,7 +1569,7 @@ async def test_catalog_agents_workflow(integration_mcp_server):
         try:
             agents = (await client.call_tool("catalog_list_agents", {"limit": 100})).data
         except Exception as e:
-            pytest.skip(f"Information Catalog not available on this Viya: {e}")
+            pytest.skip(f"SAS Data Governance catalog not available on this Viya: {e}")
         assert isinstance(agents, list)
 
         public_agent = next(
@@ -1612,7 +1612,7 @@ async def test_catalog_table_profile_loop(integration_mcp_server):
         try:
             results = (await client.call_tool("catalog_search", {"query": "Name:HMEQ", "limit": 25})).data
         except Exception as e:
-            pytest.skip(f"Information Catalog not available on this Viya: {e}")
+            pytest.skip(f"SAS Data Governance catalog not available on this Viya: {e}")
 
         # Exercise the search helper while we are here.
         helper = (await client.call_tool("catalog_search_helper", {})).data
@@ -2452,7 +2452,7 @@ def _sample_attribute_value(attribute: dict):
 
 
 async def _wait_for_catalog_entity(client, term_id: str, attempts: int = 12) -> bool:
-    """Poll until a new glossary term is mirrored into the Information Catalog.
+    """Poll until a new glossary term is mirrored into the SAS Data Governance catalog.
 
     A term is created in the glossary service and copied into the catalog
     asynchronously; nothing can be assigned to it until that lands, so the
@@ -2581,7 +2581,7 @@ async def test_glossary_workflow(integration_mcp_server):
                     )
                 ).data
             except Exception as exc:  # noqa: BLE001
-                pytest.skip(f"Information Catalog not available: {exc}")
+                pytest.skip(f"SAS Data Governance catalog not available: {exc}")
             table_hit = next((h for h in hits["items"] if h.get("resource_uri")), None)
             if table_hit is None:
                 pytest.skip("No catalogued HMEQ table to assign a term to on this Viya")
@@ -2597,7 +2597,7 @@ async def test_glossary_workflow(integration_mcp_server):
             column_name = columns["columns"][0]["column_name"]
 
             if not await _wait_for_catalog_entity(client, created_id):
-                pytest.skip("Term was not mirrored into the Information Catalog in time")
+                pytest.skip("Term was not mirrored into the SAS Data Governance catalog in time")
 
             assignment = (
                 await client.call_tool(

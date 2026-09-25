@@ -1,7 +1,7 @@
 # Copyright © 2025, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tier 1 — Data Discovery tools (Information Catalog, compute & CAS metadata)."""
+"""Tier 1 — Data Discovery tools (SAS Data Governance catalog, compute & CAS metadata)."""
 
 import contextlib
 import uuid
@@ -106,7 +106,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         limit: int = 20,
         start: int = 0,
     ) -> dict[str, Any]:
-        """Search the SAS Information Catalog for assets (tables, columns, reports, ...).
+        """Search the SAS Data Governance catalog for assets (tables, columns, reports, ...).
 
         The catalog is a metadata index across the whole Viya environment, so this
         finds assets without needing to know their server/library first. Each hit
@@ -241,7 +241,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
     async def catalog_list_agents(
         ctx: Context, limit: int = 50, start: int = 0, filter_name: str | None = None
     ) -> list[dict[str, Any]]:
-        """List SAS Information Catalog discovery agents.
+        """List SAS Data Governance discovery agents.
 
         Agents crawl a data source (server/library) to discover assets and collect
         their metadata into the catalog. Use ``catalog_run_agent`` to start one and

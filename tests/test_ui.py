@@ -111,7 +111,29 @@ async def test_view_tools_advertise_a_resource_that_exists():
     for tool, uri in advertised.items():
         assert uri in by_uri, f"{tool} points at {uri}, which is not a resource"
         assert by_uri[uri].mime_type == UI_MIME_TYPE
-    assert {str(r.uri) for r in resources} == set(advertised.values())
+        # The advertised URI carries the fingerprint; the plain URI is served
+        # too, for hosts still holding a listing they cached earlier.
+        assert uri != ui.resource_uri(tool) and ui.resource_uri(tool) in by_uri
+    assert {str(r.uri) for r in resources} == set(advertised.values()) | {
+        ui.resource_uri(t) for t in advertised
+    }
+
+
+def test_fingerprint_changes_with_the_page_and_only_then(tmp_path, monkeypatch):
+    """A host caches a page by URI, so anything that alters the page must alter
+    the URI, and nothing else may — or a valid cache is thrown away."""
+    base = ui.fingerprint("1.0", [0, 1, 2], False)
+    assert re.fullmatch(r"[0-9a-f]{8}", base)
+    assert ui.fingerprint("1.0", [2, 1, 0], False) == base, "tier order is not a change"
+    assert ui.fingerprint("1.1", [0, 1, 2], False) != base, "the version is stamped into the page"
+    assert ui.fingerprint("1.0", [0, 1], False) != base, "tiers decide SAS_VIEW.can"
+    assert ui.fingerprint("1.0", [0, 1, 2], True) != base, "so does read-only"
+    # Editing any file the page is assembled from changes it.
+    original = ui._package_files
+    monkeypatch.setattr(ui, "_package_files", lambda root, prefix="": [
+        (n, b + b"/* edited */" if n.endswith("shell.css") else b) for n, b in original(root, prefix)
+    ])
+    assert ui.fingerprint("1.0", [0, 1, 2], False) != base
 
 
 async def test_switch_off_removes_metadata_and_resources():
@@ -209,6 +231,32 @@ async def test_landing_page_marks_view_tools_as_interactive():
     )
     assert not [t for g in facts_off.tiers for t in g.tools if t.interactive]
     assert '<em class="view">' not in render_page(facts_off, nonce="n")
+
+
+async def test_the_binding_is_repeated_on_the_call_result_and_the_page():
+    """Hosts differ in where they read a tool's view binding: the listing, the
+    call result, or the page itself. Claude Desktop's local-server bridge
+    rewrites the listing's ``_meta``, so the other two are what survive."""
+    mcp = FastMCP("binding-test")
+
+    @mcp.tool(name="list_glossary_terms")
+    async def stub() -> dict:
+        return {"items": []}
+
+    @mcp.tool(name="list_caslibs")
+    async def plain() -> dict:
+        return {"items": []}
+
+    ui.register_views(mcp, ["list_glossary_terms", "list_caslibs"], version="t")
+    uri = ui.resource_uri("list_glossary_terms")
+    async with Client(mcp) as client:
+        viewed = await client.call_tool_mcp("list_glossary_terms", {})
+        assert viewed.meta["ui"]["resourceUri"] == uri
+        assert viewed.meta["ui/resourceUri"] == uri
+        plain_meta = (await client.call_tool_mcp("list_caslibs", {})).meta or {}
+        assert "ui" not in plain_meta and "ui/resourceUri" not in plain_meta, "no view, no binding"
+        page = (await client.session.read_resource(uri)).contents[0]
+        assert page.meta == {"ui": {"csp": {"connectDomains": [], "resourceDomains": []}}}
 
 
 async def test_reading_the_resource_returns_the_document():

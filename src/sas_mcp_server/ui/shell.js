@@ -5,8 +5,8 @@
 // input and result as they arrive, applies the host's theme, reports the
 // view's size, owns the fullscreen toggle, and wraps the few host calls a
 // view needs — call a tool, post a message into the chat, hand the model
-// context — with the result parsing that FastMCP's shapes require. Views
-// never talk to the bridge directly.
+// context, open a link — with the result parsing that FastMCP's shapes
+// require. Views never talk to the bridge directly.
 const bridge = globalThis.__MCP_EXT_APPS__;
 const meta = globalThis.SAS_VIEW || { tool: "", view: "", title: "SAS Viya", version: "" };
 // Which of this view's companion tools the deployment actually registered.
@@ -166,6 +166,22 @@ const sas = {
       await app.updateModelContext(params);
     } catch (err) {
       console.info("model context not accepted by this host", err?.message || err);
+    }
+  },
+  /** Can this host open a URL for the person? Views sit in a sandboxed
+   *  frame, so a plain <a target=_blank> may do nothing; ask first. */
+  get canOpenLinks() {
+    return Boolean(app.getHostCapabilities()?.openLinks);
+  },
+  /** Ask the host to open *url* in the person's browser. Resolves false
+   *  when it would not. */
+  async openLink(url) {
+    try {
+      const r = await app.openLink({ url });
+      return !r?.isError;
+    } catch (err) {
+      console.info("link not opened by this host", err?.message || err);
+      return false;
     }
   },
   /** Ask the host for fullscreen, or back to inline from it. The host has

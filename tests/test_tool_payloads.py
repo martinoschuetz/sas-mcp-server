@@ -1054,6 +1054,7 @@ async def test_apply_report_operations_save_as(mcp_server_with_mock_client):
                 {
                     "report_id": "src-1",
                     "operations": [{"addPage": {"pageName": "SaveAsPage"}}],
+                    "save_as": True,
                     "result_report_name": "From Template",
                 },
             )
@@ -1065,6 +1066,7 @@ async def test_apply_report_operations_save_as(mcp_server_with_mock_client):
     # Save-as still uses the SOURCE report's ETag handshake.
     assert mock_client.put.call_args[1]["headers"]["If-Match"] == '"e1"'
     assert result["status"] == "applied"
+    assert result["mode"] == "save_as"
     assert result["saved_as"]["id"] == "new-42"
     assert result["saved_as"]["name"] == "From Template (2)"
     assert result["saved_as"]["open_url"].endswith("/reports/reports/new-42")
@@ -1243,8 +1245,23 @@ async def test_get_castable_columns_404_is_structured(mcp_server_with_mock_clien
     assert "promote_table_to_memory" in result["message"]
 
 
-async def test_apply_report_operations_blank_save_as_rejected(mcp_server_with_mock_client):
+# --- save_as is the only switch between editing in place and a new report ----
+# A host layer that must send every parameter can only say "no name" with a
+# blank, and a model asked to fill a required slot invents a name; the mode is
+# therefore decided by the flag alone, and a contradiction is refused, never
+# resolved into a surprise clone or a surprise in-place edit.
+
+
+def _applied_in_place(mock_client):
+    resp = _make_mock_response({"operations": [{"name": "vi1", "label": "P", "status": "Success"}]})
+    resp.content = b"x"
+    mock_client.get.return_value.headers = {"etag": '"e1"'}
+    mock_client.put.return_value = resp
+
+
+async def test_apply_report_operations_blank_save_as_fields_mean_in_place(mcp_server_with_mock_client):
     mcp, mock_client = mcp_server_with_mock_client
+    _applied_in_place(mock_client)
     async with Client(mcp) as client:
         result = (
             await client.call_tool(
@@ -1253,13 +1270,89 @@ async def test_apply_report_operations_blank_save_as_rejected(mcp_server_with_mo
                     "report_id": "src-1",
                     "operations": [{"addPage": {"pageName": "P"}}],
                     "result_report_name": "  ",
+                    "result_folder": "",
                 },
             )
         ).data
 
-    # A blank save-as name would silently edit the source in place.
+    assert result["status"] == "applied"
+    assert result["mode"] == "in_place"
+    assert "saved_as" not in result
+    body = json.loads(mock_client.put.call_args[1]["content"])
+    assert "resultReportName" not in body and "resultFolder" not in body and "resultNameConflict" not in body
+
+
+async def test_apply_report_operations_name_without_save_as_is_refused(mcp_server_with_mock_client):
+    """The field report's shape: a layer or model supplies a name nobody asked for."""
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool(
+                "apply_report_operations",
+                {
+                    "report_id": "src-1",
+                    "operations": [{"addPage": {"pageName": "P"}}],
+                    "result_report_name": "Invented by the model",
+                },
+            )
+        ).data
+
     assert result["status"] == "invalid_request"
+    assert "save_as" in result["message"] and "in place" in result["message"]
     mock_client.put.assert_not_called()
+
+
+async def test_apply_report_operations_folder_alone_does_not_save_as(mcp_server_with_mock_client):
+    """A folder used to switch the mode on its own; now it needs the flag too."""
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool(
+                "apply_report_operations",
+                {
+                    "report_id": "src-1",
+                    "operations": [{"addPage": {"pageName": "P"}}],
+                    "result_folder": "/folders/folders/abc",
+                },
+            )
+        ).data
+
+    assert result["status"] == "invalid_request"
+    assert "result_folder" in result["message"]
+    mock_client.put.assert_not_called()
+
+
+async def test_apply_report_operations_save_as_needs_a_target(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    async with Client(mcp) as client:
+        result = (
+            await client.call_tool(
+                "apply_report_operations",
+                {"report_id": "src-1", "operations": [{"addPage": {"pageName": "P"}}], "save_as": True},
+            )
+        ).data
+
+    assert result["status"] == "invalid_request"
+    assert "neither" in result["message"]
+    mock_client.put.assert_not_called()
+
+
+async def test_apply_report_operations_default_is_in_place(mcp_server_with_mock_client):
+    mcp, mock_client = mcp_server_with_mock_client
+    _applied_in_place(mock_client)
+    async with Client(mcp) as client:
+        tools = {t.name: t for t in await client.list_tools()}
+        result = (
+            await client.call_tool(
+                "apply_report_operations",
+                {"report_id": "src-1", "operations": [{"addPage": {"pageName": "P"}}]},
+            )
+        ).data
+
+    schema = tools["apply_report_operations"].input_schema
+    assert schema["properties"]["save_as"]["default"] is False
+    assert "save_as" not in schema.get("required", [])
+    assert result["status"] == "applied" and result["mode"] == "in_place"
 
 
 async def test_apply_report_operations_failure_parses_operation_errors(mcp_server_with_mock_client):
@@ -2285,7 +2378,7 @@ async def test_execute_sas_code_request(mcp_server_with_mock_client):
         async with Client(mcp) as client:
             result = await client.call_tool("execute_sas_code", {"sas_code": "data test; x=1; run;"})
 
-        mock_run.assert_called_once_with("data test; x=1; run;", "1", "test-token")
+        mock_run.assert_called_once_with("data test; x=1; run;", "1", "test-token", html_results=True)
         assert result.data == {
             "snippet_id": "1",
             "state": "completed",
@@ -2310,7 +2403,20 @@ async def test_execute_sas_code_fresh_session_resets_first(mcp_server_with_mock_
             )
         mock_reset.assert_awaited_once()
         assert mock_reset.await_args[0][0] == "CLIENT"
-        mock_run.assert_called_once_with("data _null_; run;", "1", "test-token")
+        mock_run.assert_called_once_with("data _null_; run;", "1", "test-token", html_results=True)
+
+
+async def test_execute_sas_code_html_results_can_be_turned_off(mcp_server_with_mock_client):
+    """html_results is on by default; off submits the code exactly as given."""
+    mcp, _ = mcp_server_with_mock_client
+    with patch("sas_mcp_server.tools.compute.run_one_snippet") as mock_run:
+        mock_run.return_value = {"snippet_id": "1", "state": "completed", "log": "", "listing": ""}
+        async with Client(mcp) as client:
+            tools = {t.name: t for t in await client.list_tools()}
+            await client.call_tool("execute_sas_code", {"sas_code": "data _null_; run;", "html_results": False})
+        assert tools["execute_sas_code"].input_schema["properties"]["html_results"]["default"] is True
+        assert "html_results" not in tools["execute_sas_code"].input_schema.get("required", [])
+        mock_run.assert_called_once_with("data _null_; run;", "1", "test-token", html_results=False)
 
 
 async def test_execute_sas_code_default_keeps_session(mcp_server_with_mock_client):
@@ -2954,7 +3060,7 @@ async def test_reset_compute_session_no_active_session(mcp_server_with_mock_clie
 
 
 # -----------------------------------------------------------------------
-# Information Catalog (Tier 7)
+# SAS Data Governance catalog (Tier 7)
 # -----------------------------------------------------------------------
 
 
