@@ -19,178 +19,274 @@ def register_prompts(mcp: FastMCP) -> None:
         filter_instruction = ""
         if severity_filter:
             filter_instruction = f"\nFocus only on {severity_filter}-level messages."
-        return [Message(role="user", content=(
-            f"Analyze the following SAS log output. Identify all errors, warnings, and notes. "
-            f"For each issue, explain the root cause and suggest a fix.{filter_instruction}\n\n"
-            f"```\n{log_text}\n```"
-        ))]
+        return [
+            Message(
+                role="user",
+                content=(
+                    f"Analyze the following SAS log output. Identify all errors, warnings, and notes. "
+                    f"For each issue, explain the root cause and suggest a fix.{filter_instruction}\n\n"
+                    f"```\n{log_text}\n```"
+                ),
+            )
+        ]
 
     @mcp.prompt()
-    def explore_dataset(library: str, dataset: str,
-                        focus_vars: str | None = None) -> list[Message]:
+    def explore_dataset(library: str, dataset: str, focus_vars: str | None = None) -> list[Message]:
         """Generate comprehensive SAS data-profiling code (CONTENTS, MEANS, FREQ, UNIVARIATE)."""
         vars_instruction = ""
         if focus_vars:
             vars_instruction = f"\nFocus the analysis on these variables: {focus_vars}."
-        return [Message(role="user", content=(
-            f"Generate SAS code to comprehensively explore the dataset {library}.{dataset}. "
-            f"Include PROC CONTENTS, PROC MEANS (for numeric variables), PROC FREQ "
-            f"(for categorical variables), and PROC UNIVARIATE (for distribution analysis).{vars_instruction}\n\n"
-            f"Make the code production-ready with proper titles and labels."
-        ))]
+        return [
+            Message(
+                role="user",
+                content=(
+                    f"Generate SAS code to comprehensively explore the dataset {library}.{dataset}. "
+                    f"Include PROC CONTENTS, PROC MEANS (for numeric variables), PROC FREQ "
+                    f"(for categorical variables), and PROC UNIVARIATE (for distribution analysis).{vars_instruction}\n\n"
+                    f"Make the code production-ready with proper titles and labels."
+                ),
+            )
+        ]
 
     @mcp.prompt()
-    def data_quality_check(library: str, dataset: str,
-                           key_variables: str | None = None,
-                           business_rules: str | None = None) -> list[Message]:
+    def data_quality_check(
+        library: str, dataset: str, key_variables: str | None = None, business_rules: str | None = None
+    ) -> list[Message]:
         """Generate SAS code for a data quality assessment (completeness, uniqueness, validity)."""
         extras = ""
         if key_variables:
             extras += f"\nKey variables to check: {key_variables}."
         if business_rules:
             extras += f"\nBusiness rules to validate: {business_rules}."
-        return [Message(role="user", content=(
-            f"Generate SAS code to perform a data quality assessment on {library}.{dataset}. "
-            f"Check for: completeness (missing values), uniqueness (duplicate keys), "
-            f"validity (out-of-range values), and consistency.{extras}\n\n"
-            f"Produce a summary report with DQ scores."
-        ))]
+        return [
+            Message(
+                role="user",
+                content=(
+                    f"Generate SAS code to perform a data quality assessment on {library}.{dataset}. "
+                    f"Check for: completeness (missing values), uniqueness (duplicate keys), "
+                    f"validity (out-of-range values), and consistency.{extras}\n\n"
+                    f"Produce a summary report with DQ scores."
+                ),
+            )
+        ]
 
     @mcp.prompt()
-    def statistical_analysis(analysis_type: str, response_variable: str,
-                             predictors: str, dataset: str) -> list[Message]:
+    def statistical_analysis(
+        analysis_type: str, response_variable: str, predictors: str, dataset: str
+    ) -> list[Message]:
         """Set up a complete SAS statistical analysis workflow with diagnostics."""
-        return [Message(role="user", content=(
-            f"Generate SAS code for a {analysis_type} analysis.\n\n"
-            f"- Dataset: {dataset}\n"
-            f"- Response variable: {response_variable}\n"
-            f"- Predictor variables: {predictors}\n\n"
-            f"Include: data preparation, model fitting, diagnostic plots, "
-            f"assumption checking, and results interpretation comments."
-        ))]
+        return [
+            Message(
+                role="user",
+                content=(
+                    f"Generate SAS code for a {analysis_type} analysis.\n\n"
+                    f"- Dataset: {dataset}\n"
+                    f"- Response variable: {response_variable}\n"
+                    f"- Predictor variables: {predictors}\n\n"
+                    f"Include: data preparation, model fitting, diagnostic plots, "
+                    f"assumption checking, and results interpretation comments."
+                ),
+            )
+        ]
 
     @mcp.prompt()
-    def optimize_sas_code(sas_code: str,
-                          optimization_focus: str | None = None) -> list[Message]:
+    def optimize_sas_code(sas_code: str, optimization_focus: str | None = None) -> list[Message]:
         """Review and optimize SAS code for performance, readability, or both."""
         focus = optimization_focus or "performance and readability"
-        return [Message(role="user", content=(
-            f"Review and optimize the following SAS code. Focus on: {focus}.\n\n"
-            f"For each suggestion:\n"
-            f"1. Explain what the current code does\n"
-            f"2. What the issue is\n"
-            f"3. The optimized replacement\n"
-            f"4. Expected improvement\n\n"
-            f"```sas\n{sas_code}\n```"
-        ))]
+        return [
+            Message(
+                role="user",
+                content=(
+                    f"Review and optimize the following SAS code. Focus on: {focus}.\n\n"
+                    f"For each suggestion:\n"
+                    f"1. Explain what the current code does\n"
+                    f"2. What the issue is\n"
+                    f"3. The optimized replacement\n"
+                    f"4. Expected improvement\n\n"
+                    f"```sas\n{sas_code}\n```"
+                ),
+            )
+        ]
 
     @mcp.prompt()
-    def explain_sas_code(sas_code: str,
-                         audience_level: str | None = None) -> list[Message]:
+    def explain_sas_code(sas_code: str, audience_level: str | None = None) -> list[Message]:
         """Provide a block-by-block explanation of SAS code, tailored to skill level."""
         level = audience_level or "intermediate"
-        return [Message(role="user", content=(
-            f"Explain the following SAS code block by block, tailored for a {level}-level "
-            f"SAS programmer.\n\n"
-            f"For each block:\n"
-            f"- What it does\n"
-            f"- Key SAS concepts used\n"
-            f"- Any potential issues or improvements\n\n"
-            f"```sas\n{sas_code}\n```"
-        ))]
+        return [
+            Message(
+                role="user",
+                content=(
+                    f"Explain the following SAS code block by block, tailored for a {level}-level "
+                    f"SAS programmer.\n\n"
+                    f"For each block:\n"
+                    f"- What it does\n"
+                    f"- Key SAS concepts used\n"
+                    f"- Any potential issues or improvements\n\n"
+                    f"```sas\n{sas_code}\n```"
+                ),
+            )
+        ]
 
     @mcp.prompt()
-    def sas_macro_builder(macro_name: str, purpose: str,
-                          parameters: str | None = None) -> list[Message]:
+    def sas_macro_builder(macro_name: str, purpose: str, parameters: str | None = None) -> list[Message]:
         """Build a production-quality reusable SAS macro."""
         params_instruction = ""
         if parameters:
             params_instruction = f"\nRequired parameters: {parameters}."
-        return [Message(role="user", content=(
-            f"Create a production-quality SAS macro named %{macro_name}.\n\n"
-            f"Purpose: {purpose}{params_instruction}\n\n"
-            f"Requirements:\n"
-            f"- Include parameter validation\n"
-            f"- Add helpful error messages\n"
-            f"- Include a header comment block with usage examples\n"
-            f"- Use %LOCAL for all internal macro variables\n"
-            f"- Follow SAS macro best practices"
-        ))]
+        return [
+            Message(
+                role="user",
+                content=(
+                    f"Create a production-quality SAS macro named %{macro_name}.\n\n"
+                    f"Purpose: {purpose}{params_instruction}\n\n"
+                    f"Requirements:\n"
+                    f"- Include parameter validation\n"
+                    f"- Add helpful error messages\n"
+                    f"- Include a header comment block with usage examples\n"
+                    f"- Use %LOCAL for all internal macro variables\n"
+                    f"- Follow SAS macro best practices"
+                ),
+            )
+        ]
 
     @mcp.prompt()
-    def generate_report(dataset: str,
-                        report_type: str | None = None,
-                        output_format: str | None = None) -> list[Message]:
+    def generate_report(
+        dataset: str, report_type: str | None = None, output_format: str | None = None
+    ) -> list[Message]:
         """Generate SAS ODS/PROC REPORT code for formatted output."""
         rtype = report_type or "summary"
         fmt = output_format or "HTML"
-        return [Message(role="user", content=(
-            f"Generate SAS code to create a {rtype} report from the dataset {dataset} "
-            f"in {fmt} format.\n\n"
-            f"Use ODS destinations and PROC REPORT (or PROC TABULATE as appropriate). "
-            f"Include:\n"
-            f"- Professional formatting and styling\n"
-            f"- Titles and footnotes\n"
-            f"- Appropriate summary statistics\n"
-            f"- Proper ODS open/close statements"
-        ))]
+        return [
+            Message(
+                role="user",
+                content=(
+                    f"Generate SAS code to create a {rtype} report from the dataset {dataset} "
+                    f"in {fmt} format.\n\n"
+                    f"Use ODS destinations and PROC REPORT (or PROC TABULATE as appropriate). "
+                    f"Include:\n"
+                    f"- Professional formatting and styling\n"
+                    f"- Titles and footnotes\n"
+                    f"- Appropriate summary statistics\n"
+                    f"- Proper ODS open/close statements"
+                ),
+            )
+        ]
 
     @mcp.prompt()
-    def build_va_dashboard(table: str,
-                           audience: str | None = None,
-                           focus: str | None = None) -> list[Message]:
+    def build_va_dashboard(table: str, audience: str | None = None, focus: str | None = None) -> list[Message]:
         """Build a polished multi-page Visual Analytics dashboard from a CAS table,
         using the report-authoring tools (discover → shape → structure → polish → verify)."""
         audience_line = f"\nAudience: {audience} — match depth and terminology to them." if audience else ""
         focus_line = f"\nFocus / key questions: {focus}." if focus else ""
-        return [Message(role="user", content=(
-            f"Build a polished SAS Visual Analytics dashboard from the CAS table {table}, "
-            f"using the report-authoring tools (describe_report_objects, create_report, "
-            f"apply_report_operations, get_report_outline, export_report).{audience_line}{focus_line}\n\n"
-            f"Work through these stages in order:\n\n"
-            f"1. DISCOVER — get_castable_columns on {table}; classify each column (measure, "
-            f"category, date, geography); pick 3-5 headline KPIs; sketch a page plan "
-            f"(overview -> detail -> data) BEFORE creating anything. Use "
-            f"describe_report_objects()'s intent_map to pick a deliberate chart variety.\n\n"
-            f"2. SHAPE THE DATA — in addData, use dataItems to rename every used column to a "
-            f"human label, apply formats (DOLLAR/PERCENT/COMMA), set the right aggregation "
-            f"(average for rates and prices — never sum a ratio), and classify geography "
-            f"columns. See describe_report_objects(operation='addData'). After a rename, "
-            f"dataRoles must use the NEW label.\n\n"
-            f"3. STRUCTURE — build the skeleton in ONE atomic create_report: pages with titles "
-            f"(addPage.title renders as a text band at the top of the page body — page headers "
-            f"accept only controls), a KPI row (standardContainer + keyValue tiles), and the "
-            f"main visuals. Then chain apply_report_operations calls for side-by-side layout "
-            f"via relativeToObject, targeting the object names each result returns (same-batch "
-            f"forward references fail; placement is write-once). The page body auto-flows "
-            f"VERTICALLY — objects that are merely page-placed render as one tall stack, so "
-            f"tiles go side by side in the container and charts pair up left/right.\n\n"
-            f"4. POLISH — give every visual a meaningful options.object.title at add time, "
-            f"EXCEPT keyValue tiles (they render their measure's label prominently — name the "
-            f"measure well in dataItems instead); 3-7 objects per page; pie charts only for "
-            f"five or fewer slices; detail rows in a listTable on their own page.\n\n"
-            f"5. VERIFY — after each structural change, get_report_outline for the structure "
-            f"and export_report (png, one page label at a time — whole-report png can render "
-            f"blank) to LOOK at the result; iterate until the overview page answers the key "
-            f"questions in five seconds."
-        ))]
+        return [
+            Message(
+                role="user",
+                content=(
+                    f"Build a polished SAS Visual Analytics dashboard from the CAS table {table}, "
+                    f"using the report-authoring tools (describe_report_objects, create_report, "
+                    f"apply_report_operations, get_report_outline, export_report).{audience_line}{focus_line}\n\n"
+                    f"Work through these stages in order:\n\n"
+                    f"1. DISCOVER — get_castable_columns on {table}; classify each column (measure, "
+                    f"category, date, geography); pick 3-5 headline KPIs; sketch a page plan "
+                    f"(overview -> detail -> data) BEFORE creating anything. Use "
+                    f"describe_report_objects()'s intent_map to pick a deliberate chart variety.\n\n"
+                    f"2. SHAPE THE DATA — in addData, use dataItems to rename every used column to a "
+                    f"human label, apply formats (DOLLAR/PERCENT/COMMA), set the right aggregation "
+                    f"(average for rates and prices — never sum a ratio), and classify geography "
+                    f"columns. See describe_report_objects(operation='addData'). After a rename, "
+                    f"dataRoles must use the NEW label.\n\n"
+                    f"3. STRUCTURE — build the skeleton in ONE atomic create_report: pages with titles "
+                    f"(addPage.title renders as a text band at the top of the page body — page headers "
+                    f"accept only controls), a KPI row (standardContainer + keyValue tiles), and the "
+                    f"main visuals. Then chain apply_report_operations calls for side-by-side layout "
+                    f"via relativeToObject, targeting the object names each result returns (same-batch "
+                    f"forward references fail; placement is write-once). The page body auto-flows "
+                    f"VERTICALLY — objects that are merely page-placed render as one tall stack, so "
+                    f"tiles go side by side in the container and charts pair up left/right.\n\n"
+                    f"4. POLISH — give every visual a meaningful options.object.title at add time, "
+                    f"EXCEPT keyValue tiles (they render their measure's label prominently — name the "
+                    f"measure well in dataItems instead); 3-7 objects per page; pie charts only for "
+                    f"five or fewer slices; detail rows in a listTable on their own page.\n\n"
+                    f"5. VERIFY — after each structural change, get_report_outline for the structure "
+                    f"and export_report (png, one page label at a time — whole-report png can render "
+                    f"blank) to LOOK at the result; iterate until the overview page answers the key "
+                    f"questions in five seconds."
+                ),
+            )
+        ]
 
     @mcp.prompt()
     def fqa_best_practices() -> list[Message]:
         """Provide the core business rules and guidelines for working with SAS FQA Data Selections and Analyses."""
         # We dynamically read the rule file so that any future changes to .agents/rules/fqa.md are reflected instantly.
         import os
-        rule_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.agents', 'rules', 'fqa.md')
+
+        rule_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".agents", "rules", "fqa.md"
+        )
         try:
-            with open(rule_path, 'r', encoding='utf-8') as f:
+            with open(rule_path, encoding="utf-8") as f:
                 rules_content = f.read()
         except Exception as e:
             rules_content = f"Could not read FQA rules file from {rule_path}: {e}"
-            
-        return [Message(role="user", content=(
-            f"You are a SAS FQA expert. Always adhere strictly to the following architectural "
-            f"and analytical guidelines when constructing workflows or launching analyses via the MCP Server:\n\n"
-            f"{rules_content}\n\n"
-            f"Keep these rules in context for all FQA-related tasks."
-        ))]
 
+        return [
+            Message(
+                role="user",
+                content=(
+                    f"You are a SAS FQA expert. Always adhere strictly to the following architectural "
+                    f"and analytical guidelines when constructing workflows or launching analyses via the MCP Server:\n\n"
+                    f"{rules_content}\n\n"
+                    f"Keep these rules in context for all FQA-related tasks."
+                ),
+            )
+        ]
+
+    @mcp.prompt()
+    def knowledge_fqa_workflow() -> list[Message]:
+        """Fetch the Field Quality Analytics (FQA) execution guidelines and analytical funnel."""
+        from pathlib import Path
+
+        rule_path = Path("/app/knowledge/fqa/mcp_execution_rules.md")
+        if not rule_path.exists():
+            rule_path = Path("knowledge/fqa/mcp_execution_rules.md")
+        try:
+            with open(rule_path, encoding="utf-8") as f:
+                rules_text = f.read()
+        except FileNotFoundError:
+            rules_text = "Error: FQA rules file not found on the server."
+        return [
+            Message(
+                role="system",
+                content=(
+                    f"Here are the core execution guidelines, best practices, and "
+                    f"analytical funnels for SAS Field Quality Analytics (FQA):\n\n"
+                    f"{rules_text}\n\n"
+                    f"Please strictly adhere to these phases (Descriptive -> Segmentation -> Causality) "
+                    f"when fulfilling FQA user requests."
+                ),
+            )
+        ]
+
+    @mcp.prompt()
+    def knowledge_sas_python_standards() -> list[Message]:
+        """Fetch the SAS and Python development standards and architecture guidelines."""
+        from pathlib import Path
+
+        sas_path = Path("/app/knowledge/standards/sas.md")
+        py_path = Path("/app/knowledge/standards/python.md")
+        if not sas_path.exists():
+            sas_path = Path("knowledge/standards/sas.md")
+            py_path = Path("knowledge/standards/python.md")
+
+        rules_text = ""
+        try:
+            with open(sas_path, encoding="utf-8") as f:
+                rules_text += f.read() + "\n\n"
+            with open(py_path, encoding="utf-8") as f:
+                rules_text += f.read()
+        except FileNotFoundError:
+            rules_text = "Error: Standards files not found on the server."
+        return [
+            Message(role="system", content=(f"Here are the SAS and Python development standards:\n\n{rules_text}\n\n"))
+        ]
