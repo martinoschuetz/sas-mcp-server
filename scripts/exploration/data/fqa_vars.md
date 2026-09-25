@@ -1,0 +1,489 @@
+# FQA Available Variables
+
+- None.ADJ_PRODUCT_DAYS_SALE (None): Adjusted Product Days Sale
+- None.CLAIMCOST (None): Total Claim Cost
+- None.CLAIMPER1000 (None): Claim Rate (Per 1000)
+- None.CSTMR_COMMENT (None): Customer Comment
+- None.EVENTPC (None): Total Labor Amount
+- None.EVENT_DAYS_INSERVICE (None): Event Days in Service
+- None.ADJ_PRODUCT_DAYS_SHIP (None): Adjusted Product Days Ship
+- None.CLAIMCOUNT (None): Total Claim Count
+- None.CLAIMRATE (None): Claim Rate
+- None.CSTMR_COMMENT (None): Customer Comment
+- None.EVENTPER100 (None): Event Rate (per 100)
+- None.EVENT_DAYS_INSERVICE_BUILD (None): Claim Days In Service Build
+- None.ADJ_PRODUCT_TIS_BIN (None): Adjusted Product Tis Bin
+- None.CLAIMCOUNT (None): Total Claim Count
+- None.CLAIMSUBMITLAG (None): Claim Submit Lag
+- None.CSTMR_COMMENT_LANGUAGE (None): Customer Comment Language
+- None.EVENTPER100 (None): Event Rate (per 100)
+- None.EVENT_DAYS_INSERVICE_BUILD (None): Claim Days In Service Build
+- None.ADJ_PRODUCT_TIS_BIN_BUILD (None): Adjusted Product Tis Bin Build
+- None.CLAIMCPC (None): Cost Per Claim
+- None.CSTMR_COMMENT_LANGUAGE (None): Customer Comment Language
+- None.EVENTPER1000 (None): Event Rate ( per 1000)
+- None.EVENT_DAYS_INSERVICE_SALE (None): Claim Days In Service Sale
+- None.ADJ_PRODUCT_TIS_BIN_SALE (None): Adjusted Product Tis Bin Sale
+- None.CLAIMCPU (None): Total Cost Per Unit
+- None.CSTMR_COUNTRY_CD (None): Customer Country
+- None.EVENTPER1000 (None): Event Rate ( per 1000)
+- None.EVENT_DAYS_INSERVICE_SALE (None): Claim Days In Service Sale
+- None.ADJ_PRODUCT_TIS_BIN_SHIP (None): Adjusted Product Tis Bin Ship
+- None.CLAIMMONTHEI (None): Event Period
+- None.CSTMR_STATE_CD (None): Customer State
+- None.EVENTPU (None): Event Rate
+- None.EVENT_DAYS_INSERVICE_SHIP (None): Event Days in Service Ship
+- None.ADJ_PRODUCT_DAYS_BUILD (None): Adjusted Product Days Build
+- None.BUILDTOSALEMONTHCOUNT (None): Number of Periods between Offline and Inservice
+- None.CLAIMMONTHEI (None): Event Period
+- None.EVENTCOUNT (None): Total Event Count
+- None.EVENTPU (None): Event Rate
+- None.ADJ_PRODUCT_DAYS_IN_SERVICE (None): Adjusted Product Days
+- None.BUILD_PERIOD (None): Build Period
+- None.CLAIMPER100 (None): Claim Rate (Per 100)
+- None.CSTMR_CD (None): Customer Code
+- None.EVENTCOUNT (None): Total Event Count
+- None.EVENT_DAYS_INSERVICE (None): Event Days in Service
+- None.EVENT_ID (None): Claim Id
+- None.EVENT_SUBMIT_MONTH (None): Claim Submit Month
+- None.EVENT_TIS_BIN_SHIP (None): Event Tis Bin Ship
+- None.FIRST_FAILURE_FLG (None): First Failure Flag
+- None.LABORCPU (None): Labor Cost Per Unit
+- None.OTHERCPC (None): Other Cost Per Claim
+- None.EVENT_ID (None): Claim Id
+- None.EVENT_SUBMIT_YEAR (None): Claim Submit Year
+- None.EVENT_TIS_BIN_SHIP (None): Event Tis Bin Ship
+- None.INCLUDEDMATERIALS_IM (None): Included Materials
+- None.LABOR_AMOUNT (None): Labor Amount
+- None.OTHERCPU (None): Other Cost Per Unit
+- None.EVENT_ID (None): Claim Id
+- None.EVENT_TIS_BIN (None): Claim Tis Bin
+- None.EVENT_TYPE_CD (None): Claim Type Code
+- None.INSERVICE_DATE (None): In Service Date
+- None.LABOR_CD (None): Labor Code
+- None.PARTSCOST (None): Total Parts Cost
+- None.EVENT_PAID_DATE (None): Claim Paid Date
+- None.EVENT_TIS_BIN (None): Claim Tis Bin
+- None.EVENT_TYPE_CD (None): Claim Type Code
+- None.INSERVICE_MONTH (None): In Service Month
+- None.LABOR_CODE_EVENT_DATE (None): Labor Code Event Date
+- None.PARTSCPC (None): Parts Cost Per Claim
+- None.EVENT_PAID_MONTH (None): Claim Paid Month
+- None.EVENT_TIS_BIN_BUILD (None): Claim Tis Bin Build
+- None.EXTRAS_CD (None): Extras Code
+- None.INSERVICE_PERIOD (None): In Service Period
+- None.LABOR_GRP_CD (None): Labor Group
+- None.PARTSCPU (None): Parts Cost Per Unit
+- None.EVENT_PAID_YEAR (None): Claim Paid Year
+- None.EVENT_TIS_BIN_BUILD (None): Claim Tis Bin Build
+- None.FAILURE_NO (None): Failure Number
+- None.INSERVICE_YEAR (None): In Service Year
+- None.LABOR_HOURS (None): Labor Hours
+- None.PRIM_LABOR_CD (None): Primary Labor Code
+- None.EVENT_DAYS_INSERVICE_SHIP (None): Event Days in Service Ship
+- None.EVENT_STATUS_CD (None): Claim Status
+- None.EVENT_TIS_BIN_SALE (None): Claim Tis Bin Sale
+- None.FAILURE_NO (None): Failure Number
+- None.LABORCOST (None): Total Labor Cost
+- None.MODEL_CD (None): Model Code
+- None.EVENT_ID (None): Claim Id
+- None.EVENT_SUBMIT_DATE (None): Claim Submit Date
+- None.EVENT_TIS_BIN_SALE (None): Claim Tis Bin Sale
+- None.FIRST_FAILURE_FLG (None): First Failure Flag
+- None.LABORCPC (None): Labor Cost Per Claim
+- None.OTHERCOST (None): Total Other Cost
+- None.PRIM_LABOR_GRP_CD (None): Primary Labor Group
+- None.PRODUCT_DAYS_INSERVICE_BUILD (None): Product Days in Service Build
+- None.PRODUCT_TIS_BIN (None): Product Tis Bin
+- None.REPAIR_COMPLETE_YEAR (None): Repair Complete Year
+- None.REPAIR_OPEN_YEAR (None): Repair Open Year
+- None.SALETOCLAIMMONTHCOUNT (None): Number of Periods between Sale and Claim
+- None.PRIM_REPL_PART_CD (None): Primary Part Code
+- None.PRODUCT_DAYS_INSERVICE_SALE (None): Product Days in Service Sale
+- None.PRODUCT_TIS_BIN_BUILD (None): Product Tis Bin Build
+- None.REPAIR_DEALER_CD (None): Repair Dealer Code
+- None.REPAIR_OPEN_YEAR (None): Repair Open Year
+- None.SAMPLESIZE1 (None): Sample Size
+- None.PRIM_REPL_PART_GRP_CD (None): Primary Part Group
+- None.PRODUCT_DAYS_INSERVICE_SHIP (None): Product Days in Service Ship
+- None.PRODUCT_TIS_BIN_SALE (None): Product Tis Bin Sale
+- None.REPAIR_DEALER_COUNTRY_CD (None): Repair Dealer Country
+- None.REPL_PART_AMT (None): Replaced Part Amount
+- None.SELLING_DEALER_CD (None): Selling Dealer Code
+- None.PRODUCTION_DATE (None): Production Date
+- None.PRODUCT_ID (None): Product Id
+- None.PRODUCT_TIS_BIN_SHIP (None): Product Tis Bin Ship
+- None.REPAIR_DEALER_STATE_CD (None): Repair Dealer State
+- None.REPL_PART_CD (None): Replaced Part Code
+- None.SELLING_DEALER_COUNTRY_CD (None): Selling Dealer Country
+- None.PRODUCTION_MONTH (None): Production Month
+- None.PRODUCT_ID (None): Product Id
+- None.QUANTITY (None): Quantity
+- None.REPAIR_OPEN_DATE (None): Repair Open Date
+- None.REPL_PART_EVENT_DATE (None): Replaced part Event Date
+- None.SELLING_DEALER_STATE_CD (None): Selling Dealer State
+- None.PRODUCTION_WEEK (None): Production Week
+- None.PRODUCT_ID (None): Product Id
+- None.RELIABILITYCLAIMCOUNT (None): Reliability Claim Count
+- None.REPAIR_OPEN_DATE (None): Repair Open Date
+- None.REPL_PART_GRP_CD (None): Replaced Part Group
+- None.SHIP_DATE (None): Ship Date
+- None.PRODUCTION_YEAR (None): Production Year
+- None.PRODUCT_ID (None): Product Id
+- None.REPAIR_COMPLETE_DATE (None): Repair Complete Date
+- None.REPAIR_OPEN_MONTH (None): Repair Open Month
+- None.REPL_PART_QTY (None): Replaced Part Quantity
+- None.SHIP_YEAR (None): Ship Year
+- None.PRODUCT_DAYS_INSERVICE (None): Product Days in Service
+- None.PRODUCT_ID (None): Product Id
+- None.REPAIR_COMPLETE_MONTH (None): Repair Complete Month
+- None.REPAIR_OPEN_MONTH (None): Repair Open Month
+- None.SALETOCLAIMMONTHCOUNT (None): Number of Periods between Sale and Claim
+- None.TECH_COMMENT (None): Technician Comment
+- None.TECH_COMMENT (None): Technician Comment
+- None.TOTAL_LABOR_HRS (None): Total Labor Hours
+- None.USAGE2 (None): Usage2
+- None._U_ (None): Overall Average Count Per Unit
+- None.ACTUALCLAIMRATE (None): Actual Claim Rate
+- None.ANALYSISNAME (None): Analysis Name
+- None.TECH_COMMENT_LANGUAGE (None): Technician Comment Language
+- None.TOTAL_OTHER_AMT (None): Total Other Amount
+- None.USAGE_TYPE_CD (None): Usage Type
+- None.SIMILARITY_DIST (None): Similarity Distance
+- None.ADJUSTED (None): Adjusted
+- None.ANALYSISTYPE (None): Analysis Type
+- None.TECH_COMMENT_LANGUAGE (None): Technician Comment Language
+- None.TOTAL_OTHER_AMT_EURO (None): Total Other Amount (Euro)
+- None.__INALERT__ (None): Alert
+- None._UDLU_ (None): Upper Limit for Average Claim Rate
+- None.ALERTEND (None): Last Period in Alert
+- None.ANALYSISVAR (None): Analysis Variable
+- None.TOTAL_EVENT_AMT (None): Total Claim Amount
+- None.TOTAL_PARTS_AMT (None): Total Parts Amount
+- None._ALPHA_ (None): Probability of Exceeding Limits
+- None.ACTUALCLAIMCOST (None): Actual Total Claim Cost
+- None.ALERTID (None): Alert ID
+- None.ANOMVAR (None): Reporting Variable
+- None.TOTAL_EVENT_AMT (None): Total Claim Amount
+- None.TOTAL_PARTS_AMT_EURO (None): Total Parts Amount (Euro)
+- None._CLUSTER_ (None): Cluster ID
+- None.ACTUALCLAIMCOUNT (None): Actual Total Claim Count
+- None.ALERTKEY (None): Alert Key
+- None.ANOMVARCATEGORY (None): Reporting Variable Value
+- None.TOTAL_EVENT_AMT_EURO (None): Total Claim Amount (Euro)
+- None.USAGE (None): Usage
+- None._LDLU_ (None): Lower Limit for Average Claim Rate
+- None.ACTUALCLAIMCPU (None): Actual Claim Cost Per Unit
+- None.ALERTS (None): Alert Count
+- None.ANOMVARLABEL (None): Reporting Variable
+- None.TOTAL_LABOR_AMT (None): Total Labor Amount
+- None.USAGE (None): Usage
+- None._SUBN_ (None): Group Sample Size
+- None.ACTUALCLAIMPER100 (None): Actual Claims Per 100 Units
+- None.ALERTSTART (None): First Period in Alert
+- None._CMPCT_ (None): Cumulative Percent
+- None.TOTAL_LABOR_AMT_EURO (None): Total Labor Amount (Euro)
+- None.USAGE2 (None): Usage2
+- None._SUBU_ (None): Average Claim Rate
+- None.ACTUALCLAIMPER1000 (None): Actual Claims Per 1000 Units
+- None.ANALID (None): Analysis ID
+- None.AREAOFOPPORTUNITY (None): Sample Size
+- None.ATYPE (None): Analysis Type Code
+- None.EVENT_TIS_BIN_BUILD (None): Claim TIS Bin From Build
+- None.ATYPEDESC (None): EI Analysis Type
+- None.EVENT_TIS_BIN_SALE (None): Claim TIS Bin From Sale
+- None.CSCDATATYPE (None): Data Type
+- None.EIPG_DESCRIPTION (None): Run Group Description
+- None.EXTRAPOLATED (None): Extrapolated
+- None.FORECASTCLAIMCOUNT (None): Forecasted Total Claim Count
+- None.HAZARDFNC (None): Hazard
+- None.LAMBDA (None): Claim Rate Estimate
+- None.CUMTOTALCLAIMRATE (None): Average Claim Rate
+- None.EIPG_ID (None): EI Automated RunGroup ID
+- None.FAILDIST (None): Probability
+- None.FORECASTCLAIMCPU (None): Forecasted Claim Cost Per Unit
+- None.IMMATURE (None): Immature
+- None.LEAF (None): Leaf
+- None.AUTO_UPDATE (None): Auto Update
+- None.CLUS_DESC (None): Descriptive Terms
+- None.BINMILEAGE (None): Mileage Intervals
+- None.CODE (None): Alert
+- None.CHARACTER_VALUE (None): Variable Value
+- None.COUNT_CLUSTER (None): Cluster Count
+- None.CIJK (None): Critical value
+- None.COUNT_OVERALL (None): Overall Count
+- None.CLAIMS (None): Actual Claim Count
+- None.CREATEDATE (None): Create Date
+- None.EVENT_TIS_BIN (None): Claim Months In Service
+- None.CRITICALVALUE (None): Critical Value
+- None.NODE (None): Node
+- None.OWNERRPTMODE (None): Owner Report Mode
+- None.PRODUCTDAYSINSERVICE (None): Product Time in Service from Sale (Days)
+- None.REPORTDESC (None): Report Description
+- None.SAMPLESIZE (None): Sample Size
+- None.SPERIOD (None): Sale Periods Since Production
+- None.NOTE (None): Post Note
+- None.P_CUMTOTALCLAIMRATE (None): Average Claim Rate
+- None.PRODUCTDAYSINSERVICEBUILD (None): Product Days In Service from Build
+- None.REPORTID (None): Report ID
+- None.SCORE (None): Score
+- None.SRCCLAIMDS (None): Source Claim Data Set
+- None.CUMULATIVEFAILDIST (None): Cumulative Probability
+- None.EIPG_STATUS (None): Run Group Status
+- None.FILTERID (None): Filter Id
+- None.FORECASTCLAIMPER100 (None): Forecasted Claims Per 100 Units
+- None.IMPORTANCE (None): Relative Importance
+- None.LIFELOWER (None): Lower Lifetime
+- None.DATASELECTIONID (None): Data Selection ID
+- None.EISTATUSCODE (None): Status Code
+- None.FILTERNAME (None): Filter Name
+- None.EVENT_DAYS_INSERVICE_SALE (None): Claim Days In Service Sale
+- None.INDEX (None): Score
+- None.LIFEUPPER (None): Upper Lifetime
+- None.DATASOURCEID (None): Data Source ID
+- None.EISTATUSDESC (None): Status
+- None.FINALCLAIMCOUNT (None): Total Claim Count
+- None.FORECASTCLAIMPER1000 (None): Forecasted Claims Per 1000 Units
+- None.INPT (None): Average Claim Rate
+- None.LOWER (None): Lower Scale
+- None.DESCR (None): Analysis Description
+- None.EXCEPTION (None): Flagged
+- None.FINALMAXEXPTIS (None): Maximum Age in Days
+- None.FORECASTCLAIMRATE (None): Forecasted Claim Rate
+- None.ISPUBLISHED (None): Published Flag
+- None.MATURE (None): Mature
+- None.DETAILRPT (None): Detail Report Flag
+- None.EXPCNT (None): Expected Claim Count
+- None.FORECASTCLAIMCOST (None): Forecasted Total Claim Cost
+- None.FPERIOD (None): Periods in Service
+- None.ISSUEDATE (None): Alert Issue Date
+- None.N (None): Sample Size
+- None.EICATEGORY (None): Category
+- None.EXPT (None): Average Claim Rate
+- None.SOLDMONTH (None): Month Sold
+- None.FREQ (None): Frequency
+- None.LABEL (None): Reporting Variable
+- None.NAME (None): Analysis Name
+- None.TIMEINSERVICE (None): Time in Service
+- None.RULEID (None): Rule ID
+- None.NITEMS (None): Chain Length
+- None.PSEUDOLIFT (None): Pseudo Lift
+- None._SIGMAS_ (None): Multiple of Sigma
+- None.PARENT (None): Parent
+- None.TIS (None): Time in Service
+- None.RULETYPE (None): Rule Size
+- None.COUNT (None): Transaction Count
+- None._EXLIMR_ (None): Range Limit Exceeded
+- None._STDDEV_ (None): Process Standard Deviation
+- None.ABOVETEXT (None): Text Above Node
+- None.FAILURE_PERIOD (None): Failure Period
+- None.CDFY_TOOLTIP (None): Best Fit
+- None.LOWER21 (None): Lower Shape
+- None.UPPER21 (None): Upper Shape
+- None.COUNTW (None): COUNTW
+- None.ASSIGN_DATE (None): Assign Date
+- None.ALERT (None): Alert
+- None.CDFY (None): CDFY
+- None.LOWER22 (None): Lower Shape
+- None.UPPER22 (None): Upper Shape
+- None.LWIDTH (None): LWIDTH
+- None.COST_SCORE (None): Cost Score
+- None.NOTES (None): Notes
+- None.PERCENT (None): Percent
+- None.PRODUCTDAYSINSERVICESALE (None): Product Days In Service from Sale
+- None.REPORTVAR (None): Reporting Variable
+- None.SCOREWINDOW (None): Score Window
+- None.SRCPRODDS (None): Source Products Data Set
+- None.NRULES (None): Number of Splitting Rules
+- None.PERCENT_CLUSTER (None): Cluster Percent
+- None.PRODUCTTISBIN (None): Months in Service
+- None.RPTCATALOG (None): Report output; Catalog
+- None.SEASONAL (None): Seasonal
+- None.STATUS (None): Analysis Status
+- None.OPTIONSTABLE (None): Analysis Options Table
+- None.PERCENT_OVERALL (None): Overall Percent
+- None.PRODUCTTISBINBUILD (None): Product TIS Bin from Build
+- None.RPTCATEGORY (None): Report Category
+- None.SEGMENTVARIABLE (None): Segment
+- None.STATUS_RC (None): Analysis Status Return Code
+- None.OWNEREXECMODE (None): Owner Exec Mode
+- None.POSTBY (None): Post User
+- None.PRODUCTTISBINSALE (None): Product TIS Bin from Sale
+- None.RUNDATE (None): Data as of
+- None.SFDESCR (None): Data Selection Description
+- None.STATUSCHANGE (None): Status Change
+- None.OWNERID (None): Owner Id
+- None.POSTDATE (None): Post Datetime
+- None.RELATION (None): Relation
+- None.RUNGROUPALERTS (None): Run Group Alert Count
+- None.SFNAME (None): Data Selection Name
+- None.STDERR (None): Standard Error
+- None.OWNERRPTID (None): Owner Report Id
+- None.PROB (None): Cumulative Probability
+- None.RELIABILITYCLAIMCOUNT (None): Total Claim Count
+- None.RUNTYPE (None): Run Type (0)
+- None.SIJK (None): Actual Claim Count
+- None.THRESHOLDVALUE (None): Set Threshold
+- None.PPERIOD (None): Production Period
+- None.RF (None): Recurrence Rate
+- None.RN (None): rn
+- None.__SEASEST (None): Seasonal Estimate
+- None.UNIQ_DE (None): Defined Entity Index
+- None.TOTAL_RULECOST (None): Total Rule Cost
+- None.SUPPORT (None): Support (%)
+- None._EXLIM_ (None): Individual Limit Exceeded
+- None._SUBI_ (None): Individual Value
+- None.BELOWTEXT (None): Text Below Node
+- None.UPPER (None): Upper Scale
+- None.MEAN_RULECOST (None): Average Rule Cost
+- None.CONF (None): Confidence (%)
+- None._LCLI_ (None): Lower Control Limit for Individual
+- None._SUBR_ (None): Moving Range
+- None.VAR_NAME (None): Reporting Variable
+- None.VALUE (None): Value
+- None.TOTAL_RULECOST1 (None): Total Rule Cost (Condition Side)
+- None.RULE (None): Rule
+- None._LCLR_ (None): Lower Control Limit for Moving Range
+- None._TESTS_ (None): Special Cause Tests Signaled
+- None.LINKWIDTH (None): Link Width
+- None.VARIABLE (None): Reporting Variable
+- None.MEAN_RULECOST1 (None): Average Rule Cost (Condition Side)
+- None._LHAND (None): Condition Rule
+- None._LIMITN_ (None): Control Limit Sample Size
+- None._UCLI_ (None): Upper Control Limit for Individual
+- None.FLAGISSUE (None): Flag Issue
+- None.YNFLAG (None): Decision Limit Exceeded?
+- None.TOTAL_RULECOST2 (None): Total Rule Cost (Decision Side)
+- None._RHAND (None): Decision Side
+- None._MEAN_ (None): Process Mean
+- None._UCLR_ (None): Upper Control Limit for Moving Range
+- None.FINALMEANEXPTIS (None): Average Age in Days
+- None.IOTINCR (None): Inter-occurrence Time
+- None.MEAN_RULECOST2 (None): Average Rule Cost (Decision Side)
+- None.RULET (None): Rule-Description
+- None._R_ (None): Average Moving Range
+- None._VAR_ (None): Process Variable
+- None.CLAIM_PERIOD (None): Event Period
+- None.PDF (None): Probability Density Function
+- None._0D5 (None): 0.50%
+- None.LONGITUDE (None): Longitude
+- None.BUILD_PERIOD (None): Build Period
+- None.SEASONAL1 (None): Seasonal
+- None.VARCOUNT (None): VARCOUNT
+- None.SEASEQN (None): Seasonality Equation
+- None._1 (None): 1.00%
+- None.LATITUDE (None): Latitude
+- None.MARKER_STYLE (None): Marker Style
+- None.PATH (None): Path
+- None.BYCOUNT (None): BYCOUNT
+- None.GAP (None): Distance Between Cluster Centroids
+- None.LOWER1 (None): Lower Scale
+- None.ACCELERATION (None): Acceleration-Overall
+- None.ALERT_DURATION_MONTH (None): Alert Duration (Months)
+- None.CLUSTERVAR (None): Variable
+- None._TESTSR_ (None): Special Cause Tests Signaled
+- None.ACCELERATION_AP (None): Acceleration-Alert Period
+- None.ALERT_DURATION_DAY (None): Alert Duration (Days)
+- None.ACTUAL (None): Actual Count
+- None.F (None): Failures
+- None.SCALE1 (None): Scale
+- None.P (None): Mixture Parameter P
+- None.ALERT_END_DATE (None): Alert End Date
+- None.CUMSALES (None): Total Sales
+- None.CRITICALVALUE (None): Critical Value
+- None.S (None): Suspensions
+- None.SCALE2 (None): Scale
+- None.Y_TOOLTIP (None): ACTUAL
+- None.ALERT_ISSUE_DATE (None): Alert Issue Date
+- None.DETMON (None): Month Detected
+- None._PCT_ (None): Percent Weighted Count
+- None.SCALE (None): Scale
+- None.SHAPE1 (None): Shape
+- None.LOWER2 (None): Lower Shape
+- None.ALERT_KEY (None): Alert Key
+- None.EI_STATUS_CD (None): Alert Status
+- None.EXPECTED (None): Expected Count
+- None.SHAPE (None): Shape
+- None.SHAPE2 (None): Shape
+- None.UPPER2 (None): Upper Shape
+- None.ALERT_START_DATE (None): Alert Start Date
+- None.LAST_STATUS_CHNG_DTTM (None): Last Status Change
+- None.X (None): See Table
+- None.LOWER11 (None): Lower Scale
+- None.UPPER11 (None): Upper Scale
+- None.BINUSAGE (None): Usage Intervals
+- None.ALERT_TYPE (None): Alert Type
+- None.PPERIOD (None): Production Period
+- None.Y (None): ACTUAL
+- None.LOWER12 (None): Lower Scale
+- None.UPPER12 (None): Upper Scale
+- None.IOTINCR_NUM (None): IOTINCR_NUM
+- None.ASSIGNED_USER_IDS (None): Assigned User IDs
+- None.REPORT_VAR_VALUE (None): Report Variable
+- None.PREDICTION (None): Prediction
+- None.PARAMETER (None): Parameter
+- None.FORECAST_PERIOD (None): Forecast Period
+- None._STATUS_ (None): Status
+- None.EXTFORECAST (None): Extended Forecast
+- None.ESTIMATE (None): Estimate
+- None.SALES (None): Sales Estimate
+- None.LCL (None): Lower Confidence Limit
+- None.TIME (None): Age
+- None.UCL (None): Upper Confidence Limit
+- None.CF (None): Cumulative Function
+- None.CDF (None): Cumulative Distribution Function
+- None.SEASDATE (None): Calender day
+- None._2 (None): 2.00%
+- None.RMSE (None): Root Mean Squared Error
+- None.IOTINCR_NUMERIC (None): Inter-occurrence Time
+- None.FROM_CD (None): From Node
+- None.CLUSBYVAR (None): Group Variable
+- None.FOURIER (None): Seasonality Value
+- None._5 (None): 5.00%
+- None.MAE (None): Mean Absolute Error
+- None.ASSIGN_STATUS_CD (None): Status Code
+- None.FREQ (None): Frequency
+- None.CLUS_ID (None): Cluster ID
+- None.USAGE (None): Usage
+- None.EVENTS (None): Events-Overall
+- None.CLUSIMP_VAR (None): Significant Analysis Variables
+- None.T01 (None): Time To 1 Pct Failure
+- None.EVENTS_AP (None): Events-Alert Period
+- None.COMMENT_ID (None): Comment ID
+- None._10 (None): 10.00%
+- None.SALES_PERIOD (None): Sales Period Since Production
+- None.ALERT_GROUP_ID (None): Alert Group
+- None.STDDEV (None): Root Means Squared Standard Deviation
+- None.UNIQ_DH (None): Defined Hierarchy Index
+- None._20 (None): 20.00%
+- None.CRITICAL (None): Critical value
+- None.ALERT_ID (None): Alert Id
+- None.PATH_ID (None): Path
+- None.RADIUS (None): Maximum Distance from Seed to Observation
+- None._0D1 (None): 0.10%
+- None._50 (None): 50.00%
+- None.FP (None): Failure Probability
+- None.ASSIGN_DT (None): Assign Date
+- None.MEASURE_ID_PARAM (None): Measure Id Variable in output; Table
+- None.FLAG (None): Radius Exceeded
+- None._0D2 (None): 0.20%
+- None.location_cd (None): Location code
+- None._recordID_ (None): RecordID
+- None.LAST_STATUS_CHANGE_DT (None): Last Status Change
+- None.DATETIME (None): Date Time
+- None.NEAREST (None): Nearest Cluster
+- None.MIN_VALUE (None): Minimum Value
+- None.T05 (None): Time To 5 Pct Failure
+- None.ALERT_DURATION_WEEK7 (None): Alert Duration (Weeks)
+- None.MAX_VALUE (None): Maximum Value
+- None.T10 (None): Time To 10 Pct Failure
+- None.ALERT_DURATION_WEEK (None): Alert Duration (Weeks)
+- None.EVENT_DAYS_INSERVICE_BUILD (None): Claim Days In Service Build
+- None.T20 (None): Time To 20 Pct Failure
+- None.ALERT_DURATION_SEMIMONTH (None): Alert Duration (Semi-Months)
+- None.UPPER1 (None): Upper Scale
+- None.T25 (None): Time To 25 Pct Failure
+- None.ALERT_DURATION_QTR (None): Alert Duration (Quarters)
+- None.COMBINEDOMAIN (None): Combined Domain
+- None.COMBINEDOMAIN (None): Combined Domain
+- None.TO_CD (None): To Node
