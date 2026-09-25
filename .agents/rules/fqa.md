@@ -38,3 +38,70 @@ The standard workflow for a Quality Analyst using FQA is as follows (extracted f
    - *Text Mining*: Cluster unstructured claim comments to find hidden issues (e.g. leaks vs pressure).
 4. **Assign and Track**: Update the alert's status and assign it to an engineer for resolution.
 5. *(Alternative)*: Start manually in the **Data Selections** workspace to build a custom query if you already know what you are looking for.
+
+## 5. Analytical Funnel & Advanced Modeling
+*(Extracted from Gemini Notebook)*
+
+Translating a broad emerging issue alert into precise truck subpopulation filter settings requires a structured analytical funnel that moves from macro-level anomaly detection to multi-variable segmentation. 
+
+Below are the best practices for leveraging both the standard SAS Field Quality Analytics (FQA) suite and raw data analytics.
+
+### Part 1: Standard FQA Best-Practice Workflow
+
+To isolate actionable failure patterns in FQA, follow a 4-phase systematic funnel:
+
+#### Phase 1: Descriptive Triage & Boundary Definition
+* **Alert Triage**: Subscribe to the emerging issue alert, select the alert area and surrounding cells, and execute **Analyze Subset** to compare alert vs. non-alert data directly in the Analysis Workspace.
+* **Pareto Analysis**: Run a Pareto chart on labor codes, replaced part numbers, or DTC prefixes to identify the primary subsystem or component driving the alert.
+* **Summary Tables**: Cross-tabulate top failing components against high-level product attributes (e.g., engine family, transmission type, assembly plant) to spot categorical skews.
+* **Geographic Analysis**: Map claim rates spatially to identify environmental or operational stressors (e.g., cold-weather embrittlement in northern regions, high torque/thermal loads in mountainous routes).
+* **Time of Event & Control Charts**:
+  * **Production Period Lens**: Spikes tied to specific manufacture dates indicate batch quality issues, assembly line errors, or supplier defects.
+  * **Event Period Lens**: Spikes tied to calendar failure dates indicate seasonal or environmental influences.
+  * **Early Life Tracking**: Use **Trend & Control** set with 1-month and 3-month maximum exposure settings to track infant mortality trends.
+
+#### Phase 2: Algorithmic Segmentation & Filter Generation
+* **Statistical Drivers Analysis**: Use this node as a dimensionality reduction step. It ranks individual categorical variables (e.g., software firmware version, axle ratio, cab configuration) by their main effect on elevated claim rates.
+* **Decision Tree Analysis**: This is the primary tool for generating explicit Boolean filter rules:
+  * Applies recursive partitioning (Gini index or Entropy impurity reduction) to segment the fleet into mutually exclusive cohorts.
+  * Focus on terminal leaf nodes that exhibit disproportionately high claim probabilities compared to the baseline fleet average.
+  * Trace the logical path backward from a high-risk terminal leaf to the root node to extract the combined filter logic (e.g., Engine = 15L Diesel AND DTC = P0299 AND Transmission = AMT AND GVWR > 80,000 lbs).
+  * Save this rule set as a **Data Selection** in FQA, allowing you to re-apply the exact subpopulation filter across all other analytical nodes in the workspace.
+
+#### Phase 3: Context & Causality Integration
+* **Text Mining**:
+  * Applies Natural Language Processing (tokenization, lemmatization, SVD, and k-means clustering) to Support Service Desk logs and technician notes to form structured symptom clusters (e.g., "coolant, leak, reservoir" or "bracket vibration fracture").
+  * Inject these **Text Cluster IDs** back into the Decision Tree or Statistical Drivers as categorical variables to synthesize physical build attributes with qualitative failure symptoms.
+* **Failure Relationships**: Maps associations and chronological sequences between primary parts, secondary damage, and labor codes via link graphs to separate the root cause component from collateral damage.
+* **Details Table**: Apply the saved Data Selection filter to review unaggregated, record-by-record technician narratives as a final human validation step before taking engineering action.
+
+#### Phase 4: Normalization & Predictive Forecasting
+* **Exposure Analysis**: Normalizes claim counts against operational metrics (Time-in-Service, cumulative mileage, engine hours) to verify that the elevated claims stem from an inherent defect rather than heavy fleet utilization.
+* **Reliability Analysis (Weibull Distribution)**:
+  * Fits time-to-first-failure and suspension data to a Weibull distribution.
+  * Evaluate the **Shape Parameter (\beta)**: \beta < 1 indicates infant mortality/assembly defects; \beta ≈ 1 indicates random/environmental failures; \beta > 1 indicates wear-out or fatigue failure modes.
+  * Compare the Weibull shape parameter and projected 12-month failure rates of alert vs. non-alert groups to confirm statistical significance and project future claim liabilities.
+* **Event Forecasting**: Uses time-series models (ARIMA or exponential smoothing) to forecast aggregate short-term claim costs and labor hours for financial budgeting.
+
+### Part 2: Advanced Failure Pattern Analysis on Raw Data
+
+With full access to raw integrated databases (Warranty, Product, Support Service Desk, and DTC telemetry), you can deploy advanced data mining outside the standard FQA interface:
+
+1. **Association Rule Mining (Apriori Algorithm on DTC Streams)**:
+   * Evaluates non-hierarchical, multi-variable combinations across DTCs, vehicle attributes, and operational conditions simultaneously without forcing a rigid tree structure.
+   * Generates IF-THEN rules evaluated by **Support**, **Confidence**, and **Lift** (e.g., IF {DTC P0299} AND {Route = Mountainous} AND {Load = Heavy} THEN {Turbocharger Failure} with Lift = 4.5).
+   * Enables proactive predictive maintenance on operational trucks displaying precursor DTCs before catastrophic physical failure occurs.
+
+2. **Random Forest Ensembles (Noise Resilience & Variable Importance)**:
+   * Uses bagging and feature randomness across hundreds of decision trees to handle noisy sensor data and raw DTC telemetry.
+   * Calculates **Variable Importance** scores (Mean Decrease in Impurity) to uncover subtle multi-way interactions (e.g., specific software firmware interacting with transmission fluid temperature ranges).
+   * Top predictor variables can be extracted and fed back into standard FQA Decision Trees to visualize decision logic.
+
+3. **Cox Proportional Hazards Survival Modeling (PROC PHREG)**:
+   * Accounts for right-censored fleet data (healthy operational trucks accumulating mileage without failure).
+   * Evaluates multiple continuous and categorical covariates directly on the instantaneous hazard function.
+   * **Hazard Ratios (e^{\beta_i})** quantify exact risk multipliers for specific subpopulation traits (e.g., Hazard Ratio = 2.8 for Body Material = Aluminum).
+
+4. **Macro-Driven Automated Subgroup Discovery**:
+   * SAS macros utilizing DO LOOPS with iterative PROC SQL or PROC FREQ statements systematically test thousands of variable permutations (Engine x Assembly Plant x Production Month x Cab).
+   * Compares actual vs. expected claim rates using Poisson or binomial probability distributions to automatically export a ranked matrix of high-risk subpopulation filter settings.
