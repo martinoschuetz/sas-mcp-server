@@ -25,3 +25,16 @@ When transitioning from Phase 2 (Diagnostic) to Phase 3 (Predictive/Sequence), y
 - **Workmanship / Repair-Induced Faults:** If the Phase 2 Statistical Driver Analysis identifies variables like SELLING_DEALER_COUNTRY_CD, DEALER_CD, CSTMR_STATE_CD, or TECHNICIAN_ID as top predictors, the anomaly is likely tied to local repair practices (e.g., a technician replacing a battery and dripping acid on a secondary cable). You MUST run Phase 3 Failure Relationships on the **LABOR** domain (data_domain='PRODUCT,CLAIM,LABOR', report_var='CLAIM.PRIM_LABOR_CD') to uncover sequential repair dependencies (Repair A causing Repair B).
 - **Manufacturing / Hardware Faults:** If Phase 2 identifies variables like PRODUCTION_MONTH, PLANT_CD, SUPPLIER_ID, or MODEL_CD as top predictors, the anomaly is likely a physical engineering defect. You MUST run Phase 3 Failure Relationships on the **PART** domain (data_domain='PRODUCT,CLAIM,PART', report_var='PART.REPL_PART_CD') to uncover physical collateral damage (Part A breaking Part B).
 
+
+## 4. Standard operating procedure / Best Practice Workflow
+The standard workflow for a Quality Analyst using FQA is as follows (extracted from the Dave Froning demo):
+1. **Early Warning Workspace**: Monitor automatically generated alerts that detect statistically significant spikes in failure rates.
+2. **Analyze in Project**: Push an interesting alert into a Project to isolate the data subset.
+3. **Root Cause Analysis (Standard Tools)**:
+   - *Pareto Analysis*: Identify the top contributing variables (e.g., top labor codes or replacement parts).
+   - *Failure Relationships*: Uncover causal links (e.g., repairing Part A causes Part B to fail).
+   - *Details Table*: Read the unstructured technician comments to confirm ground truth.
+   - *Geographic Analysis / Decision Tree*: Find spatial concentrations or predictive variables.
+   - *Text Mining*: Cluster unstructured claim comments to find hidden issues (e.g. leaks vs pressure).
+4. **Assign and Track**: Update the alert's status and assign it to an engineer for resolution.
+5. *(Alternative)*: Start manually in the **Data Selections** workspace to build a custom query if you already know what you are looking for.
