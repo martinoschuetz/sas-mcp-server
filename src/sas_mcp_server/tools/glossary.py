@@ -857,7 +857,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
     ) -> dict[str, Any]:
         """Free-text search of the business glossary — the way in when you know a word, not an id.
 
-        Runs against the Information Catalog's ``terms`` index, so it is ranked
+        Runs against the SAS Data Governance catalog's ``terms`` index, so it is ranked
         and matches definitions as well as names, unlike ``list_glossary_terms``'
         exact structural filters. Supports the catalog grammar: wildcards
         (``rev*``), field constraints (``Name:revenue``, ``Status:Published``)

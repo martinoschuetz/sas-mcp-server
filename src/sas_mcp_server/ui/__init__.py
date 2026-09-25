@@ -32,6 +32,7 @@ one form that renders everywhere, including on an air-gapped Viya.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -40,11 +41,14 @@ from importlib import resources
 from typing import TYPE_CHECKING
 
 from fastmcp.apps import UI_MIME_TYPE, AppConfig
+from fastmcp.server.middleware import CallNext, Middleware, MiddlewareContext
 
 from ..config import MCP_APPS
 
 if TYPE_CHECKING:
     from fastmcp import FastMCP
+    from fastmcp.resources.base import ResourceResult
+    from fastmcp.tools.base import ToolResult
 
 # Every view URI starts with this; the rest is ``<view>/<tool>.html``.
 URI_PREFIX = "ui://sas-viya/"
@@ -80,7 +84,7 @@ VIEWS: tuple[View, ...] = (
         key="sas-log",
         title="SAS log",
         tools=("execute_sas_code", "get_job_log", "submit_batch_job"),
-        calls=("get_job_status", "get_job_log"),
+        calls=("get_job_status", "get_job_log", "download_file"),
     ),
     View(
         key="term-editor",
@@ -104,13 +108,53 @@ VIEWS: tuple[View, ...] = (
 VIEW_FOR_TOOL: dict[str, View] = {tool: view for view in VIEWS for tool in view.tools}
 
 
-def resource_uri(tool: str) -> str:
+def resource_uri(tool: str, fingerprint: str | None = None) -> str:
     """The ``ui://`` URI of *tool*'s view. One per tool, so the view knows
-    which tool to call again for the next page without the host telling it."""
-    return f"{URI_PREFIX}{VIEW_FOR_TOOL[tool].key}/{tool}.html"
+    which tool to call again for the next page without the host telling it.
+
+    With a *fingerprint* the URI names one exact page (see :func:`fingerprint`);
+    without one it is the stable alias every deployment also serves.
+    """
+    tag = f".{fingerprint}" if fingerprint else ""
+    return f"{URI_PREFIX}{VIEW_FOR_TOOL[tool].key}/{tool}{tag}.html"
 
 
-def app_config(tool: str, *, enabled: bool | None = None) -> AppConfig | None:
+def _package_files(root, prefix: str = "") -> list[tuple[str, bytes]]:
+    """Every non-Python file in the ui package, as (relative path, bytes), sorted."""
+    found: list[tuple[str, bytes]] = []
+    for entry in root.iterdir():
+        name = f"{prefix}{entry.name}"
+        if entry.is_dir():
+            if entry.name != "__pycache__":
+                found.extend(_package_files(entry, f"{name}/"))
+        elif not entry.name.endswith((".py", ".pyc")):
+            found.append((name, entry.read_bytes()))
+    return sorted(found)
+
+
+def fingerprint(version: str, tiers: Iterable[int], read_only: bool) -> str:
+    """Eight hex digits that change whenever a served page could.
+
+    Hosts cache a ``ui://`` page by its URI — claude.ai keeps it across a
+    connector being removed and added again, Claude Desktop for the life of
+    the server process — so a page that changes under a fixed URI is served
+    stale until the person finds the right thing to restart. Everything a page
+    is assembled from goes into the digest: the ui package's own files, the
+    version stamped into the page, and the deployment's tier and read-only
+    choices, which decide the companion tools stamped into ``SAS_VIEW.can``.
+    Two servers built alike produce the same URI, so a valid cache stays valid.
+    """
+    digest = hashlib.sha1()
+    for name, data in _package_files(resources.files(__package__)):
+        digest.update(name.encode())
+        digest.update(data)
+    digest.update(f"|{version}|{sorted(set(tiers))}|{read_only}".encode())
+    return digest.hexdigest()[:8]
+
+
+def app_config(
+    tool: str, *, enabled: bool | None = None, fingerprint: str | None = None
+) -> AppConfig | None:
     """The ``app=`` argument for *tool*'s registration, or ``None``.
 
     ``None`` when the tool has no view or views are switched off, which is
@@ -119,7 +163,7 @@ def app_config(tool: str, *, enabled: bool | None = None) -> AppConfig | None:
     on = MCP_APPS if enabled is None else enabled
     if not on or tool not in VIEW_FOR_TOOL:
         return None
-    return AppConfig(resource_uri=resource_uri(tool))
+    return AppConfig(resource_uri=resource_uri(tool, fingerprint))
 
 
 def _read(name: str) -> str:
@@ -167,12 +211,61 @@ def render_view(
     )
 
 
-def register_views(mcp: FastMCP, tools: Iterable[str], *, version: str = "") -> list[str]:
+class ViewBinding(Middleware):
+    """Repeat a tool's view binding on the wire wherever a host may look for it.
+
+    FastMCP puts ``_meta.ui.resourceUri`` on the ``tools/list`` entry only.
+    Hosts differ in where they read it: Claude Desktop 2.2553 forwards a local
+    server's tools to the chat through a bridge that rebuilds each entry's
+    ``_meta`` with its own keys, so the binding on the listing never arrives,
+    while the call result passes through untouched. Stamping the binding on
+    the ``tools/call`` result too — in both spellings the extension has used —
+    and ``_meta.ui`` (an empty CSP: the pages are self-contained) on the
+    ``resources/read`` item costs a few bytes and is what servers that render
+    on every current Claude surface do.
+    """
+
+    def __init__(self, tools: Iterable[str], fingerprint: str | None = None) -> None:
+        viewed = [tool for tool in tools if tool in VIEW_FOR_TOOL]
+        self._uris = {tool: resource_uri(tool, fingerprint) for tool in viewed}
+        self._resources = set(self._uris.values()) | {resource_uri(tool) for tool in viewed}
+
+    async def on_call_tool(
+        self, context: MiddlewareContext, call_next: CallNext
+    ) -> ToolResult:
+        result = await call_next(context)
+        uri = self._uris.get(getattr(context.message, "name", ""))
+        if uri and not result.is_error:
+            meta = dict(result.meta or {})
+            meta.setdefault("ui", {}).setdefault("resourceUri", uri)
+            meta.setdefault("ui/resourceUri", uri)
+            result.meta = meta
+        return result
+
+    async def on_read_resource(
+        self, context: MiddlewareContext, call_next: CallNext
+    ) -> ResourceResult:
+        result = await call_next(context)
+        if str(getattr(context.message, "uri", "")) in self._resources:
+            for item in result.contents:
+                meta = dict(item.meta or {})
+                meta.setdefault("ui", {"csp": {"connectDomains": [], "resourceDomains": []}})
+                item.meta = meta
+        return result
+
+
+def register_views(
+    mcp: FastMCP, tools: Iterable[str], *, version: str = "", fingerprint: str | None = None
+) -> list[str]:
     """Publish a ``ui://`` resource for every registered tool that has a view.
 
     Only tools in *tools* get one — a view for a tool the deployment withheld
-    would advertise something the host could never call. Returns the URIs
-    registered, for logging.
+    would advertise something the host could never call. With a *fingerprint*
+    (the one the tools were registered with) the page is published under its
+    fingerprinted URI, which is what the tools advertise, and under the plain
+    URI as well: a host holds on to URIs from tool listings it cached earlier
+    and asks for those too, and one that fails reads as the server being down.
+    Returns the advertised URIs, for logging.
     """
     present = set(tools)
     registered: list[str] = []
@@ -180,17 +273,22 @@ def register_views(mcp: FastMCP, tools: Iterable[str], *, version: str = "") -> 
         view = VIEW_FOR_TOOL.get(tool)
         if view is None:
             continue
-        uri = resource_uri(tool)
         # Only the companion tools this deployment kept, so a view offers no
         # control the server would refuse.
         available = tuple(sorted(c for c in view.calls if c in present))
-        mcp.resource(
-            uri,
-            name=f"{view.key}:{tool}",
-            description=f"{view.title} view for the {tool} tool (MCP Apps).",
-            mime_type=UI_MIME_TYPE,
-        )(_server_for(view.key, tool, version, available))
-        registered.append(uri)
+        uris = [resource_uri(tool, fingerprint)]
+        if fingerprint:
+            uris.append(resource_uri(tool))
+        for uri in uris:
+            mcp.resource(
+                uri,
+                name=f"{view.key}:{tool}",
+                description=f"{view.title} view for the {tool} tool (MCP Apps).",
+                mime_type=UI_MIME_TYPE,
+            )(_server_for(view.key, tool, version, available))
+        registered.append(uris[0])
+    if registered:
+        mcp.add_middleware(ViewBinding(present, fingerprint))
     return registered
 
 

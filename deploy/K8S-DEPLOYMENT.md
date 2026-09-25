@@ -237,6 +237,7 @@ wait for Viya to reap them.
 | `ALLOW_RAW_BEARER` | `false` | If enabled, understand the scope: the fallback verifier uses `audience=[]` with no required scopes, so **any** JWT this Viya's SASLogon signed is a full MCP credential — including tokens minted for other clients — with no client registration and no consent screen. |
 | `MCP_TIERS` / `MCP_READ_ONLY` | all / `false` | Worth setting deliberately for a shared deployment rather than exposing all 92 tools. |
 | `MCP_APPS` | `true` | Registers interactive views (MCP Apps) for the data, SAS log and glossary tools — a data grid, a log viewer, glossary forms — that clients supporting the extension (Claude, ChatGPT, Microsoft 365 Copilot, VS Code, Cursor) render beside the result. Additive: tool results are unchanged and text-only clients see nothing different; the view calls tools through the host with the user's token, never Viya directly. Set `false` to register none. Copilot additionally needs the MCP server to allow its widget origin for CORS (see the Microsoft docs); that is not configured by this chart. |
+| `MCP_STATELESS_HTTP` | `false` | Serve requests without an MCP session. The sessionless 2026-07-28 protocol revision opens with `server/discover`, which the stateful default refuses; claude.ai's custom-connector backend speaks only that revision, so set `true` (`server.statelessHttp`) for a deployment that will be added to Claude as a custom connector. Costs a fresh transport per request. |
 | `MCP_LANDING_PAGE` | `true` | A browser `GET /mcp` gets an unauthenticated HTML page describing the deployment (server name/version, Viya host, exposed tiers, tool names + summaries, client-config snippets) instead of the 401. Handy for onboarding users who are handed the URL; set `false` if you would rather not advertise even that much to anyone who can reach the ingress. |
 
 FastMCP also warns on startup: `Using non-secure cookies for development; deploy with
@@ -273,7 +274,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: server
-          image: ghcr.io/sassoftware/sas-mcp-server:1.15.0
+          image: ghcr.io/sassoftware/sas-mcp-server:1.16.1
           ports: [{ containerPort: 8134 }]
           securityContext:
             allowPrivilegeEscalation: false

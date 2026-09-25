@@ -28,7 +28,7 @@ from fastmcp import Context, FastMCP
 from ..config import MCP_APPS, MCP_READ_ONLY, MCP_TIERS
 from ..exceptions import ConfigError
 from ..helpers.telemetry_helpers import server_version
-from ..ui import app_config, register_views
+from ..ui import app_config, fingerprint, register_views
 from ..viya_client import logger
 from . import (
     automl,
@@ -120,18 +120,27 @@ class _TierRecorder:
       through, which is what the views are registered against afterwards.
     """
 
-    def __init__(self, target: Any, tier: int, *, apps: bool, seen: list[str]) -> None:
+    def __init__(
+        self,
+        target: Any,
+        tier: int,
+        *,
+        apps: bool,
+        seen: list[str],
+        fingerprint: str | None = None,
+    ) -> None:
         self._target = target
         self._tier = tier
         self._apps = apps
         self._seen = seen
+        self._fingerprint = fingerprint
 
     def _record(self, name: str, kwargs: dict[str, Any]) -> None:
         TOOL_TIERS[name] = self._tier
         self._seen.append(name)
         kwargs.setdefault("annotations", annotations_for(name))
         if self._apps:
-            kwargs.setdefault("app", app_config(name, enabled=True))
+            kwargs.setdefault("app", app_config(name, enabled=True, fingerprint=self._fingerprint))
 
     def tool(self, name_or_fn: Any = None, **kwargs: Any) -> Any:
         if callable(name_or_fn):  # bare @mcp.tool
@@ -228,12 +237,16 @@ def register_tools(
         "Registering tool tiers: %s (read_only=%s, apps=%s)", sorted(enabled), ro, with_apps
     )
     seen: list[str] = []
+    version = server_version() or ""
+    # One fingerprint for the whole registration: the tools advertise it in
+    # their view URIs and the views are published under it (see ui.fingerprint).
+    fp = fingerprint(version, enabled, ro) if with_apps else None
     for tier in sorted(enabled):
         # Tier 8's sole tool is already included when Tier 0 is enabled.
         if tier == 8 and 0 in enabled:
             continue
         # Wrapped per tier so TOOL_TIERS learns the tier each tool came from.
-        recorder = _TierRecorder(target, tier, apps=with_apps, seen=seen)
+        recorder = _TierRecorder(target, tier, apps=with_apps, seen=seen, fingerprint=fp)
         _TIER_REGISTRARS[tier](cast(FastMCP, recorder), get_token)
     if gate is not None:
         logger.info(
@@ -245,7 +258,7 @@ def register_tools(
         # Only tools that actually registered get a view: the recorder saw every
         # name, the gate says which of those it withheld.
         registered = set(seen) - set(gate.withheld if gate is not None else ())
-        views = register_views(mcp, registered, version=server_version() or "")
+        views = register_views(mcp, registered, version=version, fingerprint=fp)
         logger.info("Registered %d interactive view(s)", len(views))
 
 
