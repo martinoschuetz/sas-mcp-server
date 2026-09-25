@@ -1,3 +1,7 @@
+---
+name: sas-esp
+description: SAS Event Stream Processing (ESP) rules and context material. Use when troubleshooting ESP connectors, Kafka offsets, or general ESP project configurations.
+---
 # SAS Event Stream Processing (ESP) Context Material
 
 The following resources and documentation links represent the core context material provided for SAS Event Stream Processing (ESP). Use these resources to troubleshoot connectors, Kafka offsets, and general ESP project configurations.
@@ -32,3 +36,4 @@ The official **[ESP Studio Examples Repository](https://github.com/sassoftware/e
 - **Machine Learning & Computer Vision:** Includes templates for ONNX integration (onnx_object_detection, onnx_pose_estimation, onnx_voice_transcription).
 - **Streaming Analytics:** Shows how to use the Calculate/Train/Score windows for real-time algorithms like *K-Means clustering*, *Subspace Tracking (SST)*, *Support Vector Machines*, *TFIDF text mining*, and *Linear Regression*.
 - **Custom Windows:** Examples like lert_suppression and vent_sorter.
+

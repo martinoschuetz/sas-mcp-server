@@ -1,3 +1,7 @@
+---
+name: sas-forecasting
+description: SAS Forecasting rules and guidelines. Use when performing time-series forecasting.
+---
 
 # SAS Visual Forecasting & ATSM Context Material
 
@@ -49,3 +53,4 @@ For rapid baseline generation without task-specific retraining, utilize foundati
 ### 5. Fast & Frugal Retail Forecasting & Process Governance
 - **Occam's Razor:** Complex models can overfit historical noise and incur massive computational costs and carbon emissions. Identifying reduced pools of simple statistical models maintains accuracy while saving cloud computing costs.
 - **Forecast Value Added (FVA):** Implement FVA governance frameworks to measure the change in forecast accuracy attributable to each S&OP step. 52% of manual executive overrides degrade accuracy (negative FVA). FVA stairstep reporting identifies this waste, enabling organizations to trust automated statistical baselines and require justification for manual overrides.
+
