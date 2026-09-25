@@ -1,3 +1,7 @@
+---
+name: sas-api
+description: SAS Viya REST API navigation rules and conventions. Use when making direct HTTP calls to SAS Viya APIs.
+---
 # SAS Viya APIs Documentation Directory
 
 **Version:** 2026.09
@@ -388,3 +392,4 @@ The docs/APIs directory contains OpenAPI specifications and documentation for va
 
 ## Uncategorized / Old
 There is an old directory containing unorganized or legacy YML files, and some files at the root of docs/APIs.
+

@@ -1,3 +1,7 @@
+---
+name: sas-caf
+description: Custom Analysis Framework (CAF) for SAS AIoT rules and concepts. Use when analyzing IoT data or building custom analytical pipelines in AIoT.
+---
 # Custom Analysis Framework (CAF) Authoring Rules
 
 Rules for authoring SAS Analytics for IoT **analysis types** through the Tier 13 tools
@@ -138,3 +142,4 @@ same service succeed for them.
 - SAS docs: [Working with Custom Analysis Types](https://go.documentation.sas.com/doc/en/aniotcdc/default/aniotcat/titlepage.htm)
 - SpEL: [Spring Expression Language](https://docs.spring.io/spring-framework/reference/core/expressions.html)
 - Template language: [Go `text/template`](https://pkg.go.dev/text/template)
+
