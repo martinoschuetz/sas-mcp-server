@@ -28,6 +28,7 @@ LABEL org.opencontainers.image.licenses=Apache-2.0
 RUN addgroup --system sas && adduser --system --ingroup sas --home /app sas
 
 COPY --from=base-builder /app/dist/ /install
+COPY --from=base-builder /app/knowledge /app/knowledge
 
 WORKDIR /app
 # Dependencies from the lock first, then the project wheel with --no-deps so

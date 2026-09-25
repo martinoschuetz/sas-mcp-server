@@ -31,6 +31,7 @@ from ..helpers.telemetry_helpers import server_version
 from ..ui import app_config, fingerprint, register_views
 from ..viya_client import logger
 from . import (
+    knowledge,
     automl,
     caf,
     compute,
@@ -73,6 +74,7 @@ _TIER_REGISTRARS: dict[int, Registrar] = {
     11: genai.register,
     12: esp.register,
     13: caf.register,
+    14: knowledge.register,
 }
 
 TIER_TITLES: dict[int, str] = {
@@ -90,6 +92,7 @@ TIER_TITLES: dict[int, str] = {
     11: "Generative AI",
     12: "Event Stream Processing (ESP)",
     13: "Custom Analysis Framework (AIoT analysis types)",
+    14: "Knowledge Base (Domain Playbooks)",
 }
 
 ALL_TIERS: frozenset[int] = frozenset(_TIER_REGISTRARS)
