@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import random
 import subprocess
 import sys
 from urllib.parse import urljoin, urlparse
@@ -145,6 +146,11 @@ async def download_all_specs():
             print(f"\nProcessing endpoint: {api_name} ({api_page})")
             
             try:
+                # Add random jitter between 3 and 7 seconds to evade WAF rate limits
+                delay = random.uniform(3.0, 7.0)
+                print(f"  Sleeping {delay:.1f}s to avoid WAF block...")
+                await page.wait_for_timeout(int(delay * 1000))
+                
                 await page.goto(api_page)
                 await page.wait_for_timeout(1000)
                 
