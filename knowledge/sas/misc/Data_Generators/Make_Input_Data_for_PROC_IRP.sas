@@ -1,0 +1,26 @@
+data irp2.testdaten;
+do i=1 to 50;
+index=i;
+fixedcost=int(abs(rannor(4)*6+200));
+holdingcost=5+int(abs(rannor(4)*4));
+ltdmean=500+int(abs(rannor(12)*54));
+ltdvar=200+int((ranuni(43)*45));
+ltmean=45+int(abs(rannor(14)*4));
+ltvar=40+int(abs(rannor(32)*3));
+rtdmean=89+int(abs(ranuni(54)*16));
+rtdvar=50+int(abs(ranuni(54)*3));
+fixedLotSize=50+int(abs(ranuni(5)*6));
+maxOrderFreq=int(ranuni(43)*43);
+minorderSize=10+int(abs(ranuni(5)*6));
+onhandinventory=120+int(abs(rannor(43)*12));
+pipelineinventory=300+int(abs(rannor(43)*43));
+unitcost=2+int(abs(rannor(432)*43+10));
+policytype='SS';
+Servicetype='FR';
+ServiceLevel=0.97;
+productname='Produkt '||put(i,2.);
+output;
+end;
+
+drop i;
+run;
