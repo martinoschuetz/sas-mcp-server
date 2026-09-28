@@ -257,7 +257,7 @@ def register_prompts(mcp: FastMCP) -> None:
             rules_text = "Error: FQA rules file not found on the server."
         return [
             Message(
-                role="system",
+                role="user",
                 content=(
                     f"Here are the core execution guidelines, best practices, and "
                     f"analytical funnels for SAS Field Quality Analytics (FQA):\n\n"
@@ -289,5 +289,6 @@ def register_prompts(mcp: FastMCP) -> None:
         except FileNotFoundError:
             rules_text = "Error: Standards files not found on the server."
         return [
-            Message(role="system", content=(f"Here are the SAS and Python development standards:\n\n{rules_text}\n\n"))
+            Message(role="user", content=(f"Here are the SAS and Python development standards:\n\n{rules_text}\n\n"))
         ]
+
