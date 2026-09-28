@@ -37,6 +37,7 @@ from .landing import LandingPageMiddleware, ServerFacts, collect_facts
 from .prompts import register_prompts
 from .telemetry import install_telemetry
 from .tools import register_tools
+from .user_log import install_user_log
 from .viya_client import announce_startup, logger
 from .viya_utils import shutdown_session_cache
 
@@ -115,8 +116,9 @@ async def _http_get_token(ctx: Context) -> str:
     return token
 
 
-# Register all tools and prompts
-register_tools(mcp, _http_get_token)
+# Register all tools and prompts. Each tool call logs the Viya user it runs
+# as (see user_log).
+register_tools(mcp, install_user_log(mcp, _http_get_token))
 register_prompts(mcp)
 
 # The path FastMCP mounts the MCP transport on ("/mcp" unless overridden via

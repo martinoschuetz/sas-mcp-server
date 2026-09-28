@@ -165,6 +165,23 @@ MAX_EXPORT_INLINE_BYTES = int(os.getenv("MAX_EXPORT_INLINE_BYTES", str(25 * 1024
 # deploy/SCALING.md).
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(100 * 1024 * 1024)))
 
+# Timeout in seconds for every SAS Viya REST call the tools make (connect, read,
+# write and pool wait alike). The default is generous because some calls are
+# slow by nature: a compute session spinning up, a long job log, a large table
+# page. Lower it to fail fast behind a proxy that drops idle connections; raise
+# it for a deployment whose compute contexts take longer to start.
+_raw_timeout = os.getenv("VIYA_CLIENT_TIMEOUT", "300").strip() or "300"
+try:
+    VIYA_CLIENT_TIMEOUT = float(_raw_timeout)
+except ValueError:
+    raise ConfigError(
+        f"VIYA_CLIENT_TIMEOUT must be a number of seconds, got {_raw_timeout!r}."
+    ) from None
+if not VIYA_CLIENT_TIMEOUT > 0:
+    raise ConfigError(
+        f"VIYA_CLIENT_TIMEOUT must be greater than 0 seconds, got {_raw_timeout!r}."
+    )
+
 if not VIYA_ENDPOINT:
     raise ConfigError(
         "VIYA_ENDPOINT is not set. Please set it in the environment variables."

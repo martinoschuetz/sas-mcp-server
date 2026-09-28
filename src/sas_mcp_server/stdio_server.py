@@ -53,6 +53,7 @@ from .http_debug import install_http_debug
 from .prompts import register_prompts
 from .telemetry import install_telemetry
 from .tools import register_tools
+from .user_log import install_user_log
 from .viya_client import announce_startup, logger, raise_for_viya_status
 from .viya_utils import shutdown_session_cache
 
@@ -323,7 +324,8 @@ if not AUTH_ENABLED:
         "Viya API calls are sent without Authorization headers"
     )
 mcp = FastMCP(SERVER_NAME, version=SERVER_VERSION, lifespan=_lifespan)
-register_tools(mcp, _stdio_get_token)
+# Each tool call logs the Viya user it runs as (see user_log).
+register_tools(mcp, install_user_log(mcp, _stdio_get_token))
 # Opt-in telemetry (no-op unless COLLECTION_MODE is enabled).
 install_telemetry(mcp, "stdio")
 install_http_debug()
