@@ -514,6 +514,16 @@ Collection mode is designed to be cheap enough to leave on. Measured on this rep
   negligible — the live integration suite passed identically with collection mode off and on, the overhead lost in normal network variance.
 - **Disk.** Roughly **0.5–0.7 KB per tool call** at the shape-only default. The log rotates at `COLLECTION_MAX_LOG_BYTES` (default 10 MiB, ≈16k calls) and keeps `COLLECTION_LOG_BACKUPS` (default 3) rotated files, so on-disk growth is bounded.
 
+## Server Log
+
+The server log starts with one line naming what runs: the server and FastMCP versions, the transport, and the SAS Viya endpoint. After that, every tool call logs the tool and the SAS Viya user it runs as:
+
+```
+Tool call: execute_sas_code (user: sasdemo)
+```
+
+The user is the `id` from `GET /identities/users/@currentUser`, asked with the caller's own token, so it is exactly the identity Viya authorizes the call against; for a client-credentials token it is the client's id. The lookup happens once per token, not once per call, and a failed lookup logs `user: unknown` rather than failing the tool. On a shared HTTP deployment this is what ties a field report to the person who hit it.
+
 ## HTTP Debug Trace
 
 When a tool fails, the model's summary of the error rarely shows the request that caused it — a wrong path, a missing media type, a body of the wrong shape — and one tool call can make several requests (paging, polling a compute job, fetching its log). Set `HTTP_DEBUG=true` in `.env` to write every request the server sends to the SAS Viya APIs, and each response, to a separate file:

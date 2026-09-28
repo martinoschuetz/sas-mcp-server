@@ -20,7 +20,7 @@ import httpx
 from fastmcp.utilities.logging import get_logger
 
 from . import http_debug
-from .config import SSL_VERIFY, VIYA_ENDPOINT
+from .config import SSL_VERIFY, VIYA_CLIENT_TIMEOUT, VIYA_ENDPOINT
 
 logger = get_logger(__name__)
 
@@ -44,8 +44,8 @@ def announce_startup(transport: str, version: str | None) -> str:
 
 
 # Viya REST calls can be slow (compute session spin-up, large log fetches);
-# give them a generous client timeout.
-_CLIENT_TIMEOUT = 300.0
+# give them a generous client timeout. VIYA_CLIENT_TIMEOUT, default 300 s.
+_CLIENT_TIMEOUT = VIYA_CLIENT_TIMEOUT
 
 JSONDict = dict[str, Any]
 

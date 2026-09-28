@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.18.0] - 2026-09-28
+
+### Added
+- **The server log names the SAS Viya user behind every tool call.** (#65) A shared HTTP deployment serves many people through one process, and its log said which tool ran but not for whom, so a field report could not be matched to the person who hit it. Each tool call now logs `Tool call: <tool> (user: <id>)`, where the id comes from `GET /identities/users/@currentUser` asked with the caller's own token — exactly the identity Viya authorizes the call against (for a client-credentials token, the client's id). The lookup runs once per token, not per call, keyed by a hash of the token; it has its own 10-second timeout; a failure is logged as `user: unknown`, retried after five minutes, and never fails the tool. It hooks in where each tool obtains its token, so both transports get it and stdio never starts a second sign-in. The collection log is unchanged.
+- **`VIYA_CLIENT_TIMEOUT` sets the timeout of every SAS Viya REST call** (chart: `server.clientTimeout`). (#65) It was fixed at 300 seconds; that stays the default. Lower it to fail fast behind a proxy that drops idle connections, raise it for compute contexts that are slow to start. A value that is not a number greater than 0 stops the server at startup with the reason. Chart 0.5.0 for the new value.
+
 ## [1.17.0] - 2026-09-25
 
 ### Added
