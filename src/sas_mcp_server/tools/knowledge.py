@@ -5,8 +5,9 @@ from fastmcp import FastMCP
 
 from fastmcp import Context
 
-# Use /app/knowledge if in docker, otherwise local knowledge/ dir
-KNOWLEDGE_DIR = Path("/app/knowledge") if Path("/app/knowledge").exists() else Path("knowledge")
+# Use /app/knowledge if in docker, otherwise resolve the local knowledge/ dir relative to this file
+LOCAL_KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent.parent.parent / "knowledge"
+KNOWLEDGE_DIR = Path("/app/knowledge") if Path("/app/knowledge").exists() else LOCAL_KNOWLEDGE_DIR
 
 
 def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> None:

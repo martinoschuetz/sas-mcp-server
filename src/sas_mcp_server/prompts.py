@@ -222,7 +222,7 @@ def register_prompts(mcp: FastMCP) -> None:
 
         rule_path = Path("/app/knowledge/fqa/mcp_execution_rules.md")
         if not rule_path.exists():
-            rule_path = Path("knowledge/fqa/mcp_execution_rules.md")
+            rule_path = Path(__file__).resolve().parent.parent.parent / "knowledge" / "fqa" / "mcp_execution_rules.md"
 
         try:
             with open(rule_path, encoding="utf-8") as f:
@@ -249,7 +249,7 @@ def register_prompts(mcp: FastMCP) -> None:
 
         rule_path = Path("/app/knowledge/fqa/mcp_execution_rules.md")
         if not rule_path.exists():
-            rule_path = Path("knowledge/fqa/mcp_execution_rules.md")
+            rule_path = Path(__file__).resolve().parent.parent.parent / "knowledge" / "fqa" / "mcp_execution_rules.md"
         try:
             with open(rule_path, encoding="utf-8") as f:
                 rules_text = f.read()
@@ -276,8 +276,9 @@ def register_prompts(mcp: FastMCP) -> None:
         sas_path = Path("/app/knowledge/standards/sas.md")
         py_path = Path("/app/knowledge/standards/python.md")
         if not sas_path.exists():
-            sas_path = Path("knowledge/standards/sas.md")
-            py_path = Path("knowledge/standards/python.md")
+            local_base = Path(__file__).resolve().parent.parent.parent / "knowledge" / "standards"
+            sas_path = local_base / "sas.md"
+            py_path = local_base / "python.md"
 
         rules_text = ""
         try:
