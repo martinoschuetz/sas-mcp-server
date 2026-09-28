@@ -1,0 +1,27 @@
+{
+  "name" : "Gradient Boosting Model",
+  "description" : "Generate forecast with Gradient Boosting Model.",
+  "revision" : 0,
+  "version" : 1,
+  "prototype" : {
+    "name" : "Gradient Boosting Model",
+    "revision" : 0,
+    "executionProviderId" : "Compute",
+    "status" : "undefined",
+    "componentProperties" : {
+      "_holdoutSampleSize": 0,
+      "_holdoutSamplePercent": 20,
+      "_trend": "Linear",
+      "_seasonDummy": true,
+      "_lagXNumber": 0,
+      "_lagYNumber": 0,
+      "_depTransform": "NONE",
+      "preProcessTransformationsCode" : "--[[ apply transformations to input data ]]\nif args.dataSpecification.inTransformations then\n\n    --[[ set max syserr to 4 (allow warnings) ]]\n    local prevMaxSysErr = sas.get_max_syserr()\n    sas.set_max_syserr(4)\n\n    --[[ initialize references to the tables at the root ]]\n    sas.symput('_timeseries', \"&inData\")\n    sas.symput('_attributes', \"&inAttributes\")\n\n    --[[ apply series of tranformations to input data ]]\n    for i, transformation in ipairs(args.dataSpecification.inTransformations) do\n        if transformation.type == 'FEDSQL' then\n            --[[ submit query ]]--\n            local query = transformation.value\n            sas.submit[[\n                proc cas;\n                    fedsql.execDirect /\n                        query=\"@query@\";\n                run;\n                quit;\n            ]]\n        end\n\n        --[[ update table reference so next transformation is applied to output of previous one ]]\n        sas.symput(transformation.tableReferenceKey, transformation.tableReferenceValue)\n    end\n\n    --[[ restore max syserr ]]\n    sas.set_max_syserr(prevMaxSysErr)\nend"
+    }
+  },
+  "applicationId" : "forecasting",
+  "classification" : "pluggable",
+  "providerId" : "CustomTemplate",
+  "group" : "modeling",
+  "hidden" : false
+}

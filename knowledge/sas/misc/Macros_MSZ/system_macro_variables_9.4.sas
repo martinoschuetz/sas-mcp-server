@@ -1,0 +1,67 @@
+/*
+	SAS 9.4 automatic macro variables.
+	http://support.sas.com/documentation/cdl/en/mcrolref/68140/HTML/default/viewer.htm#n0754btysys5qyn1cm6wg8w94mld.htm
+	Automatic documentation in EG when mouse over
+*/
+%put &=SYSADDRBITS.;
+%put &=SYSBUFFR.;
+%put &=SYSCC.;
+%put &=SYSCHARWIDTH.;
+%put &=SYSCMD.;
+%put &=SYSDATASTEPPHASE.;
+%put &=SYSDATE.;
+%put &=SYSDATE9.;
+%put &=SYSDAY.;
+%put &=SYSDEVIC.;
+%put &=SYSDMG.;
+%put &=SYSDSN.;
+%put &=SYSENCODING.;
+%put &=SYSENDIAN.;
+%put &=SYSENV.;
+%put &=SYSERR.;
+%put &=SYSERRORTEXT.;
+%put &=SYSFILRC.;
+%put &=SYSHOSTINFOLONG.;
+%put &=SYSHOSTNAME.;
+%put &=SYSINDEX.;
+%put &=SYSINFO.;
+%put &=SYSJOBID.;
+%put &=SYSLAST.;
+%put &=SYSLCKRC.;
+%put &=SYSLIBRC.;
+%put &=SYSLOGAPPLNAME.;
+%put &=SYSMACRONAME.;
+%put &=SYSMENV.;
+%put &=SYSMSG.;
+%put &=SYSNCPU.;
+%put &=SYSNOBS.;
+ods graphics on;
+*%put &=SYSODSESCAPECHAR.;
+%put &=SYSODSPATH.;
+ods graphics off;
+%put &=SYSPARM.;
+%put &=SYSPBUFF.;
+%put &=SYSPROCESSID.;
+%put &=SYSPROCESSMODE.;
+%put &=SYSPROCESSNAME.;
+%put &=SYSPROCNAME.;
+%put &=SYSRC.;
+%put &=SYSSCP.;
+%put &=SYSSCPL.;
+%put &=SYSSCPL.;
+%put &=SYSSITE.;
+%put &=SYSSIZEOFLONG.;
+%put &=SYSSIZEOFPTR.;
+%put &=SYSSIZEOFUNICODE.;
+%put &=SYSSTARTID.;
+%put &=SYSSTARTNAME.;
+%put &=SYSTCPIPHOSTNAME.;
+%put &=SYSTIME.;
+%put &=SYSTIMEZONE.;
+%put &=SYSTIMEZONEIDENT.;
+%put &=SYSTIMEZONEOFFSET.;
+%put &=SYSUSERID.;
+%put &=SYSVER.;
+%put &=SYSVLONG.;
+%put &=SYSVLONG4.;
+%put &=SYSWARNINGTEXT.;
