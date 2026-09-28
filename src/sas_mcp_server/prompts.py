@@ -218,12 +218,12 @@ def register_prompts(mcp: FastMCP) -> None:
     @mcp.prompt()
     def fqa_best_practices() -> list[Message]:
         """Provide the core business rules and guidelines for working with SAS FQA Data Selections and Analyses."""
-        # We dynamically read the rule file so that any future changes to .agents/rules/fqa.md are reflected instantly.
-        import os
+        from pathlib import Path
 
-        rule_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".agents", "rules", "fqa.md"
-        )
+        rule_path = Path("/app/knowledge/fqa/mcp_execution_rules.md")
+        if not rule_path.exists():
+            rule_path = Path("knowledge/fqa/mcp_execution_rules.md")
+
         try:
             with open(rule_path, encoding="utf-8") as f:
                 rules_content = f.read()

@@ -130,3 +130,176 @@ With full access to raw integrated databases (Warranty, Product, Support Service
 | Detail report | read unaggregated claims and technician comments |
 | Text Mining | cluster comments into symptom themes |
 | Time of Event, Event Forecasting | liability projection (not for root cause) |
+
+
+## 8. High Cardinality Remediation Strategy
+
+This document defines the high-cardinality mitigation architecture for all **14 standard analyses** in SAS Field Quality Analytics (FQA). High-cardinality variables (e.g., daily claim dates, unique part serial numbers, zip codes, and detailed failure codes) are mapped to specific remediation strategies to ensure stable execution, high model performance, and clean visualizations.
+
+---
+
+### 8.1 Global Remediation Toolkit
+
+```mermaid
+graph TD
+    A["Raw High-Cardinality Field"] --> B{"Analysis Context"}
+    
+    B -->|"Visual / Descriptive"| C["Top-N + 'Other' Grouping"]
+    B -->|"Temporal / Claims Time"| D["Date Offsets & Roll-ups"]
+    B -->|"Supervised Modeling"| E["Target Encoding"]
+    B -->|"Spatial / GPS / Zip"| F["Geographic Roll-ups"]
+    B -->|"Unstructured Text"| G["SVD / Cluster Reduction"]
+    
+    C --> H["Cleaned CAS Tables for FQA Execution"]
+    D --> H
+    E --> H
+    F --> H
+    G --> H
+```
+
+---
+
+### 8.2 Analysis-by-Analysis Remediation Strategies
+
+Below is the exhaustive mapping of the 14 FQA standard analyses to their required high-cardinality remediation strategies.
+
+### 1. Pareto Analysis
+*   **The Issue:** High-cardinality variables (like specific part serial numbers or fault sub-codes) result in a Pareto chart with thousands of tiny bars, making the chart illegible and violating visualization memory limits.
+*   **Remediation:** **Frequency-Based Binning (Top-N + "Other")**.
+    *   *Implementation:* Sort categories by frequency/cost. Keep the top $N$ (default: 10 or 20) and group the remaining categories into a single `'OTHER'` category.
+
+### 2. Trend Analysis
+*   **The Issue:** Plotting trends against raw daily claim or production dates results in a noisy, erratic line with sparse data points, obscuring the actual failure direction.
+*   **Remediation:** **Temporal Roll-ups (Granularity Reduction)**.
+    *   *Implementation:* Group daily dates into standard time buckets (e.g., `Year-Month` or `Quarter`) using SAS date functions before plotting.
+
+### 3. Trend by Exposure Analysis
+*   **The Issue:** Exposure calculations (like survival curves) fail or become mathematically unstable when exposure dates and failure dates are too granular and sparse.
+*   **Remediation:** **Relative Age Offsets & Cohort Grouping**.
+    *   *Implementation:* Calculate months-in-service offsets (`Claim Date - Production Date`) and group units into monthly or quarterly production cohorts.
+
+### 4. Detail Analysis
+*   **The Issue:** Large row-level claim exports can timeout or hit buffer size limits when trying to output high-cardinality detail fields.
+*   **Remediation:** **Paginated Streaming & Column Selection**.
+    *   *Implementation:* Do not aggregate the data (as detail is required), but apply strict pagination limit offsets (`start` and `limit`) and fetch only essential identifiers.
+
+### 5. Statistical Driver Analysis
+*   **The Issue:** Logistic or linear regression models fail to converge or overfit when categorical predictors have too many levels (e.g., specific dealers or part suppliers), causing rank-deficiency.
+*   **Remediation:** **Supervised Target Encoding**.
+    *   *Implementation:* Replace each high-cardinality category with its historical failure probability (calculated in a summary CAS step). The model then treats the predictor as a single continuous numerical variable.
+
+### 6. Decision Tree Analysis
+*   **The Issue:** SAS decision tree procedures (`HPSPLIT` or `PROC TREES`) enforce a strict maximum category limit (usually 128 or 256) for nominal split variables, throwing errors if exceeded.
+*   **Remediation:** **Decision-Tree Category Binning**.
+    *   *Implementation:* Combine target encoding and frequency binning. Map categories to their target failure rate, and bin them into 10 continuous risk-deciles.
+
+### 7. Event Forecasting Analysis
+*   **The Issue:** Forecasting time series algorithms (like ARIMA or UCM) fail to run on daily granular data due to high noise, missing days (gaps), and zero-count records.
+*   **Remediation:** **Interval Consolidation**.
+    *   *Implementation:* Force aggregation of all claim events to weekly or monthly time series intervals, ensuring a continuous, non-sparse time series.
+
+### 8. Summary Tables Analysis
+*   **The Issue:** Multi-dimensional cross-tabulations generate sparse tables with thousands of empty cells if high-cardinality variables are placed on axes.
+*   **Remediation:** **Dynamic Hierarchical Roll-ups**.
+    *   *Implementation:* Force variables to roll up to their parent hierarchical levels (e.g., display *Product Line* instead of *Part Serial Number*, or *State* instead of *Zip Code*).
+
+### 9. Text Mining Analysis
+*   **The Issue:** Text fields have near-infinite cardinality (each claim description is unique).
+*   **Remediation:** **SVD / Token Filtering**.
+    *   *Implementation:* Perform parsing, stop-word removal, and Singular Value Decomposition (SVD) to reduce text columns to a small number of continuous topic dimensions.
+
+### 10. Exposure Analysis
+*   **The Issue:** Survival curve calculations (like Kaplan-Meier) become computationally expensive and visually unreadable when computing exposure days for millions of unique units.
+*   **Remediation:** **Time-to-Event Interval Binning**.
+    *   *Implementation:* Bin the continuous exposure time (e.g., days in service) into monthly intervals (e.g., Month 1, Month 2, ...).
+
+### 11. Failure Relationships Analysis
+*   **The Issue:** Association rule mining (market basket analysis) becomes extremely slow if thousands of rare failure codes are analyzed.
+*   **Remediation:** **Support Thresholding**.
+    *   *Implementation:* Filter out any failure codes that occur in less than a minimum percentage (e.g., 0.1%) of the total claim population before checking for relationships.
+
+### 12. Geographic Analysis
+*   **The Issue:** Plotting exact GPS coordinates or thousands of zip codes creates visual clutter and slows down geographic rendering.
+*   **Remediation:** **Spatial Clustering / Regional Roll-ups**.
+    *   *Implementation:* Roll up zip codes to state/province boundaries, or apply spatial clustering (binning latitude/longitude into grid segments).
+
+### 13. Time of Event Analysis
+*   **The Issue:** Plotting failure counts against exact calendar dates makes it impossible to see wear-out patterns relative to vehicle mileage or age.
+*   **Remediation:** **Usage/Time Coordinate Normalization**.
+    *   *Implementation:* Map all event times to relative age coordinates (e.g., Months-in-Service, Mileage bins, or Operating Hours).
+
+### 14. Reliability Analysis
+*   **The Issue:** Fitting Weibull or lognormal distributions on raw daily data with high-cardinality censoring times slows down convergence.
+*   **Remediation:** **Censoring Interval Grouping**.
+    *   *Implementation:* Group censored units (units still operating without failure) into interval bins before fitting the parametric distribution.
+
+---
+
+### 8.3 Reference Table: Analysis vs. Remediation Strategy
+
+| # | Analysis | Primary Challenge | Recommended Strategy |
+| - | - | - | - |
+| 1 | **Pareto** | Cluttered visuals, memory limits | Top-N + "Other" Binning |
+| 2 | **Trend** | Erratic curves, high noise | Temporal Roll-ups (Weekly/Monthly) |
+| 3 | **Trend by Exposure** | Sparse exposure curves | Relative Age Offsets |
+| 4 | **Detail** | Large dataset timeouts | Paginated Streaming & Filtering |
+| 5 | **Statistical Driver** | Model non-convergence, overfitting | Supervised Target Encoding |
+| 6 | **Decision Tree** | Max split category limits | Target Encoding / Risk Deciles |
+| 7 | **Event Forecasting** | Zero-count records in series | Monthly Interval Consolidation |
+| 8 | **Summary Tables** | Sparse cross-tabulations | Hierarchical Roll-ups |
+| 9 | **Text Mining** | Infinite string cardinality | Tokenization, SVD Dimensionality Reduction |
+| 10 | **Exposure** | High computation for survival rates | Time-to-Event Interval Binning |
+| 11 | **Failure Relationships**| Combinatorial explosion of rules | Support Thresholding (Top Codes Only) |
+| 12 | **Geographic** | Visual clutter, render lag | Regional Roll-ups (State/Grid Level) |
+| 13 | **Time of Event** | Missed wear-out patterns | Usage/Time Coordinate Normalization |
+| 14 | **Reliability** | Distribution fitting convergence | Censoring Interval Grouping |
+
+
+## 9. FQA High Cardinality Remediation - Assessment & Fixes
+
+### 8.1 High Cardinality in Pareto Analysis
+**Issue:** The Pareto chart generated the warning: `"Primary Labor Code has too many distinct values. The group variable was ignored."` The analysis used `report_var="PRODUCT.MODEL_CD"` and `by_var="CLAIM.PRIM_LABOR_CD"`. 
+
+**Diagnosis:** FQA enforces a strict maximum distinct limit (usually 250 or 500) for the Group variable (`by_var`). 
+`PRIM_LABOR_CD` is highly cardinal (thousands of unique values), while `MODEL_CD` has low cardinality (e.g., specific truck models).
+
+**Solution:**
+We must invert the variables in the Pareto call:
+* `report_var="CLAIM.PRIM_LABOR_CD"`: The reporting axis can handle high cardinality because FQA naturally truncates it to the "Top N" in the Pareto chart, pooling the rest into an "Other" category.
+* `by_var="PRODUCT.MODEL_CD"`: The grouping (stratification) axis safely groups the Top N labor codes into the low-cardinality vehicle models.
+
+### 8.2 Review of Data Transformation Script
+**User Question:** Does `data_transform.sas` correctly address the high cardinality issue, and was it loaded properly?
+
+**Verification Findings:**
+I inspected `Load_Demo_Data.sas` and `data_transform.sas`. 
+Yes, the script correctly calculates frequency bins for the Top 10 most frequent codes and groups the rest into an `'OTHER'` category. 
+It writes these new columns directly into the CAS `CLAIM` table:
+- `PRIM_LABOR_CD_BINNED`
+- `PRIM_REPL_PART_CD_BINNED`
+- `REPAIR_DEALER_CD_BINNED`
+
+Furthermore, these columns are successfully registered in `config/column_parameters.csv`. 
+
+**Why didn't we use them?**
+When copying the `launchProfile` from the parent Data Selection to launch Phase 1, the parent Data Selection did not explicitly map the `_BINNED` columns. Consequently, the FQA analyses didn't have access to them in the downstream CAS table.
+**Fix:** For Phase 2, we should explicitly add `CLAIM.PRIM_LABOR_CD_BINNED` to the launch columns of our Data Selection, and then use it instead of the raw `PRIM_LABOR_CD` when running Statistical Driver or Decision Tree analyses to prevent non-convergence.
+
+### 8.3 Summary Table Fix
+**Issue:** The summary table was grouped by `MODEL_CD` and `PRIM_REPL_PART_CD`. Since the data selection was already pre-filtered for Alert 1 (`MODEL_CD = Galacto`, `PRIM_REPL_PART_CD = 9-040`), the Summary Table collapsed into a single row.
+
+**Solution:**
+The Summary Table should pivot across dimensions that are *not* locked by the alert. 
+For Phase 2 triage, we should cross-tabulate against contextual dimensions like `CLAIM.EVENT_SUBMIT_DATE` (Month) and `PRODUCT.CSTMR_STATE_CD` (Region), or `CLAIM.PRIM_LABOR_CD_BINNED`.
+
+---
+
+### 9.4 How to Transition from Phase 1 to Phase 2 (Algorithmic Segmentation)
+Once Phase 1 runs, the results are written to the CAS library `QASANLOUT`. 
+
+**Workflow:**
+1. **Fetch Short ID:** When an analysis (like Pareto) is triggered, it returns an analysis UUID. We can retrieve the analysis metadata using FQA APIs to get its `shortId`.
+2. **Query the Output Table:** We execute a SAS FedSQL or CAS procedure to query the table `QASANLOUT.ANL_<shortId>_<dataset>` (e.g. `QASANLOUT.ANL_A1B2_PARETO_OUT`).
+3. **Extract Top Drivers:** We read the top row of the Pareto output. For example, if the Pareto indicates that `PRIM_LABOR_CD_BINNED = L-99` constitutes 60% of the total claim cost for Alert 1, we extract `L-99`.
+4. **Prompt Phase 2:** We feed `L-99` into the Phase 2 agent prompt: 
+   *"The Descriptive Triage found Labor Code L-99 is the dominant driver. Run a Statistical Driver Analysis and a Decision Tree Analysis on the Alert 1 data selection, setting the target variable to `CLAIMCOST` and the primary explanatory variable to `PRIM_LABOR_CD_BINNED = L-99` to find what demographic or environmental factors are correlated with this specific failure."*
