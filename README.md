@@ -21,6 +21,7 @@ Here you can find getting articles on how to use and integrate the SAS MCP Serve
 - [Connecting Claude Code CLI to SAS Viya with the SAS Viya MCP Server](https://communities.sas.com/t5/SAS-Communities-Library/Connecting-Claude-Code-CLI-to-SAS-Viya-with-the-SAS-Viya-MCP/ta-p/988775)
 - [Putting the SAS Viya MCP Server to Work in Claude Code CLI](https://communities.sas.com/t5/SAS-Communities-Library/Putting-the-SAS-Viya-MCP-Server-to-Work-in-Claude-Code-CLI/ta-p/988922)
 - [Integration with SAS Retrieval Agent Manager (RAM)](https://github.com/sassoftware/sas-retrieval-agent-manager-examples/tree/main/examples/container_mcp_servers/sas_mcp_server)
+- [Five Industry Use Cases using the SAS Viya MCP Server as Videos](https://www.youtube.com/playlist?list=PLDjjizeeDc04)
 
 ## Getting Started
 ### Prerequisites
