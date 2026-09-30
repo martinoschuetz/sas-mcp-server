@@ -138,3 +138,12 @@ same service succeed for them.
 - SAS docs: [Working with Custom Analysis Types](https://go.documentation.sas.com/doc/en/aniotcdc/default/aniotcat/titlepage.htm)
 - SpEL: [Spring Expression Language](https://docs.spring.io/spring-framework/reference/core/expressions.html)
 - Template language: [Go `text/template`](https://pkg.go.dev/text/template)
+
+## 11. Step Execution Context and Parameter Injection
+
+When an analysis step executes via /iotAnalysis/analyses/{id}/steps/{stepId}/jobs (or from the UI), the FQA microservice dynamically prepends a block of %GLOBAL macro variables (e.g., GLOBAL G_STABLE_PERIOD 29APR24:02...) to the job's SAS code. This preamble is constructed by fetching the step's inputParameters from the PostgreSQL backend and matching them against the parameters declared in the step's input model definition. 
+
+Critical execution gotchas discovered:
+- **Parameter Mapping Failure:** If a step's parameter is saved to the Analysis Instance via REST API (and is visible in GET /iotAnalysis/analyses/{id}), it will **still fail** to inject into the SAS execution preamble if the Analysis Type definition (input node) is missing the parameter binding. The parameter will inject as a blank value (e.g., GLOBAL G_STABLE_PERIOD ), leading to catastrophic SAS macro failures (e.g., The function STRIP ... has too few arguments). 
+- **Updating Parameters Programmatically:** Updating step parameters for multi-step analyses via PUT /iotAnalysis/analyses/{id} works and correctly saves to the backend. However, ensure that the *full* analysis object (all steps) is sent in the PUT payload; sending truncated step arrays can disrupt the analysis state.
+- **Job Arguments are Empty:** The FQA microservice passes parameters **exclusively** via the SAS code preamble, not via the JSON jobRequest.arguments in the compute job.

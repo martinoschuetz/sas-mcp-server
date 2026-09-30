@@ -52,6 +52,8 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
     {
         "list_knowledge_domains", "read_knowledge_topic", "list_fqa_data_model_variables_tool",
         "get_iot_analysis_run_status_tool",
+    "get_iot_analysis_step_log_tool",
+
         # Tier 0 — Compute Contexts & Code Execution
         "list_compute_contexts",
         # Tier 1 — Data Discovery
@@ -219,6 +221,9 @@ WRITE_TOOLS: frozenset[str] = frozenset(
         "copy_data_selections_tool",
         "copy_iot_analyses_tool",
         "create_child_analysis_and_run_tool",
+    "update_analysis_step_parameters_tool",
+    "run_analysis_step_and_wait_tool",
+
         "create_child_data_selection_and_launch_tool",
         "combine_data_selections_tool",
         "create_folder_tool",
