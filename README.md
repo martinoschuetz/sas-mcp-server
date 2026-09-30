@@ -21,6 +21,7 @@ Here you can find getting articles on how to use and integrate the SAS MCP Serve
 - [Connecting Claude Code CLI to SAS Viya with the SAS Viya MCP Server](https://communities.sas.com/t5/SAS-Communities-Library/Connecting-Claude-Code-CLI-to-SAS-Viya-with-the-SAS-Viya-MCP/ta-p/988775)
 - [Putting the SAS Viya MCP Server to Work in Claude Code CLI](https://communities.sas.com/t5/SAS-Communities-Library/Putting-the-SAS-Viya-MCP-Server-to-Work-in-Claude-Code-CLI/ta-p/988922)
 - [Integration with SAS Retrieval Agent Manager (RAM)](https://github.com/sassoftware/sas-retrieval-agent-manager-examples/tree/main/examples/container_mcp_servers/sas_mcp_server)
+- [Five Industry Use Cases using the SAS Viya MCP Server as Videos](https://www.youtube.com/playlist?list=PLDjjizeeDc04)
 
 ## Getting Started
 ### Prerequisites
@@ -548,6 +549,32 @@ Collection mode is designed to be cheap enough to leave on. Measured on this rep
   write is offloaded to a worker thread so it never blocks the event loop. Against real Viya calls (typically hundreds of milliseconds to seconds) this is
   negligible — the live integration suite passed identically with collection mode off and on, the overhead lost in normal network variance.
 - **Disk.** Roughly **0.5–0.7 KB per tool call** at the shape-only default. The log rotates at `COLLECTION_MAX_LOG_BYTES` (default 10 MiB, ≈16k calls) and keeps `COLLECTION_LOG_BACKUPS` (default 3) rotated files, so on-disk growth is bounded.
+
+## Server Log
+
+The server log starts with one line naming what runs: the server and FastMCP versions, the transport, and the SAS Viya endpoint. After that, every tool call logs the tool and the SAS Viya user it runs as:
+
+```
+Tool call: execute_sas_code (user: sasdemo)
+```
+
+The user is the `id` from `GET /identities/users/@currentUser`, asked with the caller's own token, so it is exactly the identity Viya authorizes the call against; for a client-credentials token it is the client's id. The lookup happens once per token, not once per call, and a failed lookup logs `user: unknown` rather than failing the tool. On a shared HTTP deployment this is what ties a field report to the person who hit it.
+
+## HTTP Debug Trace
+
+When a tool fails, the model's summary of the error rarely shows the request that caused it — a wrong path, a missing media type, a body of the wrong shape — and one tool call can make several requests (paging, polling a compute job, fetching its log). Set `HTTP_DEBUG=true` in `.env` to write every request the server sends to the SAS Viya APIs, and each response, to a separate file:
+
+```sh
+HTTP_DEBUG=true
+# The defaults; `docker --env-file` keeps a trailing comment as part of the value, so none here.
+HTTP_DEBUG_LOG_PATH=~/.sas-mcp-server/http-debug.log
+# Cap per recorded body in bytes; 0 records no bodies.
+HTTP_DEBUG_MAX_BODY_BYTES=4096
+```
+
+Each exchange is two JSON lines with the same `id`: a `request` record (method, URL, headers, body) and a `response` record (status, `elapsed_ms`, headers, body). A request with no matching response failed in transit — a timeout, a refused connection, a TLS error. The trace never goes to the server log, so it is safe in stdio mode, where stdout carries the protocol.
+
+`Authorization`, cookies and other credential-shaped headers, query parameters and body keys are redacted, as are inline Bearer/JWT strings. Data values are not: table rows and SAS code appear in bodies, so review the file before sharing it. Binary bodies are recorded as their size and type, bodies are capped at `HTTP_DEBUG_MAX_BODY_BYTES`, and the file rotates like the collection log. The server logs a warning at startup while tracing is on; it is meant for troubleshooting, not for leaving on in a shared deployment. OAuth sign-in and token-refresh calls are not traced.
 
 ## Testing
 
