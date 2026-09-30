@@ -273,12 +273,12 @@ def register_prompts(mcp: FastMCP) -> None:
         """Fetch the SAS and Python development standards and architecture guidelines."""
         from pathlib import Path
 
-        sas_path = Path("/app/knowledge/sas/SKILL.md")
-        py_path = Path("/app/knowledge/standards/python.md")
+        sas_path = Path("/app/knowledge/sas/mcp_execution_rules.md")
+        py_path = Path("/app/knowledge/standards/mcp_execution_rules.md")
         if not sas_path.exists():
             local_base = Path(__file__).resolve().parent.parent.parent / "knowledge"
-            sas_path = local_base / "sas" / "SKILL.md"
-            py_path = local_base / "standards" / "python.md"
+            sas_path = local_base / "sas" / "mcp_execution_rules.md"
+            py_path = local_base / "standards" / "mcp_execution_rules.md"
 
         rules_text = ""
         try:
