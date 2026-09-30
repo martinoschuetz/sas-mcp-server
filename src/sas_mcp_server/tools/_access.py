@@ -145,6 +145,7 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
         "get_analysis_type",
         "get_analysis_type_steps",
         "export_analysis_type",
+        "read_local_analysis_type_package",
         "list_analysis_type_lookups",
         # Both are pure functions over their arguments: they render and check a
         # package in memory and upload nothing.

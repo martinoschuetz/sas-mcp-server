@@ -208,6 +208,58 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
             return result
 
     @mcp.tool()
+    def read_local_analysis_type_package(
+        path: Annotated[str, Field(description="The absolute path to the local CAF analysis type .zip file.")],
+        include_templates: Annotated[
+            bool,
+            Field(default=False, description="Include the full report templates. These are large."),
+        ] = False,
+        step_id: Annotated[
+            str | None,
+            Field(default=None, description="With include_templates, return only this step's template."),
+        ] = None,
+    ) -> dict[str, Any]:
+        """Reads a local CAF analysis type .zip package from disk and parses it into a spec.
+
+        This is used to import, inspect, and reverse-engineer analysis packages
+        that exist on the local filesystem (e.g. distributed by an engineering team)
+        rather than on the SAS Viya server.
+
+        Args:
+            path: Absolute path to the .zip file on the local filesystem.
+            include_templates: Return the Go/BIRD report templates too.
+            step_id: Return only this step's template.
+        """
+        from pathlib import Path
+        
+        file_path = Path(path)
+        if not file_path.exists():
+            return {"status": "error", "message": f"File not found: {path}"}
+            
+        with open(file_path, "rb") as f:
+            data = f.read()
+            
+        package = caf.read_package(data)
+        if not include_templates:
+            package.pop("templates", None)
+        elif step_id:
+            tmpl_name = caf.template_filename(step_id)[:-len(caf.TEMPLATE_SUFFIX)]
+            package["templates"] = {
+                k: v for k, v in package.get("templates", {}).items() if k == tmpl_name
+            }
+            if not package["templates"]:
+                return {
+                    "status": "error",
+                    "message": f"Template for step '{step_id}' not found. Available: {list(package.get('templates', {}).keys())}",
+                }
+                
+        result = caf.summarize_package(package)
+        if not include_templates and "templates" in package:
+            result["sizes"] = {k: len(v) for k, v in package["templates"].items()}
+            result["hint"] = "Pass include_templates=true with a step_id to read one template."
+        return result
+
+    @mcp.tool()
     async def list_analysis_type_lookups(
         ctx: Context,
         limit: Annotated[int, Field(default=100, ge=1, le=1000)] = 100,
