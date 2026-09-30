@@ -72,6 +72,28 @@ if _legacy_tag and not COLLECTION_RUN_TAG:
     )
     COLLECTION_RUN_TAG = _legacy_tag
 
+# --- Opt-in HTTP debug trace ------------------------------------------------
+# Master switch. Default OFF. When true, every request sent to SAS Viya through
+# viya_client.make_client — and its response — is appended to a SEPARATE JSONL
+# file (never the server log: under stdio, stdout is the protocol stream).
+# Credential-shaped headers/params/keys and Bearer/JWT strings are redacted;
+# PII in data values is not. Wiring lives in sas_mcp_server.http_debug.
+HTTP_DEBUG = env_bool("HTTP_DEBUG", False)
+# Trace-file path. Same dotted directory as the collection log and credentials,
+# outside the tree the HTTP server serves. Expanded at install time.
+HTTP_DEBUG_LOG_PATH = os.getenv(
+    "HTTP_DEBUG_LOG_PATH", "~/.sas-mcp-server/http-debug.log"
+)
+# Cap (bytes) on each recorded request/response body; 0 records no bodies,
+# only method, URL, headers, status and timing.
+HTTP_DEBUG_MAX_BODY_BYTES = int(os.getenv("HTTP_DEBUG_MAX_BODY_BYTES", "4096"))
+# RotatingFileHandler rollover size (default 10 MiB) and backups kept, as for
+# the collection log.
+HTTP_DEBUG_MAX_LOG_BYTES = int(
+    os.getenv("HTTP_DEBUG_MAX_LOG_BYTES", str(10 * 1024 * 1024))
+)
+HTTP_DEBUG_LOG_BACKUPS = int(os.getenv("HTTP_DEBUG_LOG_BACKUPS", "3"))
+
 _logger = logging.getLogger(__name__)
 
 if not SSL_VERIFY:
@@ -153,6 +175,22 @@ MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(100 * 1024 * 1024)))
 # dimension is not a safe fallback: it is what made POST .../launches 400.
 AIOT_LAUNCH_KEY_DIM = os.getenv("AIOT_LAUNCH_KEY_DIM", "ASSET")
 AIOT_LAUNCH_TRANSPOSE = env_bool("AIOT_LAUNCH_TRANSPOSE", True)
+# Timeout in seconds for every SAS Viya REST call the tools make (connect, read,
+# write and pool wait alike). The default is generous because some calls are
+# slow by nature: a compute session spinning up, a long job log, a large table
+# page. Lower it to fail fast behind a proxy that drops idle connections; raise
+# it for a deployment whose compute contexts take longer to start.
+_raw_timeout = os.getenv("VIYA_CLIENT_TIMEOUT", "300").strip() or "300"
+try:
+    VIYA_CLIENT_TIMEOUT = float(_raw_timeout)
+except ValueError:
+    raise ConfigError(
+        f"VIYA_CLIENT_TIMEOUT must be a number of seconds, got {_raw_timeout!r}."
+    ) from None
+if not VIYA_CLIENT_TIMEOUT > 0:
+    raise ConfigError(
+        f"VIYA_CLIENT_TIMEOUT must be greater than 0 seconds, got {_raw_timeout!r}."
+    )
 
 if not VIYA_ENDPOINT:
     raise ConfigError(

@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.18.0] - 2026-09-28
+
+### Added
+- **The server log names the SAS Viya user behind every tool call.** (#65) A shared HTTP deployment serves many people through one process, and its log said which tool ran but not for whom, so a field report could not be matched to the person who hit it. Each tool call now logs `Tool call: <tool> (user: <id>)`, where the id comes from `GET /identities/users/@currentUser` asked with the caller's own token — exactly the identity Viya authorizes the call against (for a client-credentials token, the client's id). The lookup runs once per token, not per call, keyed by a hash of the token; it has its own 10-second timeout; a failure is logged as `user: unknown`, retried after five minutes, and never fails the tool. It hooks in where each tool obtains its token, so both transports get it and stdio never starts a second sign-in. The collection log is unchanged.
+- **`VIYA_CLIENT_TIMEOUT` sets the timeout of every SAS Viya REST call** (chart: `server.clientTimeout`). (#65) It was fixed at 300 seconds; that stays the default. Lower it to fail fast behind a proxy that drops idle connections, raise it for compute contexts that are slow to start. A value that is not a number greater than 0 stops the server at startup with the reason. Chart 0.5.0 for the new value.
+
+## [1.17.0] - 2026-09-25
+
+### Added
+- **`HTTP_DEBUG` traces every SAS Viya API request to a separate file.** (#64) A tool failure reached the person as the model's summary of an error, with the request behind it — path, media type, body — nowhere to be seen, and a single tool call can make several requests. With `HTTP_DEBUG=true` in `.env`, each request sent through `make_client` and its response are appended as JSON lines to `HTTP_DEBUG_LOG_PATH` (default `~/.sas-mcp-server/http-debug.log`), never to the server log, so stdio's protocol stream is untouched. Request and response are separate records sharing an `id`, so a request that failed in transit still appears. Credential-shaped headers, query parameters and body keys and inline Bearer/JWT strings are redacted with the collection log's rules; bodies are capped at `HTTP_DEBUG_MAX_BODY_BYTES` (default 4096, `0` for none), binary bodies are described rather than recorded, multipart uploads are not buffered, bodies over 1 MiB are clipped without being decoded or parsed whole, and the file rotates (`HTTP_DEBUG_MAX_LOG_BYTES`, `HTTP_DEBUG_LOG_BACKUPS`). Records are written off the event loop, as the collection log's are. A URL is recorded exactly as sent unless a parameter had to be masked, so it can be pasted into curl. A body read that fails midway (a stalled or dropped connection) is recorded as a `response` with an `error` and the caller still gets that error, not a `StreamConsumed`. Off by default; the server warns at startup while it is on. An unusable path turns tracing off with a warning rather than stopping the server.
+
 ## [1.16.1] - 2026-09-24
 
 ### Changed

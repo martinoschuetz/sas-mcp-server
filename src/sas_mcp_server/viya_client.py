@@ -19,7 +19,8 @@ import fastmcp
 import httpx
 from fastmcp.utilities.logging import get_logger
 
-from .config import SSL_VERIFY, VIYA_ENDPOINT
+from . import http_debug
+from .config import SSL_VERIFY, VIYA_CLIENT_TIMEOUT, VIYA_ENDPOINT
 
 logger = get_logger(__name__)
 
@@ -43,8 +44,8 @@ def announce_startup(transport: str, version: str | None) -> str:
 
 
 # Viya REST calls can be slow (compute session spin-up, large log fetches);
-# give them a generous client timeout.
-_CLIENT_TIMEOUT = 300.0
+# give them a generous client timeout. VIYA_CLIENT_TIMEOUT, default 300 s.
+_CLIENT_TIMEOUT = VIYA_CLIENT_TIMEOUT
 
 JSONDict = dict[str, Any]
 
@@ -235,7 +236,12 @@ def clear_client_cache():
     _CLIENT_CACHE.clear()
 
 def make_client(token: str | None) -> httpx.AsyncClient:
-    """Create or retrieve a persistent :class:httpx.AsyncClient with auth headers for Viya API calls."""
+    """Create an :class:`httpx.AsyncClient` with auth headers for Viya API calls.
+
+    With ``HTTP_DEBUG`` on, the client carries the trace hooks of
+    :mod:`sas_mcp_server.http_debug`; otherwise ``event_hooks`` is ``None`` and
+    the client is exactly what it always was.
+    """
     headers: dict[str, str] = {}
     if token:
         if not token.startswith("Bearer "):
@@ -250,9 +256,13 @@ def make_client(token: str | None) -> httpx.AsyncClient:
         
     if cache_key not in _CLIENT_CACHE:
         _CLIENT_CACHE[cache_key] = _PersistentAsyncClient(
-            headers=headers, verify=SSL_VERIFY, timeout=_CLIENT_TIMEOUT
+            headers=headers, 
+            verify=SSL_VERIFY, 
+            timeout=_CLIENT_TIMEOUT,
+            event_hooks=http_debug.event_hooks()
         )
     return _CLIENT_CACHE[cache_key]
+
 
 
 def return_items(
