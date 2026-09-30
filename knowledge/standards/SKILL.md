@@ -4,7 +4,7 @@ description: Development standards for SAS MCP Server, including Python concurre
 ---
 # Development Standards
 
-Please refer to python.md for detailed rules on:
+Please refer to mcp_execution_rules.md for detailed rules on:
 - Python async/await patterns
 - Error handling
 - Telemetry

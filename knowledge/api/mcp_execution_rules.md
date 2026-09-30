@@ -1,0 +1,390 @@
+# SAS Viya APIs Documentation Directory
+
+**Version:** 2026.09
+
+The docs/APIs directory contains OpenAPI specifications and documentation for various SAS Viya endpoints, organized by category.
+
+## Auto Machine Learning
+<ul>
+  <li><code>mlPipelineAutomation.yml</code></li>
+</ul>
+
+## CAS
+<ul>
+  <li><code>cas.yml</code></li>
+  <li><code>casManagement.yml</code></li>
+</ul>
+
+## Compute and Jobs
+<ul>
+  <li><code>batch.yml</code></li>
+  <li><code>compute.yml</code></li>
+  <li><code>jobDefinitions.yml</code></li>
+  <li><code>jobExecution.yml</code></li>
+</ul>
+
+## Data Management
+<ul>
+  <li><code>catalog.yml</code></li>
+  <li><code>dataQuality.yml</code></li>
+  <li><code>dataSelection.yml</code></li>
+  <li><code>dataSources.yml</code></li>
+  <li><code>dataTables.yml</code></li>
+  <li><code>glossary.yml</code></li>
+  <li><code>relationships.yml</code></li>
+  <li><code>rowSets.yml</code></li>
+  <li><code>studioDevelopment.yml</code></li>
+</ul>
+
+## Fraud and Compliance
+<ul>
+  <li><code>watchlistScreening.yml</code></li>
+</ul>
+
+## Generative AI
+<ul>
+  <li><code>SASRetrievalAgentManager.yml</code></li>
+</ul>
+
+## Health and Life Sciences
+<ul>
+  <li><code>clinicalJobs.yml</code></li>
+  <li><code>clinicalRepository.yml</code></li>
+</ul>
+
+## IOT
+<ul>
+  <li><code>SASEventStreamManager.yml</code></li>
+  <li><code>SASEventStreamProcessingStudio.yml</code></li>
+  <li><code>iotAnalysis.yml</code></li>
+  <li><code>iotAnalysisModels.yml</code></li>
+</ul>
+
+## Models and Decisions
+<ul>
+  <li><code>businessRules.yml</code></li>
+  <li><code>dataMining.yml</code></li>
+  <li><code>decisions.yml</code></li>
+  <li><code>decisionsRuntimeBuilder.yml</code></li>
+  <li><code>microanalyticScore.yml</code></li>
+  <li><code>modelManagement.yml</code></li>
+  <li><code>modelPublish.yml</code></li>
+  <li><code>modelRepository.yml</code></li>
+  <li><code>referenceData.yml</code></li>
+  <li><code>scoreDefinitions.yml</code></li>
+  <li><code>scoreExecution.yml</code></li>
+  <li><code>subjectContacts.yml</code></li>
+  <li><code>treatmentDefinitions.yml</code></li>
+</ul>
+
+## Platform Administration
+<ul>
+  <li><code>SASLogon.yml</code></li>
+  <li><code>annotations.yml</code></li>
+  <li><code>authorization.yml</code></li>
+  <li><code>files.yml</code></li>
+  <li><code>folders.yml</code></li>
+  <li><code>identities.yml</code></li>
+  <li><code>listData.yml</code></li>
+  <li><code>localization.yml</code></li>
+  <li><code>mysas.yml</code></li>
+  <li><code>projects.yml</code></li>
+</ul>
+
+## Uncategorized
+<ul>
+  <li><code>SASDrive.yml</code></li>
+  <li><code>SASEventStreamManager.yml</code></li>
+  <li><code>SASEventStreamProcessingStudio.yml</code></li>
+  <li><code>SASLogon.yml</code></li>
+  <li><code>SASMobileInvestigator.yml</code></li>
+  <li><code>SASRetrievalAgentManager.yml</code></li>
+  <li><code>SASStudio.yml</code></li>
+  <li><code>SASVisualAnalytics.yml</code></li>
+  <li><code>SASVisualInvestigator.yml</code></li>
+  <li><code>SASWatchlistScreening.yml</code></li>
+  <li><code>accountingRules.yml</code></li>
+  <li><code>activities.yml</code></li>
+  <li><code>aiNavigator.yml</code></li>
+  <li><code>alerts.yml</code></li>
+  <li><code>alertsTransaction.yml</code></li>
+  <li><code>amlCore.yml</code></li>
+  <li><code>analyticsComponents.yml</code></li>
+  <li><code>analyticsDataSegmentation.yml</code></li>
+  <li><code>analyticsEvents.yml</code></li>
+  <li><code>analyticsExecution.yml</code></li>
+  <li><code>analyticsFlows.yml</code></li>
+  <li><code>analyticsGateway.yml</code></li>
+  <li><code>analyticsGatewayProviderContract.yml</code></li>
+  <li><code>analyticsLocalization.yml</code></li>
+  <li><code>analyticsPipelines.yml</code></li>
+  <li><code>analyticsValidation.yml</code></li>
+  <li><code>annotations.yml</code></li>
+  <li><code>apidemo.yml</code></li>
+  <li><code>appRegistry.yml</code></li>
+  <li><code>applicationFraud.yml</code></li>
+  <li><code>atomAi.yml</code></li>
+  <li><code>audit.yml</code></li>
+  <li><code>authorization.yml</code></li>
+  <li><code>batch.yml</code></li>
+  <li><code>boss.yml</code></li>
+  <li><code>businessOrchestration.yml</code></li>
+  <li><code>businessRules.yml</code></li>
+  <li><code>cas.yml</code></li>
+  <li><code>casAccessManagement.yml</code></li>
+  <li><code>casFormats.yml</code></li>
+  <li><code>casManagement.yml</code></li>
+  <li><code>casProxy.yml</code></li>
+  <li><code>casRowSets.yml</code></li>
+  <li><code>catalog.yml</code></li>
+  <li><code>catalogMetadataContract.yml</code></li>
+  <li><code>catalogProviderContract.yml</code></li>
+  <li><code>catalogTableBot.yml</code></li>
+  <li><code>categoryExecutionProvider.yml</code></li>
+  <li><code>categoryTaxonomy.yml</code></li>
+  <li><code>clinicalActionStatus.yml</code></li>
+  <li><code>clinicalEnrollmentSimulation.yml</code></li>
+  <li><code>clinicalJobs.yml</code></li>
+  <li><code>clinicalRepository.yml</code></li>
+  <li><code>clinicalWorkspaces.yml</code></li>
+  <li><code>codeDebugger.yml</code></li>
+  <li><code>comments.yml</code></li>
+  <li><code>compute.yml</code></li>
+  <li><code>conceptExecutionProvider.yml</code></li>
+  <li><code>conceptTaxonomy.yml</code></li>
+  <li><code>configReconciler.yml</code></li>
+  <li><code>configuration.yml</code></li>
+  <li><code>connect.yml</code></li>
+  <li><code>costAndProfitabilityManagementImport.yml</code></li>
+  <li><code>costAndProfitabilityManagementModels.yml</code></li>
+  <li><code>costAndProfitabilityManagementReports.yml</code></li>
+  <li><code>credentials.yml</code></li>
+  <li><code>crossdomainproxy.yml</code></li>
+  <li><code>dataAgentContent.yml</code></li>
+  <li><code>dataAgentManagement.yml</code></li>
+  <li><code>dataAgentServerColocated.yml</code></li>
+  <li><code>dataConnections.yml</code></li>
+  <li><code>dataDiscovery.yml</code></li>
+  <li><code>dataDiscoveryProviderContract.yml</code></li>
+  <li><code>dataFlows.yml</code></li>
+  <li><code>dataMaker.yml</code></li>
+  <li><code>dataMining.yml</code></li>
+  <li><code>dataMiningModels.yml</code></li>
+  <li><code>dataMiningProjectResources.yml</code></li>
+  <li><code>dataMiningProjectSettings.yml</code></li>
+  <li><code>dataMiningResults.yml</code></li>
+  <li><code>dataMiningRiskModels.yml</code></li>
+  <li><code>dataMiningWarehouse.yml</code></li>
+  <li><code>dataModelAdministration.yml</code></li>
+  <li><code>dataPlans.yml</code></li>
+  <li><code>dataProfiles.yml</code></li>
+  <li><code>dataQuality.yml</code></li>
+  <li><code>dataQualityHfwa.yml</code></li>
+  <li><code>dataQualityMonitoring.yml</code></li>
+  <li><code>dataSelection.yml</code></li>
+  <li><code>dataSources.yml</code></li>
+  <li><code>dataSourcesProviderContract.yml</code></li>
+  <li><code>dataTables.yml</code></li>
+  <li><code>decisions.yml</code></li>
+  <li><code>decisionsRuntimeBuilder.yml</code></li>
+  <li><code>decisionsSegmentationTrees.yml</code></li>
+  <li><code>demandPlanning.yml</code></li>
+  <li><code>deploymentBackup.yml</code></li>
+  <li><code>deploymentData.yml</code></li>
+  <li><code>detection.yml</code></li>
+  <li><code>detectionAnalysis.yml</code></li>
+  <li><code>detectionDefinition.yml</code></li>
+  <li><code>detectionMessageSchema.yml</code></li>
+  <li><code>detectionTransaction.yml</code></li>
+  <li><code>deviceManagement.yml</code></li>
+  <li><code>discoveryTableProvider.yml</code></li>
+  <li><code>documentGeneratorAdapter.yml</code></li>
+  <li><code>documents.yml</code></li>
+  <li><code>drive.yml</code></li>
+  <li><code>eventMonitor.yml</code></li>
+  <li><code>eventStreamProcessing.yml</code></li>
+  <li><code>fabricDecisionBuilderAdapter.yml</code></li>
+  <li><code>fabricEndpointResolver.yml</code></li>
+  <li><code>featureFlags.yml</code></li>
+  <li><code>fermi.yml</code></li>
+  <li><code>files.yml</code></li>
+  <li><code>folders.yml</code></li>
+  <li><code>fonts.yml</code></li>
+  <li><code>forecastingComparison.yml</code></li>
+  <li><code>forecastingDataDefinition.yml</code></li>
+  <li><code>forecastingEvents.yml</code></li>
+  <li><code>forecastingExploration.yml</code></li>
+  <li><code>forecastingFilters.yml</code></li>
+  <li><code>forecastingGateway.yml</code></li>
+  <li><code>forecastingModels.yml</code></li>
+  <li><code>forecastingOverrides.yml</code></li>
+  <li><code>forecastingPipelines.yml</code></li>
+  <li><code>formats.yml</code></li>
+  <li><code>fraudDecisioningConfig.yml</code></li>
+  <li><code>fraudManagement.yml</code></li>
+  <li><code>fraudTransaction.yml</code></li>
+  <li><code>genAiGateway.yml</code></li>
+  <li><code>genAiOrchestrator.yml</code></li>
+  <li><code>geoEnrichment.yml</code></li>
+  <li><code>glossary.yml</code></li>
+  <li><code>graphTemplates.yml</code></li>
+  <li><code>graphTemplates_internal.yml</code></li>
+  <li><code>healthAddinManager.yml</code></li>
+  <li><code>healthEpisodeBuilder.yml</code></li>
+  <li><code>healthGenAI.yml</code></li>
+  <li><code>healthIngestions.yml</code></li>
+  <li><code>identities.yml</code></li>
+  <li><code>import9.yml</code></li>
+  <li><code>insights.yml</code></li>
+  <li><code>intelligentInventory.yml</code></li>
+  <li><code>iotAnalysis.yml</code></li>
+  <li><code>iotAnalysisModels.yml</code></li>
+  <li><code>iotIntelligentMonitoring.yml</code></li>
+  <li><code>jobDefinitions.yml</code></li>
+  <li><code>jobExecution.yml</code></li>
+  <li><code>jobExecutionProviderContract.yml</code></li>
+  <li><code>jobFlowScheduling.yml</code></li>
+  <li><code>launcher.yml</code></li>
+  <li><code>licenses.yml</code></li>
+  <li><code>links.yml</code></li>
+  <li><code>listData.yml</code></li>
+  <li><code>localization.yml</code></li>
+  <li><code>mail.yml</code></li>
+  <li><code>maps.yml</code></li>
+  <li><code>medicalCodeSets.yml</code></li>
+  <li><code>metering.yml</code></li>
+  <li><code>microanalyticScore.yml</code></li>
+  <li><code>migrationManager.yml</code></li>
+  <li><code>mlPipelineAutomation.yml</code></li>
+  <li><code>modelManagement.yml</code></li>
+  <li><code>modelPublish.yml</code></li>
+  <li><code>modelRepository.yml</code></li>
+  <li><code>monitoring.yml</code></li>
+  <li><code>mysas.yml</code></li>
+  <li><code>naturalLanguageConversations.yml</code></li>
+  <li><code>naturalLanguageGeneration.yml</code></li>
+  <li><code>naturalLanguageUnderstanding.yml</code></li>
+  <li><code>notifications.yml</code></li>
+  <li><code>optimization.yml</code></li>
+  <li><code>packOptimization.yml</code></li>
+  <li><code>parseExecutionProvider.yml</code></li>
+  <li><code>planning.yml</code></li>
+  <li><code>planningGrid.yml</code></li>
+  <li><code>planningProcess.yml</code></li>
+  <li><code>preferences.yml</code></li>
+  <li><code>processFlow.yml</code></li>
+  <li><code>processOrchestration.yml</code></li>
+  <li><code>projects.yml</code></li>
+  <li><code>qkbManagement.yml</code></li>
+  <li><code>ragServer.yml</code></li>
+  <li><code>readiness.yml</code></li>
+  <li><code>referenceData.yml</code></li>
+  <li><code>relationships.yml</code></li>
+  <li><code>reportAlerts.yml</code></li>
+  <li><code>reportData.yml</code></li>
+  <li><code>reportDistribution.yml</code></li>
+  <li><code>reportImages.yml</code></li>
+  <li><code>reportOperations.yml</code></li>
+  <li><code>reportPackages.yml</code></li>
+  <li><code>reportPublish.yml</code></li>
+  <li><code>reportRenderer.yml</code></li>
+  <li><code>reportTemplates.yml</code></li>
+  <li><code>reportTransforms.yml</code></li>
+  <li><code>reports.yml</code></li>
+  <li><code>retailAnalytics.yml</code></li>
+  <li><code>retailData.yml</code></li>
+  <li><code>rfcSolutionConfig.yml</code></li>
+  <li><code>riskAi.yml</code></li>
+  <li><code>riskBusinessEvolutionPlans.yml</code></li>
+  <li><code>riskCirrusAlm.yml</code></li>
+  <li><code>riskCirrusBuilder.yml</code></li>
+  <li><code>riskCirrusCore.yml</code></li>
+  <li><code>riskCirrusKrm.yml</code></li>
+  <li><code>riskCirrusObjects.yml</code></li>
+  <li><code>riskData.yml</code></li>
+  <li><code>riskEnvironments.yml</code></li>
+  <li><code>riskExplorations.yml</code></li>
+  <li><code>riskKRMAPIProxy.yml</code></li>
+  <li><code>riskMarket.yml</code></li>
+  <li><code>riskModelingCore.yml</code></li>
+  <li><code>riskPipeline.yml</code></li>
+  <li><code>riskRrfCore.yml</code></li>
+  <li><code>riskScenarios.yml</code></li>
+  <li><code>rowSets.yml</code></li>
+  <li><code>scheduler.yml</code></li>
+  <li><code>scoreDefinitions.yml</code></li>
+  <li><code>scoreExecution.yml</code></li>
+  <li><code>search.yml</code></li>
+  <li><code>searchIndex.yml</code></li>
+  <li><code>sentimentExecutionProvider.yml</code></li>
+  <li><code>sizeOptimization.yml</code></li>
+  <li><code>studio.yml</code></li>
+  <li><code>studioDevelopment.yml</code></li>
+  <li><code>subjectContacts.yml</code></li>
+  <li><code>svi-alert.yml</code></li>
+  <li><code>svi-data-export.yml</code></li>
+  <li><code>svi-datahub.yml</code></li>
+  <li><code>svi-entity-resolution.yml</code></li>
+  <li><code>svi-feature.yml</code></li>
+  <li><code>svi-gen-ai.yml</code></li>
+  <li><code>svi-indexer.yml</code></li>
+  <li><code>svi-network-analytics.yml</code></li>
+  <li><code>svi-sand.yml</code></li>
+  <li><code>svi-scorecard.yml</code></li>
+  <li><code>svi-transport.yml</code></li>
+  <li><code>svi-vsd-service.yml</code></li>
+  <li><code>sviIntelligenceManagement.yml</code></li>
+  <li><code>syntheticDataGeneration.yml</code></li>
+  <li><code>templates.yml</code></li>
+  <li><code>tenant.yml</code></li>
+  <li><code>tenantManagement.yml</code></li>
+  <li><code>tenantOrchestration.yml</code></li>
+  <li><code>termsManagement.yml</code></li>
+  <li><code>textAnalytics.yml</code></li>
+  <li><code>textAnalyticsExecution.yml</code></li>
+  <li><code>textAnalyticsProvider.yml</code></li>
+  <li><code>themeContent.yml</code></li>
+  <li><code>themes.yml</code></li>
+  <li><code>thumbnailProviderContract.yml</code></li>
+  <li><code>thumbnails.yml</code></li>
+  <li><code>topicExecutionProvider.yml</code></li>
+  <li><code>topicManagement.yml</code></li>
+  <li><code>transfer.yml</code></li>
+  <li><code>transferObjectProviderContract.yml</code></li>
+  <li><code>transformations.yml</code></li>
+  <li><code>treatmentDefinitions.yml</code></li>
+  <li><code>types.yml</code></li>
+  <li><code>visualAnalytics.yml</code></li>
+  <li><code>visualAnalyticsAdministration.yml</code></li>
+  <li><code>watchlistScreening.yml</code></li>
+  <li><code>webDataAccess.yml</code></li>
+  <li><code>webRenderer.yml</code></li>
+  <li><code>webhooks.yml</code></li>
+  <li><code>workflow.yml</code></li>
+  <li><code>workflowDefinition.yml</code></li>
+  <li><code>workflowHistory.yml</code></li>
+  <li><code>workflows.yml</code></li>
+  <li><code>workloadOrchestrator.yml</code></li>
+  <li><code>workloadOrchestratorServer.yml</code></li>
+</ul>
+
+## Visual Investigator
+<ul>
+  <li><code>svi-alert.yml</code></li>
+  <li><code>svi-datahub.yml</code></li>
+  <li><code>svi-sand.yml</code></li>
+  <li><code>svi-transport.yml</code></li>
+  <li><code>workflows.yml</code></li>
+</ul>
+
+## Visualization and Reports
+<ul>
+  <li><code>insights.yml</code></li>
+  <li><code>reportImages.yml</code></li>
+  <li><code>reportTransforms.yml</code></li>
+  <li><code>reports.yml</code></li>
+  <li><code>visualAnalytics.yml</code></li>
+</ul>
+
+## Uncategorized / Old
+There is an old directory containing unorganized or legacy YML files, and some files at the root of docs/APIs.
