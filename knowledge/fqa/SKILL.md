@@ -86,6 +86,7 @@ every later result should be read.
 - [writeback.md](references/writeback.md) — approvals, GUI documentation rules, naming, provenance footer.
 - [safety.md](references/safety.md) — untrusted text, PII redaction, wording rules.
 - [glossary.md](references/glossary.md) — FQA and reliability vocabulary.
+- [loading-parallel-models.md](references/loading-parallel-models.md) — architecture, race conditions, and parameter requirements when loading FQA alongside other AIoT models (APA/PQA).
 - [templates/fedsql/](templates/fedsql/) — unit-level query templates (early life, relationships, coverage, preflight).
 
 ## Tenant profile
