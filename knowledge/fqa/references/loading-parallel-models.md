@@ -2,7 +2,7 @@
 
 When running the data load process for multiple AIoT solutions (such as Field Quality Analytics - FQA and Asset Performance Analytics - APA) in parallel, certain architectural constraints regarding the central `AIoTPgMeta.table_meta_pg` registry and `.sas7bdat` physical metadata files must be taken into account.
 
-For the single-solution FQA load itself (parameter file keys, `%afi_dataload` sub-macro order, job phases, validation) see [data-load.md](data-load.md).
+For the single-solution FQA load itself (parameter file keys, `%afi_dataload` sub-macro order, job phases, exceptions log, validation) see [data-load.md](data-load.md).
 
 ## The Metadata Saving Mechanism (`save_metadata=Y`)
 
