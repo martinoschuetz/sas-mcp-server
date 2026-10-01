@@ -37,6 +37,7 @@
 | `custstg` | Customer staging library on disk; input to `%afi_dataload`; `FQACustStg` is its CAS counterpart for validation tables |
 | Parameter file | `parameters_<mode>.txt`, `key=value` input to `%afi_dataload`; modes full, incremental, configonly, seqbom |
 | Partfile | A large fact stored as `<TABLE>_PART_n` sashdat chunks (`*_partfiles=Y`, `*_partfilesize=`) |
+| Exceptions file | CSV written per load (`Dup_ID`, `Dim_Lkup`, `Id_lkup`, `Exception count`); echoes raw rows, so treat it as potentially PII-bearing |
 | `column_rest` | Column visibility code in `column_parameters.csv`: 0 everywhere, 1 not in the DS tree, 2 mart only, 3 ignored |
 | Override | Customer copy of a product macro in `programs/overrides`, logged as `***OVERRIDE IN USE***` |
 | SYSPARM phase | Token passed to the load job: `LOADSTG`, `LOADMART`, `VALIDATE`, `BOMSEQ`, `SKIPBOM`, `CUSTOM_SNAPDATE=` |

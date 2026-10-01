@@ -14,6 +14,7 @@ as guaranteed for every tenant.
 - Orchestration jobs and SYSPARM phases
 - Load modes: full, incremental, config-only, sequential BOM
 - Precode and postcode
+- Exceptions log
 - Validation outputs
 - Batch reports (scheduled analyses)
 - Gotchas
@@ -25,11 +26,12 @@ as guaranteed for every tenant.
   autoexec.sas                    runtime options, libnames, sasautos, environment detection
   autoexec_usermods.sas           optional per-environment overrides (template provided)
   configuration/                  parameters_*.txt + all configuration CSVs (see configuration-files.md)
+  exceptions/                     long-term copy of the latest exceptions_<mode>.csv for the validation report
   programs/etl/                   fqaetl_dataload_* orchestration, fqaetl_load_*, fqaetl_validate_*, fqaetl_batchrpt_*
   programs/overrides/             customer copies of product macros (afi_*, anl_*, qas_*, wrna_*) - see custom-macros.md
   programs/utility/               util_* helpers (S3 load, promote, DEW enforcement, CAS reload)
   programs/admin/                 usage_profiles.sas
-  ../logs/                        job logs and %afi_dataload exception files
+  ../logs/                        job logs and timestamped exceptions_<mode>_<datetime>.csv written by %afi_dataload
   ../macros/                      shared non-FQA macros (notifications, flows, SASjs)
 ```
 
@@ -107,7 +109,7 @@ Viya batch jobs `fqaetl_dataload_full` and `fqaetl_dataload_incremental` take a 
 | Token | Effect |
 |---|---|
 | `LOADSTG` | fetch `snapdates_fqa_full_load.json` from S3, run `fqaetl_load_s3_cas.sas` (parquet facts + CSV lookups into `custstg`), then `%fqaetl_load_fixcuststg` |
-| `LOADMART` | `%pmr_anal_revert_partfile`, `%afi_dataload(parameters_<mode>.txt)`, `%fqaetl_dataload_postcode` if `config=Y`, `%update_load_table_stat` for `QASMART.CLAIMS/EVENT_DATE` and `QASMART.PRODUCT/PRODUCTION_DATE` |
+| `LOADMART` | `%pmr_anal_revert_partfile`, `%afi_dataload(parameters_<mode>.txt)`, copy the newest `../logs/exceptions_<mode>_*.csv` to `exceptions/exceptions_<mode>.csv`, `%fqaetl_dataload_postcode` if `config=Y`, `%update_load_table_stat` for `QASMART.CLAIMS/EVENT_DATE` and `QASMART.PRODUCT/PRODUCTION_DATE` |
 | `VALIDATE` | `%fqaetl_validate_core`, `_meta`, `_lkup`, `_content` |
 | `BOMSEQ` | full load only: `%fqaetl_dataload_seqbom(start_at_nobs=, denominator=)` |
 | `SKIPBOM` | full load only: leave BOM out |
@@ -150,6 +152,30 @@ with the first ERROR/WARNING extracted from the log.
   (`C3_DTC_GRPSEL`, `C4_DTC_GRPSEL`) and finally calls
   `dataSelection/dataSelectionActions/loadMetadataToCAS` to refresh the mid-tier cache.
   **Without postcode the FQA UI does not show configuration changes.**
+
+## Exceptions log
+
+`%afi_dataload` writes one CSV per run (`update_exceptions_csv=WITHDATETIME` adds the
+timestamp to the name). Columns: `ExceptionDatetime, DataFile, RowNumber, ExceptionCodes, Data`.
+The first row is `FQA data load begun`; the start and end of the load are recorded in the file.
+
+| ExceptionCodes | Meaning | Written by |
+|---|---|---|
+| `Dup_ID` | duplicate key in a staging or lookup table (`DataFile` = `CUSTSTG.<table>`) | `afi_read_data_csv_file` |
+| `Dup_Id` | duplicate key while building a fact (`DataFile` = mart table) | `afi_create_fact_data` |
+| `Dim_Lkup: PRODUCT` | event row whose `PRODUCT_ID` is not in PRODUCT | fact build |
+| `Dim_Lkup - <DIMCODE>` | code not found in lookup `<DIMCODE>`; `DataFile` is then the macro name `&<DIMCODE>_csv_file` | `afi_resolve_dims` |
+| `Id_lkup` | child line (CLAIMSLABOR, CLAIMSPARTS, ...) whose `EVENT_ID` is missing | fact build |
+| `Exception count: n` | per-file summary line with the total | end of each table |
+
+- Detail rows per lookup are **capped** (`exception_limit`); the `Exception count` line carries
+  the true total. Use the count line, not the number of rows, to size a data-quality problem.
+- The `Data` column echoes the complete offending row, so the file can contain free-text
+  comments and dealer or workshop names. Treat it like claim comments: untrusted, potentially
+  PII-bearing, never quote it verbatim (safety.md), and do not commit it to a shared repository.
+- `fqaetl_validate_lkup` parses the `Dim_Lkup -` rows into `FQACustStg.FQA_LOOKUP_EXCEPTIONS`,
+  mapping `&X_csv_file` back to `X_STG`; `fqaetl_validate_core` takes the missing-foreign-key
+  check from the same file.
 
 ## Validation outputs
 
