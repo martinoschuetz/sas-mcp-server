@@ -32,3 +32,13 @@
 | Window edge | Alert starting in the first 2 months of the EI monitoring window |
 | Placeholder node | Successful Summary Tables node used to document backend findings in the UI |
 | SB | Service bulletin |
+| DEW | Data Elements Workbook: the Excel source of tables, columns, lookups and labels; exported to `fqa_dew_tables.csv` / `fqa_dew_variables.csv` |
+| Precode / postcode | Customer programs run before (DEW to engine CSVs) and after (Postgres metadata, UI defaults, cache refresh) `%afi_dataload` |
+| `custstg` | Customer staging library on disk; input to `%afi_dataload`; `FQACustStg` is its CAS counterpart for validation tables |
+| Parameter file | `parameters_<mode>.txt`, `key=value` input to `%afi_dataload`; modes full, incremental, configonly, seqbom |
+| Partfile | A large fact stored as `<TABLE>_PART_n` sashdat chunks (`*_partfiles=Y`, `*_partfilesize=`) |
+| `column_rest` | Column visibility code in `column_parameters.csv`: 0 everywhere, 1 not in the DS tree, 2 mart only, 3 ignored |
+| Override | Customer copy of a product macro in `programs/overrides`, logged as `***OVERRIDE IN USE***` |
+| SYSPARM phase | Token passed to the load job: `LOADSTG`, `LOADMART`, `VALIDATE`, `BOMSEQ`, `SKIPBOM`, `CUSTOM_SNAPDATE=` |
+| DAFFE / IIOTTRIAGE / FQA-nnnn | Ticket prefixes: customer project Jira, SAS support triage, product defect |
+| `alt_date` | Token in an analysis description that makes the overridden runtime compute as of a past refresh date |
