@@ -2,6 +2,8 @@
 
 When running the data load process for multiple AIoT solutions (such as Field Quality Analytics - FQA and Asset Performance Analytics - APA) in parallel, certain architectural constraints regarding the central `AIoTPgMeta.table_meta_pg` registry and `.sas7bdat` physical metadata files must be taken into account.
 
+For the single-solution FQA load itself (parameter file keys, `%afi_dataload` sub-macro order, job phases, validation) see [data-load.md](data-load.md).
+
 ## The Metadata Saving Mechanism (`save_metadata=Y`)
 
 In the AIoT data load macros (e.g., `%afi_dataload`), the parameter `save_metadata=Y` governs whether a solution's configuration and refresh dates are exported to physical SAS datasets (`*_fqa.sas7bdat` or `*_apa.sas7bdat`) in the central `metadata_path`. 

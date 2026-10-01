@@ -22,7 +22,18 @@ The physical names below are FQA defaults. Always confirm them in the tenant pro
 | dimensions | `MODEL`, `LABOR_CODE`, `PRIM_LC`, `PRIM_RP`, `REPL_PART_CODE`, `EVENT_STATUS`, `REPAIR_DEALER`, `SELLING_DEALER`, `CSTMR`, `GEO_COORDS`, `SYNONYMS`, `STOPLIST` | `*_RK` → `*_CD`, `*_NM` |
 | alerts | `QASANLOUT.EIENTERPRISE_WMEXT_<hash>` | one row per alert of one EI run |
 | alert cells | `QASANLOUT.EIENTERPRISE_WUMKR_<hash>` | build × TIS grid of one EI run |
-| FQA metadata | `AIoTPgMeta.*` | column metadata, localization, FR defaults; no alert-workflow tables |
+| FQA metadata (CAS copy) | `AIoTPgMeta.*` | column metadata, localization, FR defaults; no alert-workflow tables |
+| FQA metadata (system of record) | Postgres `SharedServices`, schemas `dataselection` (`filter_attribute*`, `table_meta`, `tablecolumn_meta`, `tablecolumn_attributes`, `analysis_global_defaults`), `iotanalysis_models`, `iotanalysis` | what the postcode program edits; the CAS copy is refreshed from here (data-load.md) |
+| ETL validation report | `FQACustStg.FQA_VALIDATION`, `FQA_TABLES`, `FQA_LOOKUP_EXCEPTIONS`, `FQA_CONTENTS_*`, `FQA_SA_META_COMPARE`, `FQA_SA_MISSING`, `FQA_META_NOTUSED` | one row set per `jobtype` (full / incremental); use before trusting a code or lookup |
+| large facts as partfiles | `QASMartStore.<TABLE>_PART_n` + `PARTFILE_RANGE` | BOM, DTC, NASYSDTC on big tenants; the logical table is an empty promoted shell, query the parts or the view |
+
+Columns such as `PRODUCT_DAYS_INSERVICE_BUILD`, `PRODUCT_TIS_BIN_BUILD`, `EVENT_TIS_BIN_BUILD`,
+`FAILURE_NO` and `FIRST_FAILURE_FLG` are **derived at load time** from `global_defaults.csv`
+(configuration-files.md): "in service" may mean registration date, not sale date, and TIS bins
+are months of 30.42 days. Read the tenant's `global_defaults` before interpreting them. On
+multi-event-type tenants the event facts are `CLAIMS`, `SSD`, `DTC`, `NASYSDTC`, `WO` with
+children `CLAIMSLABOR`, `CLAIMSPARTS`, `WOLABOR`, `WOPARTS`; the `CLAIM`/`LABOR`/`PART` names
+above are the 6.3 demo defaults.
 
 `<hash>` differs per EI run. Resolve it once at onboarding and pin it in the tenant profile.
 
