@@ -49,12 +49,9 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         # Check standard file
         topic_path = domain_path / f"{topic}.md"
         if not topic_path.exists():
-            # Support reading nested topics if they pass topic="references/analyses/weibull"
-            nested_path = domain_path / f"{topic}.md"
-            if not nested_path.exists():
-                # List available top-level topics
-                available = [f.stem for f in domain_path.glob("**/*.md")]
-                return f"Topic '{topic}' not found in domain '{domain}'.\nAvailable topics include: {', '.join(available[:20])}"
+            # List available top-level topics
+            available = [str(f.relative_to(domain_path).with_suffix('')) for f in domain_path.glob("**/*.md")]
+            return f"Topic '{topic}' not found in domain '{domain}'.\nAvailable topics include: {', '.join(available[:20])}"
 
         try:
             with open(topic_path, encoding="utf-8") as f:
