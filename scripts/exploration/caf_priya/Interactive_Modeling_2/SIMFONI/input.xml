@@ -1,0 +1,630 @@
+<AnalysisModel>
+ <Registration active="true" type="CUSTOM" orderNo="9" revisionNo="0" dataSelectionRequired="true">
+  <Name>SIMFONI</Name>
+  <DisplayName>Interactive Modeling 2</DisplayName>
+  <Description>Analysis type description</Description>
+  <KeyGroup>ASSET</KeyGroup>
+  <ModifiedTime>2025-07-09T17:25:56.352509Z</ModifiedTime>
+ </Registration>
+ <Steps>
+  <Step id="SIMFONI_STP_1" displayName="Select Data" order="1">
+   <TemplateID>SIMFONI_STP_1</TemplateID>
+   <Parameters>
+    <Parameter name="p_source" displayText="Select Data Source" required="false" visibility="true" order="0" dataType="String" displayControl="DROPDOWN">
+     <PossibleValues>
+      <Values key="CASLIBRARY" value="CAS Library"></Values>
+      <Values key="CSVFILE" value="CSV File"></Values>
+     </PossibleValues>
+     <DefaultValues>
+      <Values key="CASLIBRARY" value="CAS Library"></Values>
+     </DefaultValues>
+     <LookupMetadata id="p_source_LOOKUP_68720" isReused="true">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_caslib" displayText="Select a CAS Library" required="false" visibility="true" order="1" dataType="String" displayControl="DROPDOWN">
+     <LookupMetadata id="p_caslib_LOOKUP_51494" name="p_caslib_LOOKUP_51494" isReused="true" type="RESTAPI">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Rest>
+       <Method>GET</Method>
+       <URI>/casManagement/servers/cas-shared-default/caslibs?limit=100000&amp;dest=123</URI>
+       <Headers>{&#34;Content-Type&#34;:&#34;application/json&#34;,&#34;Accept&#34;:&#34;application/json&#34;}</Headers>
+       <resKeyName>items.name</resKeyName>
+       <resValueName>name</resValueName>
+      </Rest>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_tablenm" displayText="Select a Table" required="false" visibility="true" order="2" dataType="Array" displayControl="DROPDOWN">
+     <LookupMetadata id="p_tablenm_LOOKUP_51494" name="p_tablenm_LOOKUP_51494" isReused="true" type="RESTAPI">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Rest>
+       <Method>GET</Method>
+       <URI>/casManagement/servers/cas-shared-default/caslibs/{{getCurrentValue $.values &#34;p_caslib&#34;}}/tables?limit=100000</URI>
+       <Headers>{&#34;Content-Type&#34;:&#34;application/json&#34;,&#34;Accept&#34;:&#34;application/json&#34;}</Headers>
+       <resKeyName> items.name</resKeyName>
+       <resValueName>name</resValueName>
+      </Rest>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_csvpath" displayText="Enter path for CSV File" required="false" visibility="true" order="3" dataType="String" displayControl="TEXTINPUT">
+     <DefaultValues>
+      <Values key="/export/viya/homes/priya.sharma@sas.com/data/solarFarm/inverter.csv" value="/export/viya/homes/priya.sharma@sas.com/data/solarFarm/inverter.csv"></Values>
+     </DefaultValues>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+   </Parameters>
+   <Containers>
+    <Container type="TAB" displayText="Basic">
+     <Container type="FORM" displayText="">
+      <FormItem ref="" type="INLINE"></FormItem>
+      <FormItem ref="p_source"></FormItem>
+      <FormItem ref="p_caslib"></FormItem>
+      <FormItem ref="p_tablenm"></FormItem>
+      <FormItem ref="p_csvpath"></FormItem>
+     </Container>
+    </Container>
+   </Containers>
+   <Code><![CDATA[/* Load any uncompiled macros specific to this analysis            */
+%afi_caf_loadmacros(/Products/SAS Analytics For IoT/CustomAnalyses/Launch/macros);
+
+
+/* PREPROCESS to prepare for analysis work                         */
+%afi_caf_preprocess(?g_cas, ?analysisID);
+
+
+CAS qasout SESSOPTS=(CASLIB=QASANLOUT) ;
+libname qasout CAS sessref=qasout;
+caslib _all_ assign;
+
+
+option mprint; 
+%macro ingest_data;
+
+  
+
+    data work.analysis_data; 
+		format datetime datetime21.; 
+        set &g_p_caslib..&g_p_tablenm.; 
+		datetime = dhms(mdy(1,1,1970),0,0, msr_timestamp/1000000);
+		drop opcode key1 key2 flags msr_timestamp;
+		Where assetID="Inverter_A";
+    run; 
+   
+
+    /* Prep Metadata for dropdown */
+
+/* Asset List */
+proc sql; 
+	create table assetList as 
+		select distinct(assetID) as assetID
+from work.analysis_data; 
+quit;
+
+
+/* Target & Input Variables */
+
+proc contents data=work.analysis_data out=work.contents noprint ; 
+run;
+
+proc sql noprint; 
+	create table work.varList as 
+		select distinct(name) as VAR_COLUMN_NAME
+		from work.contents 
+		where name not in ( "assetID", "assetType", "datetime"); 
+quit;
+
+data _null_;
+	set assetList end=end;
+	count+1;
+ 	call symputx("assetID"||left(count),assetID);
+	if end then call symputx('assetCnt',count);
+run; 
+
+%put &&assetID1; 
+%do i=1 %to &assetCnt.;
+
+data assetMetadata_&i.;
+format  ASSET_ID ASSET_ID_DESC TAG_ID TAG_ID_DESC $32.;
+	set work.varList ; 
+	ASSET_ID="&&assetID&i."; 
+	ASSET_ID_DESC="&&assetID&i."; 
+	TAG_ID=VAR_COLUMN_NAME; 
+	TAG_ID_DESC="&&assetID&i."||"."||VAR_COLUMN_NAME; 
+keep ASSET_ID ASSET_ID_DESC TAG_ID TAG_ID_DESC; 
+
+run; 
+
+%end;
+
+data assetTagList; 
+	set %do i=1 %to &assetCnt.;
+		assetMetadata_&i.
+		%end;;
+run; 
+
+%mend;
+
+%ingest_data;
+
+/* To finish the analysis specific code, setup the info needed for */
+/* the postprocess.                                                */
+
+/* Provide any output tables to be persisted and used later.       */
+/* Postprocess will promote and save the output tables in the      */
+/* QASANLOUT global caslib using a standard naming convention of   */
+/* <analysis_type>_tablename_<shortid>                             */
+/* For example: CARS_filtered_ABC123                               */
+/*              CARS_complete_ABC123                               */
+%let g_num_output_tables = 4;
+%let g_output_table_1 = work.analysis_data;
+%let g_output_table_2 = work.assetList;
+%let g_output_table_3 = work.varList;
+%let g_output_table_4 = work.assetTagList;
+
+
+
+/* Provide any output variable to be used later.                   */
+/* Postprocess will save these variables into metadata so they can */
+/* be used in the VA output or in later analysis steps             */
+/* For example: filtered_count = 20                                */
+%let g_num_output_vars = 1;
+%let g_output_var_1 = &g_p_tablenm.;
+
+/* *************************************************************** */
+/* END ANALYSIS SPECIFIC PROGRAMMING                               */
+/* *************************************************************** */
+
+
+
+/* PREPROCESS to save analysis work                                */
+%afi_caf_postprocess;]]></Code>
+  </Step>
+  <Step id="SIMFONI_STP_2" displayName="Data Preparation for Model Training" order="2">
+   <TemplateID>SIMFONI_STP_2</TemplateID>
+   <Parameters>
+    <Parameter name="p_asset" displayText="Select Asset" required="false" visibility="true" order="0" dataType="Array" displayControl="DROPDOWN">
+     <PossibleValues>
+      <Values key="Inverter_A" value="Inverter_A"></Values>
+      <Values key="Inverter_B" value="Inverter_B"></Values>
+     </PossibleValues>
+     <DefaultValues>
+      <Values key="Inverter_A" value="Inverter_A"></Values>
+     </DefaultValues>
+     <LookupMetadata id="p_asset_LOOKUP_04939" isReused="true">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_target" displayText="Select Target Tag" required="false" visibility="true" order="1" dataType="Array" displayControl="DROPDOWN">
+     <PossibleValues>
+      <Values key="current_thisInverter" value="Inverter_A.current_thisInverter"></Values>
+     </PossibleValues>
+     <DefaultValues>
+      <Values key="current_thisInverter" value="Inverter_A.current_thisInverter"></Values>
+     </DefaultValues>
+     <LookupMetadata id="p_target_LOOKUP_73794" isReused="true">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="STABLE_PERIOD" displayText="Select Periods to Filter Data" required="false" visibility="true" order="2" dataType="Array" displayControl="STABLEPERIOD">
+     <LookupMetadata id="STABLE_PERIOD_LOOKUP_66768" name="STABLE_PERIOD_LOOKUP_66768" isReused="true" type="CASTABLE">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <CASTable>
+       <LibraryName>QASANLOUT</LibraryName>
+       <TableName>{{getCurrentValue $.values &#34;analysis_data&#34;}}</TableName>
+       <KeyColumnName>datetime</KeyColumnName>
+       <ValueColumnName>{{getCurrentValue $.values &#34;p_target&#34;}}</ValueColumnName>
+       <WhereCondition>assetID={{getCurrentValue $.values &#34;p_asset&#34;}}</WhereCondition>
+      </CASTable>
+      <Properties>
+       <Property key="RESOLVEONUI">true</Property>
+      </Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_input" displayText="Select Input Tag to Explore" required="false" visibility="true" order="3" dataType="Array" displayControl="DROPDOWN">
+     <LookupMetadata id="p_input_LOOKUP_93580" name="p_input_LOOKUP_93580" isReused="false" type="CASTABLE">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <CASTable>
+       <LibraryName>QASANLOUT</LibraryName>
+       <TableName>{{getCurrentValue $.values &#34;assetTagList&#34;}}</TableName>
+       <KeyColumnName>TAG_ID</KeyColumnName>
+       <ValueColumnName>TAG_ID_DESC</ValueColumnName>
+       <WhereCondition>TAG_ID &lt;&gt; &#39;{{getCurrentValue $.values &#34;p_target&#34;}}&#39;</WhereCondition>
+      </CASTable>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="STABLE_INPUT" displayText="Input Tag Graph" required="false" visibility="true" order="4" dataType="Array" displayControl="STABLEPERIOD">
+     <LookupMetadata id="STABLE_INPUT_LOOKUP_12972" name="STABLE_INPUT_LOOKUP_12972" isReused="false" type="CASTABLE">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <CASTable>
+       <LibraryName>QASANLOUT</LibraryName>
+       <TableName>{{getCurrentValue $.values &#34;analysis_data&#34;}}</TableName>
+       <KeyColumnName>datetime</KeyColumnName>
+       <ValueColumnName>{{getCurrentValue $.values &#34;p_input&#34;}}</ValueColumnName>
+       <WhereCondition>assetID={{getCurrentValue $.values &#34;p_asset&#34;}}</WhereCondition>
+      </CASTable>
+      <Properties>
+       <Property key="RESOLVEONUI">true</Property>
+      </Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_inputvar" displayText="Select Input Tags for Model Building" required="false" visibility="true" order="5" dataType="Array" displayControl="MULTISELECT">
+     <LookupMetadata id="p_input_LOOKUP_90225" name="p_input_LOOKUP_90225" isReused="true" type="CASTABLE">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <CASTable>
+       <LibraryName>QASANLOUT</LibraryName>
+       <TableName>{{getCurrentValue $.values &#34;assetTagList&#34;}}</TableName>
+       <KeyColumnName>TAG_ID</KeyColumnName>
+       <ValueColumnName>TAG_ID_DESC</ValueColumnName>
+       <WhereCondition>TAG_ID &lt;&gt; &#39;{{getCurrentValue $.values &#34;p_target&#34;}}&#39;</WhereCondition>
+      </CASTable>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_model" displayText="Select Predictive Model" required="false" visibility="true" order="6" dataType="Array" displayControl="DROPDOWN">
+     <PossibleValues>
+      <Values key="GLM" value="GLM"></Values>
+     </PossibleValues>
+     <DefaultValues>
+      <Values key="GLM" value="GLM"></Values>
+     </DefaultValues>
+     <LookupMetadata id="p_model_LOOKUP_18459" isReused="false">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+   </Parameters>
+   <Containers>
+    <Container type="TAB" displayText="Basic">
+     <Container type="FORM" displayText="">
+      <FormItem ref="" type="INLINE"></FormItem>
+      <FormItem ref="p_asset"></FormItem>
+      <FormItem ref="p_target"></FormItem>
+      <FormItem ref="STABLE_PERIOD"></FormItem>
+      <FormItem ref="p_input"></FormItem>
+      <FormItem ref="STABLE_INPUT"></FormItem>
+      <FormItem ref="p_inputvar"></FormItem>
+      <FormItem ref="p_model"></FormItem>
+     </Container>
+    </Container>
+   </Containers>
+   <Code><![CDATA[/* Load any uncompiled macros specific to this analysis            */
+%afi_caf_loadmacros(/Products/SAS Analytics For IoT/CustomAnalyses/Launch/macros);
+
+
+/* PREPROCESS to prepare for analysis work                         */
+%afi_caf_preprocess(?g_cas, ?analysisID);
+
+
+CAS qasout SESSOPTS=(CASLIB=QASANLOUT) ;
+libname qasout CAS sessref=qasout;
+caslib _all_ assign;
+
+
+option mprint; 
+
+/* Create Filters for Data */
+
+
+%put &=G_STABLE_PERIOD.;
+%global /* G_STABLESTART G_STABLEEND*/ G_TIME_FILTER;
+
+%macro generate_time_filter;
+
+  %local i G_STABLE_PART G_STABLESTART G_STABLEEND;
+  %let i = 1;
+  %let G_TIME_FILTER =;
+
+  %let G_STABLE_PERIOD = %sysfunc(strip(&G_STABLE_PERIOD.));
+  %let G_STABLE_PART = %scan(%nrbquote(&G_STABLE_PERIOD.), &i., ','); 
+
+  %do %until (%length(&G_STABLE_PART.) = 0); 
+    %let G_STABLESTART = %scan(%nrbquote(&G_STABLE_PART.), 1, '-');
+    %let G_STABLEEND = %scan(%nrbquote(&G_STABLE_PART.), 2, '-');
+
+    %if &i. eq 1 %then %do;
+      %let G_TIME_FILTER = (DATETIME le "&G_STABLESTART."dt or DATETIME ge "&G_STABLEEND."dt);
+    %end;
+    %else %do;
+      %let G_TIME_FILTER = &G_TIME_FILTER. and (DATETIME le "&G_STABLESTART."dt or DATETIME ge "&G_STABLEEND."dt);
+    %end;
+
+    %put &=i. &=G_STABLE_PART. &=G_STABLESTART. &=G_STABLEEND.;
+  
+    %let i = %eval(&i. + 1);
+    %let G_STABLE_PART = %scan(%nrbquote(&G_STABLE_PERIOD.), &i., ','); 
+  %end;
+  %let G_TIME_FILTER=(&G_TIME_FILTER.);
+%mend generate_time_filter;
+%generate_time_filter;
+%put &=G_TIME_FILTER.;
+
+/* Train Model */
+
+%put &=g_p_inputvar; 
+
+data qasout.modeldata; 
+  set qasout.&g_analysis_type._analysis_data_&g_short_id.;
+  where  &G_TIME_FILTER.; 
+run;
+
+%let varlist_new = %sysfunc(tranwrd(%quote(&g_p_inputvar), %str(,), %str( )));
+
+ods output FitStatistics=FitStatistics ParameterEstimates=ParameterEstimates;
+proc glm data = qasout.modeldata;;
+  model &g_p_target.=&varlist_new. / solution; 
+run;  
+
+data FitStat; 
+  set FitStatistics; 
+run; 
+
+data ParamEst; 
+  format Parameter $32.;
+  set ParameterEstimates; 
+run; 
+
+/** Forest Teast for registering model in MM */
+proc partition data=qasout.modeldata samppct=70 seed=123 partind;
+   output out=qasout.modeldata2 ;
+/*   display 'SRSFreq';*/
+run;
+proc forest data = qasout.modeldata2;
+	id assetID; 
+  	input &varlist_new.  /level=interval; 
+	target  CURRENT_THISINVERTER /level=interval;
+	partition rolevar=_PartIND_(train='0' validate='1');
+	savestate rstore=qasout.saveFOREST_caf; 
+	output out=qasout.outForest copyvars=(_ALL_); 
+run;  
+
+proc astore ; 
+ods select StoreKey InputVariables OutputVariables;
+		   ods output StoreKey=astorekey; 
+		   ods output InputVariables=work.astoreInputVariables; 
+		   ods output OutputVariables=work.astoreOutputVariables; 
+	describe rstore= qasout.saveFOREST_caf; 
+quit; 
+
+proc astore;
+   download rstore = qasout.saveFOREST_caf
+            store = "/export/sas-viya/homes/prshar/Common_Data/CAF_Demo/astore/saveFOREST_caf.sasast";
+run;
+
+proc registermodel
+      name = "Forest Astore"
+      description = "Forest Astore Model"
+      data = qasout.modeldata2
+      algorithm = Forest
+      function = PREDICTION
+      replace;
+   project name="solarFarm_caf" folder="test_caf";
+   astoremodel store = "/export/sas-viya/homes/prshar/Common_Data/CAF_Demo/astore/saveFOREST_caf.sasast";
+   target CURRENT_THISINVERTER /level=interval;
+   assessment;
+run;
+
+/* To finish the analysis specific code, setup the info needed for */
+/* the postprocess.                                                */
+
+/* Provide any output tables to be persisted and used later.       */
+/* Postprocess will promote and save the output tables in the      */
+/* QASANLOUT global caslib using a standard naming convention of   */
+/* <analysis_type>_tablename_<shortid>                             */
+/* For example: CARS_filtered_ABC123                               */
+/*              CARS_complete_ABC123                               */
+
+%let g_num_output_tables = 2;
+
+%let g_output_table_1 = work.FitStat;
+%let g_output_table_2 = work.ParamEst;
+
+
+
+/* Provide any output variable to be used later.                   */
+/* Postprocess will save these variables into metadata so they can */
+/* be used in the VA output or in later analysis steps             */
+/* For example: filtered_count = 20                                */
+%let g_num_output_vars = 1;
+%let g_output_var_1 = &varlist_new.;
+
+/* *************************************************************** */
+/* END ANALYSIS SPECIFIC PROGRAMMING                               */
+/* *************************************************************** */
+
+
+
+/* PREPROCESS to save analysis work                                */
+%afi_caf_postprocess;]]></Code>
+  </Step>
+ </Steps>
+ <Interactions>
+  <Interaction name="p_caslib 01" sourceParamName="p_caslib" modelName="SIMFONI" combinator="AND" Order="0">
+   <Condition></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.fetchPossibleValues(&#39;p_tablenm&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+  <Interaction name="p_tablenm 01" sourceParamName="p_tablenm" modelName="SIMFONI" combinator="AND" Order="0">
+   <Condition></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.fetchPossibleValues(&#39;p_target&#39;)&#xA;#ctx.fetchPossibleValues(&#39;p_input&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+  <Interaction name="p_target 01" sourceParamName="p_target" modelName="SIMFONI" combinator="AND" Order="0">
+   <Condition></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.fetchPossibleValues(&#39;STABLE_PERIOD&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+  <Interaction name="FIELD_4 01" sourceParamName="p_target_n" modelName="SIMFONI" combinator="AND" Order="0">
+   <Condition></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.getChangedParamName() != &#39;varList&#39; ? #ctx.fetchPossibleValues(&#39;var_column_name&#39;) : #ctx.getChangedParamName()&#xA;#ctx.fetchPossibleValues(&#39;var_column_name&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+  <Interaction name="p_asset 01" sourceParamName="p_asset" modelName="SIMFONI" combinator="AND" Order="0">
+   <Condition></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.fetchPossibleValues(&#39;STABLE_PERIOD&#39;)&#xA;#ctx.fetchPossibleValues(&#39;STABLE_INPUT&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+  <Interaction name="p_input 01" sourceParamName="p_input" modelName="SIMFONI" combinator="AND" Order="0">
+   <Condition></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.fetchPossibleValues(&#39;STABLE_INPUT&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+  <Interaction name="p_source_CAS" sourceParamName="p_source" modelName="SIMFONI" combinator="AND" Order="0">
+   <Condition><![CDATA[#ctx.currentValue('p_source')=='CASLIBRARY'
+]]></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.show(&#39;p_caslib&#39;)&#xA;#ctx.hide(&#39;p_csvpath&#39;)&#xA;#ctx.show(&#39;p_tablenm&#39;)&#xA;#ctx.fetchPossibleValues(&#39;p_caslib&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+  <Interaction name="p_source_CSV" sourceParamName="p_source" modelName="SIMFONI" combinator="AND" Order="0">
+   <Condition><![CDATA[#ctx.currentValue('p_source')=='CSVFILE'
+]]></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.hide(&#39;p_caslib&#39;)&#xA;#ctx.hide(&#39;p_tablenm&#39;)&#xA;#ctx.show(&#39;p_csvpath&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+ </Interactions>
+ <ZipModifiedAt>2107-11-30T00:00:00Z</ZipModifiedAt>
+ <ZipHash></ZipHash>
+</AnalysisModel>

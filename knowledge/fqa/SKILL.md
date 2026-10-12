@@ -1,9 +1,9 @@
 ---
 name: sas-fqa
-description: Domain playbook for SAS Field Quality Analytics (FQA) on SAS Viya / Analytics for IoT, used through the sas-viya-internal MCP server. Use when investigating warranty or field-quality issues, triaging Emerging Issues (early-warning) alerts, choosing or interpreting FQA analyses (Pareto, Failure Relationships, Statistical Drivers, Decision Tree, Text Mining, Trend by Exposure, Reliability/Weibull, Exposure, Geographic, Summary Tables, Detail), querying the FQA data mart (QASMartStore, QASANLOUT), or creating FQA projects, data selections and analysis nodes. Also use when the user mentions alerts, build/production-period charts, time in service (TIS), claim rates, labor or part codes, root cause of a warranty spike, or recall population narrowing. Also covers the FQA data load and configuration layer: %afi_dataload parameter files, the Data Elements Workbook (DEW) and configuration CSVs (column_parameters, global_defaults, analysis_param, labels, failure-relationship rules), full/incremental/sequential-BOM load jobs, the exceptions log, validation tables, customer macro overrides and utilities.
+description: Domain playbook for SAS Field Quality Analytics (FQA) on SAS Viya / Analytics for IoT, used through the sas-viya-internal MCP server. Use when investigating warranty or field-quality issues, triaging Emerging Issues (early-warning) alerts, configuring or explaining Emerging Issues, On Demand (Ad Hoc Analytic) or Threshold (Ad Hoc Threshold) analyses, building or combining data selections across data domains (claims, labor, parts, SSD, DTC), choosing or interpreting FQA analyses (Pareto, Failure Relationships, Statistical Drivers, Decision Tree, Text Mining, Trend by Exposure, Reliability/Weibull, Exposure, Geographic, Summary Tables, Detail), querying the FQA data mart (QASMartStore, QASANLOUT), or creating FQA projects, data selections and analysis nodes. Also use when the user mentions alerts, build/production-period charts, time in service (TIS), claim rates, labor or part codes, root cause of a warranty spike, or recall population narrowing. Also covers the FQA data load and configuration layer: %afi_dataload parameter files, the Data Elements Workbook (DEW) and configuration CSVs (column_parameters, global_defaults, analysis_param, labels, failure-relationship rules), full/incremental/sequential-BOM load jobs, the exceptions log, validation tables, customer macro overrides and utilities.
 metadata:
-  version: 0.2.0
-  source: FQA-Agent-Spec v0.3 (2026-09-25), preflightchecks.md, FQA_bestpractices.md, MAN FQA project folder (configuration, programs/etl, programs/overrides, programs/utility; surveyed 2026-10-01)
+  version: 0.4.0
+  source: FQA-Agent-Spec v0.3 (2026-09-25), preflightchecks.md, FQA_bestpractices.md, MAN FQA project folder (configuration, programs/etl, programs/overrides, programs/utility; surveyed 2026-10-01), production-period alert walkthrough 2026-10-05, FQA 6.3 User's/Administrator's Guide, Emerging Issues Properties, Complex Data Selections and Data Domains, FQA_MCP_Users_Guide (2026-10-07)
   mcp_server: sas-viya-internal
   fqa_version: "6.3"
 ---
@@ -41,6 +41,11 @@ separate tenant profile — never hard-code them from this skill.
    earlier ad-hoc work. Redact names and towns before quoting comments.
 8. **Never leave failed nodes in the FQA UI**, never name anything "Alarm" (use "Alert"), and
    never put resolution claims like "Fixed" in names.
+9. **Scope the population per analysis, not once per investigation.** Units, events and
+   observation window are three separate decisions, and the slice that is right for one analysis
+   is degenerate for the next (see [population-scoping.md](references/population-scoping.md)).
+   Never restrict the cohort to units that already had the outcome, and never let immature units
+   or reporting lag enter a model as evidence that recent builds are healthy.
 
 ## The investigation funnel
 
@@ -78,6 +83,9 @@ every later result should be read.
 ## Supporting references
 
 - [concepts.md](references/concepts.md) — alert groups, alerts, cells, data selections, projects, subsets, build vs. event charts.
+- [early-warning.md](references/early-warning.md) — Emerging Issues vs. On Demand vs. Threshold (6.3 ↔ Viya names, model names), EI methodology and alpha/sigma, the full EI property list with the settings that are immutable after the first run, Threshold calculation methods, alert UI workflow (status, subscriptions, Analyze in Project, expiry), scheduling, MCP mapping.
+- [data-selections.md](references/data-selections.md) — dynamic vs. stored, data domains, domain-specific filters and the Combined Domain technique, value-entry limits, status/outdated/expiry rules, sharing constraints, MCP recipes.
+- [population-scoping.md](references/population-scoping.md) — which units, events and observation window each analysis needs; conditioning on the outcome; analyses that need elapsed time; calendar time vs. age; censoring and reporting lag.
 - [data-model.md](references/data-model.md) — the mart tables, surrogate keys, which code variable to use, comment fields.
 - [tools.md](references/tools.md) — which MCP tool for which job; native analyses vs. templated queries; known tool limits.
 - [fedsql.md](references/fedsql.md) — FedSQL dialect traps in `query_data` (dates, ORDER BY, GROUP BY, no CTE).

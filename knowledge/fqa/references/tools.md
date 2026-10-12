@@ -56,6 +56,7 @@ need approval (writeback.md).
 |---|---|
 | project / folder | `create_project_tool`, `create_folder_tool` |
 | "Analyze Alert" (EI data selection + analysis from an alert) | `analyze_emerging_issue_alert_tool` (filters from `get_alert_filters_tool`) |
+| On Demand / Threshold early warning | `get_iot_model_definition_tool` first, then `create_iot_analysis_tool(model_name="EIANALYTIC_PRODUCT" \| "EITHRESHOLD_PRODUCT", …)` (early-warning.md) |
 | child DS / child analysis | `create_child_data_selection_and_launch_tool`, `create_child_analysis_and_run_tool` |
 | launch a DS | `launch_data_selection_tool`, `launch_data_selection_and_wait_tool` |
 | edit DS | `update_data_selection_tool`, `update_data_selection_filters_tool`, `set_data_selection_date_range_tool`, `copy_data_selection(s)_tool`, `combine_data_selections_tool` |

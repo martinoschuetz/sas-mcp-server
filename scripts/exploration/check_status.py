@@ -1,11 +1,16 @@
+import httpx
+import json
 
-import asyncio, httpx, os, json
-async def main():
-    token = json.load(open(os.path.expanduser('~/.sas-mcp-server/credentials.json')))['Default']['access-token']
-    async with httpx.AsyncClient(verify=False) as client:
-        aid = 'fa3d1a38-be6d-49e6-8e2e-e4dcf1fabce5'
-        chk = await client.get(f'https://iot.viya-azure-gpu.unx.sas.com/iotAnalysis/analyses/{aid}', headers={'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.sas.iot.analysis+json'})
-        s = chk.json().get('status')
-        print(s)
-asyncio.run(main())
+base_url = 'https://iot.viya-azure-gpu.unx.sas.com'
+target_id = '0814d4c3-3335-491f-9281-9880b41768fb'
+client = httpx.Client(verify=False)
 
+res = client.post(f'{base_url}/SASLogon/oauth/token', 
+                  data={'grant_type': 'password', 'username': 'germsz', 'password': '<REDACTED-USE-VIYA_PASSWORD-ENV-VAR>'},
+                  auth=('sas.cli', ''))
+token = res.json().get('access_token')
+headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.sas.iot.analysis+json'}
+res = client.get(f'{base_url}/iotAnalysis/analyses/{target_id}', headers=headers)
+steps = res.json().get('steps', [])
+for s in steps:
+    print(f"{s['modelStepId']}: {s.get('status')}")

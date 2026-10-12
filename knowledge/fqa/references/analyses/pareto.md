@@ -16,6 +16,14 @@ analysis after scoping an alert.
 | bars | `num_bars` (20) | top 10 is enough for interpretation |
 | domain | `data_domain` (`PRODUCT,CLAIM,LABOR`) | match the reporting variable |
 
+Use **as-is** calculation when the alert sits on recent builds: projected and extrapolated
+methods invent exposure for immature build months. Display descriptions rather than codes where
+labels are free text, since later matching to labour codes and comments is by description.
+
+When the data selection already pins the alert's own code, move the reporting variable one level
+down — to the failure/damage code, then to the damaged and repaired part roles. Reporting on the
+pinned code produces a single bar.
+
 ## Evidence (templated)
 Count claims (and distinct units) per level of the claim-level primary code, split by `alert`.
 Add per bar: rank in each group, share, rank change, share-difference z-score, and a Poisson

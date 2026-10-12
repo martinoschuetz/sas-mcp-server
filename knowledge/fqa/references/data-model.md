@@ -62,9 +62,22 @@ only in the final output.
   Cruise Control Cable"), not by code.
 - For **time**, use `REPAIR_OPEN_DATE` for claim sequencing and `PRODUCTION_DATE` for build
   periods. `EVENT_DAYS_INSERVICE_BUILD` gives days from build to event.
+- Some marts carry a **second build date for a major sub-assembly**, e.g. an engine production
+  date alongside the vehicle production date. For a component mounted on that sub-assembly, the
+  sub-assembly's build month is the better change-window variable, and a driver that is sharp on
+  it but blurred on the vehicle date localizes the change upstream. Check for such a field
+  before assuming the vehicle build date is the only timeline.
+- Prefer **as-built** attributes over *current* ones for any build or supplier hypothesis. A
+  "current engine type" or current odometer reflects post-repair state and leaks the outcome
+  into a driver or tree model.
 
 ## Comments
 
+- **Check which domain holds the text before planning a text analysis.** The claim domain may
+  expose only one short field, with the substantial narrative living in another event type on
+  the same units — a service-desk domain with symptom, previous-activity, solution-approach and
+  solution fields of 1,500–2,500 characters. Reach it through `PRODUCT_ID`, not through the
+  claim. List the columns carrying the `COMMENT` sub-type per table before assuming.
 - Two free-text fields per claim: `TECH_COMMENT` (technician) and `CSTMR_COMMENT` (customer).
   They can describe **different** things on the same claim — analyze them separately and flag a
   mismatch as a data-quality issue.

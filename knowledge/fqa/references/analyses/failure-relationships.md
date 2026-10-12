@@ -24,6 +24,19 @@ parts):
 - never on full model history — old builds dilute the signal (reference tenant: lift ≈ 28 on the
   alert cohort vs. 0.76 on pre-alert builds for the same pair).
 
+Three further rules on the population (population-scoping.md):
+
+- **Remove the event filter.** A data selection filtered to one object code or part leaves only
+  that code's claims, so there is nothing to sequence against. Keep the unit filters.
+- **Never condition on the outcome.** If every unit in the cohort already has the alert claim,
+  that consequent's base rate is 1.0 and lift collapses to confidence, so the statistic that
+  separates a real sequence from two common events stops working. Generate against the full
+  comparable population, then filter the *output* to rules involving the code of interest.
+- **The cohort needs elapsed time.** Units at one or two months in service have had one claim
+  and no chronology. Use an older cohort of the same configuration, or an earlier cluster of the
+  same component, and say which. For the alert cohort itself, list the claims and read them
+  rather than mining them.
+
 ## Domain routing
 Use the top **non-confounded** drivers (statistical-drivers.md) to set the order:
 
@@ -46,6 +59,17 @@ If both domains fail, use the claim-level primary-code template.
 - Returns `nosequencesfound_warning` on degenerate data — that is a preflight failure you
   should have caught.
 
+### UI configuration and field recommendations (native run)
+- Domains available: claims, labor codes, replaced parts, OTA/NASYS DTC, SSD, workshop orders —
+  the DS must contain the domain (data-selections.md).
+- Rule size `1-1`, `1-n`, `n-1`, `n-n`; start with `1-1,1-2` to keep rule counts manageable.
+- *Repeat repairs only* (`perform_repeat_repair`) restricts rules to the same code recurring.
+- Rule strength filters: min support (percent or count), confidence, lift, total rule cost
+  (`min_cost`), number of rules shown.
+- Field practice for the **native node** shown to users: 3–6 month window for slow sequences,
+  `min_lift` ≈ 1.2 to drop trivial wear-item pairs, `min_cost` at a business-meaningful level
+  (e.g. 10,000). These are display filters — the evidence thresholds below still apply.
+
 ## Evidence (templated, unit-level)
 For antecedent A and consequent B in cohort C:
 - `units_A` = units in C with any A claim; `units_B` = units in C with any B claim;
@@ -66,5 +90,14 @@ Keep a pair if support ≥ 10 units, confidence ≥ 0.2, lift ≥ 2.0. Drill at 
 - Use primary codes on `CLAIM`; the secondary `LABOR` table showed only 12 of 2,431 seq90 units
   for the same pattern.
 - Zero sequences in the reverse direction support a precursor reading.
+- Read **both directions** as separate findings: what precedes the claim points upstream at a
+  cause, what follows it points at collateral damage or a repair that did not work.
+- **Same-value rules are usually excluded by configuration** (`SAME_VALUE_FLG_CD=0` in the
+  failure-relationship CSV), so a repeat claim on the *same* code never appears. That is normally
+  right and occasionally hides the clearest evidence of a wrong diagnosis or an ineffective
+  repair. Count repeat failures per unit with a direct query instead.
+- Prefer a **component-grain** target (object code) over a part-number target for the first run.
+  Part numbers fragment one component across variants, and the support threshold then eliminates
+  every rule.
 - A passing pair is association. Plausibility (physical mechanism) + comments make it a
   hypothesis; coverage decides whether it explains the alert.
