@@ -1,0 +1,169 @@
+<!-- TEMPLATE (sanitized from a working Viya 2026.08 deployment, CandF_UNS_BMC2).
+     Replace: kafkahostport, kafkatopic, kafkaconsumergroupid, castable, project name in the url property.
+     Inject @KAFKA_USER@ / @KAFKA_PASS@ / @CAS_USER@ / @CAS_PASS@ via ESP Studio environment variables. Never commit secrets. -->
+<project name="CandF_UNS_BMC2" threads="1" pubsub="auto" heartbeat-interval="1" luaroot="@ESP_PROJECT_OUTPUT@/luaroot">
+  <metadata>
+    <meta id="layout">{"cq1":{"Source":{"x":50,"y":50},"w_flatten":{"x":-400,"y":-185},"w_source":{"x":-405,"y":-445},"w_to_cas":{"x":-400,"y":130},"w_to_csv":{"x":-180,"y":-50},"w_to_json":{"x":-195,"y":-330}}}</meta>
+  </metadata>
+  <contqueries>
+    <contquery name="cq1">
+      <windows>
+        <window-source insert-only="true" autogen-key="true" index="pi_EMPTY" name="w_source">
+          <schema>
+            <fields>
+              <field name="id" type="int64" key="true"/>
+              <field name="json_raw" type="string"/>
+            </fields>
+          </schema>
+          <connectors>
+            <connector class="kafka" name="KafkaIn">
+              <properties>
+                <property name="type"><![CDATA[pub]]></property>
+                <property name="kafkahostport"><![CDATA[pkc-lz6r3.northeurope.azure.confluent.cloud:9092]]></property>
+                <property name="kafkatopic"><![CDATA[uns.dev.uns.clv.gbl.sas]]></property>
+                <property name="kafkatype"><![CDATA[opaquestring]]></property>
+                <property name="urlhostport"><![CDATA[localhost_31415]]></property>
+                <property name="kafkaconsumergroupid"><![CDATA[sas-consumer-bmc2-production]]></property>
+                <property name="kafkainitialoffset"><![CDATA[smallest]]></property>
+                <property name="disableespmetaconsumer"><![CDATA[true]]></property>
+                <property name="kafkaglobalconfig"><![CDATA[security.protocol=SASL_SSL;sasl.mechanism=PLAIN;sasl.username=@KAFKA_USER@;sasl.password=@KAFKA_PASS@;auto.offset.reset=earliest;enable.auto.commit=true]]></property>
+                <property name="blocksize"><![CDATA[1000]]></property>
+              </properties>
+            </connector>
+          </connectors>
+        </window-source>
+        <window-copy index="pi_EMPTY" name="w_to_json" active="false">
+          <connectors>
+            <connector class="fs" name="read_Connector">
+              <properties>
+                <property name="type"><![CDATA[sub]]></property>
+                <property name="fstype"><![CDATA[json]]></property>
+                <property name="fsname"><![CDATA[@ESP_PROJECT_OUTPUT@/read.json]]></property>
+                <property name="snapshot"><![CDATA[false]]></property>
+              </properties>
+            </connector>
+          </connectors>
+        </window-copy>
+        <window-python events="create" index="pi_EMPTY" name="w_flatten">
+          <schema>
+            <fields>
+              <field name="id" type="int64" key="true"/>
+              <field name="kafka_topic" type="string"/>
+              <field name="ce_id" type="string"/>
+              <field name="ce_source" type="string"/>
+              <field name="ce_type" type="string"/>
+              <field name="origin" type="string"/>
+              <field name="isa95" type="string"/>
+              <field name="gxp" type="string"/>
+              <field name="isdc" type="string"/>
+              <field name="dataschema" type="string"/>
+              <field name="ce_time" type="stamp"/>
+              <field name="ce_timeEventReceived" type="stamp"/>
+              <field name="ce_timeEdgeBrokerReceived" type="stamp"/>
+              <field name="tag_name" type="string"/>
+              <field name="tag_value" type="double"/>
+              <field name="tag_uom" type="string"/>
+              <field name="tag_quality" type="string"/>
+              <field name="tag_origin" type="string"/>
+            </fields>
+          </schema>
+          <code><![CDATA[
+import json
+import datetime
+
+# Helper function to convert ISO8601 to CAS Microseconds
+def parse_time(t_str):
+    if not t_str:
+        return None
+    try:
+        clean_t = t_str.replace('Z', '+00:00')
+        dt = datetime.datetime.fromisoformat(clean_t)
+        return int(dt.timestamp() * 1000000)
+    except Exception:
+        return None
+
+def create(data, context):
+    event = {}
+    event['id'] = data['id']
+    event['kafka_topic'] = data.get('topic', 'uns.dev.uns.clv.gbl.sas')
+    
+    try:
+        raw = json.loads(data['json_raw'])
+        
+        t1 = parse_time(str(raw.get('time', '')))
+        if t1 is not None:
+            event['ce_time'] = t1
+            
+        event['ce_id'] = str(raw.get('id', ''))
+        event['ce_source'] = str(raw.get('source', ''))
+        event['ce_type'] = str(raw.get('type', ''))
+        event['origin'] = str(raw.get('origin', ''))
+        event['isa95'] = str(raw.get('isa95', ''))
+        event['gxp'] = str(raw.get('gxp', ''))
+        event['isdc'] = str(raw.get('isdc', ''))
+        event['dataschema'] = str(raw.get('dataschema', ''))
+            
+        t2 = parse_time(str(raw.get('timeEventReceived', '')))
+        if t2 is not None:
+            event['ce_timeEventReceived'] = t2
+            
+        t3 = parse_time(str(raw.get('timeEdgeBrokerReceived', '')))
+        if t3 is not None:
+            event['ce_timeEdgeBrokerReceived'] = t3
+        
+        payload = raw.get('data', {})
+        if payload:
+            event['tag_name'] = str(payload.get('tag_name', ''))
+            event['tag_uom'] = str(payload.get('uom', ''))
+            event['tag_quality'] = str(payload.get('quality', ''))
+            
+            val = payload.get('value')
+            if val is not None:
+                try:
+                    event['tag_value'] = float(val)
+                except ValueError:
+                    pass
+            
+            tag_orig = payload.get('origin', {})
+            if tag_orig:
+                event['tag_origin'] = str(tag_orig.get('tag_name', ''))
+            
+    except Exception as e:
+        pass
+        
+    return event
+      ]]></code>
+        </window-python>
+        <window-copy name="w_to_csv" index="pi_EMPTY" active="false">
+          <connectors>
+            <connector class="fs" name="CsvOut">
+              <properties>
+                <property name="type"><![CDATA[sub]]></property>
+                <property name="fstype"><![CDATA[csv]]></property>
+                <property name="fsname"><![CDATA[@ESP_PROJECT_OUTPUT@/read.csv]]></property>
+                <property name="snapshot"><![CDATA[false]]></property>
+              </properties>
+            </connector>
+          </connectors>
+        </window-copy>
+        <window-copy pubsub="true" name="w_to_cas" index="pi_EMPTY">
+          <connectors>
+            <connector class="adapter" name="cas_sub">
+              <properties>
+                <property name="type"><![CDATA[sub]]></property>
+                <property name="command"><![CDATA[dfesp_cas_adapter -C type=sub,cashostport=@SAS_CAS_SERVER_DEFAULT_CLIENT_SERVICE_HOST@:@SAS_CAS_SERVER_DEFAULT_CLIENT_SERVICE_PORT@,casusername=@CAS_USER@,caspassword=@CAS_PASS@,caslib=PUBLIC,castable=BMC_RAW,commitblocks=10,loglevel=info]]></property>
+                <property name="url"><![CDATA[dfESP://localhost:31416/CandF_UNS_BMC2/cq1/w_to_cas?snapshot=false]]></property>
+              </properties>
+            </connector>
+          </connectors>
+        </window-copy>
+      </windows>
+      <edges>
+        <edge source="w_source" target="w_to_json"/>
+        <edge source="w_source" target="w_flatten"/>
+        <edge source="w_flatten" target="w_to_csv"/>
+        <edge source="w_flatten" target="w_to_cas"/>
+      </edges>
+    </contquery>
+  </contqueries>
+</project>

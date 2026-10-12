@@ -50,7 +50,7 @@ from mcp.types import ToolAnnotations
 
 READ_ONLY_TOOLS: frozenset[str] = frozenset(
     {
-        "list_knowledge_domains", "read_knowledge_topic", "list_fqa_data_model_variables_tool",
+        "list_knowledge_domains", "read_knowledge_topic", "search_knowledge", "list_fqa_data_model_variables_tool",
         "get_iot_analysis_run_status_tool",
     "get_iot_analysis_step_log_tool",
 
