@@ -1,0 +1,14 @@
+import httpx
+import json
+
+base_url = 'https://iot.viya-azure-gpu.unx.sas.com'
+client = httpx.Client(verify=False)
+
+res = client.post(f'{base_url}/SASLogon/oauth/token', 
+                  data={'grant_type': 'password', 'username': 'germsz', 'password': '65!9IdimuuxIoT'},
+                  auth=('sas.cli', ''))
+token = res.json().get('access_token')
+headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/json'}
+res = client.get(f'{base_url}/iotAnalysisModels/models/SVDD_NEW/steps/SVDD_NEW_2/inputs', headers=headers)
+print("SVDD_NEW_2 inputs:")
+print(json.dumps(res.json(), indent=2))

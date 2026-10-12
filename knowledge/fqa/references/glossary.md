@@ -43,3 +43,23 @@
 | SYSPARM phase | Token passed to the load job: `LOADSTG`, `LOADMART`, `VALIDATE`, `BOMSEQ`, `SKIPBOM`, `CUSTOM_SNAPDATE=` |
 | DAFFE / IIOTTRIAGE / FQA-nnnn | Ticket prefixes: customer project Jira, SAS support triage, product defect |
 | `alt_date` | Token in an analysis description that makes the overridden runtime compute as of a past refresh date |
+| Right censoring | A unit that has not yet reached the target age, so it has not had its chance to fail. Counting it as a non-failure inverts an early-life signal |
+| Reporting lag | Delay between repair and claim submission; makes the newest periods under-report. Only corrected when claim submit lag adjustment is enabled |
+| Conditioning on the outcome | Restricting the cohort to units that already had the claim of interest. Collapses lift and removes the censored survivors a reliability fit needs |
+| As-built vs. current | Attributes recorded at production against attributes reflecting present state. Only as-built ones are valid predictors of a build or supplier effect |
+| Delivery lag | Gap between build and registration, which varies by market and skews low-service-age cohorts toward near markets |
+| Event filter vs. unit filter | A claim-level filter narrows the outcome but keeps the denominator; a product-level filter narrows the population itself |
+| Emerging Issues / Enterprise Analytic | Scheduled statistical early warning over all breakout combinations (`EIENTERPRISE_PRODUCT`); 6.3 name Enterprise Analytic |
+| On Demand / Ad Hoc Analytic | EI statistics on a user's own DS, optionally auto-updated (`EIANALYTIC_PRODUCT`, verify on tenant) |
+| Threshold / Ad Hoc Threshold | Alert when a metric crosses a fixed user value (`EITHRESHOLD_PRODUCT`); methods Unadjusted, Adjusted, Extrapolated |
+| Sigma (alert alpha) | EI sensitivity entered as sigma; sigma 2 = alpha 0.02275. Higher sigma → fewer alerts |
+| Acceleration | EI priority metric (2026.03 LTS+): rate of change of the event rate, next to Score and Cost Score |
+| Reconciliation | EI setting that keeps critical values constant across runs so alerts don't flip |
+| Alert gap | Window within which flagged periods merge into one alert |
+| Immutable EI property | Property (domain, reporting variables, cost, monitoring window, min units, reconcile) that can't change after the first run |
+| Completed with Errors | EI-only run status: some cells failed, alerts still produced |
+| Alert data selection | Stored-snapshot DS from *Analyze in Project*; expires after N weeks, then Error |
+| Stored vs. dynamic DS | Dynamic re-reads the mart at each launch (default); stored freezes a snapshot with retention |
+| Outdated | DS/analysis state after a definition change, new data load, outdated snapshot or outdated parent |
+| Combined Domain | System variable used to give each domain its own filters in separate simple DSs that are then combined |
+| SSD / OTA DTC | Service/diagnostic session data / over-the-air diagnostic trouble codes — event domains beside claims |

@@ -131,6 +131,15 @@ With full access to raw integrated databases (Warranty, Product, Support Service
 | Text Mining | cluster comments into symptom themes |
 | Time of Event, Event Forecasting | liability projection (not for root cause) |
 
+## 7a. Early Warning & Data Selection Rules (see references/early-warning.md, references/data-selections.md)
+1. **Map names.** Enterprise Analytic = Emerging Issues (`EIENTERPRISE_PRODUCT`), Ad Hoc Analytic = On Demand (`EIANALYTIC_PRODUCT`, verify), Ad Hoc Threshold = Threshold (`EITHRESHOLD_PRODUCT`). Always call `get_iot_model_definition_tool` before `create_iot_analysis_tool` for On Demand/Threshold.
+2. **Immutable EI properties.** Data domain, reporting variables, cost parameter, monitoring window, minimum production units and reconcile can't change after the first run — warn the user before suggesting a change; it means a new root run.
+3. **Alpha is sigma.** Too many false alarms → higher sigma (smaller alpha); missed issues → lower sigma.
+4. **Threshold on young builds:** recommend Adjusted or Extrapolated, never Unadjusted, when builds of different age are compared.
+5. **Domain filters are local.** A domain-specific variable (e.g. warranty type) filters only its own domain; use the Combined Domain technique (two simple DSs + `combine_data_selections_tool`) for per-domain filters.
+6. **Relaunch after every DS edit**, and check alert DS expiry before building on an `EIENTERPRISE` data selection (expired → Error).
+7. **No MCP tool** for assign status, subscriptions or sharing — give UI steps (references/concepts.md).
+
 
 ## 8. High Cardinality Remediation Strategy
 

@@ -41,6 +41,11 @@ RUN python3 -m venv .venv \
 
 ENV PATH="/app/.venv/bin:$PATH"
 
+# Timeout (seconds, plain number) for every SAS Viya REST call. Override at
+# build time with --build-arg or at run time with -e VIYA_CLIENT_TIMEOUT=...
+ARG VIYA_CLIENT_TIMEOUT=300
+ENV VIYA_CLIENT_TIMEOUT=${VIYA_CLIENT_TIMEOUT}
+
 USER sas
 
 EXPOSE ${HOST_PORT}

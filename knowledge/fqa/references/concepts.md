@@ -14,7 +14,9 @@
 The early-warning workspace shows **alert groups**. Technically each group is an **Emerging
 Issues (EI) run** over a data selection:
 
-- `modelName` `EIENTERPRISE_PRODUCT` (statistical excess) or `EITHRESHOLD_PRODUCT` (fixed thresholds).
+- `modelName` `EIENTERPRISE_PRODUCT` (Emerging Issues, statistical excess), `EIANALYTIC_PRODUCT`
+  (On Demand, same statistics on a user DS) or `EITHRESHOLD_PRODUCT` (fixed thresholds). See
+  early-warning.md for properties, methods and the 6.3 names.
 - A **breakout**: the dimensions alerts are computed for, e.g. `MODEL_CD × PRIM_REPL_PART_CD`.
 - A **chart type**: `PRODUCTIONPERIOD` (build chart) and/or event period.
 - A **monitoring window**, e.g. 24 months.
@@ -90,6 +92,9 @@ A **data selection (DS)** is a saved, re-launchable filter set over the mart:
 - `EIENTERPRISE` data selections are created from an alert ("Analyze Alert") and are typically
   filtered to the alert breakout — e.g. a single part. That makes some analyses degenerate
   (see preflight.md).
+- Domain-specific filters only act on their own domain (e.g. warranty type is ignored for SSD
+  records); use the Combined Domain technique for per-domain filters. Lifecycle, expiry and
+  sharing rules: data-selections.md.
 
 ## Projects, analyses and subsets
 
@@ -104,4 +109,10 @@ A **data selection (DS)** is a saved, re-launchable filter set over the mart:
 ## Workflow objects FQA does not expose
 
 There is no MCP tool and no readable table for alert **assignment**, alert **stage** or
-**sharing** of analyses/data selections. Produce instructions the user can carry out in the UI.
+**sharing** of analyses/data selections. Produce instructions the user can carry out in the UI:
+
+- **Assign status:** Alerts → select the alert → *Assign Status* (Unassigned → Assigned →
+  Investigated → Closed), add a comment/attachment.
+- **Share a project:** Projects → open the project → *Manage Sharing* → add users or groups. Tell
+  recipients to remove the owner filter chip in the Projects list to see it.
+- **Subscribe:** Alerts → alert group → *Subscriptions* (all or selected values, email).

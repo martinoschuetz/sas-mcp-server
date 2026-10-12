@@ -1,0 +1,423 @@
+<AnalysisModel>
+ <Registration active="true" type="CUSTOM" orderNo="9" revisionNo="0" dataSelectionRequired="false">
+  <Name>PDM</Name>
+  <DisplayName>PdM Analysis - Data Exploration </DisplayName>
+  <Description>Analysis type description</Description>
+  <KeyGroup>ASSET</KeyGroup>
+  <ModifiedTime>2025-09-17T17:59:18.997998Z</ModifiedTime>
+ </Registration>
+ <Steps>
+  <Step id="PDM_STP_1" displayName="Data Smoothing" order="1">
+   <TemplateID>PDM_STP_1</TemplateID>
+   <Parameters>
+    <Parameter name="LAUNCHID" displayText="Select Launch" required="true" visibility="true" order="0" dataType="String" displayControl="SINGLESELECT">
+     <LookupMetadata id="LAUNCHID_LOOKUP_64792" name="LAUNCHID_LOOKUP_64792" isReused="false" type="RESTAPI">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Rest>
+       <Method>GET</Method>
+       <URI>/dataSelection/dataSelections/{{getCurrentValue $.values &#34;__DATASELECTIONID__&#34;}}/launches</URI>
+       <Headers>{&#34;Content-Type&#34;:&#34;application/json&#34;,&#34;Accept&#34;:&#34;application/vnd.sas.collection+json&#34;}</Headers>
+       <resKeyName>items.id</resKeyName>
+       <resValueName>name</resValueName>
+      </Rest>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_variable" displayText="Select Variable for Smoothing" required="false" visibility="true" order="1" dataType="String" displayControl="DROPDOWN">
+     <PossibleValues>
+      <Values key="VIBRATION" value="VIBRATION"></Values>
+      <Values key="VOLTAGE" value="VOLTAGE"></Values>
+      <Values key="ROTATION" value="ROTATION"></Values>
+      <Values key="PRESSURE" value="PRESSURE"></Values>
+     </PossibleValues>
+     <DefaultValues>
+      <Values key="VIBRATION" value="VIBRATION"></Values>
+     </DefaultValues>
+     <LookupMetadata id="p_variable_LOOKUP_84118" isReused="false">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_mwindow" displayText="Select Moving Window" required="false" visibility="true" order="2" dataType="String" displayControl="TEXTINPUT">
+     <DefaultValues>
+      <Values key="12" value="12"></Values>
+     </DefaultValues>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_sweight" displayText="Select Smoothing Weight" required="false" visibility="true" order="3" dataType="String" displayControl="TEXTINPUT">
+     <DefaultValues>
+      <Values key="0.3" value="0.3"></Values>
+     </DefaultValues>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+   </Parameters>
+   <Containers>
+    <Container type="TAB" displayText="Basic">
+     <Container type="FORM" displayText="">
+      <FormItem ref="" type="INLINE"></FormItem>
+      <FormItem ref="LAUNCHID"></FormItem>
+      <FormItem ref="p_variable"></FormItem>
+      <FormItem ref="p_mwindow"></FormItem>
+      <FormItem ref="p_sweight"></FormItem>
+     </Container>
+    </Container>
+   </Containers>
+   <Code><![CDATA[/* *************************************************************** */
+/* This analysis code is intended to showcase some common tasks    */
+/* developers may need to perform and easy ways to access the      */
+/* configuration info they need.                                   */
+/* *************************************************************** */
+
+/* *************************************************************** */
+/* The preprocess and postprocess macros used here are generic     */
+/* and could be useful in many different analyses.  The general    */
+/* flow goes like this:                                            */
+/*  PREPROCESS                                                     */
+/*  - Parse CAS and session info                                   */
+/*  - Retrieve analysis specific metadata                          */
+/*  - Create macro variables for any user UI selections            */
+/*  ANALYSIS SPECIFIC PROGRAMMING                                  */
+/*  - Between the preporcess and postprocess the analytic or data  */
+/*    work specific to this analysis needs to be provided          */
+/*  - In this example the analytic work is a simply filtering      */
+/*    the sample CARS dataset using a filter entered by the user   */
+/*  POSTPROCESS                                                    */
+/*  - Store tables in the analytic store with standard naming      */
+/*  - Ensure tables are promoted (globally available) and          */
+/*    to disk, in many cases the mid-tier can automatically reload */
+/*    a table that is no longer in CAS memory                      */
+/*  - Create output variables for any table names or other         */
+/*    variables that will be used in the VA output or in           */
+/*    subsequent steps of this analysis                            */
+/* *************************************************************** */
+
+/* Load any uncompiled macros specific to this analysis            */
+%afi_caf_loadmacros(/Products/SAS Analytics For IoT/CustomAnalyses/macros);
+
+
+/* The mid-tier supplies two parameters, both prefixed with a ?    */
+/* and case sensitive, as shown below. These parameters will only  */
+/* be replaced once by the mid-tier, so if the code needs to       */
+/* reference these multiple times, first create a macro variable,  */
+/* then use that repeatedly in the code. Additionally, be careful  */
+/* not to use these parameter's names in comments, because the     */
+/* mid-tier replaces only the first reference, regardless of where */
+/* it is found.                                                    */
+
+/* PREPROCESS to prepare for analysis work                         */
+%afi_caf_preprocess(?g_cas, ?analysisID);
+
+
+/* *************************************************************** */
+/* BEGIN ANALYSIS SPECIFIC PROGRAMMING                             */
+/* *************************************************************** */
+
+
+/* Thie macro performs some generic tasks for a launch, including: */
+/* - creates a seesion scope table called 'launch_output' in       */
+/*   the caslib QASANLOUT                                          */
+/* - creates a global macro variable, g_launchnm                   */
+/* There are two parameters:                                       */
+/* - launch_id - the UUID for the launch (in this example, the API */
+/*   populating the list of launches in the UI also provides the   */
+/*   selected UUID)                                                */
+/* - recreate_data - if N only pulls fresh data from the mart if   */
+/*   launch table cannot be found in CASUSER, but if Y the data is */
+/*   pulled from the mart overwriting the any version that may     */
+/*   already exist in CASUSER (default value = N)                  */
+/* SPECIAL NOTE: the metabit metadata library as created by the    */
+/* preprocess mcaro is expected to exist prior to calling this     */
+/* this macros. The metabit library will be closed if the data is  */
+/* recreated nd must be redefined if needed in subsequent code.    */
+
+%afi_caf_createlaunch(launch_id=&g_launchid,recreate_data=N);
+
+/* Launch output can vary in number of columns and rows, but can   */
+/* be too large to be easily viewed in a VA report, so create a    */
+/* small sample dataset of just 10 cols and 100 rows for the       */
+/* report.                                                         */
+CAS qasout SESSOPTS=(CASLIB=QASANLOUT) ;
+libname qasout CAS sessref=qasout;
+
+
+
+%macro pdm_abt; 
+
+
+proc sql;
+create table machineList as 
+select distinct(PAM_ASSET_ID)
+from qasout.launch_output
+group by PAM_ASSET_ID;
+quit;
+
+data _null_;
+	set machineList end=end;
+	count+1;
+		 call symputx("machineID_"||left(count),PAM_ASSET_ID);
+	if end then call symputx('MachineCnt',count);
+run; 
+
+
+%do i=1 %to &MachineCnt.;
+
+data tmp_machine_&i. (drop= error1-error5 failure1-failure4 maintenance1-maintenance4); 
+	set  qasout.launch_output; 
+	where PAM_ASSET_ID="&&machineID_&i.";
+by  PAM_ASSET_ID datetime;
+run;
+
+%put variable: &g_p_variable. param1: &g_p_mwindow. param2: &g_p_sweight  ; 
+
+ proc expand data=tmp_machine_&i. out=PDM_SMOOTHING_&i.; 
+ 	id datetime; 
+ 	
+ 	convert &g_p_variable. = &g_p_variable._MA / transout=(movave &g_p_mwindow.); 
+ 	convert &g_p_variable. = &g_p_variable._EWMA / transout=(EWMA &g_p_sweight.); 
+ 	convert &g_p_variable. = &g_p_variable._MRng / transout=(Movrange &g_p_mwindow.); 
+ 	
+ run; 
+
+
+%end;
+
+data PDM_SMOOTHING ; 
+	set %do i=1 %to &MachineCnt.; 
+		PDM_SMOOTHING_&i.
+		%end;;
+run;
+
+
+%mend; 
+
+%pdm_abt;
+
+
+/* To finish the analysis specific code, setup the info needed for */
+/* the postprocess.                                                */
+
+/* Provide any output tables to be persisted and used later.       */
+/* Postprocess will promote and save the output tables in the      */
+/* QASANLOUT global caslib using a standard naming convention of   */
+/* <analysis_type>_tablename_<shortid>                             */
+/* For example: CARS_filtered_ABC123                               */
+/*              CARS_complete_ABC123                               */
+%let g_num_output_tables = 1;
+%let g_output_table_1 = work.PDM_SMOOTHING;
+
+
+/* Provide any output variable to be used later.                   */
+/* Postprocess will save these variables into metadata so they can */
+/* be used in the VA output or in later analysis steps             */
+/* For example: filtered_count = 20                                */
+%let g_num_output_vars = 1;
+%let g_output_var_1 = &g_p_variable.;
+
+/* *************************************************************** */
+/* END ANALYSIS SPECIFIC PROGRAMMING                               */
+/* *************************************************************** */
+
+
+
+/* PREPROCESS to save analysis work                                */
+%afi_caf_postprocess;]]></Code>
+  </Step>
+  <Step id="PDM_STP_2" displayName="Add Pre Event Flag" order="2">
+   <TemplateID>PDM_STP_2</TemplateID>
+   <Parameters>
+    <Parameter name="p_hours" displayText="Select Hours to Create Pre-Event Flags" required="false" visibility="true" order="0" dataType="String" displayControl="DROPDOWN">
+     <PossibleValues>
+      <Values key="12" value="12"></Values>
+      <Values key="24" value="24"></Values>
+      <Values key="36" value="36"></Values>
+      <Values key="48" value="48"></Values>
+      <Values key="60" value="60"></Values>
+      <Values key="72" value="72"></Values>
+     </PossibleValues>
+     <DefaultValues>
+      <Values key="48" value="48"></Values>
+     </DefaultValues>
+     <LookupMetadata id="p_hours_LOOKUP_90052" isReused="false">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+   </Parameters>
+   <Containers>
+    <Container type="TAB" displayText="Basic">
+     <Container type="FORM" displayText="">
+      <FormItem ref="" type="INLINE"></FormItem>
+      <FormItem ref="p_hours"></FormItem>
+     </Container>
+    </Container>
+   </Containers>
+   <Code><![CDATA[option mprint mlogic symbolgen; 
+
+/* Load any uncompiled macros specific to this analysis            */
+%afi_caf_loadmacros(/Products/SAS Analytics For IoT/CustomAnalyses/macros);
+
+
+/* The mid-tier supplies two parameters, both prefixed with a ?    */
+/* and case sensitive, as shown below. These parameters will only  */
+/* be replaced once by the mid-tier, so if the code needs to       */
+/* reference these multiple times, first create a macro variable,  */
+/* then use that repeatedly in the code. Additionally, be careful  */
+/* not to use these parameter's names in comments, because the     */
+/* mid-tier replaces only the first reference, regardless of where */
+/* it is found.                                                    */
+
+/* PREPROCESS to prepare for analysis work                         */
+%afi_caf_preprocess(?g_cas, ?analysisID);
+
+CAS qasout SESSOPTS=(CASLIB=QASANLOUT) ;
+libname qasout CAS sessref=qasout;
+
+options casdatalimit=ALL;
+
+%macro add_PreEvents (comp= , out= , time= );
+data &comp._tmp (keep= datetime PAM_ASSET_ID &comp.) ;
+	set qasout.&g_analysis_type._PDM_SMOOTHING_&g_short_id. ; 
+	where &comp.=1;
+run;
+
+data _null_;
+	set &comp._tmp end=end;
+	count+1;
+		 call symputx("machineID_"||left(count),PAM_ASSET_ID);
+		 call symputx("FailureDT_"||left(count),datetime);
+	if end then call symputx('MachineCnt',count);
+
+run; 
+
+/*%put &MachineCnt. &machineID_1. &machineID_10. &machineID_21. &FailureDT_1;*/
+
+proc sql; 
+	create table events_flag_&time._&out. as 
+		select t1.datetime,
+				t1.PAM_ASSET_ID,
+				t1.&comp., 
+				1 as target_&out.fail
+		from &comp._tmp as t2  left join qasout.&g_analysis_type._PDM_SMOOTHING_&g_short_id. as t1
+			on t1.PAM_ASSET_ID=t2.PAM_ASSET_ID and 
+				t1.datetime between intnx('dtday', t2.datetime,((&g_p_hours./24)*-1), 'same') and t2.datetime;
+quit;
+
+proc sql; 
+create table pdm_abt_&out. as 
+		select  t1.*, 
+ 				t2.target_&out.fail
+		from 	qasout.&g_analysis_type._PDM_SMOOTHING_&g_short_id. as t1 left join events_flag_&time._&out. as t2
+				on t1.PAM_ASSET_ID=t2.PAM_ASSET_ID and t1.datetime=t2.datetime;
+quit;
+
+%mend;
+
+%add_PreEvents (comp=failure1_N, out=comp1 , time=&g_p_hours.hrs); 
+%add_PreEvents (comp=failure2_N, out=comp2 , time=&g_p_hours.hrs); 
+%add_PreEvents (comp=failure3_N, out=comp3 , time=&g_p_hours.hrs); 
+%add_PreEvents (comp=failure4_N, out=comp4 , time=&g_p_hours.hrs); 
+
+proc sql; 
+create table pdm_abt_tmp1 as 
+		select  t1.*, 
+ 				t2.target_comp1fail,
+ 				t3.target_comp2fail,
+ 				t4.target_comp3fail,
+ 				t5.target_comp4fail
+
+		from 	qasout.&g_analysis_type._PDM_SMOOTHING_&g_short_id. as t1 left join events_flag_&g_p_hours.hrs_comp1 as t2
+				on t1.PAM_ASSET_ID=t2.PAM_ASSET_ID and t1.datetime=t2.datetime
+				left join events_flag_&g_p_hours.hrs_comp2 as t3
+				on t1.PAM_ASSET_ID=t3.PAM_ASSET_ID and t1.datetime=t3.datetime
+				left join events_flag_&g_p_hours.hrs_comp3 as t4
+				on t1.PAM_ASSET_ID=t4.PAM_ASSET_ID and t1.datetime=t4.datetime
+				left join events_flag_&g_p_hours.hrs_comp4 as t5
+				on t1.PAM_ASSET_ID=t5.PAM_ASSET_ID and t1.datetime=t5.datetime;
+quit;
+
+proc sort data=pdm_abt_tmp1 out=pdm_abt_tmp1;
+by  PAM_ASSET_ID datetime;
+run;
+
+data PDM_ABT ;
+	set pdm_abt_tmp1;
+		if month(datepart(datetime))>9 then qtrpart=1; else qtrpart=0; 
+		if target_comp1fail=. then target_comp1fail=0 ; else target_comp1fail=target_comp1fail; 
+		if target_comp2fail=. then target_comp2fail=0 ; else target_comp2fail=target_comp2fail; 
+		if target_comp3fail=. then target_comp3fail=0 ; else target_comp3fail=target_comp3fail; 
+		if target_comp4fail=. then target_comp4fail=0 ; else target_comp4fail=target_comp4fail; 
+by  PAM_ASSET_ID datetime;
+run;
+
+/* To finish the analysis specific code, setup the info needed for */
+/* the postprocess.                                                */
+
+/* Provide any output tables to be persisted and used later.       */
+/* Postprocess will promote and save the output tables in the      */
+/* QASANLOUT global caslib using a standard naming convention of   */
+/* <analysis_type>_tablename_<shortid>                             */
+/* For example: CARS_filtered_ABC123                               */
+/*              CARS_complete_ABC123                               */
+%let g_num_output_tables = 1;
+%let g_output_table_1 = work.PDM_ABT;
+
+
+%let g_num_output_vars = 1;
+%let g_output_var_1 = &g_p_hours.;
+
+/* *************************************************************** */
+/* END ANALYSIS SPECIFIC PROGRAMMING                               */
+/* *************************************************************** */
+
+
+
+/* PREPROCESS to save analysis work                                */
+%afi_caf_postprocess;]]></Code>
+  </Step>
+ </Steps>
+ <Interactions></Interactions>
+ <ZipModifiedAt>2107-11-30T00:00:00Z</ZipModifiedAt>
+ <ZipHash></ZipHash>
+</AnalysisModel>

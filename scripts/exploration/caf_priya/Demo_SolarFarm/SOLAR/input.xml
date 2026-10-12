@@ -1,0 +1,719 @@
+<AnalysisModel>
+ <Registration active="true" type="CUSTOM" orderNo="9" revisionNo="0" dataSelectionRequired="false">
+  <Name>SOLAR</Name>
+  <DisplayName>Demo SolarFarm</DisplayName>
+  <Description>Analysis type description</Description>
+  <KeyGroup>ASSET</KeyGroup>
+  <ModifiedTime>2025-11-14T20:44:21.441505Z</ModifiedTime>
+ </Registration>
+ <Steps>
+  <Step id="SOLAR_STP_1" displayName="Select Data" order="1">
+   <TemplateID>SOLAR_STP_1</TemplateID>
+   <Parameters>
+    <Parameter name="p_source" displayText="Select Data Source" required="false" visibility="true" order="0" dataType="String" displayControl="DROPDOWN">
+     <PossibleValues>
+      <Values key="CASLIBRARY" value="CAS Library"></Values>
+      <Values key="CSVFILE" value="CSV File"></Values>
+     </PossibleValues>
+     <DefaultValues>
+      <Values key="CASLIBRARY" value="CAS Library"></Values>
+     </DefaultValues>
+     <LookupMetadata id="p_source_LOOKUP_68720" isReused="true">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_caslib" displayText="Select a CAS Library" required="false" visibility="true" order="1" dataType="String" displayControl="DROPDOWN">
+     <LookupMetadata id="p_caslib_LOOKUP_51494" name="p_caslib_LOOKUP_51494" isReused="true" type="RESTAPI">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Rest>
+       <Method>GET</Method>
+       <URI>/casManagement/servers/cas-shared-default/caslibs?limit=100000&amp;dest=123</URI>
+       <Headers>{&#34;Content-Type&#34;:&#34;application/json&#34;,&#34;Accept&#34;:&#34;application/json&#34;}</Headers>
+       <resKeyName>items.name</resKeyName>
+       <resValueName>name</resValueName>
+      </Rest>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_tablenm" displayText="Select a Table" required="false" visibility="true" order="2" dataType="Array" displayControl="DROPDOWN">
+     <LookupMetadata id="p_tablenm_LOOKUP_51494" name="p_tablenm_LOOKUP_51494" isReused="true" type="RESTAPI">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Rest>
+       <Method>GET</Method>
+       <URI>/casManagement/servers/cas-shared-default/caslibs/{{getCurrentValue $.values &#34;p_caslib&#34;}}/tables?limit=100000</URI>
+       <Headers>{&#34;Content-Type&#34;:&#34;application/json&#34;,&#34;Accept&#34;:&#34;application/json&#34;}</Headers>
+       <resKeyName> items.name</resKeyName>
+       <resValueName>name</resValueName>
+      </Rest>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_csvpath" displayText="Enter path for CSV File" required="false" visibility="true" order="3" dataType="String" displayControl="TEXTINPUT">
+     <DefaultValues>
+      <Values key="/export/viya/homes/priya.sharma@sas.com/data/solarFarm/data/inverter.csv" value="/export/viya/homes/priya.sharma@sas.com/data/solarFarm/data/inverter.csv"></Values>
+     </DefaultValues>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+   </Parameters>
+   <Containers>
+    <Container type="TAB" displayText="Basic">
+     <Container type="FORM" displayText="">
+      <FormItem ref="" type="INLINE"></FormItem>
+      <FormItem ref="p_source"></FormItem>
+      <FormItem ref="p_caslib"></FormItem>
+      <FormItem ref="p_tablenm"></FormItem>
+      <FormItem ref="p_csvpath"></FormItem>
+     </Container>
+    </Container>
+   </Containers>
+   <Code><![CDATA[/* PREPROCESS to prepare for analysis work                         */
+%afi_caf_preprocess(?g_cas, ?analysisID);
+
+
+CAS qasout SESSOPTS=(CASLIB=QASANLOUT) ;
+libname qasout CAS sessref=qasout;
+caslib _all_ assign;
+
+
+option mprint; 
+%macro ingest_data;
+
+  
+
+    data work.analysis_data; 
+		format datetime datetime21.; 
+        set &g_p_caslib..&g_p_tablenm.; 
+		datetime = dhms(mdy(1,1,1970),0,0, msr_timestamp/1000000);
+		drop opcode key1 key2 flags msr_timestamp;
+		Where assetID="Inverter_A";
+    run; 
+   
+
+    /* Prep Metadata for dropdown */
+
+/* Asset List */
+proc sql; 
+	create table assetList as 
+		select distinct(assetID) as assetID
+from work.analysis_data; 
+quit;
+
+
+/* Target & Input Variables */
+
+proc contents data=work.analysis_data out=work.contents noprint ; 
+run;
+
+proc sql noprint; 
+	create table work.varList as 
+		select distinct(name) as VAR_COLUMN_NAME
+		from work.contents 
+		where name not in ( "assetID", "assetType", "datetime"); 
+quit;
+
+data _null_;
+	set assetList end=end;
+	count+1;
+ 	call symputx("assetID"||left(count),assetID);
+	if end then call symputx('assetCnt',count);
+run; 
+
+%put &&assetID1; 
+%do i=1 %to &assetCnt.;
+
+data assetMetadata_&i.;
+format  ASSET_ID ASSET_ID_DESC TAG_ID TAG_ID_DESC $32.;
+	set work.varList ; 
+	ASSET_ID="&&assetID&i."; 
+	ASSET_ID_DESC="&&assetID&i."; 
+	TAG_ID=VAR_COLUMN_NAME; 
+	TAG_ID_DESC="&&assetID&i."||"."||VAR_COLUMN_NAME; 
+keep ASSET_ID ASSET_ID_DESC TAG_ID TAG_ID_DESC; 
+
+run; 
+
+%end;
+
+data assetTagList; 
+	set %do i=1 %to &assetCnt.;
+		assetMetadata_&i.
+		%end;;
+run; 
+
+%mend;
+
+%ingest_data;
+
+/* To finish the analysis specific code, setup the info needed for */
+/* the postprocess.                                                */
+
+/* Provide any output tables to be persisted and used later.       */
+/* Postprocess will promote and save the output tables in the      */
+/* QASANLOUT global caslib using a standard naming convention of   */
+/* <analysis_type>_tablename_<shortid>                             */
+/* For example: CARS_filtered_ABC123                               */
+/*              CARS_complete_ABC123                               */
+%let g_num_output_tables = 4;
+%let g_output_table_1 = work.analysis_data;
+%let g_output_table_2 = work.assetList;
+%let g_output_table_3 = work.varList;
+%let g_output_table_4 = work.assetTagList;
+
+
+
+/* Provide any output variable to be used later.                   */
+/* Postprocess will save these variables into metadata so they can */
+/* be used in the VA output or in later analysis steps             */
+/* For example: filtered_count = 20                                */
+%let g_num_output_vars = 1;
+%let g_output_var_1 = &g_p_tablenm.;
+
+/* *************************************************************** */
+/* END ANALYSIS SPECIFIC PROGRAMMING                               */
+/* *************************************************************** */
+
+
+
+/* PREPROCESS to save analysis work                                */
+%afi_caf_postprocess;]]></Code>
+  </Step>
+  <Step id="SOLAR_STP_2" displayName="Data Preparation and Model Training" order="2">
+   <TemplateID>SOLAR_STP_2</TemplateID>
+   <Parameters>
+    <Parameter name="p_asset" displayText="Select Asset" required="false" visibility="true" order="0" dataType="Array" displayControl="DROPDOWN">
+     <PossibleValues>
+      <Values key="Inverter_A" value="Inverter_A"></Values>
+      <Values key="Inverter_B" value="Inverter_B"></Values>
+     </PossibleValues>
+     <DefaultValues>
+      <Values key="Inverter_A" value="Inverter_A"></Values>
+     </DefaultValues>
+     <LookupMetadata id="p_asset_LOOKUP_04939" isReused="true">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_target" displayText="Select Target Tag" required="false" visibility="true" order="1" dataType="Array" displayControl="DROPDOWN">
+     <PossibleValues>
+      <Values key="current_thisInverter" value="Inverter_A.current_thisInverter"></Values>
+     </PossibleValues>
+     <DefaultValues>
+      <Values key="current_thisInverter" value="Inverter_A.current_thisInverter"></Values>
+     </DefaultValues>
+     <LookupMetadata id="p_target_LOOKUP_73794" isReused="true">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_selectFilter" displayText="Select Periods to Filter Data" required="false" visibility="true" order="2" dataType="string" displayControl="STABLEPERIOD">
+     <LookupMetadata id="STABLE_PERIOD_LOOKUP_66768" name="STABLE_PERIOD_LOOKUP_66768" isReused="true" type="CASTABLE">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <CASTable>
+       <LibraryName>QASANLOUT</LibraryName>
+       <TableName>{{getCurrentValue $.values &#34;analysis_data&#34;}}</TableName>
+       <KeyColumnName>datetime</KeyColumnName>
+       <ValueColumnName>{{getCurrentValue $.values &#34;p_target&#34;}}</ValueColumnName>
+       <WhereCondition>assetID={{getCurrentValue $.values &#34;p_asset&#34;}}</WhereCondition>
+      </CASTable>
+      <Properties>
+       <Property key="RESOLVEONUI">true</Property>
+      </Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_inputvar" displayText="Select Input Tags for Model Building" required="false" visibility="true" order="3" dataType="Array" displayControl="MULTISELECT">
+     <LookupMetadata id="p_input_LOOKUP_90225" name="p_input_LOOKUP_90225" isReused="true" type="CASTABLE">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <CASTable>
+       <LibraryName>QASANLOUT</LibraryName>
+       <TableName>{{getCurrentValue $.values &#34;assetTagList&#34;}}</TableName>
+       <KeyColumnName>TAG_ID</KeyColumnName>
+       <ValueColumnName>TAG_ID_DESC</ValueColumnName>
+       <WhereCondition>TAG_ID &lt;&gt; &#39;{{getCurrentValue $.values &#34;p_target&#34;}}&#39;</WhereCondition>
+      </CASTable>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties>
+      <Property key="table_columns">TAG_ID,TAG_ID_DESC</Property>
+      <Property key="table_columns_headers">Tag, Tag Description</Property>
+     </Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_model" displayText="Select Predictive Model" required="false" visibility="true" order="4" dataType="Array" displayControl="DROPDOWN">
+     <PossibleValues>
+      <Values key="Forest" value="Forest"></Values>
+      <Values key="Regression" value="Regression"></Values>
+     </PossibleValues>
+     <DefaultValues>
+      <Values key="Forest" value="Forest"></Values>
+     </DefaultValues>
+     <LookupMetadata id="p_model_LOOKUP_19145" isReused="false">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>BASIC</tab>
+      <tabName>Basic</tabName>
+      <group>Basic</group>
+      <groupName>Basic Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="FIELD_7" displayText="" required="false" visibility="true" order="5" dataType="String" displayControl="LABEL">
+     <DefaultValues>
+      <Values key="Set Parameters for Regression" value="Set Parameters for Regression"></Values>
+     </DefaultValues>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>ADVANCED</tab>
+      <tabName>Advanced</tabName>
+      <group>Advanced</group>
+      <groupName>Advanced Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_mdlSel" displayText="Select Model Selection Method" required="false" visibility="true" order="6" dataType="String" displayControl="DROPDOWN">
+     <PossibleValues>
+      <Values key="BACKWARD" value="BACKWARD"></Values>
+      <Values key="FORWARD" value="FORWARD"></Values>
+      <Values key="LAR" value="LAR"></Values>
+      <Values key="LASSO" value="LASSO"></Values>
+      <Values key="STEPWISE" value="STEPWISE"></Values>
+      <Values key="NONE" value="None"></Values>
+      <Values key="SCAD" value="SCAD"></Values>
+      <Values key="MCP" value="MCP"></Values>
+      <Values key="FORWARDSWAP" value="FORWARDSWAP"></Values>
+     </PossibleValues>
+     <DefaultValues>
+      <Values key="NONE" value="None"></Values>
+     </DefaultValues>
+     <LookupMetadata id="p_mdlSel_LOOKUP_30043" isReused="true">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>ADVANCED</tab>
+      <tabName>Advanced</tabName>
+      <group>Advanced</group>
+      <groupName>Advanced Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_mdlEffect" displayText="Select Effect Types" required="false" visibility="true" order="7" dataType="String" displayControl="DROPDOWN">
+     <PossibleValues>
+      <Values key="COLLECTION" value="COLLECTION"></Values>
+      <Values key="MM" value="MULTIMEMBER"></Values>
+      <Values key="POLY" value="POLYNOMIAL"></Values>
+      <Values key="SPLINE" value="SPLINE"></Values>
+      <Values key="NONE" value="None"></Values>
+     </PossibleValues>
+     <DefaultValues>
+      <Values key="POLY" value="POLYNOMIAL"></Values>
+     </DefaultValues>
+     <LookupMetadata id="p_mdlEffect_LOOKUP_30043" isReused="true">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>ADVANCED</tab>
+      <tabName>Advanced</tabName>
+      <group>Advanced</group>
+      <groupName>Advanced Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="p_polyDegree" displayText="Specify Degree of the Polynomial" required="false" visibility="true" order="8" dataType="String" displayControl="NUMERICSTEPPER">
+     <DefaultValues>
+      <Values key="3" value="3"></Values>
+     </DefaultValues>
+     <Properties>
+      <Property key="min">1</Property>
+      <Property key="max">3</Property>
+     </Properties>
+     <UIGroup>
+      <tab>ADVANCED</tab>
+      <tabName>Advanced</tabName>
+      <group>Advanced</group>
+      <groupName>Advanced Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="FIELD_9" displayText="" required="false" visibility="true" order="9" dataType="String" displayControl="LABEL">
+     <DefaultValues>
+      <Values key="Select Parameters for Forest" value="Select Parameters for Forest"></Values>
+     </DefaultValues>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>ADVANCED</tab>
+      <tabName>Advanced</tabName>
+      <group>Advanced</group>
+      <groupName>Advanced Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="FIELD_10" displayText="Select Max Branch" required="false" visibility="true" order="10" dataType="String" displayControl="NUMERICSTEPPER">
+     <DefaultValues>
+      <Values key="2" value="2"></Values>
+     </DefaultValues>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>ADVANCED</tab>
+      <tabName>Advanced</tabName>
+      <group>Advanced</group>
+      <groupName>Advanced Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="FIELD_11" displayText="Select Max Depth" required="false" visibility="true" order="11" dataType="String" displayControl="NUMERICSTEPPER">
+     <DefaultValues>
+      <Values key="20" value="20"></Values>
+     </DefaultValues>
+     <Properties>
+      <Property key="min">2</Property>
+      <Property key="max">50</Property>
+     </Properties>
+     <UIGroup>
+      <tab>ADVANCED</tab>
+      <tabName>Advanced</tabName>
+      <group>Advanced</group>
+      <groupName>Advanced Settings</groupName>
+     </UIGroup>
+    </Parameter>
+    <Parameter name="FIELD_12" displayText="Select Grow Criterion" required="false" visibility="true" order="12" dataType="String" displayControl="DROPDOWN">
+     <PossibleValues>
+      <Values key="CHAID" value="CHAID"></Values>
+      <Values key="FTEST" value="FTEST"></Values>
+      <Values key="RSS" value="RSS"></Values>
+     </PossibleValues>
+     <DefaultValues>
+      <Values key="RSS" value="RSS"></Values>
+     </DefaultValues>
+     <LookupMetadata id="FIELD_12_LOOKUP_94634" isReused="false">
+      <CreationTimeStamp>0001-01-01T00:00:00Z</CreationTimeStamp>
+      <CreatedBy></CreatedBy>
+      <ModifiedTimeStamp>0001-01-01T00:00:00Z</ModifiedTimeStamp>
+      <ModifiedBy></ModifiedBy>
+      <Properties></Properties>
+     </LookupMetadata>
+     <Properties></Properties>
+     <UIGroup>
+      <tab>ADVANCED</tab>
+      <tabName>Advanced</tabName>
+      <group>Advanced</group>
+      <groupName>Advanced Settings</groupName>
+     </UIGroup>
+    </Parameter>
+   </Parameters>
+   <Containers>
+    <Container type="TAB" displayText="Basic">
+     <Container type="FORM" displayText="">
+      <FormItem ref="" type="INLINE"></FormItem>
+      <FormItem ref="p_asset"></FormItem>
+      <FormItem ref="p_target"></FormItem>
+      <FormItem ref="p_selectFilter"></FormItem>
+      <FormItem ref="p_inputvar"></FormItem>
+      <FormItem ref="p_model"></FormItem>
+     </Container>
+    </Container>
+    <Container type="TAB" displayText="Advanced">
+     <Container type="FORM" displayText="">
+      <FormItem ref="FIELD_7"></FormItem>
+      <FormItem ref="p_mdlSel"></FormItem>
+      <FormItem ref="p_mdlEffect"></FormItem>
+      <FormItem ref="p_polyDegree"></FormItem>
+      <FormItem ref="FIELD_9"></FormItem>
+      <FormItem ref="FIELD_10"></FormItem>
+      <FormItem ref="FIELD_11"></FormItem>
+      <FormItem ref="FIELD_12"></FormItem>
+     </Container>
+    </Container>
+   </Containers>
+   <Code><![CDATA[/* PREPROCESS to prepare for analysis work                         */
+%afi_caf_preprocess(?g_cas, ?analysisID);
+
+
+CAS qasout SESSOPTS=(CASLIB=QASANLOUT) ;
+libname qasout CAS sessref=qasout;
+caslib _all_ assign;
+
+
+option mprint; 
+
+/* Create Filters for Data */
+
+%put &=G_p_selectFilter.;
+%global /* G_STABLESTART G_STABLEEND*/ G_TIME_FILTER fltrd_varlist fltrd_varlist2 mdlvars;
+%macro generate_time_filter;
+
+  %local i G_STABLE_PART G_STABLESTART G_STABLEEND;
+  %let i = 1;
+  %let G_TIME_FILTER =;
+
+
+%if (%length(&G_p_selectFilter.) >0) %then %do; 
+
+    %let G_p_selectFilter = %sysfunc(strip(&G_p_selectFilter.));
+    %let G_STABLE_PART = %scan(%nrbquote(&G_p_selectFilter.), &i., ','); 
+
+    %do %until (%length(&G_STABLE_PART.) = 0); 
+        %let G_STABLESTART = %scan(%nrbquote(&G_STABLE_PART.), 1, '-');
+        %let G_STABLEEND = %scan(%nrbquote(&G_STABLE_PART.), 2, '-');
+
+        %if &i. eq 1 %then %do;
+        %let G_TIME_FILTER = (datetime le "&G_STABLESTART."dt or datetime ge "&G_STABLEEND."dt);
+        %end;
+        %else %do;
+        %let G_TIME_FILTER = &G_TIME_FILTER. and (datetime le "&G_STABLESTART."dt or datetime ge "&G_STABLEEND."dt);
+        %end;
+
+        %put &=i. &=G_STABLE_PART. &=G_STABLESTART. &=G_STABLEEND.;
+    
+        %let i = %eval(&i. + 1);
+        %let G_STABLE_PART = %scan(%nrbquote(&G_p_selectFilter.), &i., ','); 
+    %end;
+
+  %let G_TIME_FILTER=(&G_TIME_FILTER.);
+%end;
+
+%else %do;
+%put Note: No Date Filter Selected;
+%end;
+
+  %let fltrd_varlist = %sysfunc(tranwrd(%quote(&g_p_input.), %str(,), %str( )));
+  %let fltrd_varlist2 = %sysfunc(tranwrd(%quote(&g_p_input.), %str(,), %str(",")));
+
+%mend generate_time_filter;
+
+%generate_time_filter;
+%put &=G_TIME_FILTER.;
+
+/* Train Model */
+
+%put &=g_p_inputvar; 
+
+data qasout.modeldata; 
+  set qasout.&g_analysis_type._analysis_data_&g_short_id.;
+  where  &G_TIME_FILTER.; 
+run;
+
+%let varlist_new = %sysfunc(tranwrd(%quote(&g_p_inputvar), %str(,), %str( )));
+
+proc partition data=qasout.modeldata samppct=70 seed=123 partind;
+   output out=qasout.modeldata  ;
+/*   display 'SRSFreq';*/
+run;
+
+ods output VariableImportance=VariableImportance;
+
+proc forest data = qasout.modeldata;
+	id assetID; 
+  	input &varlist_new. /level=interval; 
+	target  &g_p_target. /level=interval;
+	partition rolevar=_PartIND_(train='0' validate='1');
+	savestate rstore=qasout.saveFOREST; 
+	output out=qasout.outForest copyvars=(_ALL_); 
+run;  
+
+proc assess data=qasout.outForest fitstatout=qasout.fst_Frst;
+   var P_&g_p_target. ;
+   target &g_p_target.  /level=interval ;
+   fitstat pvar=P_&g_p_target.   ;
+   by _PartInd_;
+run;
+
+
+data VarImp; 
+  set VariableImportance; 
+run; 
+
+
+proc astore;
+   download rstore = qasout.saveFOREST
+            store = "/export/viya/homes/priya.sharma@sas.com/data/solarFarm/astore/saveFOREST.sasast";
+run;
+
+/* To finish the analysis specific code, setup the info needed for */
+/* the postprocess.                                                */
+
+/* Provide any output tables to be persisted and used later.       */
+/* Postprocess will promote and save the output tables in the      */
+/* QASANLOUT global caslib using a standard naming convention of   */
+/* <analysis_type>_tablename_<shortid>                             */
+/* For example: CARS_filtered_ABC123                               */
+/*              CARS_complete_ABC123                               */
+
+%let g_num_output_tables = 4;
+
+%let g_output_table_1 = qasout.fst_Frst;
+%let g_output_table_2 = work.VarImp;
+%let g_output_table_3 = qasout.outForest;
+%let g_output_table_4 = qasout.modeldata;
+
+
+
+/* Provide any output variable to be used later.                   */
+/* Postprocess will save these variables into metadata so they can */
+/* be used in the VA output or in later analysis steps             */
+/* For example: filtered_count = 20                                */
+%let g_num_output_vars = 1;
+%let g_output_var_1 = &varlist_new.;
+
+/* *************************************************************** */
+/* END ANALYSIS SPECIFIC PROGRAMMING                               */
+/* *************************************************************** */
+
+
+
+/* PREPROCESS to save analysis work                                */
+%afi_caf_postprocess;]]></Code>
+  </Step>
+ </Steps>
+ <Interactions>
+  <Interaction name="p_asset 01" sourceParamName="p_asset" modelName="SOLAR" combinator="AND" Order="0">
+   <Condition></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.fetchPossibleValues(&#39;p_selectFilter&#39;)&#xA;#ctx.fetchPossibleValues(&#39;p_target&#39;)&#xA;#ctx.fetchPossibleValues(&#39;p_inputvar&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+  <Interaction name="p_target 01" sourceParamName="p_target" modelName="SOLAR" combinator="AND" Order="0">
+   <Condition></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.fetchPossibleValues(&#39;p_selectFilter&#39;)&#xA;#ctx.fetchPossibleValues(&#39;p_inputvar&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+  <Interaction name="p_source_CAS" sourceParamName="p_source" modelName="SOLAR" combinator="AND" Order="0">
+   <Condition><![CDATA[#ctx.currentValue('p_source')=='CASLIBRARY'
+]]></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.hide(&#39;p_csvpath&#39;)&#xA;#ctx.show(&#39;p_caslib&#39;)&#xA;#ctx.show(&#39;p_tablenm&#39;)&#xA;#ctx.fetchPossibleValues(&#39;p_caslib&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+  <Interaction name="p_source _csv" sourceParamName="p_source" modelName="SOLAR" combinator="AND" Order="0">
+   <Condition><![CDATA[#ctx.currentValue('p_source')=='CSVFILE'
+]]></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.hide(&#39;p_caslib&#39;)&#xA;#ctx.hide(&#39;p_tablenm&#39;)&#xA;#ctx.show(&#39;p_csvpath&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+  <Interaction name="p_caslib 01" sourceParamName="p_caslib" modelName="SOLAR" combinator="AND" Order="0">
+   <Condition></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.fetchPossibleValues(&#39;p_tablenm&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+  <Interaction name="p_tablenm 01" sourceParamName="p_tablenm" modelName="SOLAR" combinator="AND" Order="0">
+   <Condition></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.fetchPossibleValues(&#39;p_target&#39;)&#xA;#ctx.fetchPossibleValues(&#39;p_input&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+  <Interaction name="p_runCondition 01" sourceParamName="p_runCondition" modelName="SOLAR" combinator="AND" Order="0">
+   <Condition></Condition>
+   <Actions>
+    <Action Order="0">
+     <Action>#ctx.fetchPossibleValues(&#39;STABLE_PERIOD&#39;)&#xA;#ctx.fetchPossibleValues(&#39;STABLE_INPUT&#39;)</Action>
+     <ConditionResult>true</ConditionResult>
+    </Action>
+   </Actions>
+  </Interaction>
+ </Interactions>
+ <ZipModifiedAt>1971-10-24T00:31:44Z</ZipModifiedAt>
+ <ZipHash></ZipHash>
+</AnalysisModel>
