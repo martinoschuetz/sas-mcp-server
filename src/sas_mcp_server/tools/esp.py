@@ -29,13 +29,11 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
             xml_content: Raw XML string of the project configuration.
         """
         async with viya_session("esp_deploy_project", ctx) as client:
-            # 1. Attempt to delete existing project (ignore 404)
-            try:
-                resp_del = await client.delete(f"/SASEventStreamProcessingStudio/v4/projects/{project_name}")
-                if resp_del.status_code != 404:
-                    resp_del.raise_for_status()
-            except Exception:
-                pass
+            # 1. Delete an existing project of the same name. Only "not found" is expected;
+            #    auth/permission/server errors must surface instead of being masked by the POST.
+            resp_del = await client.delete(f"/SASEventStreamProcessingStudio/v4/projects/{project_name}")
+            if resp_del.status_code != 404:
+                resp_del.raise_for_status()
 
             # 2. Construct JSON dictionary
             body = {"name": project_name, "projectName": project_name, "friendlyName": project_name, "xml": xml_content}
