@@ -126,6 +126,10 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
         "list_iot_analyses_tool",
         "list_iot_models_tool",
         "list_iot_projects_tool",
+        "triage_emerging_issue_runs_tool",
+        "inspect_emerging_issue_alert_context_tool",
+        "run_fqa_preflight_checks_tool",
+        "screen_common_cause_candidates_tool",
         # Tier 9 — Business Glossary
         "list_glossary_term_types",
         "get_glossary_term_type",

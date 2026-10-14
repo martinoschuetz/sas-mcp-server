@@ -4,6 +4,7 @@
 """SAS Analytics for IoT / FQA tools."""
 
 import asyncio
+import contextlib
 import json
 import re
 import time
@@ -39,6 +40,152 @@ def _validate_safe_path(value: str) -> str:
     if not cleaned or ".." in cleaned or not _SAFE_PATH_RE.match(cleaned):
         raise ValueError(f"Invalid or unsafe path: {value!r}")
     return cleaned
+
+
+_SORT_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
+    "score": ("score", "Index", "INDEX"),
+    "index": ("Index", "score", "INDEX"),
+    "cost_score": ("cost_score", "Index_TOTAL_EVENT_AMT", "INDEX_TOTAL_EVENT_AMT"),
+    "index_total_event_amt": ("Index_TOTAL_EVENT_AMT", "cost_score", "INDEX_TOTAL_EVENT_AMT"),
+    "acceleration": ("Acceleration", "acceleration", "Acceleration_AP", "acceleration_ap"),
+    "acceleration_ap": ("Acceleration_AP", "acceleration_ap", "Acceleration", "acceleration"),
+    "events": ("Events", "events", "EVENTS"),
+}
+
+
+def _extract_field_case_insensitive(item: dict[str, Any], field_name: str) -> Any:
+    """Retrieve a field from *item* supporting FQA aliases and case-insensitive matching."""
+    if not isinstance(item, dict) or not field_name:
+        return None
+    if field_name in item and item[field_name] is not None:
+        return item[field_name]
+    lower_target = field_name.lower()
+    for alias in _SORT_FIELD_ALIASES.get(lower_target, ()):
+        if alias in item and item[alias] is not None:
+            return item[alias]
+    for key, val in item.items():
+        if key.lower() == lower_target and val is not None:
+            return val
+    return None
+
+
+def _sort_items(
+    items: list[dict[str, Any]],
+    sort_by: str | None = None,
+    sort_order: str = "desc",
+) -> list[dict[str, Any]]:
+    """Sort *items* by *sort_by* (numeric-aware, case-insensitive) with missing values placed last."""
+    if not items or not sort_by:
+        return list(items)
+    reverse = (sort_order or "desc").strip().lower() != "asc"
+    present: list[tuple[tuple[int, Any], int, dict[str, Any]]] = []
+    missing: list[dict[str, Any]] = []
+    for idx, item in enumerate(items):
+        val = _extract_field_case_insensitive(item, sort_by)
+        if val is None or val == "":
+            missing.append(item)
+            continue
+        if isinstance(val, (int, float)) and not isinstance(val, bool):
+            key = (0, float(val))
+        else:
+            try:
+                key = (0, float(str(val)))
+            except (ValueError, TypeError):
+                key = (1, str(val).lower())
+        present.append((key, idx, item))
+    present.sort(key=lambda entry: entry[0], reverse=reverse)
+    return [entry[2] for entry in present] + missing
+
+
+def _paginate_sorted_items(
+    items: list[dict[str, Any]],
+    start: int = 0,
+    limit: int = 10,
+    sort_by: str | None = None,
+    sort_order: str = "desc",
+    item_label: str = "items",
+) -> dict[str, Any]:
+    """Sort *items* and slice to top *limit* (default 10) with pagination metadata."""
+    sorted_items = _sort_items(items, sort_by=sort_by, sort_order=sort_order)
+    total = len(sorted_items)
+    safe_start = max(0, int(start or 0))
+    safe_limit = max(1, int(limit if limit is not None else 10))
+    sliced = sorted_items[safe_start : safe_start + safe_limit]
+    next_start = safe_start + len(sliced)
+    remaining_count = max(0, total - next_start)
+    has_more = remaining_count > 0
+    if has_more:
+        pagination_hint = (
+            f"Showing {len(sliced)} of {total} {item_label} "
+            f"(start={safe_start}, limit={safe_limit}, sort_by={sort_by or 'default'}, sort_order={sort_order}). "
+            f"{remaining_count} more available — pass start={next_start} "
+            "(or increase limit) to show the rest of the list."
+        )
+    else:
+        pagination_hint = f"Showing all {len(sliced)} of {total} {item_label}."
+    return {
+        "items": sliced,
+        "total": total,
+        "count": total,
+        "returned_count": len(sliced),
+        "start": safe_start,
+        "limit": safe_limit,
+        "sort_by": sort_by,
+        "sort_order": (sort_order or "desc").lower(),
+        "has_more": has_more,
+        "remaining_count": remaining_count,
+        "next_start": next_start if has_more else None,
+        "pagination_hint": pagination_hint,
+    }
+
+
+def _annotate_fqa_alert(alert: dict[str, Any]) -> dict[str, Any]:
+    """Normalize score/cost_score aliases and attach FQA Phase 0 triage hints to an alert record."""
+    enriched = dict(alert)
+    score_val = _extract_field_case_insensitive(enriched, "score")
+    if score_val is not None and "score" not in enriched:
+        enriched["score"] = score_val
+    cost_val = _extract_field_case_insensitive(enriched, "cost_score")
+    if cost_val is not None and "cost_score" not in enriched:
+        enriched["cost_score"] = cost_val
+
+    alert_type_upper = str(_extract_field_case_insensitive(enriched, "alert_type") or "").upper()
+    acc_ap = _extract_field_case_insensitive(enriched, "Acceleration_AP")
+    acc_tis = _extract_field_case_insensitive(enriched, "Acceleration")
+    use_ap = "PROD" in alert_type_upper or "BUILD" in alert_type_upper or acc_ap is not None
+    primary_beta_raw = acc_ap if use_ap else acc_tis
+    if primary_beta_raw is None:
+        primary_beta_raw = acc_tis
+
+    beta_val: float | None = None
+    if primary_beta_raw is not None and primary_beta_raw != "":
+        try:
+            beta_val = float(primary_beta_raw)
+        except (ValueError, TypeError):
+            beta_val = None
+
+    if beta_val is None or beta_val <= 0:
+        failure_mode_hint = "unknown"
+    elif beta_val < 0.85:
+        failure_mode_hint = "infant_mortality_or_production_batch"
+    elif beta_val <= 1.15:
+        failure_mode_hint = "random_constant_hazard"
+    else:
+        failure_mode_hint = "wear_out_aging_accumulation"
+
+    events_raw = _extract_field_case_insensitive(enriched, "Events")
+    events_val: float | None = None
+    if events_raw is not None and events_raw != "":
+        try:
+            events_val = float(events_raw)
+        except (ValueError, TypeError):
+            events_val = None
+
+    enriched["weibull_beta"] = beta_val
+    enriched["failure_mode_hint"] = failure_mode_hint
+    enriched["is_small_n"] = bool(events_val is not None and events_val < 5)
+    return enriched
+
 
 
 async def _get_json(url, client, params=None, accept="application/json"):
@@ -714,11 +861,13 @@ def register(
         name: str = None,  # pyright: ignore
         category: str = None,  # pyright: ignore
         creation_type: str = None,  # pyright: ignore
-        attribute_filters: dict = None  # pyright: ignore
+        attribute_filters: dict = None,  # pyright: ignore
+        sort_by: str = None,  # pyright: ignore
+        sort_order: str = "desc",
     ) -> dict:
         """
-        Lists all available SAS Analytics for IoT data selections.
-        Supports filtering by any attribute (e.g., owner, owner_display_name) on the retrieved collection.
+        Lists available SAS Analytics for IoT data selections (returns top 10 by default).
+        Supports filtering and sorting by any attribute (e.g., creationTimeStamp, name, owner).
 
         Args:
             filter_query (str): Optional service-side filter string (e.g., "eq(createdBy,'Martin Schuetz')")
@@ -734,12 +883,14 @@ def register(
                                  (e.g., 'DEFAULT')
             attribute_filters (dict): Optional dictionary mapping any attribute name to target value
                                       for dynamic filtering
+            sort_by (str): Optional attribute name to sort by before slicing (e.g., 'creationTimeStamp', 'name')
+            sort_order (str): Sort direction: 'desc' (default) or 'asc'
         """
         logger.info("--- TOOL USED: list_data_selections (filter: %s) ---", filter_query)
         token = await get_token(ctx)
 
         has_local_filters = any(
-            [owner, owner_display_name, created_by, name, category, creation_type, attribute_filters]
+            [owner, owner_display_name, created_by, name, category, creation_type, attribute_filters, sort_by]
         )
         if not has_local_filters:
             raw_data = await list_data_selections(
@@ -751,7 +902,7 @@ def register(
             paginated_items = raw_data.get("items", [])
             total_filtered_count = raw_data.get("count", len(paginated_items))
         else:
-            # To support local filtering across the entire collection, fetch all items in batches
+            # To support local filtering/sorting across the entire collection, fetch all items in batches
             all_items = []
             current_start = 0
             fetch_limit = 100
@@ -802,6 +953,9 @@ def register(
                 for attr, val in attribute_filters.items():
                     filtered_items = [item for item in filtered_items if matches_filter(item.get(attr), val)]
 
+            if sort_by:
+                filtered_items = _sort_items(filtered_items, sort_by=sort_by, sort_order=sort_order)
+
             total_filtered_count = len(filtered_items)
             paginated_items = filtered_items[start : start + limit]
 
@@ -821,11 +975,31 @@ def register(
             for item in paginated_items
         ]
 
+        next_start = start + len(pruned_items)
+        remaining_count = max(0, total_filtered_count - next_start)
+        has_more = remaining_count > 0
+        pagination_hint = (
+            f"Showing {len(pruned_items)} of {total_filtered_count} data selections "
+            f"(start={start}, limit={limit}, sort_by={sort_by or 'default'}, sort_order={sort_order}). "
+            f"{remaining_count} more available — pass start={next_start} "
+            "(or increase limit) to show the rest of the list."
+            if has_more
+            else f"Showing all {len(pruned_items)} of {total_filtered_count} data selections."
+        )
+
         return {
             "count": total_filtered_count,
+            "total": total_filtered_count,
+            "returned_count": len(pruned_items),
             "items": pruned_items,
             "limit": limit,
-            "start": start
+            "start": start,
+            "sort_by": sort_by,
+            "sort_order": (sort_order or "desc").lower(),
+            "has_more": has_more,
+            "remaining_count": remaining_count,
+            "next_start": next_start if has_more else None,
+            "pagination_hint": pagination_hint,
         }
 
     @mcp.tool()
@@ -1126,11 +1300,13 @@ def register(
         status: str = None,  # pyright: ignore
         created_by: str = None,  # pyright: ignore
         owner: str = None,  # pyright: ignore
-        attribute_filters: dict = None  # pyright: ignore
+        attribute_filters: dict = None,  # pyright: ignore
+        sort_by: str = "lastRunDate",
+        sort_order: str = "desc",
     ) -> dict:
         """
-        Lists all Emerging Issue analysis runs.
-        Supports filtering by any attribute (e.g., name, status, owner, createdBy) on the retrieved collection.
+        Lists all Emerging Issue analysis runs (returns top 10 by default, sorted descending by lastRunDate).
+        Supports filtering and sorting by any attribute (e.g., lastRunDate, name, status, owner, createdBy).
 
         Args:
             start (int): Offset to start listing from (default: 0)
@@ -1141,6 +1317,8 @@ def register(
             owner (str): Optional case-insensitive substring filter for owner username or display name
             attribute_filters (dict): Optional dictionary mapping any attribute name to target value
                                       for dynamic filtering
+            sort_by (str): Attribute to sort runs by before pagination (default: 'lastRunDate')
+            sort_order (str): Sort direction: 'desc' (default) or 'asc'
         """
         logger.info("--- TOOL USED: list_emerging_issue_runs ---")
         token = await get_token(ctx)
@@ -1193,10 +1371,7 @@ def register(
             for attr, val in attribute_filters.items():
                 filtered_items = [item for item in filtered_items if matches_filter(item.get(attr), val)]
 
-        total_filtered_count = len(filtered_items)
-        paginated_items = filtered_items[start : start + limit]
-
-        pruned_items = [
+        pruned_all = [
             {
                 "id": item.get("id"),
                 "name": item.get("name"),
@@ -1210,38 +1385,44 @@ def register(
                 "dataSelectionId": item.get("dataSelectionId"),
                 "description": item.get("description"),
             }
-            for item in paginated_items
+            for item in filtered_items
         ]
 
-        return {
-            "items": pruned_items,
-            "total": total_filtered_count,
-            "start": start,
-            "limit": limit
-        }
+        return _paginate_sorted_items(
+            pruned_all,
+            start=start,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            item_label="Emerging Issue runs",
+        )
 
     @mcp.tool()
     async def list_alerts_for_run_tool(
         analysis_id: str,
         ctx: Context,
         start: int = 0,
-        limit: int = 20,
+        limit: int = 10,
         alert_id: str = None,  # pyright: ignore
         alert_type: str = None,  # pyright: ignore
         model_cd: str = None,  # pyright: ignore
         cstmr_country_cd: str = None,  # pyright: ignore
         seasonal_flag: str = None,  # pyright: ignore
         display_status_cd: str = None,  # pyright: ignore
-        attribute_filters: dict = None  # pyright: ignore
+        attribute_filters: dict = None,  # pyright: ignore
+        sort_by: str = "score",
+        sort_order: str = "desc",
     ) -> dict:
         """
         Retrieves the list of alerts generated by a completed Emerging Issue analysis run.
-        Supports case-insensitive filtering on any alert attribute.
+        Sorts all matching alerts by `sort_by` (default: 'score' descending) BEFORE slicing
+        to the top `limit` (default: 10), and includes `has_more`, `remaining_count`,
+        `next_start`, and `pagination_hint` to show the rest of the list.
 
         Args:
             analysis_id (str): The unique ID of the Emerging Issue analysis/run.
             start (int): Offset to start listing from (default: 0)
-            limit (int): Maximum number of items to return (default: 20)
+            limit (int): Maximum number of items to return (default: 10)
             alert_id (str): Optional case-insensitive filter for alert ID
             alert_type (str): Optional case-insensitive filter for alert type (e.g., 'PRODUCTIONPERIOD')
             model_cd (str): Optional case-insensitive filter for model code (e.g., 'Beta', 'Abyss')
@@ -1249,6 +1430,9 @@ def register(
             seasonal_flag (str): Optional case-insensitive filter for seasonal flag (e.g., 'N', 'Y')
             display_status_cd (str): Optional case-insensitive filter for display status code (e.g., 'Active')
             attribute_filters (dict): Optional dictionary of additional attribute-value filters
+            sort_by (str): Alert attribute to sort by before pagination (default: 'score'; also supports 'cost_score',
+                           'Events', 'Acceleration_AP', 'Acceleration', 'alert_id', etc.)
+            sort_order (str): Sort direction: 'desc' (default) or 'asc'
         """
         logger.info("--- TOOL USED: list_alerts_for_run (%s) ---", analysis_id)
         token = await get_token(ctx)
@@ -1313,8 +1497,15 @@ def register(
             return {
                 "items": [],
                 "total": 0,
+                "count": 0,
+                "returned_count": 0,
                 "start": start,
                 "limit": limit,
+                "sort_by": sort_by,
+                "sort_order": (sort_order or "desc").lower(),
+                "has_more": False,
+                "remaining_count": 0,
+                "next_start": None,
                 "message": (
                     f"No alerts found for run '{analysis_id}'. It might not "
                     f"have generated any alerts or table '{matched_table}' is empty."
@@ -1333,8 +1524,15 @@ def register(
             return {
                 "items": [],
                 "total": 0,
+                "count": 0,
+                "returned_count": 0,
                 "start": start,
                 "limit": limit,
+                "sort_by": sort_by,
+                "sort_order": (sort_order or "desc").lower(),
+                "has_more": False,
+                "remaining_count": 0,
+                "next_start": None,
                 "error": f"Failed to parse alerts data from SAS log: {str(e)}",
             }
 
@@ -1344,40 +1542,54 @@ def register(
                 return False
             return str(filter_val).lower() in str(item_val).lower()
 
-        filtered_alerts = alerts
+        filtered_alerts = [_annotate_fqa_alert(a) for a in alerts]
 
         if alert_id:
-            filtered_alerts = [a for a in filtered_alerts if matches_filter(a.get("alert_id"), alert_id)]
+            filtered_alerts = [
+                a for a in filtered_alerts
+                if matches_filter(_extract_field_case_insensitive(a, "alert_id"), alert_id)
+            ]
         if alert_type:
-            filtered_alerts = [a for a in filtered_alerts if matches_filter(a.get("alert_type"), alert_type)]
+            filtered_alerts = [
+                a for a in filtered_alerts
+                if matches_filter(_extract_field_case_insensitive(a, "alert_type"), alert_type)
+            ]
         if model_cd:
-            filtered_alerts = [a for a in filtered_alerts if matches_filter(a.get("model_cd"), model_cd)]
+            filtered_alerts = [
+                a for a in filtered_alerts
+                if matches_filter(_extract_field_case_insensitive(a, "model_cd"), model_cd)
+            ]
         if cstmr_country_cd:
             filtered_alerts = [
                 a for a in filtered_alerts
-                if matches_filter(a.get("cstmr_country_cd"), cstmr_country_cd)
+                if matches_filter(_extract_field_case_insensitive(a, "cstmr_country_cd"), cstmr_country_cd)
             ]
         if seasonal_flag:
-            filtered_alerts = [a for a in filtered_alerts if matches_filter(a.get("seasonal_flag"), seasonal_flag)]
+            filtered_alerts = [
+                a for a in filtered_alerts
+                if matches_filter(_extract_field_case_insensitive(a, "seasonal_flag"), seasonal_flag)
+            ]
         if display_status_cd:
             filtered_alerts = [
                 a for a in filtered_alerts
-                if matches_filter(a.get("display_status_cd"), display_status_cd)
+                if matches_filter(_extract_field_case_insensitive(a, "display_status_cd"), display_status_cd)
             ]
 
         if attribute_filters:
             for attr, val in attribute_filters.items():
-                filtered_alerts = [a for a in filtered_alerts if matches_filter(a.get(attr), val)]
+                filtered_alerts = [
+                    a for a in filtered_alerts
+                    if matches_filter(_extract_field_case_insensitive(a, attr), val)
+                ]
 
-        total_count = len(filtered_alerts)
-        paginated_alerts = filtered_alerts[start : start + limit]
-
-        return {
-            "items": paginated_alerts,
-            "total": total_count,
-            "start": start,
-            "limit": limit
-        }
+        return _paginate_sorted_items(
+            filtered_alerts,
+            start=start,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            item_label=f"alerts for run {analysis_id}",
+        )
 
     @mcp.tool()
     async def list_folders_and_projects_tool(folder_id: str = None, ctx: Context = None) -> dict:  # pyright: ignore
@@ -4759,3 +4971,820 @@ def register(
             "exposure": str(results[1]) if isinstance(results[1], Exception) else results[1],
             "reliability": str(results[2]) if isinstance(results[2], Exception) else results[2]
         }
+
+    @mcp.tool()
+    async def triage_emerging_issue_runs_tool(
+        ctx: Context,
+        analysis_ids: list[str] | None = None,
+        name_filter: str | None = None,
+        status_filter: str = "Completed",
+        run_sort_by: str = "max_score",
+        run_sort_order: str = "desc",
+        runs_start: int = 0,
+        runs_limit: int = 10,
+        alert_sort_by: str = "score",
+        alert_sort_order: str = "desc",
+        alerts_start: int = 0,
+        alerts_limit: int = 10,
+        alert_type: str | None = None,
+        model_cd: str | None = None,
+        target_run_id: str | None = None,
+    ) -> dict:
+        """
+        Bundled FQA Phase 0 triage tool: evaluates all Emerging Issue runs and their alert tables in ONE single
+        CAS/SAS Compute backend call, ranks runs by `run_sort_by` (default: 'max_score' descending), and returns
+        the top `runs_limit` (default: 10) runs plus the top `alerts_limit` (default: 10) sorted alerts for the
+        winning (or `target_run_id`) run with pagination metadata (`has_more`, `remaining_count`, `next_start`).
+
+        Args:
+            analysis_ids (list[str], optional): Explicit list of Emerging Issue run IDs to inspect. If omitted,
+                automatically discovers Emerging Issue runs matching `name_filter` and `status_filter`.
+            name_filter (str, optional): Case-insensitive substring filter on run name.
+            status_filter (str): Case-insensitive substring filter on run status
+                (default: 'Completed'; pass '' for all).
+            run_sort_by (str): Criterion to rank runs: 'max_score' (default), 'max_cost_score', 'total_alerts',
+                'max_acceleration_ap', 'max_acceleration', 'sum_score', 'sum_cost_score', or 'lastRunDate'.
+            run_sort_order (str): Sort direction for runs: 'desc' (default) or 'asc'.
+            runs_start (int): Offset for the ranked runs list (default: 0).
+            runs_limit (int): Maximum number of ranked runs to return (default: 10).
+            alert_sort_by (str): Criterion to sort alerts of the top/selected run (default: 'score'; also supports
+                'cost_score', 'Events', 'Acceleration_AP', 'Acceleration', 'alert_id').
+            alert_sort_order (str): Sort direction for alerts: 'desc' (default) or 'asc'.
+            alerts_start (int): Offset for the alerts list (default: 0).
+            alerts_limit (int): Maximum number of alerts to return (default: 10).
+            alert_type (str, optional): Optional filter on alert_type (e.g., 'PRODUCTIONPERIOD', 'TIMEINSERVICE').
+            model_cd (str, optional): Optional filter on model_cd.
+            target_run_id (str, optional): Specific run ID whose sorted alerts should be returned. Defaults to the
+                #1 highest-ranked run according to `run_sort_by`.
+        """
+        logger.info("--- TOOL USED: triage_emerging_issue_runs_tool ---")
+        token = await get_token(ctx)
+
+        # 1. Discover candidate Emerging Issue runs
+        candidate_runs: list[dict[str, Any]] = []
+        if analysis_ids:
+            for aid in analysis_ids:
+                candidate_runs.append({"id": aid})
+        else:
+            current_start = 0
+            fetch_limit = 100
+            all_items: list[dict[str, Any]] = []
+            while True:
+                raw_data = await list_iot_analyses(token, start=current_start, limit=fetch_limit)
+                items = raw_data.get("items", [])
+                all_items.extend(items)
+                if len(items) < fetch_limit:
+                    break
+                current_start += fetch_limit
+
+            for item in all_items:
+                mname = str(item.get("modelName") or "").upper()
+                rname = str(item.get("name") or "").upper()
+                if not ("EI" in mname or "EMERGING" in mname or "EMERGING" in rname):
+                    continue
+                if name_filter and name_filter.lower() not in str(item.get("name") or "").lower():
+                    continue
+                if status_filter and status_filter.lower() not in str(item.get("status") or "").lower():
+                    continue
+                candidate_runs.append(item)
+
+        if not candidate_runs:
+            empty_runs = _paginate_sorted_items(
+                [],
+                start=runs_start,
+                limit=runs_limit,
+                sort_by=run_sort_by,
+                sort_order=run_sort_order,
+                item_label="Emerging Issue runs",
+            )
+            empty_alerts = _paginate_sorted_items(
+                [],
+                start=alerts_start,
+                limit=alerts_limit,
+                sort_by=alert_sort_by,
+                sort_order=alert_sort_order,
+                item_label="alerts",
+            )
+            return {
+                "top_run": None,
+                "runs": empty_runs,
+                "selected_run_alerts": empty_alerts,
+            }
+
+        # 2. Fetch full analysis definitions concurrently to resolve shortId for each run
+        detailed_runs: dict[str, dict[str, Any]] = {}
+
+        async def _fetch_run_detail(run_meta: dict[str, Any]) -> None:
+            rid = str(run_meta.get("id") or "")
+            if not rid:
+                return
+            try:
+                detail = await get_iot_analysis(rid, token)
+                merged = dict(run_meta)
+                merged.update(detail)
+                detailed_runs[rid] = merged
+            except Exception:
+                detailed_runs[rid] = dict(run_meta)
+
+        async with asyncio.TaskGroup() as tg:
+            for r in candidate_runs:
+                tg.create_task(_fetch_run_detail(r))
+
+        # 3. Build ONE bundled SAS snippet that exports all runs' _ALERTS_<shortId> tables in a single CAS session
+        macro_calls: list[str] = []
+        run_short_map: dict[str, str] = {}
+        for idx, (rid, rmeta) in enumerate(detailed_runs.items()):
+            short_id = str(rmeta.get("shortId") or rid.split("-")[0]).strip()
+            safe_short = _validate_sas_identifier(short_id, "short_id")
+            model_name = str(rmeta.get("modelName") or "EIENTERPRISE_PRODUCT")
+            prefix = model_name.split("_")[0] if "_" in model_name else model_name
+            default_tbl = _validate_sas_identifier(f"{prefix}_ALERTS_{safe_short}".upper(), "table")
+            run_short_map[rid] = safe_short
+            macro_calls.append(f'%_dump_run_alerts(idx={idx}, short_id={safe_short}, default_tbl={default_tbl});')
+
+        index_to_run_id = {idx: rid for idx, rid in enumerate(detailed_runs.keys())}
+        bundled_sas_code = f"""
+        cas mySession;
+        libname mycas cas caslib="QASANLOUT" sessref=mySession;
+
+        proc cas;
+          table.tableInfo r=t / caslib="QASANLOUT";
+          create data work._qasanlout_tables from t.TableInfo;
+        quit;
+
+        %macro _dump_run_alerts(idx=, short_id=, default_tbl=);
+          %local matched_tbl;
+          %let matched_tbl = &default_tbl;
+          %if %sysfunc(exist(work._qasanlout_tables)) %then %do;
+            proc sql noprint;
+              select upcase(strip(Name)) into :matched_tbl trimmed
+              from work._qasanlout_tables
+              where index(upcase(Name), upcase("_ALERTS_&short_id")) > 0;
+            quit;
+          %end;
+
+          %if %sysfunc(exist(mycas.&matched_tbl)) %then %do;
+            filename j&idx temp;
+            proc json out=j&idx pretty;
+              export mycas.&matched_tbl;
+            run;
+            data _null_;
+              infile j&idx;
+              if _n_ = 1 then put "BUNDLE_RUN_START:&idx:&matched_tbl";
+              input;
+              put "BUNDLE_JSON:&idx: " _infile_;
+            run;
+          %end;
+          %else %do;
+            data _null_;
+              put "BUNDLE_RUN_EMPTY:&idx:&matched_tbl";
+            run;
+          %end;
+        %mend _dump_run_alerts;
+
+        {chr(10).join(macro_calls)}
+
+        cas mySession terminate;
+        """
+
+        export_res = await run_one_snippet(bundled_sas_code, "triage_emerging_issue_runs", token)
+        export_log = export_res.get("log", "")
+
+        run_json_lines: dict[int, list[str]] = {idx: [] for idx in index_to_run_id}
+        run_matched_table: dict[int, str] = {}
+        for line in export_log.splitlines():
+            if line.startswith("BUNDLE_RUN_START:") or line.startswith("BUNDLE_RUN_EMPTY:"):
+                parts = line.split(":", 2)
+                if len(parts) == 3 and parts[1].isdigit():
+                    run_matched_table[int(parts[1])] = parts[2].strip()
+            elif line.startswith("BUNDLE_JSON:"):
+                rest = line[len("BUNDLE_JSON:"):]
+                idx_str, _, json_line = rest.partition(": ")
+                if idx_str.isdigit() and int(idx_str) in run_json_lines:
+                    run_json_lines[int(idx_str)].append(json_line)
+
+        alerts_by_run: dict[str, list[dict[str, Any]]] = {}
+        run_summaries: list[dict[str, Any]] = []
+
+        for idx, rid in index_to_run_id.items():
+            rmeta = detailed_runs[rid]
+            raw_json = "\n".join(run_json_lines.get(idx, []))
+            raw_alerts: list[dict[str, Any]] = []
+            if raw_json.strip():
+                try:
+                    parsed = json.loads(raw_json)
+                    for k, v in parsed.items():
+                        if k.startswith("SASTableData") and isinstance(v, list):
+                            raw_alerts = v
+                            break
+                except Exception:
+                    logger.warning("Failed to parse bundled alerts JSON for run %s", rid)
+
+            annotated_alerts = [_annotate_fqa_alert(a) for a in raw_alerts]
+            alerts_by_run[rid] = annotated_alerts
+
+            scores = [
+                float(v) for a in annotated_alerts
+                if (v := _extract_field_case_insensitive(a, "score")) is not None and v != ""
+            ]
+            cost_scores = [
+                float(v) for a in annotated_alerts
+                if (v := _extract_field_case_insensitive(a, "cost_score")) is not None and v != ""
+            ]
+            acc_aps = [
+                float(v) for a in annotated_alerts
+                if (v := _extract_field_case_insensitive(a, "Acceleration_AP")) is not None and v != ""
+            ]
+            accs = [
+                float(v) for a in annotated_alerts
+                if (v := _extract_field_case_insensitive(a, "Acceleration")) is not None and v != ""
+            ]
+
+            top_alert_sorted = _sort_items(annotated_alerts, sort_by=alert_sort_by, sort_order=alert_sort_order)
+            top_alert = top_alert_sorted[0] if top_alert_sorted else None
+
+            run_summaries.append({
+                "id": rid,
+                "shortId": run_short_map.get(rid),
+                "name": rmeta.get("name"),
+                "modelName": rmeta.get("modelName"),
+                "status": rmeta.get("status"),
+                "lastRunDate": rmeta.get("lastRunDate"),
+                "dataSelectionId": rmeta.get("dataSelectionId"),
+                "alerts_table": run_matched_table.get(idx),
+                "total_alerts": len(annotated_alerts),
+                "max_score": max(scores) if scores else 0.0,
+                "sum_score": sum(scores) if scores else 0.0,
+                "max_cost_score": max(cost_scores) if cost_scores else 0.0,
+                "sum_cost_score": sum(cost_scores) if cost_scores else 0.0,
+                "max_acceleration_ap": max(acc_aps) if acc_aps else None,
+                "max_acceleration": max(accs) if accs else None,
+                "top_alert_id": _extract_field_case_insensitive(top_alert, "alert_id") if top_alert else None,
+                "top_alert_type": _extract_field_case_insensitive(top_alert, "alert_type") if top_alert else None,
+                "top_alert_score": _extract_field_case_insensitive(top_alert, "score") if top_alert else None,
+            })
+
+        paginated_runs = _paginate_sorted_items(
+            run_summaries,
+            start=runs_start,
+            limit=runs_limit,
+            sort_by=run_sort_by,
+            sort_order=run_sort_order,
+            item_label="Emerging Issue runs",
+        )
+        all_sorted_runs = _sort_items(run_summaries, sort_by=run_sort_by, sort_order=run_sort_order)
+        winning_run = all_sorted_runs[0] if all_sorted_runs else None
+        chosen_run_id = target_run_id or (winning_run["id"] if winning_run else None)
+
+        chosen_alerts = list(alerts_by_run.get(chosen_run_id, [])) if chosen_run_id else []
+        if alert_type:
+            chosen_alerts = [
+                a for a in chosen_alerts
+                if alert_type.lower() in str(_extract_field_case_insensitive(a, "alert_type") or "").lower()
+            ]
+        if model_cd:
+            chosen_alerts = [
+                a for a in chosen_alerts
+                if model_cd.lower() in str(_extract_field_case_insensitive(a, "model_cd") or "").lower()
+            ]
+
+        paginated_alerts = _paginate_sorted_items(
+            chosen_alerts,
+            start=alerts_start,
+            limit=alerts_limit,
+            sort_by=alert_sort_by,
+            sort_order=alert_sort_order,
+            item_label=f"alerts for run {chosen_run_id}",
+        )
+
+        return {
+            "top_run": winning_run,
+            "selected_run_id": chosen_run_id,
+            "runs": paginated_runs,
+            "selected_run_alerts": paginated_alerts,
+        }
+
+    @mcp.tool()
+    async def inspect_emerging_issue_alert_context_tool(
+        analysis_id: str,
+        ctx: Context,
+        alert_id: str | None = None,
+        start: int = 0,
+        limit: int = 10,
+        details_sort_by: str = "actual",
+        details_sort_order: str = "desc",
+        wumkr_sort_by: str = "Events",
+        wumkr_sort_order: str = "desc",
+    ) -> dict:
+        """
+        Bundled FQA Phase 0 / Phase 1 4-Question Early Warning Triage tool (`BP 1b, BP 4, BP 9`):
+        fetches the target alert plus all 3 companion tables in `QASANLOUT` (`_ALERTS_<shortId>`,
+        `_DETAILS_<shortId>` 3rd time dimension / Sales Lag, `_WUMKR_<shortId>` 2D Build × TIS heat-map cells,
+        and `_BASELINE_<shortId>` expected baseline curve) in ONE single CAS call.
+        Returns a structured 4-question triage summary and top-10 sorted slices with pagination metadata.
+
+        Args:
+            analysis_id (str): The unique ID of the Emerging Issue analysis/run.
+            alert_id (str, optional): Alert ID to inspect (e.g., 'alert_10'). If omitted, automatically selects
+                the highest-scoring alert in the run.
+            start (int): Offset for companion table lists (default: 0).
+            limit (int): Maximum rows to return per companion table (default: 10).
+            details_sort_by (str): Sort column for `_DETAILS_` sales-lag rows (default: 'actual').
+            details_sort_order (str): Sort order for `_DETAILS_` rows ('desc' or 'asc').
+            wumkr_sort_by (str): Sort column for `_WUMKR_` heat-map cells (default: 'Events').
+            wumkr_sort_order (str): Sort order for `_WUMKR_` rows ('desc' or 'asc').
+        """
+        logger.info("--- TOOL USED: inspect_emerging_issue_alert_context_tool (%s, %s) ---", analysis_id, alert_id)
+        token = await get_token(ctx)
+        analysis = await get_iot_analysis(analysis_id, token)
+        short_id = _validate_sas_identifier(
+            str(analysis.get("shortId") or analysis_id.split("-")[0]).strip(),
+            "short_id",
+        )
+        model_name = str(analysis.get("modelName") or "EIENTERPRISE_PRODUCT")
+        prefix = _validate_sas_identifier(
+            (model_name.split("_")[0] if "_" in model_name else model_name).upper(),
+            "prefix",
+        )
+
+        sas_code = f"""
+        cas mySession;
+        libname mycas cas caslib="QASANLOUT" sessref=mySession;
+
+        %macro _export_companion(suffix=, tag=);
+          %local tbl;
+          %let tbl = {prefix}_&suffix._{short_id};
+          %if %sysfunc(exist(mycas.&tbl)) %then %do;
+            filename f&tag temp;
+            proc json out=f&tag pretty;
+              export mycas.&tbl;
+            run;
+            data _null_;
+              infile f&tag;
+              input;
+              put "CTX_&tag: " _infile_;
+            run;
+          %end;
+        %mend _export_companion;
+
+        %_export_companion(suffix=ALERTS, tag=ALERTS);
+        %_export_companion(suffix=DETAILS, tag=DETAILS);
+        %_export_companion(suffix=WUMKR, tag=WUMKR);
+        %_export_companion(suffix=BASELINE, tag=BASELINE);
+
+        cas mySession terminate;
+        """
+
+        res = await run_one_snippet(sas_code, "inspect_emerging_issue_alert_context", token)
+        log_text = res.get("log", "")
+
+        def _parse_tagged_table(tag: str) -> list[dict[str, Any]]:
+            prefix_str = f"CTX_{tag}: "
+            lines = [ln[len(prefix_str):] for ln in log_text.splitlines() if ln.startswith(prefix_str)]
+            raw = "\n".join(lines).strip()
+            if not raw:
+                return []
+            try:
+                parsed = json.loads(raw)
+                for k, v in parsed.items():
+                    if k.startswith("SASTableData") and isinstance(v, list):
+                        return v
+            except Exception:
+                logger.warning("Failed to parse %s JSON from SAS log", tag)
+            return []
+
+        alerts_rows = [_annotate_fqa_alert(a) for a in _parse_tagged_table("ALERTS")]
+        details_rows = _parse_tagged_table("DETAILS")
+        wumkr_rows = _parse_tagged_table("WUMKR")
+        baseline_rows = _parse_tagged_table("BASELINE")
+
+        if not alerts_rows:
+            return {
+                "analysis_id": analysis_id,
+                "short_id": short_id,
+                "alert": None,
+                "message": f"No alerts found for run {analysis_id}.",
+            }
+
+        target_alert: dict[str, Any] | None = None
+        if alert_id:
+            for a in alerts_rows:
+                if str(_extract_field_case_insensitive(a, "alert_id") or "").lower() == alert_id.lower():
+                    target_alert = a
+                    break
+        if target_alert is None:
+            sorted_alerts = _sort_items(alerts_rows, sort_by="score", sort_order="desc")
+            target_alert = sorted_alerts[0]
+
+        chosen_alert_id = str(_extract_field_case_insensitive(target_alert, "alert_id") or "")
+
+        def _belongs_to_alert(row: dict[str, Any]) -> bool:
+            rid = _extract_field_case_insensitive(row, "alert_id")
+            if rid is not None:
+                return str(rid).lower() == chosen_alert_id.lower()
+            return True
+
+        alert_details = [r for r in details_rows if _belongs_to_alert(r)]
+        alert_wumkr = [r for r in wumkr_rows if _belongs_to_alert(r)]
+        alert_baseline = [r for r in baseline_rows if _belongs_to_alert(r)]
+
+        # Evaluate 3rd time dimension (Sales Period Since Production / Sales Lag: actual vs C_ijk)
+        breaching_lags = 0
+        for d in alert_details:
+            act = _extract_field_case_insensitive(d, "actual")
+            crit = _extract_field_case_insensitive(d, "C_ijk")
+            try:
+                if act is not None and crit is not None and float(act) > float(crit):
+                    breaching_lags += 1
+            except (ValueError, TypeError):
+                pass
+
+        if not alert_details:
+            sales_lag_verdict = "no_details_rows"
+        elif breaching_lags > 0:
+            sales_lag_verdict = "manufacturing_or_early_release_spike_confirmed"
+        else:
+            sales_lag_verdict = "within_critical_limits_check_lot_or_seasonal_batching"
+
+        triage_4_questions = {
+            "q1_axis_and_failure_mode": {
+                "alert_type": _extract_field_case_insensitive(target_alert, "alert_type"),
+                "weibull_beta": target_alert.get("weibull_beta"),
+                "failure_mode_hint": target_alert.get("failure_mode_hint"),
+            },
+            "q2_third_time_dimension_sales_lag": {
+                "total_lag_periods": len(alert_details),
+                "lags_exceeding_critical_C_ijk": breaching_lags,
+                "verdict": sales_lag_verdict,
+            },
+            "q3_heatmap_cell_breadth": {
+                "total_wumkr_cells": len(alert_wumkr),
+                "baseline_points": len(alert_baseline),
+            },
+            "q4_small_n_and_edge_check": {
+                "events": _extract_field_case_insensitive(target_alert, "Events"),
+                "is_small_n": target_alert.get("is_small_n"),
+                "score": _extract_field_case_insensitive(target_alert, "score"),
+                "cost_score": _extract_field_case_insensitive(target_alert, "cost_score"),
+            },
+        }
+
+        return {
+            "analysis_id": analysis_id,
+            "short_id": short_id,
+            "alert_id": chosen_alert_id,
+            "alert": target_alert,
+            "triage_4_questions": triage_4_questions,
+            "details_sales_lag": _paginate_sorted_items(
+                alert_details,
+                start=start,
+                limit=limit,
+                sort_by=details_sort_by,
+                sort_order=details_sort_order,
+                item_label=f"sales-lag details rows for {chosen_alert_id}",
+            ),
+            "wumkr_cells": _paginate_sorted_items(
+                alert_wumkr,
+                start=start,
+                limit=limit,
+                sort_by=wumkr_sort_by,
+                sort_order=wumkr_sort_order,
+                item_label=f"WUMKR heat-map cells for {chosen_alert_id}",
+            ),
+            "baseline_curve": _paginate_sorted_items(
+                alert_baseline,
+                start=start,
+                limit=limit,
+                sort_by="TIS",
+                sort_order="asc",
+                item_label=f"baseline curve points for {chosen_alert_id}",
+            ),
+        }
+
+    @mcp.tool()
+    async def run_fqa_preflight_checks_tool(
+        table_name: str,
+        ctx: Context,
+        caslib: str = "QASMartStore",
+        candidate_vars: list[str] | None = None,
+        unit_id_col: str = "PRODUCT_ID",
+        code_col: str = "REPL_PART_CD",
+        text_col: str = "CLAIM_COMMENT_TXT",
+        start: int = 0,
+        limit: int = 10,
+        sort_by: str = "distinct_levels",
+        sort_order: str = "desc",
+    ) -> dict:
+        """
+        Bundled FQA Preflight Validation tool (`knowledge/fqa/references/preflight.md`):
+        executes all 4 preflight gates in ONE single CAS call against a launched data selection or QASMartStore table:
+        1. Total rows & distinct units (`unit_id_col`).
+        2. Distinct cardinality of `candidate_vars` (checking Pareto `<= 50`, ANOM Driver/Tree `2..500`, and
+           Phase 3 single-level pinning `< 2`).
+        3. Failure Relationships co-occurrence gate (`>= 200` units with >= 2 codes and `>= 20%` multi-code share).
+        4. Text Mining non-missing comment count (`>= 50` recommended, `>= 15` minimum).
+
+        Returns top `limit` (default: 10) candidate variables sorted by `sort_by` with pagination metadata.
+        """
+        logger.info("--- TOOL USED: run_fqa_preflight_checks_tool (%s.%s) ---", caslib, table_name)
+        token = await get_token(ctx)
+        safe_caslib = _validate_sas_identifier(caslib, "caslib")
+        safe_table = _validate_sas_identifier(table_name, "table_name")
+        safe_unit = _validate_sas_identifier(unit_id_col, "unit_id_col")
+        safe_code = _validate_sas_identifier(code_col, "code_col")
+        safe_text = _validate_sas_identifier(text_col, "text_col")
+
+        default_candidates = candidate_vars or [
+            "MODEL_CD",
+            "PLANT_CD",
+            "ENGINE_MODEL_CD",
+            "TRANSMISSION_TYPE_CD",
+            "CSTMR_COUNTRY_CD",
+            "REPL_PART_CD",
+            "LABOR_CD",
+            "FAULT_CD",
+            "SUPPLIER_CD",
+            "DEALER_CD",
+        ]
+        safe_candidates = [_validate_sas_identifier(v.split(".")[-1], "candidate_var") for v in default_candidates]
+        quoted_candidates = ", ".join(f'"{v.upper()}"' for v in safe_candidates)
+
+        sas_code = f"""
+        cas mySession;
+        proc cas;
+          table.columnInfo r=ci / table={{caslib="{safe_caslib}", name="{safe_table}"}};
+          existing_cols = {{}};
+          do row over ci.ColumnInfo;
+            existing_cols[upcase(row.Column)] = 1;
+          end;
+
+          simple.numRows r=nr / table={{caslib="{safe_caslib}", name="{safe_table}"}};
+          total_rows = nr.numrows;
+          print "PREFLIGHT_META:TOTAL_ROWS=" total_rows;
+
+          if "{safe_unit.upper()}" in existing_cols then do;
+            simple.distinct r=du /
+              table={{caslib="{safe_caslib}", name="{safe_table}"}},
+              inputs={{"{safe_unit.upper()}"}};
+            do drow over du.Distinct;
+              print "PREFLIGHT_META:DISTINCT_UNITS=" drow.Naked;
+            end;
+          end;
+
+          cand_list = {{{quoted_candidates}}};
+          actual_cands = {{}};
+          idx = 1;
+          do c over cand_list;
+            if c in existing_cols then do;
+              actual_cands[idx] = c;
+              idx = idx + 1;
+            end;
+          end;
+
+          if dim(actual_cands) > 0 then do;
+            simple.distinct r=dc / table={{caslib="{safe_caslib}", name="{safe_table}"}}, inputs=actual_cands;
+            do crow over dc.Distinct;
+              print "PREFLIGHT_VAR:" crow.Column "|" crow.NDistinct "|" crow.NMiss;
+            end;
+          end;
+
+          if ("{safe_unit.upper()}" in existing_cols) and ("{safe_code.upper()}" in existing_cols) then do;
+            fedsql.execDirect r=fr / query="
+              select count(*) as total_units,
+                     sum(case when n_codes >= 2 then 1 else 0 end) as multi_units
+              from (
+                select {safe_unit}, count(distinct {safe_code}) as n_codes
+                from ""{safe_caslib}"".""{safe_table}""
+                where {safe_code} is not null
+                group by {safe_unit}
+              ) t
+            ";
+            do frow over fr['Result Set'];
+              print "PREFLIGHT_FR:" frow.total_units "|" frow.multi_units;
+            end;
+          end;
+
+          if "{safe_text.upper()}" in existing_cols then do;
+            fedsql.execDirect r=tm / query="
+              select count(*) as non_missing_text
+              from ""{safe_caslib}"".""{safe_table}""
+              where {safe_text} is not null and char_length(trim({safe_text})) >= 5
+            ";
+            do trow over tm['Result Set'];
+              print "PREFLIGHT_TM:" trow.non_missing_text;
+            end;
+          end;
+        quit;
+        cas mySession terminate;
+        """
+
+        res = await run_one_snippet(sas_code, "run_fqa_preflight_checks", token)
+        log_text = res.get("log", "") + "\n" + res.get("listing", "")
+
+        total_rows = 0
+        distinct_units: int | None = None
+        var_profiles: list[dict[str, Any]] = []
+        fr_total_units = 0
+        fr_multi_units = 0
+        tm_non_missing = 0
+
+        for raw_line in log_text.splitlines():
+            line = raw_line.strip()
+            if "PREFLIGHT_META:TOTAL_ROWS=" in line:
+                val_str = line.split("PREFLIGHT_META:TOTAL_ROWS=", 1)[1].strip()
+                with contextlib.suppress(ValueError):
+                    total_rows = int(float(val_str))
+            elif "PREFLIGHT_META:DISTINCT_UNITS=" in line:
+                val_str = line.split("PREFLIGHT_META:DISTINCT_UNITS=", 1)[1].strip()
+                with contextlib.suppress(ValueError):
+                    distinct_units = int(float(val_str))
+            elif "PREFLIGHT_VAR:" in line:
+                payload = line.split("PREFLIGHT_VAR:", 1)[1].strip()
+                parts = [p.strip() for p in payload.split("|")]
+                if len(parts) >= 3:
+                    col_name = parts[0]
+                    try:
+                        n_dist = int(float(parts[1]))
+                    except ValueError:
+                        n_dist = 0
+                    try:
+                        n_miss = int(float(parts[2]))
+                    except ValueError:
+                        n_miss = 0
+                    var_profiles.append({
+                        "column": col_name,
+                        "distinct_levels": n_dist,
+                        "missing_count": n_miss,
+                        "pinned_single_level": n_dist < 2,
+                        "pareto_ready": 2 <= n_dist <= 50,
+                        "anom_driver_tree_ready": 2 <= n_dist <= 500,
+                        "exceeds_anom_500_cap": n_dist > 500,
+                    })
+            elif "PREFLIGHT_FR:" in line:
+                payload = line.split("PREFLIGHT_FR:", 1)[1].strip()
+                parts = [p.strip() for p in payload.split("|")]
+                if len(parts) >= 2:
+                    with contextlib.suppress(ValueError):
+                        fr_total_units = int(float(parts[0]))
+                        fr_multi_units = int(float(parts[1]))
+            elif "PREFLIGHT_TM:" in line:
+                val_str = line.split("PREFLIGHT_TM:", 1)[1].strip()
+                with contextlib.suppress(ValueError):
+                    tm_non_missing = int(float(val_str))
+
+        multi_pct = (100.0 * fr_multi_units / fr_total_units) if fr_total_units > 0 else 0.0
+        pinned_cols = [v["column"] for v in var_profiles if v["pinned_single_level"]]
+        over_500_cols = [v["column"] for v in var_profiles if v["exceeds_anom_500_cap"]]
+
+        return {
+            "caslib": safe_caslib,
+            "table_name": safe_table,
+            "population_summary": {
+                "total_rows": total_rows,
+                "distinct_units": distinct_units,
+                "pinned_single_level_columns": pinned_cols,
+                "high_cardinality_over_500_columns": over_500_cols,
+                "phase3_population_expansion_needed": len(pinned_cols) > 0 or total_rows < 50,
+            },
+            "failure_relationships_gate": {
+                "code_column": safe_code,
+                "total_units_with_code": fr_total_units,
+                "multi_code_units": fr_multi_units,
+                "multi_code_unit_pct": round(multi_pct, 2),
+                "ready": fr_multi_units >= 200 and multi_pct >= 20.0,
+                "rule": "Requires >= 200 units with >= 2 distinct codes AND >= 20% multi-code unit share.",
+            },
+            "text_mining_gate": {
+                "text_column": safe_text,
+                "non_missing_comments": tm_non_missing,
+                "ready_recommended_50": tm_non_missing >= 50,
+                "ready_minimum_15": tm_non_missing >= 15,
+                "rule": "Requires >= 50 non-empty comments (>= 15 absolute floor); expand population if below floor.",
+            },
+            "candidate_variables": _paginate_sorted_items(
+                var_profiles,
+                start=start,
+                limit=limit,
+                sort_by=sort_by,
+                sort_order=sort_order,
+                item_label=f"candidate variables in {safe_caslib}.{safe_table}",
+            ),
+        }
+
+    @mcp.tool()
+    async def screen_common_cause_candidates_tool(
+        analysis_id: str,
+        ctx: Context,
+        start: int = 0,
+        limit: int = 10,
+        sort_by: str = "cost_score",
+        sort_order: str = "desc",
+        quadrant_filter: str | None = None,
+        alert_type: str | None = None,
+        min_events: int = 5,
+    ) -> dict:
+        """
+        Bundled FQA Common Cause vs. Special Cause 4-Quadrant Screening tool (`knowledge/fqa/references/workflow.md`):
+        exports the run's alert/screening table in ONE single CAS call, classifies each component into one of the
+        4 FQA screening quadrants using its rate/cost index (`score`, `cost_score`, `Events`) and Weibull slope
+        beta (`Acceleration_AP` / `Acceleration`) plus B-life (`T01`, `T05`, `T10`, `T20`, `T25`), and returns the
+        top `limit` (default: 10) candidates sorted by `sort_by` with pagination metadata.
+
+        Quadrants:
+        - `HIGH_RATE_WEARING_OUT`: High rate/cost + beta > 1.15 (accelerating wear-out / aging accumulation)
+        - `HIGH_RATE_INFANT_BATCH`: High rate/cost + beta < 0.85 (early-life / production batch / assembly defect)
+        - `CHRONIC_COMMON_CAUSE`: High rate/cost + 0.85 <= beta <= 1.15 (constant-hazard systemic design baseline)
+        - `EMERGING_LOW_VOLUME_ACCELERATING`: Lower volume/cost + beta > 1.15 (emerging wear-out to watch)
+        - `LOW_PRIORITY_BACKGROUND`: Low volume/cost and non-accelerating
+        """
+        logger.info("--- TOOL USED: screen_common_cause_candidates_tool (%s) ---", analysis_id)
+        raw = await list_alerts_for_run_tool(
+            analysis_id=analysis_id,
+            ctx=ctx,
+            start=0,
+            limit=10000,
+            alert_type=alert_type,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+        all_alerts = raw.get("items", [])
+        if not all_alerts:
+            return {
+                "analysis_id": analysis_id,
+                "quadrant_counts": {},
+                "candidates": _paginate_sorted_items(
+                    [],
+                    start=start,
+                    limit=limit,
+                    sort_by=sort_by,
+                    sort_order=sort_order,
+                    item_label="Common Cause / Special Cause candidates",
+                ),
+            }
+
+        scores = sorted(
+            float(v) for a in all_alerts
+            if (v := _extract_field_case_insensitive(a, "score")) is not None and v != ""
+        )
+        cost_scores = sorted(
+            float(v) for a in all_alerts
+            if (v := _extract_field_case_insensitive(a, "cost_score")) is not None and v != ""
+        )
+        median_score = scores[len(scores) // 2] if scores else 0.0
+        median_cost = cost_scores[len(cost_scores) // 2] if cost_scores else 0.0
+
+        screened: list[dict[str, Any]] = []
+        quadrant_counts: dict[str, int] = {}
+
+        for alert in all_alerts:
+            events_raw = _extract_field_case_insensitive(alert, "Events")
+            try:
+                events_val = float(events_raw) if events_raw is not None and events_raw != "" else 0.0
+            except (ValueError, TypeError):
+                events_val = 0.0
+            if events_val < min_events:
+                continue
+
+            score_val = float(_extract_field_case_insensitive(alert, "score") or 0.0)
+            cost_val = float(_extract_field_case_insensitive(alert, "cost_score") or 0.0)
+            beta_val = alert.get("weibull_beta")
+            is_high_impact = (score_val >= median_score and score_val > 0) or (cost_val >= median_cost and cost_val > 0)
+
+            if beta_val is not None and beta_val > 1.15:
+                quadrant = "HIGH_RATE_WEARING_OUT" if is_high_impact else "EMERGING_LOW_VOLUME_ACCELERATING"
+            elif beta_val is not None and beta_val < 0.85:
+                quadrant = "HIGH_RATE_INFANT_BATCH" if is_high_impact else "LOW_PRIORITY_BACKGROUND"
+            else:
+                quadrant = "CHRONIC_COMMON_CAUSE" if is_high_impact else "LOW_PRIORITY_BACKGROUND"
+
+            quadrant_counts[quadrant] = quadrant_counts.get(quadrant, 0) + 1
+            if quadrant_filter and quadrant_filter.upper() not in quadrant:
+                continue
+
+            entry = dict(alert)
+            entry["screening_quadrant"] = quadrant
+            entry["b_life_summary"] = {
+                "T01": _extract_field_case_insensitive(alert, "T01"),
+                "T05": _extract_field_case_insensitive(alert, "T05"),
+                "T10": _extract_field_case_insensitive(alert, "T10"),
+                "T20": _extract_field_case_insensitive(alert, "T20"),
+                "T25": _extract_field_case_insensitive(alert, "T25"),
+            }
+            screened.append(entry)
+
+        return {
+            "analysis_id": analysis_id,
+            "min_events": min_events,
+            "median_score_threshold": median_score,
+            "median_cost_score_threshold": median_cost,
+            "quadrant_counts": quadrant_counts,
+            "candidates": _paginate_sorted_items(
+                screened,
+                start=start,
+                limit=limit,
+                sort_by=sort_by,
+                sort_order=sort_order,
+                item_label=f"screened candidates for run {analysis_id}",
+            ),
+        }
+

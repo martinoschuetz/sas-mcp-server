@@ -26,14 +26,18 @@ need approval (writeback.md).
 
 ## Tool map
 
-**Read — FQA metadata (safe)**
+**Read — FQA metadata & bundled single-call triage (safe)**
 
 | Job | Tool |
 |---|---|
-| list alert groups | `list_emerging_issue_runs_tool(status="Completed")` |
-| list alerts of a run | `list_alerts_for_run_tool` (paged `limit`/`start`; sort by `score` yourself) |
+| rank all EI runs + get top run's sorted alerts in 1 call | `triage_emerging_issue_runs_tool` (single CAS call across all EI runs; returns top 10 runs & top 10 alerts sorted by `score` with `has_more` pagination) |
+| 4-question alert triage (`_ALERTS_`, `_DETAILS_` Sales Lag, `_WUMKR_`, `_BASELINE_`) in 1 call | `inspect_emerging_issue_alert_context_tool` (single CAS call; checks `actual > C_ijk` sales lag, Weibull $\beta$, and $n < 5$) |
+| 4-gate preflight check on a DS / CAS table in 1 call | `run_fqa_preflight_checks_tool` (single CAS call; checks cardinality, single-level pinning, Failure Relationships multi-code share, and Text Mining comment count) |
+| 4-quadrant Common Cause vs. Special Cause screening in 1 call | `screen_common_cause_candidates_tool` (single CAS call; classifies components by rate/cost and Weibull $\beta$ + B-life `T01`–`T25`, top 10 by default) |
+| list alert groups | `list_emerging_issue_runs_tool(status="Completed", sort_by="lastRunDate", limit=10)` |
+| list alerts of a single run | `list_alerts_for_run_tool(analysis_id=..., sort_by="score", sort_order="desc", limit=10)` (sorts all alerts before slicing to top 10; includes `has_more` & `next_start`) |
 | alert → FQA filter criteria | `get_alert_filters_tool` (pure translation, no side effects) |
-| data selections | `list_data_selections_tool`, `get_data_selection_details` |
+| data selections | `list_data_selections_tool(limit=10, sort_by=...)`, `get_data_selection_details` |
 | DS variable profile | `list_fqa_data_model_variables_tool` (incomplete — see data-model.md) |
 | projects and nodes | `list_folders_and_projects_tool` |
 | analyses | `list_iot_analyses_tool` (first 10 only!), `get_iot_analysis_details_tool`, `get_iot_analysis_run_status_tool`, `get_iot_analysis_results`, `get_iot_analysis_output_tables_tool` |
