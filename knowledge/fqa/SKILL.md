@@ -1,18 +1,22 @@
 ---
 name: sas-fqa
-description: Domain playbook for SAS Field Quality Analytics (FQA) on SAS Viya / Analytics for IoT, used through the sas-viya-internal MCP server. Use when investigating warranty or field-quality issues, triaging Emerging Issues (early-warning) alerts, configuring or explaining Emerging Issues, On Demand (Ad Hoc Analytic) or Threshold (Ad Hoc Threshold) analyses, building or combining data selections across data domains (claims, labor, parts, SSD, DTC), choosing or interpreting FQA analyses (Pareto, Failure Relationships, Statistical Drivers, Decision Tree, Text Mining, Trend by Exposure, Reliability/Weibull, Exposure, Geographic, Summary Tables, Detail), querying the FQA data mart (QASMartStore, QASANLOUT), or creating FQA projects, data selections and analysis nodes. Also use when the user mentions alerts, build/production-period charts, time in service (TIS), claim rates, labor or part codes, root cause of a warranty spike, or recall population narrowing. Also covers the FQA data load and configuration layer: %afi_dataload parameter files, the Data Elements Workbook (DEW) and configuration CSVs (column_parameters, global_defaults, analysis_param, labels, failure-relationship rules), full/incremental/sequential-BOM load jobs, the exceptions log, validation tables, customer macro overrides and utilities.
+description: >-
+  Domain playbook for SAS Field Quality Analytics (FQA) on SAS Viya / Analytics for IoT, used through the sas-viya-internal MCP server. Use when investigating warranty or field-quality issues, triaging Emerging Issues (early-warning) alerts, configuring or explaining Emerging Issues, On Demand (Ad Hoc Analytic) or Threshold (Ad Hoc Threshold) analyses, building or combining data selections across data domains (claims, labor, parts, SSD, DTC), choosing or interpreting FQA analyses (Pareto, Failure Relationships, Statistical Drivers, Decision Tree, Text Mining, Trend by Exposure, Reliability/Weibull, Exposure, Geographic, Summary Tables, Detail), querying the FQA data mart (QASMartStore, QASANLOUT), or creating FQA projects, data selections and analysis nodes. Also use when the user mentions alerts, build/production-period charts, time in service (TIS), claim rates, labor or part codes, root cause of a warranty spike, or recall population narrowing. Also covers the FQA data load and configuration layer (%afi_dataload parameter files, the Data Elements Workbook (DEW) and configuration CSVs, full/incremental/sequential-BOM load jobs, the exceptions log, validation tables, customer macro overrides and utilities).
 metadata:
-  version: 0.4.0
-  source: FQA-Agent-Spec v0.3 (2026-09-25), preflightchecks.md, FQA_bestpractices.md, MAN FQA project folder (configuration, programs/etl, programs/overrides, programs/utility; surveyed 2026-10-01), production-period alert walkthrough 2026-10-05, FQA 6.3 User's/Administrator's Guide, Emerging Issues Properties, Complex Data Selections and Data Domains, FQA_MCP_Users_Guide (2026-10-07)
+  version: "0.5.0"
+  source: >-
+    FQA-Agent-Spec v0.3 (2026-09-25), preflightchecks.md, FQA_bestpractices.md, 2025_10_28_FQA BP_MAN.pptx (Best Practices), FQA Education Course Materials (Lessons 0–11, LTS 2026.09 New EI Columns), MAN FQA project folder (configuration, programs/etl, programs/overrides, programs/utility; surveyed 2026-10-01), production-period alert walkthrough 2026-10-05, FQA 6.3 User's/Administrator's Guide, Emerging Issues Properties, Complex Data Selections and Data Domains, FQA_MCP_Users_Guide (2026-10-07)
   mcp_server: sas-viya-internal
-  fqa_version: "6.3"
+  fqa_version: "6.3 / LTS 2026.09"
 ---
 
 # SAS Field Quality Analytics (FQA)
 
-FQA finds and explains abnormal warranty/field failure patterns. An analyst goes from an
-**alert** (a statistically significant excess of claims) to a **root-cause hypothesis** and a
-**containment action**, by drilling through a fixed toolbox of 14 analyses.
+FQA finds and explains abnormal warranty/field failure patterns (**Special Cause** anomalies via
+Emerging Issues, as well as **Common Cause** chronic issues via unadjusted Pareto + Weibull
+Reliability screening). An analyst goes from an **alert** or cohort selection to a **root-cause
+hypothesis**, **containment action**, and **CAPA verification**, by drilling through a fixed
+toolbox of 14 analyses.
 
 This skill tells you *how to use FQA well*. The MCP tool descriptions tell you *what each tool
 accepts*. Tenant facts (table hashes, variable codes, refresh date, golden values) live in a
@@ -41,27 +45,36 @@ separate tenant profile — never hard-code them from this skill.
    earlier ad-hoc work. Redact names and towns before quoting comments.
 8. **Never leave failed nodes in the FQA UI**, never name anything "Alarm" (use "Alert"), and
    never put resolution claims like "Fixed" in names.
-9. **Scope the population per analysis, not once per investigation.** Units, events and
-   observation window are three separate decisions, and the slice that is right for one analysis
-   is degenerate for the next (see [population-scoping.md](references/population-scoping.md)).
-   Never restrict the cohort to units that already had the outcome, and never let immature units
-   or reporting lag enter a model as evidence that recent builds are healthy.
+9. **Scope the population per analysis, not once per investigation — and step back to widen the
+   population in Phase 3.** Units, events and observation window are three separate decisions, and
+   the slice that is right for one analysis is degenerate for the next (see
+   [population-scoping.md](references/population-scoping.md)). In particular, after Phase 2
+   narrows a clear failure pattern down to a small sub-population (e.g. a Decision Tree terminal
+   leaf of 25 units / 7 claims), key attributes are already **fixed (pinned) to a single or tiny
+   number of levels** and sample size is too small for SVD topic clustering or association rule
+   mining. Before running Phase 3 **Text Mining** or **Failure Relationships**, you **must widen
+   the population back out** (e.g. to the parent model/series cohort across alert + baseline build
+   periods, and without single-part event filters for Failure Relationships) so reporting
+   variables have multiple levels with contrast to build context. Never restrict a cohort to units
+   that already had the outcome, and never let immature units or reporting lag enter a model as
+   evidence that recent builds are healthy.
 
 ## The investigation funnel
 
-Follow the 4-phase best-practice funnel. Details, entry paths and stop criteria:
-[workflow.md](references/workflow.md).
+Follow the 4-phase best-practice funnel (plus Common Cause & Proactive Launch monitoring when no
+EI alert exists). Details, entry paths and stop criteria: [workflow.md](references/workflow.md).
 
-| Phase | Question | Analyses |
-|---|---|---|
-| 0 Triage | Which alerts matter, and what does the chart pattern suggest? | alert list, cell grid |
-| 1 Descriptive | Which codes, attributes, regions, periods stand out? | Pareto, Summary Tables, Geographic, Trend by Exposure / Trend & Control |
-| 4 Normalize (run early!) | Early-life defect or wear-out? When did it start? | Exposure (30/90-day), Reliability (Weibull β) |
-| 2 Segment | Which variables drive the excess, and which sub-population? | Statistical Drivers (stratified by build period), Decision Tree |
-| 3 Context & causality | Which repair precedes which? What do technicians say? | Failure Relationships, Detail report, Text Mining |
+| Phase | Question | Analyses | Population Scope Rule |
+|---|---|---|---|
+| 0 Triage | Which alerts matter, and what does the chart pattern suggest? | alert list, cell grid, Details Chart (3rd time dim: sales lag) | Full EI run breakout |
+| 1 Descriptive | Which codes, attributes, regions, periods stand out? | Pareto, Summary Tables, Geographic, Trend by Exposure / Trend & Control | Alert cells + surrounding non-alert baseline cells (`Group Variable = Alert`) |
+| 4 Normalize (run early!) | Early-life defect or wear-out? Is β shift significant? | Exposure (30/90-day), Reliability (Weibull β CI overlap test) | Alert build columns vs. prior baseline build columns (keep survivors!) |
+| 2 Segment | Which variables drive the excess, and which sub-population? | Statistical Drivers (ANOM, stratified by build period), Decision Tree | Mature units across affected + unaffected builds ( shrinks to tight leaf) |
+| 3 Context & causality | Which repair precedes which? What do technicians say across levels? | Failure Relationships, Text Mining, Detail report | **Widen population** for Text Mining & Failure Relationships so variables aren't pinned to 1 level; use tight leaf only for Detail report |
 
-Run the phase-4 normalization right after scoping: an early-life step by build month changes how
-every later result should be read.
+Run the phase-4 normalization right after scoping: an early-life step by build month or
+non-overlapping Weibull β confidence intervals between alert and baseline builds changes how every
+later result should be read.
 
 ## Analysis catalog
 

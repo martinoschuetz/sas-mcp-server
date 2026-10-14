@@ -23,7 +23,6 @@ import hashlib
 import json
 import re
 import secrets
-from contextlib import nullcontext
 
 import httpx
 
@@ -100,7 +99,8 @@ class _ComputeSessionCache:
 
     One session is kept per authenticated user and compute context so repeat
     tool calls skip the costly session spin-up. A per-key lock serialises the
-    create/reset of a given session without blocking unrelated keys.
+    create/reset of a given session without blocking unrelated keys, and a
+    per-session lock serialises job execution within a shared session.
     """
 
     SESSION_NAME = "sas-mcp-shared"
@@ -110,6 +110,8 @@ class _ComputeSessionCache:
         # token is kept so :meth:`shutdown` can authenticate the delete calls.
         self._sessions: dict[tuple[str, str], tuple[str, str]] = {}
         self._locks: dict[tuple[str, str], asyncio.Lock] = {}
+        self._job_locks: dict[str, asyncio.Lock] = {}
+        self._context_ids: dict[str, str] = {}
         self._guard = asyncio.Lock()
 
     async def _lock_for(self, key: tuple[str, str]) -> asyncio.Lock:
@@ -118,6 +120,14 @@ class _ComputeSessionCache:
             if lock is None:
                 lock = asyncio.Lock()
                 self._locks[key] = lock
+            return lock
+
+    async def job_lock_for(self, session_id: str) -> asyncio.Lock:
+        async with self._guard:
+            lock = self._job_locks.get(session_id)
+            if lock is None:
+                lock = asyncio.Lock()
+                self._job_locks[session_id] = lock
             return lock
 
     async def get_or_create(
@@ -142,7 +152,12 @@ class _ComputeSessionCache:
                     return sid
                 logger.info("Cached compute session %s is gone; recreating", sid)
                 self._sessions.pop(key, None)
-            context_id = await get_context_id(client, context_name)
+                async with self._guard:
+                    self._job_locks.pop(sid, None)
+            context_id = self._context_ids.get(context_name)
+            if context_id is None:
+                context_id = await get_context_id(client, context_name)
+                self._context_ids[context_name] = context_id
             sid = await create_session(client, context_id, name=self.SESSION_NAME)
             self._sessions[key] = (sid, token)
             logger.info("Created and cached compute session %s", sid)
@@ -162,6 +177,8 @@ class _ComputeSessionCache:
         if cached is None:
             return None
         sid, _ = cached
+        async with self._guard:
+            self._job_locks.pop(sid, None)
         await delete_session(client, sid)
         return sid
 
@@ -177,10 +194,13 @@ class _ComputeSessionCache:
             entries = list(self._sessions.values())
             self._sessions.clear()
             self._locks.clear()
+            self._job_locks.clear()
+            self._context_ids.clear()
         if not entries:
             return
         logger.info("Deleting %d cached compute session(s) on shutdown", len(entries))
-        for sid, token in entries:
+
+        async def _delete_one(sid: str, token: str) -> None:
             try:
                 async with make_client(token) as client:
                     await delete_session(client, sid)
@@ -189,6 +209,8 @@ class _ComputeSessionCache:
                     "Could not delete compute session %s on shutdown", sid, exc_info=True
                 )
 
+        await asyncio.gather(*(_delete_one(sid, token) for sid, token in entries))
+
     def clear(self) -> None:
         """Forget all cached sessions without deleting them server-side.
 
@@ -196,10 +218,19 @@ class _ComputeSessionCache:
         """
         self._sessions.clear()
         self._locks.clear()
+        self._job_locks.clear()
+        self._context_ids.clear()
 
 
 _SESSION_CACHE = _ComputeSessionCache()
 _FIXED_SESSION_JOB_LOCK = asyncio.Lock()
+
+
+async def get_session_job_lock(session_id: str) -> asyncio.Lock:
+    """Return the per-session lock serializing job runs in *session_id*."""
+    if COMPUTE_SESSION_ID:
+        return _FIXED_SESSION_JOB_LOCK
+    return await _SESSION_CACHE.job_lock_for(session_id)
 
 
 async def get_cached_session(
@@ -478,9 +509,8 @@ async def run_one_snippet(
     async with make_client(token) as client:
         sid = await get_cached_session(client, CONTEXT_NAME, token)
         try:
-            # A fixed externally managed session (e.g. "0001") can be shared
-            # across callers; serialize job runs to avoid session-state races.
-            job_lock = _FIXED_SESSION_JOB_LOCK if COMPUTE_SESSION_ID else nullcontext()
+            # Serialize job runs per compute session to avoid session-state races.
+            job_lock = await get_session_job_lock(sid)
             async with job_lock:
                 jid = await submit_job(client, sid, code)
                 logger.info("Job submitted: %s", jid)

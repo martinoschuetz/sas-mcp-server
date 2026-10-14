@@ -15,28 +15,38 @@ computed in SAS.
 - Mechanism classes
 - Wording
 
-## Chart patterns → mechanism classes
+## Chart patterns → mechanism classes (BP 1b)
 
 | Pattern | Looks like | First suspects |
 |---|---|---|
 | `recent_build_early_tis` | build chart: red cells in recent build months, early months in service | production change, supplier change, plant incident |
+| `right_angle_pattern` | build chart: red cells form a right-angle / L-shape or diagonal wave across build months × TIS | **field or calendar-driven event** (e.g. seasonal weather or a service campaign hitting older builds at high TIS and newer builds at low TIS simultaneously) |
 | `single_build_period` | one build month (or short run) elevated at all TIS | batch/lot defect, line stoppage, one-off assembly error |
+| `horizontal_band` | red cells across many build months at the *same* TIS row (e.g. 12–15 MIS) | wear-out mode at a predictable age, or scheduled maintenance/inspection interval triggering repairs |
 | `event_spike` | event chart: one calendar month elevated across builds | seasonal weather, service-action side effect |
 | `event_step` | event chart: sustained rise from a calendar month | new service procedure, parts change in the field, policy change |
 | `diffuse` | many scattered cells | usage/wear, data artifact, low signal |
 
-## Early life and Weibull β
+## Early life, Weibull β, and the False-Positive Verification Test (BP 3 & BP 4)
 
 - Early-life rate = share of units with a first failure within 30 / 90 days of build, by build
   month. A **step** by build month + high early-life ratio = production-side defect.
 - Weibull shape β (reliability analysis):
-  - β < 1 → infant mortality / assembly or supplier defect.
-  - β ≈ 1 → random or environmental failures.
-  - β > 1 → wear-out / fatigue.
-- Compare β for alert vs. baseline builds. A lower β in the alert builds supports a production
-  change.
+  - β < 1 → infant mortality / assembly or supplier defect (failure rate decreases over TIS).
+  - β ≈ 1 → random or environmental failures (constant hazard rate).
+  - β > 1 → wear-out / fatigue (failure rate accelerates over TIS; $\beta = 2$ means linearly increasing hazard, $\beta > 3$ means rapid wear-out).
+- **3-Step Verification to Separate True Issues from False Positives (BP 4):**
+  1. **Check Sigma ($\alpha$) Sensitivity**: At $1\sigma$, ~15.87 % of cells can cross threshold by chance; at $1.5\sigma$, ~6.68 %; at $2\sigma$, ~2.28 %; at $3\sigma$, ~0.13 %.
+  2. **Inspect the Cell Details Chart (3rd Time Dimension: Sales Lag) & Neighbors**: Click the red cell to compare actual events (blue) vs. critical value (red) across *Sales Period Since Production*, and inspect the Details Charts of **adjacent non-alert cells** (left, right, above, below). If the blue line barely touches the red line at a single point and neighboring cells have zero claims, it is likely a random spike. If adjacent cells show building pressure just below the red critical line, the issue is real.
+  3. **Weibull $\beta$ Confidence Interval Overlap Test**: Run Weibull Reliability comparing the alert build columns against prior non-alert baseline build columns. Check the 95 % confidence intervals for $\beta$ (and the projected failure rates at the warranty limit, e.g. 12m/24m):
+     - **Confidence intervals do NOT overlap** → statistically significant shift in failure behavior (confirmed Special Cause).
+     - **Confidence intervals overlap heavily** → acceleration has not significantly changed; verify whether scale ($\eta$) or projected warranty rate shifted before escalating.
 - A build month needs ≥ 90 days of exposure at the refresh date before its 90-day rate means
   anything. Immature months look *good* (few claims yet) — never read them as recovery.
+- **Common Output Elements — Sample Size Rule (Product vs. Event Attributes):**
+  - When a results table (Pareto, Summary Tables, Statistical Drivers) reports on a **Product attribute** (e.g. `Production Year`, `Model Code`, `Selling Dealer`), the **Sample Size varies across rows** because each row's denominator is only the units possessing that product attribute.
+  - When a results table reports on an **Event attribute** (e.g. `Primary Labor Code`, `Replaced Part Code`, `Repairing Dealer`), the **Sample Size is constant across all rows** (equal to the total population at risk in the Data Selection), because any unit in the fleet *could* potentially experience any event type.
+
 
 ## Pareto: expected, surprising, weak
 

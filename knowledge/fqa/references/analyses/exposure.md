@@ -7,9 +7,16 @@ or hours if the mart has them) to separate an inherent defect from heavy use.
 Right after scoping an alert, before interpreting anything else. The early-life view decides
 whether the rest of the investigation is about a production change or about usage/field causes.
 
-## Parameters
+## Parameters & Mechanics
 Native: `run_exposure_analysis_tool`, `exposure_type=TIS`, `tis_point_of_view=frombuild`,
 `show_immature_exposure=N`.
+
+- **`Summary Type` (`Incremental` vs. `Cumulative`, applicable when `Exposure Type = Time in Service`):**
+  - `Incremental`: Shows the failure rate or event count occurring *strictly within* each individual TIS period.
+  - `Cumulative`: Shows the accumulated failure rate or event count *up to and including* each TIS period (revealing the cumulative growth slope over the vehicle's life).
+- **`Exposure Type = Usage`** (Warranty Program Types 2 and 3 only): Plots event activity across usage intervals (e.g., mileage or operating hours bins set via `Bin Increment`). When `Usage` is selected, you cannot manually choose a `Calculation Method` — FQA automatically applies an **Adjusted-style** survival calculation across usage bins.
+- **`Immature Flag` (75 % Rule):** In the Exposure and Trend by Exposure results tables, FQA marks a time-in-service or usage period as **immature** if **75 % or more of the product units being analyzed have not yet reached that period**.
+- **Proactive Change / New Launch Comparison (BP 11):** Run Exposure Analysis on a **Combined Data Selection** (predecessor product + new launch product) with `Group Variable = Model Code` to directly compare the new launch's TIS curve against the predecessor baseline.
 
 ## Evidence (templated) — early life by build month
 For the alert-defining event (e.g. primary part = alert part):
@@ -31,3 +38,4 @@ hypothesis candidate, and every other mechanism must be measured against it by c
 
 ## Pitfalls
 Without mileage/usage columns, "exposure" is time only — say so; don't claim usage was ruled out.
+

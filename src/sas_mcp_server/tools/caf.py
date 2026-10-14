@@ -25,7 +25,7 @@ from typing import Annotated, Any
 from fastmcp import Context, FastMCP
 from pydantic import BeforeValidator, Field
 
-from ..config import VIYA_ENDPOINT
+from ..config import MAX_UPLOAD_BYTES, VIYA_ENDPOINT
 from ..helpers import caf_helpers as caf
 from ..helpers.caf_registry import (
     COLLECTION_ACCEPT,
@@ -230,32 +230,46 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
             include_templates: Return the Go/BIRD report templates too.
             step_id: Return only this step's template.
         """
+        import os
         from pathlib import Path
-        
+
+        if os.getenv("ALLOW_LOCAL_FILE_UPLOAD", "true").lower() in ("false", "0", "no", "off"):
+            return {
+                "status": "file_upload_disabled",
+                "message": "Reading local files is disabled by ALLOW_LOCAL_FILE_UPLOAD=false.",
+            }
+
         file_path = Path(path)
         if not file_path.exists():
             return {"status": "error", "message": f"File not found: {path}"}
-            
+
+        file_size = file_path.stat().st_size
+        if file_size > MAX_UPLOAD_BYTES:
+            return {
+                "status": "file_too_large",
+                "message": f"Package size ({file_size} bytes) exceeds MAX_UPLOAD_BYTES ({MAX_UPLOAD_BYTES} bytes).",
+            }
+
         with open(file_path, "rb") as f:
             data = f.read()
-            
+
         package = caf.read_package(data)
-        if not include_templates:
-            package.pop("templates", None)
-        elif step_id:
-            tmpl_name = caf.template_filename(step_id)[:-len(caf.TEMPLATE_SUFFIX)]
-            package["templates"] = {
-                k: v for k, v in package.get("templates", {}).items() if k == tmpl_name
-            }
-            if not package["templates"]:
-                return {
-                    "status": "error",
-                    "message": f"Template for step '{step_id}' not found. Available: {list(package.get('templates', {}).keys())}",
-                }
-                
+        all_templates = dict(package.get("templates", {}))
         result = caf.summarize_package(package)
-        if not include_templates and "templates" in package:
-            result["sizes"] = {k: len(v) for k, v in package["templates"].items()}
+        if include_templates:
+            templates = all_templates
+            if step_id:
+                tmpl_name = caf.template_filename(step_id)[:-len(caf.TEMPLATE_SUFFIX)]
+                templates = {k: v for k, v in all_templates.items() if k == tmpl_name}
+                if not templates:
+                    return {
+                        "status": "error",
+                        "message": f"Template for step '{step_id}' not found. Available: {sorted(all_templates.keys())}",
+                    }
+            result["input_xml"] = package["input_xml"]
+            result["templates"] = templates
+        else:
+            result["sizes"] = {k: len(v) for k, v in all_templates.items()}
             result["hint"] = "Pass include_templates=true with a step_id to read one template."
         return result
 

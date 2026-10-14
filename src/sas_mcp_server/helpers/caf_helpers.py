@@ -631,9 +631,18 @@ def build_package(spec: dict[str, Any]) -> tuple[bytes, dict[str, Any]]:
     return buffer.getvalue(), manifest
 
 
+_MAX_PACKAGE_UNCOMPRESSED_BYTES = 100 * 1024 * 1024
+
+
 def read_package(data: bytes) -> dict[str, Any]:
     """Unpack an analysis-type zip into ``{folder, input_xml, templates, spec}``."""
     with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        total_uncompressed = sum(info.file_size for info in zf.infolist())
+        if total_uncompressed > _MAX_PACKAGE_UNCOMPRESSED_BYTES:
+            raise ValueError(
+                f"Package uncompressed size ({total_uncompressed} bytes) exceeds "
+                f"safety limit ({_MAX_PACKAGE_UNCOMPRESSED_BYTES} bytes)."
+            )
         names = [n for n in zf.namelist() if not n.endswith("/")]
         input_names = [n for n in names if n.endswith("input.xml")]
         if not input_names:

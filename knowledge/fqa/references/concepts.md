@@ -112,7 +112,49 @@ There is no MCP tool and no readable table for alert **assignment**, alert **sta
 **sharing** of analyses/data selections. Produce instructions the user can carry out in the UI:
 
 - **Assign status:** Alerts → select the alert → *Assign Status* (Unassigned → Assigned →
-  Investigated → Closed), add a comment/attachment.
+  Investigated → Closed → Completed), add a comment/attachment.
 - **Share a project:** Projects → open the project → *Manage Sharing* → add users or groups. Tell
   recipients to remove the owner filter chip in the Projects list to see it.
 - **Subscribe:** Alerts → alert group → *Subscriptions* (all or selected values, email).
+
+## Time-in-Service (MIS) bucket formulas
+
+FQA converts continuous days into discrete 1-indexed **Months in Service (MIS)** buckets using the exact divisor `30.4166667` ($365 / 12$):
+
+- **Product MIS (unit age at refresh date):**
+  $$\text{Product MIS} = \frac{\text{Refresh Date} - \text{In-Service Date}}{30.4166667}, \quad \text{Product MIS Bucket} = \lfloor \text{Product MIS} \rfloor + 1$$
+  *(Example: a unit in service for 5 days has $\text{Product MIS} = 0.164 \implies \text{Bucket } 1$).*
+- **Event MIS (unit age when the claim occurred):**
+  $$\text{Event MIS} = \frac{\text{Event Date} - \text{In-Service Date}}{30.4166667}, \quad \text{Event MIS Bucket} = \lfloor \text{Event MIS} \rfloor + 1$$
+- **Pre-Delivery Claims (`Bucket 0`):** If `Event Date < In-Service Date` (or the unit has a claim before being sold), $\text{Event MIS} < 0$, which FQA assigns to **MIS Bucket `0`**. Setting `Include Pre-Delivery Claims = No` excludes Bucket `0` events.
+- **Time-in-Service Point of View:**
+  - `Calculate from in-service date`: Uses the actual sale/registration date (units lacking an in-service date are excluded from TIS-based rates unless pre-delivery is included).
+  - `Calculate from production date` (`frombuild`): Uses build date as the origin (includes all built units, including unsold inventory).
+  - `Calculate from estimated in-service date`: Uses build-to-sale lag profiles for units missing an actual sale date (Warranty Program Types 3 and 4).
+
+## Warranty Program Types (1–4)
+
+A tenant's configured **Warranty Program Type** determines which exposure and calculation options are available in the UI:
+
+| Program Type | Dimensions | Sales / In-Service Data | Key Capabilities Enabled |
+|---|---|---|---|
+| **Type 1** | 1D (Time only) | **Complete** (all sold units have in-service dates) | Standard TIS analyses |
+| **Type 2** | 2D (Time + Usage, e.g. miles/hours) | **Complete** | Enables **Usage** exposure type, `Apply Usage Profiles`, and `Warranty Program Usage Limitation` |
+| **Type 3** | 2D (Time + Usage) | **Incomplete** (some/all sales dates missing or delayed) | Enables both **Usage profiles** and **Build-to-Sale lag profiles** (`Calculate from estimated in-service date`, `Apply Seasonality on Sales Lag`) |
+| **Type 4** | 1D (Time only) | **Incomplete** | Enables **Build-to-Sale lag profiles** (`Calculate from estimated in-service date`) |
+
+## Calculation methods: Unadjusted, Adjusted, Extrapolated
+
+When comparing cohorts of different ages, raw counts and unadjusted rates mislead because younger cohorts have had less exposure time:
+
+1. **Unadjusted**: $\frac{\text{Total Events to Date}}{\text{Total Units in Cohort}}$. No exposure normalization. Only fair when comparing cohorts that have all completed the warranty period.
+2. **Adjusted (Survival / Life-Table Method)**:
+   - Within each MIS interval $m$, units that are censored *inside* interval $m$ (their current Product MIS falls in bucket $m$) are credited with **half an interval of exposure**:
+     $$\text{Estimated Population at Risk}_m = (\text{Units that passed completely through } m) + 0.5 \times (\text{Units currently residing in } m)$$
+   - The incremental rate in interval $m$ is $r_m = \frac{\text{Events in } m}{\text{Estimated Population at Risk}_m}$.
+   - The **Overall Adjusted Rate** sums the incremental rates across all observed intervals up to the **oldest unit in that group/production period**: $\text{Adjusted Rate} = \sum_m r_m$.
+   - *Note*: When `Exposure Type = Usage` is selected in Exposure or Trend by Exposure, FQA automatically uses an Adjusted-style calculation.
+3. **Extrapolated**:
+   - Projects immature production periods (by default requiring at least **3 MIS** of observed history) out to the **oldest unit in the entire Data Selection**, using the period-to-period cumulative accrual growth ratios learned from older, mature cohorts.
+   - **`Extrapolate across groups`** (available in Pareto, Exposure, and Trend & Control when a `Group Variable` is set and `Calculation Method = Extrapolated`): Forces a common denominator across all levels of the group variable so extrapolated group rates are directly comparable and easier to explain to business stakeholders.
+

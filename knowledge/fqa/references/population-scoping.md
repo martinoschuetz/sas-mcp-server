@@ -8,11 +8,12 @@ node.
 ## Contents
 - The three axes
 - Per-analysis scoping table
+- Why Phase 3 requires widening the population (the "fixed variable levels" trap)
 - Never condition on the outcome
 - Analyses that need elapsed time
 - Calendar time is not age
 - Equalizing exposure with cell selection
-- Censoring and reporting lag
+- Censoring, reporting lag, and Maximum Exposure vs. Maturity Level
 
 ## The three axes
 
@@ -38,10 +39,60 @@ the denominator, which is what you want for a rate and what you need for censori
 | Exposure, Trend | Build months across the step | Keep | Wide on age, that is the axis |
 | Statistical Drivers | Affected and unaffected builds together | Keep | Fixed service-period rows, so builds are comparable |
 | Decision Tree | Same as drivers, restricted to units that reached the target window | Keep | Fixed, and every unit must have had the chance to fail |
-| Text Mining | Widest scope that still holds the pattern | Keep, but check which domain holds the text | Any age |
-| Failure Relationships | A comparable cohort **not** conditioned on having failed | **Remove.** You need the other claims | Long. Units need months of history |
+| Text Mining | **Widen back out** from Phase 2 leaves so reporting variables are not pinned to 1 level | Keep (or widen to subsystem), and check which domain (`CLAIM` vs `SSD`) holds the narrative | Any age |
+| Failure Relationships | **Widen back out** to a comparable model/series cohort **not** conditioned on having failed | **Remove** single-part/code filter — you need the other claims and multiple levels | Long. Units need months of history |
+| Detail report | Tight Phase 2 leaf or relationship unit list | Keep | Narrow — designed for human reading of specific records |
 | Reliability | All units of the cohort including survivors | **Keep.** It defines the failure event; survivors are the censoring | Long, with failures spread across ages |
 | Event Forecasting | Fleet or product line | Keep | Calendar history, truncated short of the refresh date |
+
+## Why Phase 3 requires widening the population (the "fixed variable levels" trap)
+
+In a standard FQA investigation, each drill step shrinks both the unit count and the diversity of
+attribute levels. A typical progression looks like:
+
+1. **Root Data Selection**: ~1,100,000 units, ~285,000 claims across all models, years, and components.
+2. **Analyze Alert (EI cell subset)**: ~13,291 units, 40 claims on a single series and object code.
+3. **Sub-selection by Production Year**: ~3,740 units, 15 claims.
+4. **Decision Tree Terminal Leaf (Phase 2)**: **25 units, 7 claims** showing a very clear, high-purity failure pattern.
+
+At the end of Phase 2, it is tempting to chain Phase 3 **Text Mining** and **Failure
+Relationships** directly off that 25-unit Decision Tree leaf or narrow sub-selection. **Do not do
+this.** Running context-building analyses on a small, tightly isolated population fails for three
+structural reasons:
+
+1. **Key variables are already fixed (pinned) to one or too few levels.** The very splits that
+   defined the Phase 2 subpopulation (e.g., `Series = X`, `Production Year = 2022`, `Engine = Y`,
+   `Emission Limit = Z`, `Object Code = A`) have locked those variables to a single value (or 1–2
+   levels). When you run **Text Mining** or **Failure Relationships** to build context, there is
+   no variation left in the reporting variables: you cannot see whether a text topic is unique to
+   the failing cohort vs. older builds, nor whether a failure sequence is specific to one engine
+   or dealer group, because every record in the subset shares the same pinned level.
+2. **Sample size ($N$) is too small for unsupervised topic or rule extraction.** Text Mining uses
+   Singular Value Decomposition (SVD) and k-means clustering; on 7–15 claims it merely splits
+   individual sentences into noisy fragments. Failure Relationships uses association rule mining
+   (Support, Confidence, Lift); on a handful of units, support counts fall below minimum
+   thresholds and produce either `nosequencesfound_warning` or spurious rules driven by 1–2 trucks.
+3. **Narrow event filters eliminate the surrounding context.** An alert or leaf filtered to one
+   part or object code strips away all upstream precursor repairs and downstream collateral claims
+   on those same vehicles.
+
+**How to build context properly in Phase 3:**
+- **For Text Mining**: Step back up to a broader parent population (e.g., the model/series cohort
+  across both alert and non-alert production periods, or across all damage codes for that
+  subsystem). Run Text Mining on the larger corpus so SVD forms robust symptom clusters, and pick
+  a **reporting variable that still has multiple active levels** (such as `Production Quarter`,
+  `Damage Code`, `Alert` 0/1 flag, or a binary flag representing the Decision Tree rule) to see
+  how symptom themes shift between the baseline and the affected cohort.
+- **For Failure Relationships**: Step back to the **model/series-level cohort across the scoped
+  build periods (alert + baseline)** and **remove the single-part/single-object-code event
+  filter** so all claims on those vehicles are visible. Mine the rules across the broader
+  population, then filter or inspect the resulting link graph for rules where your target failure
+  code appears as the consequent (to find precursor/root-cause repairs) or antecedent (to find
+  collateral damage).
+- **For the Details Table**: Keep the tight 25-unit / 7-claim Phase 2 leaf! Reading raw
+  unaggregated technician comments one by one is the exact job the narrow leaf is meant for (and
+  if you find a telling phrase, you can use **Find Similar Contents** on the wider parent selection
+  to see how often that exact narrative appears across the broader fleet).
 
 ## Never condition on the outcome
 
@@ -104,17 +155,44 @@ Two rules when you do this:
   The count should track build volume. A sharp fall in the newest columns means those cells rest
   on whichever units happened to be built earliest in the month.
 
-## Censoring and reporting lag
+## Censoring, reporting lag, and Maximum Exposure vs. Maturity Level
 
-Both of these make recent data look better than it is, and both bite hardest exactly where an
-alert lives.
+Both right censoring and reporting lag make recent data look better than it is, and both bite
+hardest exactly where an alert lives.
 
 - **Right censoring.** A unit that has not yet reached the target age has not had its chance to
   fail. Coded as a non-failure in a decision tree or a rate denominator, it becomes evidence
   that recent builds are safe, which inverts the signal you are investigating. Restrict the
   population to units that reached the window, or shorten the window until they have.
-- **Reporting lag.** Claims arrive weeks to months after the repair, so the most recent periods
-  always under-report. Check whether claim submit lag adjustment is enabled in the tenant's
-  global defaults. When it is off, nothing compensates, and any model fitted through those
-  periods reads the artificial decline as a trend. Measure the typical lag by comparing repair
-  dates against submission dates, then hold that many periods back from any fitting window.
+- **Reporting lag (`Claim Submit Lag`).** Claims arrive weeks to months after the repair, so the
+  most recent periods always under-report. In FQA's common analysis settings, specifying a
+  non-zero `Claim Submit Lag` (e.g. 1 month) subtracts that lag from each unit's actual time in
+  service (`Adjusted TIS = Actual TIS - Submit Lag`), reducing the population-at-risk denominator
+  in recent intervals and shifting adjusted/extrapolated failure rates upward to compensate for
+  claims not yet submitted. Check whether claim submit lag adjustment is enabled in the tenant's
+  global defaults; for Event Forecasting, measure the typical repair-to-submission lag and hold
+  that many periods back from the fitting window.
+- **`Maximum Exposure` vs. `Maturity Level` (Event Filter vs. Unit Filter in Common Settings):**
+  - **`Maximum Exposure`** caps the *event* time-in-service (or usage) interval included in the
+    analysis. Events occurring at `TIS > Maximum Exposure` are excluded, **but no product units
+    are removed from the sample size (denominator)**. Use `Maximum Exposure = 1` or `3` months on
+    Trend & Control (with `Adjusted` calculation method) to monitor early-life infant mortality.
+  - **`Maturity Level`** sets the minimum *product* time in service a unit must have reached at
+    the refresh date to be included in the analysis. Units with `Product TIS < Maturity Level`
+    **and all events on those immature units** are removed from both numerator and denominator.
+    Setting **`Maturity Level = 0`** is the standard technique to exclude **unsold units** (units
+    built but lacking an in-service date).
+  - **`Minimum Sample Size Type` (`None`, `Count`, `Percent`) & `Minimum Sample Size`**: Excludes
+    individual TIS bins whose unit count or percentage of the population at risk falls below the
+    threshold, preventing noisy spikes in tail TIS bins where only a few old units remain.
+- **`Claims Per Unit to Include` (`All`, `First Claim Per Type`, `First Claim Per Unit`) — the
+  Data-Mart Defect Key Trap:**
+  - `First Claim Per Type` is flagged **during the ETL data mart load** using the configured
+    **Defect Key** (e.g., primary labor group or object code), *not* dynamically after Data
+    Selection filtering.
+  - **Trap:** If a vehicle had its first claim for Defect X in 2021 (outside your Data Selection's
+    event date filter) and a second claim for Defect X in 2023 (inside your Data Selection),
+    setting `Claims Per Unit to Include = First Claim Per Type` will **exclude the 2023 claim**
+    because it is not the unit's first-ever mart claim for that Defect Key. Keep `All` when
+    filtering event date windows unless you verify the unit's full claim history is in scope.
+

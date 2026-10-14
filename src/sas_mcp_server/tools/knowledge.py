@@ -112,22 +112,79 @@ def _search(domain_path: Path, pattern: str, regex: bool, path_glob: str | None,
     return header + "\n" + "\n".join(hits)
 
 
+def _skill_summary(domain_path: Path) -> str:
+    """Extract a one-line skill summary from SKILL.md frontmatter if available."""
+    skill_file = domain_path / "SKILL.md"
+    if not skill_file.is_file():
+        return ""
+    try:
+        text = skill_file.read_text(encoding="utf-8-sig", errors="replace")
+        if not text.startswith("---"):
+            return ""
+        parts = text.split("---", 2)
+        if len(parts) < 3:
+            return ""
+        frontmatter = parts[1]
+        name_match = re.search(r"^name:\s*(.+)$", frontmatter, re.MULTILINE)
+        desc_lines: list[str] = []
+        in_desc = False
+        for line in frontmatter.splitlines():
+            if line.startswith("description:"):
+                val = line.split(":", 1)[1].strip()
+                if val and val not in (">-", ">", "|", "|-"):
+                    desc_lines.append(val.strip("\"'"))
+                    break
+                in_desc = True
+                continue
+            if in_desc:
+                if line.startswith((" ", "\t")):
+                    desc_lines.append(line.strip())
+                else:
+                    break
+        name = name_match.group(1).strip().strip("\"'") if name_match else domain_path.name
+        desc = " ".join(desc_lines).strip()
+        if desc:
+            return f" ({name}): {desc}"
+        return f" ({name})"
+    except Exception:
+        return ""
+
+
 def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> None:
+    @mcp.resource("skill://{domain}")
+    async def get_skill_resource(domain: str) -> str:
+        """Read the main SKILL.md playbook for a SAS knowledge domain (e.g. skill://fqa)."""
+        domain_path = _domain_path(domain)
+        if domain_path is None:
+            return f"Domain '{domain}' not found."
+        topic_path = _resolve_topic(domain_path, "SKILL")
+        if topic_path is None:
+            return f"SKILL.md not found in domain '{domain}'."
+        return await asyncio.to_thread(_read_slice, topic_path, 1, DEFAULT_MAX_CHARS)
+
     @mcp.tool()
     async def list_knowledge_domains(ctx: Context) -> str:
-        """List all available knowledge domains and playbooks in the MCP server.
+        """List all available knowledge domains and agent skills in the MCP server.
 
         Returns:
-            A formatted list of domains (e.g., fqa, esp, caf, api, forecasting).
+            A formatted list of domains (e.g., fqa, esp, caf, api, forecasting, sas, standards)
+            with their skill names, trigger descriptions, and entry topics ('SKILL', 'mcp_execution_rules').
         """
         if not KNOWLEDGE_DIR.exists():
             return "Knowledge directory not found."
 
-        domains = sorted(f"- {d.name}" for d in KNOWLEDGE_DIR.iterdir() if d.is_dir())
+        domains: list[str] = []
+        for d in sorted(KNOWLEDGE_DIR.iterdir(), key=lambda p: p.name):
+            if d.is_dir():
+                summary = _skill_summary(d)
+                domains.append(f"- {d.name}{summary}")
         if not domains:
             return "No knowledge domains found."
 
-        return "Available Knowledge Domains:\n" + "\n".join(domains)
+        return (
+            "Available Knowledge Domains (use read_knowledge_topic with topic='SKILL' or 'mcp_execution_rules'):\n"
+            + "\n".join(domains)
+        )
 
     @mcp.tool()
     async def read_knowledge_topic(

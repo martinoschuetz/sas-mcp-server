@@ -12,7 +12,10 @@ def kb(tmp_path, monkeypatch):
     esp = root / "esp"
     (esp / "references" / "docs").mkdir(parents=True)
     (esp / "templates").mkdir()
-    (esp / "SKILL.md").write_text("# ESP skill\n", encoding="utf-8")
+    (esp / "SKILL.md").write_text(
+        "---\nname: sas-esp\ndescription: >-\n  ESP streaming rules.\n---\n# ESP skill\n",
+        encoding="utf-8",
+    )
     (esp / "references" / "kafka_connector.md").write_text(
         "# Kafka\nset disableespmetaconsumer=true\n", encoding="utf-8"
     )
@@ -44,10 +47,23 @@ async def call(client, name, args):
     return res.content[0].text
 
 
-async def test_list_domains(client):
+async def test_list_domains(client, kb):
+    (kb / "fqa" / "SKILL.md").write_text(
+        "---\nname: sas-fqa\ndescription: Single line FQA description\n---\n# FQA\n",
+        encoding="utf-8",
+    )
     text = await call(client, "list_knowledge_domains", {})
-    assert "- esp" in text
-    assert "- fqa" in text
+    assert "- esp (sas-esp): ESP streaming rules." in text
+    assert "- fqa (sas-fqa): Single line FQA description" in text
+
+
+async def test_skill_resource(client):
+    res = await client.read_resource("skill://esp")
+    assert "# ESP skill" in res[0].text
+    missing_dom = await client.read_resource("skill://nope")
+    assert "not found" in missing_dom[0].text
+    missing_skill = await client.read_resource("skill://fqa")
+    assert "SKILL.md not found" in missing_skill[0].text
 
 
 async def test_list_domains_missing_dir(client, monkeypatch, tmp_path):

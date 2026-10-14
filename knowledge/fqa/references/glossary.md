@@ -63,3 +63,16 @@
 | Outdated | DS/analysis state after a definition change, new data load, outdated snapshot or outdated parent |
 | Combined Domain | System variable used to give each domain its own filters in separate simple DSs that are then combined |
 | SSD / OTA DTC | Service/diagnostic session data / over-the-air diagnostic trouble codes — event domains beside claims |
+| Special Cause vs. Common Cause | *Special Cause*: unplanned anomaly from a specific design/supplier/process change (caught by EI ~3–4 months earlier). *Common Cause*: inherent, stable, chronic high failure rate not flagged by EI; discovered via unadjusted Pareto → `Analyze Separately` Weibull Reliability → Acceptable Rate vs. Acceleration ($\beta$) matrix |
+| Details Chart (3rd Time Dimension) | Cell drill-down in a Production Period EI heat map plotting actual events (blue) vs. critical value $C_{ijk}$ (red) across **Sales Period Since Production (Sales Lag)** — the 3rd time dimension alongside Build Period and TIS |
+| Baseline Chart | EI chart showing historical average claim rate for each TIS period regardless of production build date |
+| `Acceleration-Overall` / `Acceleration-Alert Period` | LTS 2026.09+ EI columns giving the Weibull shape parameter ($\beta$) across the full monitoring window vs. strictly within `Alert Start Date` to `Alert End Date` |
+| `Time To 1/5/10/20/25 Pct Failure` | LTS 2026.09+ EI columns giving Weibull B1, B5, B10, B20, and B25 life estimates (time in service until $X\%$ of units fail) |
+| Phase 3 Population Widening | Stepping back from a small Phase 2 subpopulation (e.g. a 25-unit Decision Tree leaf where variables are already fixed/pinned to 1 level) to a wider parent cohort before running **Text Mining** or **Failure Relationships**, so reporting variables have contrasting levels and sufficient sample size |
+| ANOM Decision Limits | Analysis of Means upper/lower limits in Statistical Drivers. **Varying** across levels for Product attributes (different unit sample sizes per level); **Constant** across levels for Event attributes (shared fleet denominator). Returns `NA` if `< 2` or `> 500` levels |
+| `Bi-Weibull` | Two-component mixture Weibull distribution in Reliability analysis used when two failure modes (e.g. early-life burn-in $\beta_1 < 1$ and late wear-out $\beta_2 > 1$) coexist in the same cohort |
+| `Maximum Exposure` vs. `Maturity Level` | `Maximum Exposure` caps the *event* TIS interval (drops late claims without changing unit sample size). `Maturity Level` sets the minimum *product* TIS a unit must reach to be included (removes immature units and their claims; `Maturity = 0` drops unsold units) |
+| `First Claim Per Type` Trap | Assigned at ETL data-mart load via the Defect Key; if a unit's first claim for that defect fell outside the Data Selection's event window, subsequent claims inside the window are excluded |
+| Warranty Program Types 1–4 | Type 1: 1D Time, complete sales data. Type 2: 2D Time+Usage, complete sales data. Type 3: 2D Time+Usage, incomplete sales data (uses lag profiles). Type 4: 1D Time, incomplete sales data |
+| Immature Flag (75 % Rule) | In Exposure and Trend by Exposure, a TIS or usage bin is flagged immature when $\ge 75\%$ of analyzed units have not yet reached that bin |
+
