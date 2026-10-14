@@ -130,6 +130,7 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
         "inspect_emerging_issue_alert_context_tool",
         "run_fqa_preflight_checks_tool",
         "screen_common_cause_candidates_tool",
+        "evaluate_subpopulation_lift_and_coverage_tool",
         # Tier 9 — Business Glossary
         "list_glossary_term_types",
         "get_glossary_term_type",
@@ -175,6 +176,7 @@ WRITE_TOOLS: frozenset[str] = frozenset(
         "create_root_emerging_issues_analysis_tool",
         "analyze_emerging_issue_alert_tool",
         "force_delete_fqa_object_tool",
+        "synthesize_root_cause_data_selection_tool",
         # Tier 0
         "execute_sas_code",  # arbitrary code — can perform any verb
         "reset_compute_session",  # destroys the caller's session state

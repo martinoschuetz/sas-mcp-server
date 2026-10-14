@@ -328,3 +328,31 @@ Once Phase 1 runs, the results are written to the CAS library `QASANLOUT`.
 3. **Extract Top Drivers:** We read the top row of the Pareto output. For example, if the Pareto indicates that `PRIM_LABOR_CD_BINNED = L-99` constitutes 60% of the total claim cost for Alert 1, we extract `L-99`.
 4. **Prompt Phase 2:** We feed `L-99` into the Phase 2 agent prompt: 
    *"The Descriptive Triage found Labor Code L-99 is the dominant driver. Run a Statistical Driver Analysis and a Decision Tree Analysis on the Alert 1 data selection, setting the target variable to `CLAIMCOST` and the primary explanatory variable to `PRIM_LABOR_CD_BINNED = L-99` to find what demographic or environmental factors are correlated with this specific failure."*
+
+---
+
+## 10. Emerging Issue Run Lineage, Ownership & Tie-Breaking Rules
+
+1. **Deterministic Tie-Breaking on Equal Alert Scores (`lastRunDate` Descending):**
+   - Multiple Emerging Issue runs frequently evaluate the same underlying Data Selection (or cloned copies of it) and produce identical maximum alert scores (`max_score`, e.g. `796.410103`).
+   - Whenever two or more Emerging Issue runs tie on the primary ranking metric (`max_score`, `max_cost_score`, `total_alerts`, etc.), **always break ties by `lastRunDate` descending (newest run wins)**. `triage_emerging_issue_runs_tool` enforces this automatically.
+2. **Run Creator (`createdBy`) vs. Shared Data Selection Lineage (`dataSelectionId`):**
+   - In multi-user FQA environments, one analyst (e.g. `GMS`) may execute a new Emerging Issue run (`Emerging_Issues_Prod_Last4Years_US_2`) that references a shared Data Selection originally created by another analyst (e.g. `germsz`).
+   - Always inspect and report **both** `createdBy` on the analysis run and `dataSelectionId` (shared lineage) using `triage_emerging_issue_runs_tool(created_by_filter=..., data_selection_id_filter=...)` so users understand why a run appears in their project or shares identical alert statistics with an earlier run.
+
+---
+
+## 11. 4-Year Denominator Dilution vs. Single Consolidated Root-Cause Data Selection
+
+### 11.1 Why 1D Phase 1 Charts Can Mask Localized Cohort Spikes (Denominator Dilution)
+When Phase 1 Descriptive Triage analyses (such as **Geographic Analysis** or **Repair State Pareto**) run on the broad multi-year Alert Data Selection (e.g., 4 years of production `2016–2019`):
+- The **numerator** (approved claims for the specific defective part/model, e.g., 7 claims in `US-GA`) is concentrated inside a narrow build window (e.g., Q4 2019), while the **denominator** includes all vehicles sold in that state across all 4 years (e.g., 841 vehicles in `US-GA` across `2016–2019`).
+- This **4-year denominator dilution** makes the 1D statewide claim rate in the FQA Geographic map look artificially small (`7 / 841 = 0.83%`), even though within the actual Q4 2019 build window (`2019-10-01` to `2019-12-31`) and selling dealer (`A01103`) the true cohort claim rate is **19× higher (`7 / 44 = 15.91%`)** and accounts for **70% of the alert's approved claims**.
+- **Mandatory Execution Rule:** Use `evaluate_subpopulation_lift_and_coverage_tool` to compute both the **multi-dimensional cohort rate/lift** and the **1D broad-window diluted rate (`dilution_factor`)**, and explicitly explain this denominator dilution to the user so they are never misled when opening a 1D Phase 1 chart in the FQA UI.
+
+### 11.2 Converging on One Consolidated Root-Cause Data Selection & Co-Linearity Pruning
+At the end of a Root Cause Analysis, **never leave multiple fragmented hypothesis Data Selections** representing different slices of the same root cause. Instead:
+1. **Prune Co-Linear / Pinned Attributes:** Before formulating the final filter list, check `co_linear_pinned_attributes` from `evaluate_subpopulation_lift_and_coverage_tool`. If an attribute (such as `PRODUCT.ENGINE_MODEL = 'VE600'`, `PRODUCT.SELLING_DEALER_COUNTRY_CD = 'US'`, or `PRODUCT.CSTMR_STATE_CD = 'US-GA'`) has `distinct_levels == 1` across 100% of units inside the filtered cohort (e.g., `SELLING_DEALER_CD = 'A01103'`), **omit or clearly mark it as co-linear** so the Data Selection contains the minimal, orthogonal set of filters that uniquely isolates the affected population.
+2. **Create One Consolidated Root-Cause Data Selection + UI Verification Suite:**
+   - Call `synthesize_root_cause_data_selection_tool` (or `combine_data_selections_tool` when merging existing selections) to produce **one single combined Data Selection** combining the `PRODUCT`, `CLAIM`, `LABOR`, and `PART` filters plus the exact `PRODUCTION_DATE` / `INSERVICE_DATE` range.
+   - Always launch the consolidated Data Selection in CAS and attach a **Verification Details Table (`DETAIL_PRODUCT`)** (with `DETAIL_TABLES="PRODUCT,CLAIM,LABOR"`) and/or **Verification Pareto (`PARETO_PRODUCT`)** in the user's FQA project folder so a quality specialist opening the FQA UI can immediately inspect the exact affected vehicles, claims, and repair sequences.

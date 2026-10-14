@@ -439,3 +439,219 @@ async def test_bundled_fqa_tools_single_backend_calls(mock_env_vars):
             assert "HIGH_RATE_WEARING_OUT" in cc_res["quadrant_counts"]
 
 
+@pytest.mark.asyncio
+@respx.mock
+async def test_rca_lift_dilution_tiebreaker_and_synthesis_tools(mock_env_vars):
+    from unittest.mock import AsyncMock, patch
+
+    from fastmcp import Client, FastMCP
+
+    from sas_mcp_server.tools.iot import register
+
+    mcp = FastMCP("iot-rca-synthesis-test")
+
+    async def fake_token(ctx):  # noqa: ARG001
+        return "fake_token"
+
+    register(mcp, fake_token)
+
+    # 1. Mock two Emerging Issue runs with the exact same max_score (796.410103) but different lastRunDate & createdBy
+    respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses").mock(
+        return_value=Response(
+            200,
+            json={
+                "items": [
+                    {
+                        "id": "run-older",
+                        "name": "Emerging_Issues_Prod_Last4Years_US",
+                        "modelName": "EIENTERPRISE_PRODUCT",
+                        "status": "Completed",
+                        "createdBy": "germsz",
+                        "lastRunDate": "2026-04-06T08:00:00Z",
+                        "dataSelectionId": "shared-ds-1",
+                    },
+                    {
+                        "id": "run-newer",
+                        "name": "Emerging_Issues_Prod_Last4Years_US_2",
+                        "modelName": "EIENTERPRISE_PRODUCT",
+                        "status": "Completed",
+                        "createdBy": "GMS",
+                        "lastRunDate": "2026-04-06T12:00:00Z",
+                        "dataSelectionId": "shared-ds-1",
+                    },
+                ]
+            },
+        )
+    )
+    respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/run-older").mock(
+        return_value=Response(
+            200,
+            json={
+                "id": "run-older",
+                "shortId": "old1",
+                "name": "Emerging_Issues_Prod_Last4Years_US",
+                "modelName": "EIENTERPRISE_PRODUCT",
+                "createdBy": "germsz",
+                "lastRunDate": "2026-04-06T08:00:00Z",
+                "dataSelectionId": "shared-ds-1",
+            },
+        )
+    )
+    respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/run-newer").mock(
+        return_value=Response(
+            200,
+            json={
+                "id": "run-newer",
+                "shortId": "new2",
+                "name": "Emerging_Issues_Prod_Last4Years_US_2",
+                "modelName": "EIENTERPRISE_PRODUCT",
+                "createdBy": "GMS",
+                "lastRunDate": "2026-04-06T12:00:00Z",
+                "dataSelectionId": "shared-ds-1",
+            },
+        )
+    )
+
+    tied_alerts = [{"alert_id": "alert_10", "score": 796.410103, "Events": 10, "Acceleration_AP": 1.19}]
+    tied_bundle_log = (
+        "BUNDLE_RUN_START:0:EIENTERPRISE_ALERTS_OLD1\n"
+        f'BUNDLE_JSON:0: {json.dumps({"SASTableData+EIENTERPRISE_ALERTS_OLD1": tied_alerts})}\n'
+        "BUNDLE_RUN_START:1:EIENTERPRISE_ALERTS_NEW2\n"
+        f'BUNDLE_JSON:1: {json.dumps({"SASTableData+EIENTERPRISE_ALERTS_NEW2": tied_alerts})}\n'
+    )
+
+    lift_log = (
+        "LIFT_MAIN:2772|10|44|7\n"
+        "LIFT_BROAD:841|7\n"
+        "LIFT_COL:MODEL_CD|1|Galacto\n"
+        "LIFT_COL:ENGINE_MODEL|1|VE600\n"
+        "LIFT_COL:CSTMR_STATE_CD|1|US-GA\n"
+        "LIFT_COL:PRIM_LABOR_CD|2|0340G\n"
+    )
+
+    # Mocks for synthesize_root_cause_data_selection_tool
+    respx.post(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/shared-ds-1/copy").mock(
+        return_value=Response(201, json={"id": "rc-ds-final", "name": "Galacto_9-040_RootCause_Final"})
+    )
+    respx.get(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/rc-ds-final").mock(
+        return_value=Response(
+            200,
+            headers={"ETag": '"etag-rc-1"'},
+            json={"id": "rc-ds-final", "name": "Galacto_9-040_RootCause_Final", "filterCriteria": {"0": []}},
+        )
+    )
+    respx.put(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/rc-ds-final").mock(
+        return_value=Response(200, json={"id": "rc-ds-final"})
+    )
+    respx.post(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/rc-ds-final/launches").mock(
+        return_value=Response(201, json={"id": "launch-rc-1", "status": "RUNNING"})
+    )
+    respx.get(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/rc-ds-final/launches/launch-rc-1").mock(
+        return_value=Response(200, json={"id": "launch-rc-1", "status": "COMPLETED"})
+    )
+    respx.post(f"{VIYA_ENDPOINT}/folders/folders/folder-mcp-test/members").mock(
+        return_value=Response(201, json={"id": "member-1"})
+    )
+    respx.post(f"{VIYA_ENDPOINT}/iotAnalysis/analyses").mock(
+        return_value=Response(201, json={"items": [{"id": "anl-detail-verify", "name": "Detail_Verification"}]})
+    )
+    respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/anl-detail-verify").mock(
+        return_value=Response(
+            200,
+            headers={"ETag": '"etag-anl-1"'},
+            json={
+                "id": "anl-detail-verify",
+                "steps": [
+                    {
+                        "id": "step-detail-1",
+                        "inputParameters": [{"parameterName": "DETAIL_TABLES", "parameterValue": "PRODUCT"}],
+                    }
+                ],
+            },
+        )
+    )
+    respx.put(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/anl-detail-verify").mock(
+        return_value=Response(200, json={"id": "anl-detail-verify"})
+    )
+    respx.post(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/anl-detail-verify/steps/step-detail-1/jobs").mock(
+        return_value=Response(201, json={"links": [{"rel": "job", "href": "/jobExecution/jobs/job-detail-1"}]})
+    )
+    respx.get(f"{VIYA_ENDPOINT}/jobExecution/jobs/job-detail-1").mock(
+        return_value=Response(200, json={"id": "job-detail-1", "state": "completed"})
+    )
+
+    mock_snippet = AsyncMock(
+        side_effect=[
+            {"log": tied_bundle_log, "listing": ""},
+            {"log": tied_bundle_log, "listing": ""},
+            {"log": lift_log, "listing": ""},
+        ]
+    )
+
+    with patch("sas_mcp_server.tools.iot.run_one_snippet", mock_snippet):
+        async with Client(mcp) as client:
+            # 1a. Tied max_score automatically picks the newest run (run-newer)
+            triage_tied = (await client.call_tool("triage_emerging_issue_runs_tool", {})).data
+            assert triage_tied["top_run"]["id"] == "run-newer"
+            assert triage_tied["top_run"]["createdBy"] == "GMS"
+            assert triage_tied["runs"]["items"][0]["id"] == "run-newer"
+            assert triage_tied["runs"]["items"][1]["id"] == "run-older"
+
+            # 1b. created_by_filter isolates runs created by 'germsz'
+            triage_creator = (
+                await client.call_tool("triage_emerging_issue_runs_tool", {"created_by_filter": "germsz"})
+            ).data
+            assert triage_creator["top_run"]["id"] == "run-older"
+            assert triage_creator["runs"]["total"] == 1
+
+            # 2. evaluate_subpopulation_lift_and_coverage_tool quantifies lift, >=25% gate, dilution, and co-linearity
+            lift_res = (
+                await client.call_tool(
+                    "evaluate_subpopulation_lift_and_coverage_tool",
+                    {
+                        "table_name": "DS_ALERT_10",
+                        "alert_where": "PRIM_REPL_PART_CD = '9-040'",
+                        "hypothesis_where": "SELLING_DEALER_CD = 'A01103'",
+                        "broad_1d_where": "CSTMR_STATE_CD = 'US-GA'",
+                        "candidate_columns": ["MODEL_CD", "ENGINE_MODEL", "CSTMR_STATE_CD", "PRIM_LABOR_CD"],
+                    },
+                )
+            ).data
+            assert lift_res["hypothesis_metrics"]["cohort_failure_rate_pct"] == 15.91
+            assert lift_res["hypothesis_metrics"]["alert_unit_coverage_pct"] == 70.0
+            assert lift_res["hypothesis_metrics"]["passes_25pct_root_cause_gate"] is True
+            assert lift_res["hypothesis_metrics"]["verdict"] == "PRIMARY_ROOT_CAUSE"
+            assert lift_res["denominator_dilution_analysis"]["broad_1d_failure_rate_pct"] == 0.83
+            assert lift_res["denominator_dilution_analysis"]["dilution_factor"] == 19.11
+            pinned_names = [c["column"] for c in lift_res["co_linear_pinned_attributes"]]
+            assert "ENGINE_MODEL" in pinned_names
+            assert "CSTMR_STATE_CD" in pinned_names
+            assert "PRIM_LABOR_CD" in lift_res["orthogonal_attributes"]
+
+            # 3. synthesize_root_cause_data_selection_tool creates one consolidated DS + Detail verification
+            synth_res = (
+                await client.call_tool(
+                    "synthesize_root_cause_data_selection_tool",
+                    {
+                        "parent_data_selection_id": "shared-ds-1",
+                        "new_name": "Galacto_9-040_RootCause_Final",
+                        "start_date": "2019-10-01",
+                        "end_date": "2019-12-31",
+                        "folder_id": "folder-mcp-test",
+                        "filters": [
+                            {"columnName": "MODEL_CD", "component": "PRODUCT", "values": ["Galacto"]},
+                            {"columnName": "SELLING_DEALER_CD", "component": "PRODUCT", "values": ["A01103"]},
+                            {"columnName": "PRIM_REPL_PART_CD", "component": "CLAIM", "values": ["9-040"]},
+                        ],
+                    },
+                )
+            ).data
+            assert synth_res["status"] == "success"
+            assert synth_res["data_selection_id"] == "rc-ds-final"
+            assert synth_res["date_criteria"]["startDate"] == "2019-10-01"
+            assert len(synth_res["applied_filters"]) == 3
+            assert len(synth_res["verification_analyses"]) == 1
+            assert synth_res["verification_analyses"][0]["type"] == "DETAIL_PRODUCT"
+
+
+

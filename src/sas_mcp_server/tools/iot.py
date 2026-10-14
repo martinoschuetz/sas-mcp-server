@@ -4978,6 +4978,8 @@ def register(
         analysis_ids: list[str] | None = None,
         name_filter: str | None = None,
         status_filter: str = "Completed",
+        created_by_filter: str | None = None,
+        data_selection_id_filter: str | None = None,
         run_sort_by: str = "max_score",
         run_sort_order: str = "desc",
         runs_start: int = 0,
@@ -4992,7 +4994,8 @@ def register(
     ) -> dict:
         """
         Bundled FQA Phase 0 triage tool: evaluates all Emerging Issue runs and their alert tables in ONE single
-        CAS/SAS Compute backend call, ranks runs by `run_sort_by` (default: 'max_score' descending), and returns
+        CAS/SAS Compute backend call, ranks runs by `run_sort_by` (default: 'max_score' descending with automatic
+        `lastRunDate` descending tie-breaking so the newest run wins when scores are tied), and returns
         the top `runs_limit` (default: 10) runs plus the top `alerts_limit` (default: 10) sorted alerts for the
         winning (or `target_run_id`) run with pagination metadata (`has_more`, `remaining_count`, `next_start`).
 
@@ -5002,6 +5005,8 @@ def register(
             name_filter (str, optional): Case-insensitive substring filter on run name.
             status_filter (str): Case-insensitive substring filter on run status
                 (default: 'Completed'; pass '' for all).
+            created_by_filter (str, optional): Case-insensitive substring filter on run creator (`createdBy`).
+            data_selection_id_filter (str, optional): Filter runs that share a specific `dataSelectionId` lineage.
             run_sort_by (str): Criterion to rank runs: 'max_score' (default), 'max_cost_score', 'total_alerts',
                 'max_acceleration_ap', 'max_acceleration', 'sum_score', 'sum_cost_score', or 'lastRunDate'.
             run_sort_order (str): Sort direction for runs: 'desc' (default) or 'asc'.
@@ -5089,6 +5094,42 @@ def register(
         async with asyncio.TaskGroup() as tg:
             for r in candidate_runs:
                 tg.create_task(_fetch_run_detail(r))
+
+        if created_by_filter or data_selection_id_filter:
+            filtered_runs: dict[str, dict[str, Any]] = {}
+            for rid, rmeta in detailed_runs.items():
+                if created_by_filter and created_by_filter.lower() not in str(rmeta.get("createdBy") or "").lower():
+                    continue
+                if (
+                    data_selection_id_filter
+                    and data_selection_id_filter.lower() not in str(rmeta.get("dataSelectionId") or "").lower()
+                ):
+                    continue
+                filtered_runs[rid] = rmeta
+            detailed_runs = filtered_runs
+
+        if not detailed_runs:
+            empty_runs = _paginate_sorted_items(
+                [],
+                start=runs_start,
+                limit=runs_limit,
+                sort_by=run_sort_by,
+                sort_order=run_sort_order,
+                item_label="Emerging Issue runs",
+            )
+            empty_alerts = _paginate_sorted_items(
+                [],
+                start=alerts_start,
+                limit=alerts_limit,
+                sort_by=alert_sort_by,
+                sort_order=alert_sort_order,
+                item_label="alerts",
+            )
+            return {
+                "top_run": None,
+                "runs": empty_runs,
+                "selected_run_alerts": empty_alerts,
+            }
 
         # 3. Build ONE bundled SAS snippet that exports all runs' _ALERTS_<shortId> tables in a single CAS session
         macro_calls: list[str] = []
@@ -5209,6 +5250,8 @@ def register(
                 "name": rmeta.get("name"),
                 "modelName": rmeta.get("modelName"),
                 "status": rmeta.get("status"),
+                "createdBy": rmeta.get("createdBy"),
+                "modifiedBy": rmeta.get("modifiedBy"),
                 "lastRunDate": rmeta.get("lastRunDate"),
                 "dataSelectionId": rmeta.get("dataSelectionId"),
                 "alerts_table": run_matched_table.get(idx),
@@ -5223,6 +5266,9 @@ def register(
                 "top_alert_type": _extract_field_case_insensitive(top_alert, "alert_type") if top_alert else None,
                 "top_alert_score": _extract_field_case_insensitive(top_alert, "score") if top_alert else None,
             })
+
+        # Pre-sort by lastRunDate descending so ties on primary run_sort_by deterministically pick the newest run
+        run_summaries = _sort_items(run_summaries, sort_by="lastRunDate", sort_order="desc")
 
         paginated_runs = _paginate_sorted_items(
             run_summaries,
@@ -5787,4 +5833,522 @@ def register(
                 item_label=f"screened candidates for run {analysis_id}",
             ),
         }
+
+    @mcp.tool()
+    async def evaluate_subpopulation_lift_and_coverage_tool(
+        table_name: str,
+        alert_where: str,
+        hypothesis_where: str,
+        ctx: Context,
+        caslib: str = "QASMartStore",
+        unit_id_column: str = "PRODUCT_ID",
+        broad_1d_where: str | None = None,
+        candidate_columns: list[str] | None = None,
+        start: int = 0,
+        limit: int = 10,
+        sort_by: str = "distinct_levels",
+        sort_order: str = "asc",
+    ) -> dict[str, Any]:
+        """
+        Bundled FQA Root-Cause Verification & Denominator Dilution tool (`Rule 11.1 & 11.2`):
+        evaluates a candidate root-cause subpopulation (`hypothesis_where`) against the alert failure
+        slice (`alert_where`) and full fleet baseline in ONE single CAS (`proc cas` + `fedsql.execDirect`) call.
+
+        Computes:
+        1. Unit-level (`COUNT(DISTINCT PRODUCT_ID)`) failure rates, **Relative Risk / Lift**, and
+           **Alert Unit Coverage %** against the FQA `>= 25%` Root-Cause Gate
+           (`PRIMARY_ROOT_CAUSE` vs. `CONTRIBUTING_MECHANISM`).
+        2. **4-Year / Broad-Window 1D Denominator Dilution (`dilution_factor`)** when `broad_1d_where` is supplied
+           (e.g., `CSTMR_STATE_CD = 'US-GA'` across all 4 years vs. the localized Q4 2019 dealer/build cohort),
+           explaining why 1D Phase 1 Geographic or Pareto charts can show low aggregate rates while the true
+           multi-dimensional cohort rate is an order of magnitude higher.
+        3. **Co-Linearity / Pinned Attribute Detection** inside the hypothesis cohort (`distinct_levels == 1`),
+           identifying attributes that are 100% determined by the hypothesis filter and therefore do not require
+           redundant filter rules in the final consolidated Root-Cause Data Selection.
+
+        Args:
+            table_name (str): Launched Data Selection CAS table (e.g. 'DS_80B27C1A_...') or mart table.
+            alert_where (str): SQL predicate defining the alert failure event (e.g. "PRIM_REPL_PART_CD = '9-040'").
+            hypothesis_where (str): SQL predicate defining the root-cause cohort (e.g. "SELLING_DEALER_CD = 'A01103'").
+            caslib (str): CAS library name (default: 'QASMartStore').
+            unit_id_column (str): Unique product/vehicle identifier column (default: 'PRODUCT_ID').
+            broad_1d_where (str, optional): Broad 1D SQL predicate (e.g. "CSTMR_STATE_CD = 'US-GA'") to quantify
+                multi-year 1D denominator dilution relative to `hypothesis_where`.
+            candidate_columns (list[str], optional): Candidate attributes to test for co-linearity / single-level
+                pinning inside `hypothesis_where`.
+            start (int): Offset for the paginated `attribute_profiles` list (default: 0).
+            limit (int): Maximum number of `attribute_profiles` entries to return (default: 10).
+            sort_by (str): Sort field for `attribute_profiles` (default: 'distinct_levels').
+            sort_order (str): Sort direction ('asc' or 'desc', default: 'asc').
+        """
+        logger.info("--- TOOL USED: evaluate_subpopulation_lift_and_coverage_tool (%s.%s) ---", caslib, table_name)
+        token = await get_token(ctx)
+        safe_caslib = _validate_sas_identifier(caslib, "caslib")
+        safe_table = _validate_sas_identifier(table_name, "table_name")
+        safe_unit = _validate_sas_identifier(unit_id_column, "unit_id_column")
+
+        def _sanitize_where(clause: str, label: str) -> str:
+            cleaned = (clause or "").strip()
+            if not cleaned or ";" in cleaned or '"' in cleaned:
+                raise ValueError(f"Invalid or unsafe SQL {label}: {clause!r}")
+            return cleaned
+
+        safe_alert_where = _sanitize_where(alert_where, "alert_where")
+        safe_hyp_where = _sanitize_where(hypothesis_where, "hypothesis_where")
+        safe_broad_where = _sanitize_where(broad_1d_where, "broad_1d_where") if broad_1d_where else None
+
+        cols_to_check = candidate_columns or [
+            "MODEL_CD",
+            "ENGINE_MODEL",
+            "CSTMR_STATE_CD",
+            "SELLING_DEALER_CD",
+            "SELLING_DEALER_COUNTRY_CD",
+            "PRIM_REPL_PART_CD",
+            "PRIM_LABOR_CD",
+        ]
+        safe_cols = [_validate_sas_identifier(c.split(".")[-1], "column") for c in cols_to_check]
+
+        col_checks_sas: list[str] = []
+        for idx, c in enumerate(safe_cols):
+            col_checks_sas.append(f"""
+              if "{c.upper()}" in existing_cols then do;
+                fedsql.execDirect r=colr_{idx} / query="
+                  select count(distinct {c}) as n_dist,
+                         cast(min(cast({c} as varchar(128))) as varchar(128)) as min_val
+                  from ""{safe_caslib}"".""{safe_table}""
+                  where ({safe_hyp_where}) and {c} is not null
+                ";
+                do crow over colr_{idx}['Result Set'];
+                  print "LIFT_COL:{c}|" crow.n_dist "|" crow.min_val;
+                end;
+              end;
+            """)
+
+        broad_sas = ""
+        if safe_broad_where:
+            broad_sas = f"""
+              fedsql.execDirect r=br / query="
+                select count(distinct {safe_unit}) as broad_units,
+                       count(distinct case when ({safe_alert_where})
+                             then {safe_unit} else null end) as broad_failed_units
+                from ""{safe_caslib}"".""{safe_table}""
+                where ({safe_broad_where})
+              ";
+              do brow over br['Result Set'];
+                print "LIFT_BROAD:" brow.broad_units "|" brow.broad_failed_units;
+              end;
+            """
+
+        sas_code = f"""
+        cas mySession;
+        proc cas;
+          table.columnInfo r=ci / table={{caslib="{safe_caslib}", name="{safe_table}"}};
+          existing_cols = {{}};
+          do row over ci['ColumnInfo'];
+            existing_cols = existing_cols + {{upcase(strip(row.Column))}};
+          end;
+
+          fedsql.execDirect r=base / query="
+            select count(distinct {safe_unit}) as total_units,
+                   count(distinct case when ({safe_alert_where}) then {safe_unit} else null end) as alert_units,
+                   count(distinct case when ({safe_hyp_where}) then {safe_unit} else null end) as hyp_units,
+                   count(distinct case when ({safe_hyp_where}) and ({safe_alert_where})
+                         then {safe_unit} else null end) as hyp_alert_units
+            from ""{safe_caslib}"".""{safe_table}""
+          ";
+          do mrow over base['Result Set'];
+            print "LIFT_MAIN:" mrow.total_units "|" mrow.alert_units "|" mrow.hyp_units "|" mrow.hyp_alert_units;
+          end;
+
+          {broad_sas}
+          {chr(10).join(col_checks_sas)}
+        quit;
+        cas mySession terminate;
+        """
+
+        res = await run_one_snippet(sas_code, "evaluate_subpopulation_lift_and_coverage", token)
+        log_text = res.get("log", "") + "\n" + res.get("listing", "")
+
+        total_units = 0
+        alert_units = 0
+        hyp_units = 0
+        hyp_alert_units = 0
+        broad_units: int | None = None
+        broad_failed_units: int | None = None
+        attr_profiles: list[dict[str, Any]] = []
+
+        for raw_line in log_text.splitlines():
+            line = raw_line.strip()
+            if "LIFT_MAIN:" in line:
+                payload = line.split("LIFT_MAIN:", 1)[1].strip()
+                parts = [p.strip() for p in payload.split("|")]
+                if len(parts) >= 4:
+                    with contextlib.suppress(ValueError):
+                        total_units = int(float(parts[0]))
+                        alert_units = int(float(parts[1]))
+                        hyp_units = int(float(parts[2]))
+                        hyp_alert_units = int(float(parts[3]))
+            elif "LIFT_BROAD:" in line:
+                payload = line.split("LIFT_BROAD:", 1)[1].strip()
+                parts = [p.strip() for p in payload.split("|")]
+                if len(parts) >= 2:
+                    with contextlib.suppress(ValueError):
+                        broad_units = int(float(parts[0]))
+                        broad_failed_units = int(float(parts[1]))
+            elif "LIFT_COL:" in line:
+                payload = line.split("LIFT_COL:", 1)[1].strip()
+                parts = [p.strip() for p in payload.split("|")]
+                if len(parts) >= 2:
+                    col_name = parts[0]
+                    try:
+                        n_dist = int(float(parts[1]))
+                    except ValueError:
+                        n_dist = 0
+                    pinned_val = parts[2] if len(parts) >= 3 and n_dist == 1 else None
+                    attr_profiles.append({
+                        "column": col_name,
+                        "distinct_levels": n_dist,
+                        "co_linear_pinned": n_dist == 1,
+                        "pinned_value": pinned_val,
+                        "filter_recommendation": (
+                            f"OMIT_REDUNDANT_FILTER (already 100% pinned to '{pinned_val}')"
+                            if n_dist == 1
+                            else "ORTHOGONAL_CANDIDATE"
+                        ),
+                    })
+
+        baseline_rate_pct = (100.0 * alert_units / total_units) if total_units > 0 else 0.0
+        cohort_rate_pct = (100.0 * hyp_alert_units / hyp_units) if hyp_units > 0 else 0.0
+        lift_vs_baseline = (cohort_rate_pct / baseline_rate_pct) if baseline_rate_pct > 0 else 0.0
+        coverage_pct = (100.0 * hyp_alert_units / alert_units) if alert_units > 0 else 0.0
+        passes_25pct_gate = coverage_pct >= 25.0
+
+        if passes_25pct_gate and lift_vs_baseline >= 2.0:
+            verdict = "PRIMARY_ROOT_CAUSE"
+        elif lift_vs_baseline > 1.0 and hyp_alert_units > 0:
+            verdict = "CONTRIBUTING_MECHANISM"
+        else:
+            verdict = "NO_EXCESS_RISK"
+
+        dilution_analysis: dict[str, Any] | None = None
+        if safe_broad_where and broad_units is not None and broad_failed_units is not None:
+            broad_rate_pct = (100.0 * broad_failed_units / broad_units) if broad_units > 0 else 0.0
+            dilution_factor = (cohort_rate_pct / broad_rate_pct) if broad_rate_pct > 0 else 0.0
+            dilution_analysis = {
+                "broad_1d_where": safe_broad_where,
+                "broad_1d_units": broad_units,
+                "broad_1d_failed_units": broad_failed_units,
+                "broad_1d_failure_rate_pct": round(broad_rate_pct, 2),
+                "hypothesis_cohort_failure_rate_pct": round(cohort_rate_pct, 2),
+                "dilution_factor": round(dilution_factor, 2),
+                "ui_explanation": (
+                    f"In a 1D multi-year view ({safe_broad_where}), the denominator spans {broad_units} units "
+                    f"across the full time window, diluting the apparent failure rate to {broad_rate_pct:.2f}% "
+                    f"({broad_failed_units}/{broad_units}). Within the multi-dimensional cohort ({safe_hyp_where}), "
+                    f"the true failure rate is {cohort_rate_pct:.2f}% ({hyp_alert_units}/{hyp_units}) — "
+                    f"a {dilution_factor:.1f}x denominator dilution effect."
+                ),
+            }
+
+        co_linear_cols = [
+            {"column": a["column"], "pinned_value": a["pinned_value"]}
+            for a in attr_profiles
+            if a["co_linear_pinned"]
+        ]
+        orthogonal_cols = [a["column"] for a in attr_profiles if a["distinct_levels"] >= 2]
+
+        return {
+            "caslib": safe_caslib,
+            "table_name": safe_table,
+            "baseline_metrics": {
+                "total_units": total_units,
+                "alert_failed_units": alert_units,
+                "baseline_failure_rate_pct": round(baseline_rate_pct, 3),
+            },
+            "hypothesis_metrics": {
+                "hypothesis_where": safe_hyp_where,
+                "cohort_units": hyp_units,
+                "cohort_alert_failed_units": hyp_alert_units,
+                "cohort_failure_rate_pct": round(cohort_rate_pct, 2),
+                "lift_vs_baseline": round(lift_vs_baseline, 2),
+                "alert_unit_coverage_pct": round(coverage_pct, 2),
+                "passes_25pct_root_cause_gate": passes_25pct_gate,
+                "verdict": verdict,
+            },
+            "denominator_dilution_analysis": dilution_analysis,
+            "co_linear_pinned_attributes": co_linear_cols,
+            "orthogonal_attributes": orthogonal_cols,
+            "attribute_profiles": _paginate_sorted_items(
+                attr_profiles,
+                start=start,
+                limit=limit,
+                sort_by=sort_by,
+                sort_order=sort_order,
+                item_label=f"cohort attributes in {safe_caslib}.{safe_table}",
+            ),
+        }
+
+    @mcp.tool()
+    async def synthesize_root_cause_data_selection_tool(
+        parent_data_selection_id: str,
+        new_name: str,
+        filters: list[dict[str, Any]],
+        ctx: Context,
+        description: str = "",
+        start_date: str | None = None,
+        end_date: str | None = None,
+        date_type: str = "PRODUCTION_DATE",
+        parent_analysis_id: str | None = None,
+        folder_id: str | None = None,
+        creation_type: str | None = None,
+        create_verification_detail_table: bool = True,
+        create_verification_pareto: bool = False,
+        pareto_report_var: str = "CLAIM.PRIM_LABOR_CD",
+    ) -> dict[str, Any]:
+        """
+        Bundled FQA Root-Cause Synthesis & UI Verification tool (`Rule 11.2`):
+        creates ONE and ONLY ONE consolidated Root-Cause Data Selection from a parent Data Selection,
+        applies multi-domain orthogonal filters (`PRODUCT`, `CLAIM`, `LABOR`, `PART`) plus optional
+        `start_date` / `end_date` (`date_type`), launches the Data Selection into CAS (`DS_<id>`),
+        links it into the FQA Project folder (`folder_id`), and optionally creates + runs a verification
+        **Details Table (`DETAIL_PRODUCT`)** and/or **Pareto Analysis (`PARETO_PRODUCT`)** so the FQA UI
+        immediately reflects the agent's root-cause story.
+
+        Args:
+            parent_data_selection_id (str): The ID of the parent Data Selection to clone.
+            new_name (str): Name for the single consolidated Root-Cause Data Selection.
+            filters (list[dict]): Orthogonal multi-domain filter definitions, e.g.
+                `[{"columnName": "MODEL_CD", "component": "PRODUCT", "operatorCode": "IN", "values": ["Galacto"]}]`.
+            description (str, optional): Root-cause summary description stored on the Data Selection.
+            start_date (str, optional): Optional start date in `YYYY-MM-DD` format (e.g. '2019-10-01').
+            end_date (str, optional): Optional end date in `YYYY-MM-DD` format (e.g. '2019-12-31').
+            date_type (str): Date dimension when `start_date`/`end_date` are provided (default: 'PRODUCTION_DATE').
+            parent_analysis_id (str, optional): Optional parent analysis ID to record in `additionalAttributes`.
+            folder_id (str, optional): Project folder ID where the consolidated Data Selection and verification
+                analyses should be linked.
+            creation_type (str, optional): Optional creationType override (e.g. 'EIENTERPRISE').
+            create_verification_detail_table (bool): When True and `folder_id` is provided, automatically creates
+                and runs a `DETAIL_PRODUCT` analysis (`DETAIL_TABLES="PRODUCT,CLAIM,LABOR"`) on the new Data Selection.
+            create_verification_pareto (bool): When True and `folder_id` is provided, automatically creates and runs
+                a `PARETO_PRODUCT` analysis on the new Data Selection.
+            pareto_report_var (str): Report variable for the optional verification Pareto
+                (default: 'CLAIM.PRIM_LABOR_CD').
+        """
+        import uuid
+
+        logger.info("--- TOOL USED: synthesize_root_cause_data_selection_tool (%s) ---", new_name)
+        async with viya_session("synthesize_root_cause_data_selection", ctx) as client:
+            # 1. Copy parent Data Selection
+            copy_url = f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{parent_data_selection_id}/copy"
+            copy_payload: dict[str, Any] = {"name": new_name}
+            if description:
+                copy_payload["description"] = description
+            if creation_type:
+                copy_payload["creationType"] = creation_type
+            resp_copy = await client.post(copy_url, json=copy_payload)
+            resp_copy.raise_for_status()
+            new_ds_id = resp_copy.json()["id"]
+
+            # 2. Fetch full Data Selection & ETag
+            resp_get = await client.get(
+                f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{new_ds_id}",
+                headers={"Accept": "application/vnd.sas.data.selection+json"},
+            )
+            resp_get.raise_for_status()
+            ds_details = resp_get.json()
+            etag = resp_get.headers.get("ETag", "")
+
+            if description:
+                ds_details["description"] = description
+
+            if start_date and end_date:
+                ds_details["dateCriteria"] = {
+                    "dateType": date_type,
+                    "startDate": start_date,
+                    "endDate": end_date,
+                }
+
+            filter_criteria = ds_details.get("filterCriteria", {})
+            if "0" not in filter_criteria:
+                filter_criteria["0"] = []
+            group_0 = filter_criteria["0"]
+
+            applied_filters: list[dict[str, Any]] = []
+            for f_add in filters:
+                comp = f_add.get("component") or f_add.get("componentTypeCode") or "PRODUCT"
+                col_name = f_add["columnName"]
+                op_code = f_add.get("operatorCode", "IN")
+                vals = [str(v) for v in f_add.get("values", [])]
+                match = next(
+                    (
+                        f for f in group_0
+                        if f.get("columnName") == col_name
+                        and (f.get("component") or f.get("componentTypeCode")) == comp
+                    ),
+                    None,
+                )
+                if match:
+                    match["values"] = vals
+                    match["operatorCode"] = op_code
+                else:
+                    group_0.append({
+                        "id": str(uuid.uuid4()),
+                        "criteriaGroupId": new_ds_id,
+                        "columnName": col_name,
+                        "operatorCode": op_code,
+                        "excludeFlag": bool(f_add.get("excludeFlag", False)),
+                        "componentTypeCode": comp,
+                        "component": comp,
+                        "filterAttributeId": f_add.get("filterAttributeId", f"{col_name}_{comp}"),
+                        "groupId": "0",
+                        "uiDisplay": False,
+                        "values": vals,
+                    })
+                applied_filters.append({
+                    "component": comp,
+                    "columnName": col_name,
+                    "operatorCode": op_code,
+                    "values": vals,
+                })
+
+            ds_details["filterCriteria"] = filter_criteria
+            if parent_analysis_id:
+                attrs = list(ds_details.get("additionalAttributes") or [])
+                attrs.append({"name": "parentAnalysisId", "value": parent_analysis_id})
+                attrs.append({"name": "PARENT_ANALYSIS_ID", "value": parent_analysis_id})
+                ds_details["additionalAttributes"] = attrs
+
+            resp_put = await client.put(
+                f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{new_ds_id}",
+                json=ds_details,
+                headers={
+                    "Content-Type": "application/vnd.sas.data.selection+json",
+                    "Accept": "application/vnd.sas.data.selection+json",
+                    "If-Match": etag,
+                },
+            )
+            resp_put.raise_for_status()
+            data_selection_cache.clear()
+
+            # 3. Launch consolidated Root-Cause Data Selection in CAS
+            cols = [
+                {"columnName": "PRODUCTION_DATE", "columnNameLabel": "Production Date",
+                 "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "SELLING_DEALER_COUNTRY_CD", "columnNameLabel": "Selling Dealer Country",
+                 "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "MODEL_CD", "columnNameLabel": "Model Code",
+                 "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "SELLING_DEALER_CD", "columnNameLabel": "Selling Dealer Code",
+                 "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "INSERVICE_DATE", "columnNameLabel": "In Service Date",
+                 "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "CSTMR_STATE_CD", "columnNameLabel": "Customer State",
+                 "columnTableName": "PRODUCT", "columnTableNameLabel": "Products"},
+                {"columnName": "PRIM_REPL_PART_CD", "columnNameLabel": "Primary Part Code",
+                 "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
+                {"columnName": "CLAIMCOST", "columnNameLabel": "Total Claim Cost",
+                 "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
+                {"columnName": "PRIM_LABOR_CD", "columnNameLabel": "Primary Labor Code",
+                 "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
+                {"columnName": "EVENT_SUBMIT_DATE", "columnNameLabel": "Claim Submit Date",
+                 "columnTableName": "CLAIM", "columnTableNameLabel": "Claims"},
+                {"columnName": "REPL_PART_CD", "columnNameLabel": "Replaced Part Code",
+                 "columnTableName": "PART", "columnTableNameLabel": "Parts"},
+            ]
+            cas_table_name = f"DS_{new_ds_id.replace('-', '_')[:24]}"
+            launch_body = {
+                "tableName": cas_table_name,
+                "launchAppName": "CAS",
+                "transposeFlag": 0,
+                "launchKeyDim": "PRODUCT",
+                "launchColumnTables": ["CLAIM", "PART", "PRODUCT"],
+                "launchColumns": cols,
+            }
+            resp_launch = await client.post(
+                f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{new_ds_id}/launches",
+                json=launch_body,
+                headers={
+                    "Content-Type": "application/vnd.sas.data.selection.launch+json",
+                    "Accept": "application/vnd.sas.data.selection.launch+json",
+                },
+            )
+            resp_launch.raise_for_status()
+            launch_id = resp_launch.json()["id"]
+
+            poll_interval = 1.0
+            deadline = time.monotonic() + 3600.0
+            while True:
+                resp_status = await client.get(
+                    f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{new_ds_id}/launches/{launch_id}",
+                    headers={"Accept": "application/vnd.sas.data.selection.launch+json"},
+                )
+                resp_status.raise_for_status()
+                launch_status = (resp_status.json().get("status") or "").upper()
+                if launch_status == "COMPLETED":
+                    break
+                if launch_status in ("FAILED", "ERROR", "CANCELED", "CANCELLED", "TIMEDOUT"):
+                    raise RuntimeError(f"Data selection launch failed with status {launch_status}")
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(f"Data selection launch {launch_id} timed out")
+                await asyncio.sleep(poll_interval)
+                poll_interval = min(poll_interval * 1.5, 10.0)
+
+            if folder_id:
+                member_body = {
+                    "name": new_name,
+                    "uri": f"/dataSelection/dataSelections/{new_ds_id}",
+                    "contentType": "application/vnd.sas.data.selection",
+                    "type": "reference",
+                }
+                await client.post(
+                    f"{VIYA_ENDPOINT}/folders/folders/{folder_id}/members",
+                    json=member_body,
+                    headers={
+                        "Content-Type": "application/vnd.sas.drive.member+json",
+                        "Accept": "application/vnd.sas.drive.member+json",
+                    },
+                )
+
+        verification_analyses: list[dict[str, Any]] = []
+        if folder_id and create_verification_detail_table:
+            detail_res = await create_child_analysis_and_run_tool(
+                name=f"{new_name}_Detail_Verification",
+                model_name="DETAIL_PRODUCT",
+                data_selection_id=new_ds_id,
+                ctx=ctx,
+                folder_id=folder_id,
+                parameter_overrides={"DETAIL_TABLES": "PRODUCT,CLAIM,LABOR"},
+            )
+            verification_analyses.append({"type": "DETAIL_PRODUCT", **detail_res})
+
+        if folder_id and create_verification_pareto:
+            pareto_res = await create_child_analysis_and_run_tool(
+                name=f"{new_name}_Pareto_Verification",
+                model_name="PARETO_PRODUCT",
+                data_selection_id=new_ds_id,
+                ctx=ctx,
+                folder_id=folder_id,
+                parameter_overrides={"REPORT_VAR": pareto_report_var},
+            )
+            verification_analyses.append({"type": "PARETO_PRODUCT", **pareto_res})
+
+        return {
+            "status": "success",
+            "data_selection_id": new_ds_id,
+            "name": new_name,
+            "cas_table_name": cas_table_name,
+            "launch_id": launch_id,
+            "date_criteria": (
+                {"dateType": date_type, "startDate": start_date, "endDate": end_date}
+                if (start_date and end_date)
+                else None
+            ),
+            "applied_filters": applied_filters,
+            "verification_analyses": verification_analyses,
+            "message": (
+                f"Successfully synthesized and launched single consolidated Root-Cause Data Selection "
+                f"'{new_name}' (ID: {new_ds_id}) with {len(applied_filters)} orthogonal filter(s)."
+            ),
+        }
+
 
