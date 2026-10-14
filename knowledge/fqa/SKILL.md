@@ -113,6 +113,16 @@ later result should be read.
 - [custom-macros.md](references/custom-macros.md) — the customer override layer (`afi_*`, `anl_*`, `qas_*`, `wrna_*`: what was changed and why), utility macros, usage-profile administration, and what they imply for analysts (alt_date analyses, restricted variables, output lifetimes).
 - [templates/fedsql/](templates/fedsql/) — unit-level query templates (early life, relationships, coverage, preflight).
 
+## Bundled Single-Call FQA Tools & Top-10 List Presentation Rule
+
+- **Always prefer bundled FQA tools over N+1 backend calls**:
+  - `triage_emerging_issue_runs_tool`: Evaluates all Emerging Issue runs and their alert tables in **one single CAS call**, ranks runs by `run_sort_by` (default `max_score` descending), and returns the top 10 runs plus the top 10 sorted alerts of the winning run.
+  - `inspect_emerging_issue_alert_context_tool`: Performs the **4-Question Early Warning Triage (`BP 1b, BP 4, BP 9`)** in **one single CAS call**, reading `_ALERTS_`, `_DETAILS_` (3rd time dimension / Sales Lag `actual > C_ijk`), `_WUMKR_` (2D Build × TIS heat-map cells), and `_BASELINE_` simultaneously.
+  - `run_fqa_preflight_checks_tool`: Runs all 4 preflight gates (row/unit volume, candidate variable distinct cardinalities, Failure Relationships `>= 200` & `>= 20%` multi-code unit gate, and Text Mining `>= 50` / `>= 15` comment gate) in **one single CAS call**.
+  - `screen_common_cause_candidates_tool`: Classifies components into the 4 FQA Common Cause vs. Special Cause screening quadrants (`HIGH_RATE_WEARING_OUT`, `HIGH_RATE_INFANT_BATCH`, `CHRONIC_COMMON_CAUSE`, `EMERGING_LOW_VOLUME_ACCELERATING`) with Weibull $\beta$ and B-life (`T01`–`T25`) in **one single CAS call**.
+- **Top-10 List Presentation Rule**:
+  - Whenever a response contains a list (alerts, Emerging Issue runs, data selections, candidate variables, screened components, Pareto bars, etc.), **show only the top 10 entries** sorted by the explicit sorting criterion (`sort_by` / `sort_order`), state the total count and remaining entries (`remaining_count`), and **offer the user the option to show the rest of the list** (e.g., via `start=10`).
+
 ## Tenant profile
 
 Before querying, load the tenant profile for the connected Viya environment (for the reference
@@ -121,3 +131,4 @@ the EI run → output-table hash mapping, the variable dictionary, the data refr
 threshold overrides. If there is no profile, run onboarding first
 ([workflow.md § Onboarding](references/workflow.md#onboarding-a-new-tenant)). Never guess an
 output-table hash at runtime.
+

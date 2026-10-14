@@ -25,6 +25,15 @@ When transitioning from Phase 2 (Diagnostic) to Phase 3 (Predictive/Sequence), y
 - **Workmanship / Repair-Induced Faults:** If the Phase 2 Statistical Driver Analysis identifies variables like SELLING_DEALER_COUNTRY_CD, DEALER_CD, CSTMR_STATE_CD, or TECHNICIAN_ID as top predictors, the anomaly is likely tied to local repair practices (e.g., a technician replacing a battery and dripping acid on a secondary cable). You MUST run Phase 3 Failure Relationships on the **LABOR** domain (data_domain='PRODUCT,CLAIM,LABOR', report_var='CLAIM.PRIM_LABOR_CD') to uncover sequential repair dependencies (Repair A causing Repair B).
 - **Manufacturing / Hardware Faults:** If Phase 2 identifies variables like PRODUCTION_MONTH, PLANT_CD, SUPPLIER_ID, or MODEL_CD as top predictors, the anomaly is likely a physical engineering defect. You MUST run Phase 3 Failure Relationships on the **PART** domain (data_domain='PRODUCT,CLAIM,PART', report_var='PART.REPL_PART_CD') to uncover physical collateral damage (Part A breaking Part B).
 
+## 3b. Bundled Single-Call Backend Execution & Top-10 List Presentation Rule
+- **Bundle Multi-Table / Multi-Run Queries into One Call**: Never loop over `list_alerts_for_run_tool` across N Emerging Issue runs or spawn separate SAS Compute snippets for `_ALERTS_`, `_DETAILS_`, `_WUMKR_`, and `_BASELINE_`. Instead:
+  - Use `triage_emerging_issue_runs_tool` to evaluate all Emerging Issue runs and return the highest-scoring run plus its top 10 sorted alerts in a single CAS call.
+  - Use `inspect_emerging_issue_alert_context_tool` to inspect an alert together with its 3rd-time-dimension Sales Lag (`_DETAILS_`), 2D Build × TIS heat-map cells (`_WUMKR_`), and baseline curve (`_BASELINE_`) in a single CAS call.
+  - Use `run_fqa_preflight_checks_tool` to run all 4 preflight gates in a single CAS call before launching Phase 1–3 analyses.
+  - Use `screen_common_cause_candidates_tool` to classify components into the 4 Common Cause / Special Cause quadrants in a single CAS call.
+- **Top-10 List Presentation Rule**: When any response contains a list, **display only the top 10 entries** sorted by an explicit criterion (e.g., `score` descending) and always give the user the option to view the remaining entries (`remaining_count` / `next_start=10`).
+
+
 
 ## 4. Standard operating procedure / Best Practice Workflow
 The standard workflow for a Quality Analyst using FQA is as follows (extracted from the Dave Froning demo):
