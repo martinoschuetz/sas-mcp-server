@@ -163,13 +163,14 @@ passes. Fallback priority when unsure:
 Cap the loop (default 4 extra steps) and the budget (default 14 analyses per investigation).
 State in the result when a budget cut the investigation short.
 
-## Stop criteria and result
+## Stop criteria, Root-Cause Data Selection synthesis, and UI verification
 
 End in one of: hypothesis found, inconclusive, aborted (auth / error / budget without
-evidence). The report contains: executive summary, trigger and pattern, evidence chain
-(analysis → key numbers → finding, each citing its source), hypotheses with coverage and gaps,
-recommended actions and their approval status, limits (skipped analyses with preflight reasons,
-immature months, weak signals), and the project tree to recreate in the UI.
+evidence). When a root-cause hypothesis is found:
+1. **Quantify Lift, Alert Coverage (`>= 25%` gate), and 4-Year Denominator Dilution**: Call `evaluate_subpopulation_lift_and_coverage_tool` to verify unit-level lift (`COUNT(DISTINCT PRODUCT_ID)`), confirm the subpopulation explains `>= 25%` of alert units, quantify any 1D multi-year denominator dilution (explaining why broad 4-year Geographic/Pareto rates appear lower than the localized build-cohort failure rate), and identify co-linear attributes (`distinct_levels == 1`) that do not need redundant filter rules.
+2. **Synthesize One Consolidated Root-Cause Data Selection**: Call `synthesize_root_cause_data_selection_tool` to create and launch **one and only one consolidated Data Selection** with the minimal orthogonal multi-domain filter set (`PRODUCT`, `CLAIM`, `LABOR`, `PART` + production/in-service date bounds) and automatically attach a verification **Details Table (`DETAIL_PRODUCT`)** and **Pareto (`PARETO_PRODUCT`)** in the FQA project folder so the FQA UI directly reflects the root-cause findings.
+3. **Final Report**: Include the executive summary, trigger and pattern, evidence chain (analysis → key numbers → finding, each citing its source), hypotheses with coverage and denominator-dilution explanation, the consolidated Root-Cause Data Selection ID and filter specification, recommended actions, limits (skipped analyses with preflight reasons, immature months, weak signals), and the project tree created in the UI.
+
 
 
 ## Onboarding a new tenant

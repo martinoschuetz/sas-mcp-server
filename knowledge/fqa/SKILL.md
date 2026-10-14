@@ -116,10 +116,12 @@ later result should be read.
 ## Bundled Single-Call FQA Tools & Top-10 List Presentation Rule
 
 - **Always prefer bundled FQA tools over N+1 backend calls**:
-  - `triage_emerging_issue_runs_tool`: Evaluates all Emerging Issue runs and their alert tables in **one single CAS call**, ranks runs by `run_sort_by` (default `max_score` descending), and returns the top 10 runs plus the top 10 sorted alerts of the winning run.
+  - `triage_emerging_issue_runs_tool`: Evaluates all Emerging Issue runs and their alert tables in **one single CAS call**, ranks runs by `run_sort_by` (default `max_score` descending with automatic `lastRunDate` descending tie-breaking so the newest run wins when scores are tied), supports filtering by `created_by_filter` vs. `data_selection_id_filter` (distinguishing run creator from shared Data Selection lineage), and returns the top 10 runs plus the top 10 sorted alerts of the winning run.
   - `inspect_emerging_issue_alert_context_tool`: Performs the **4-Question Early Warning Triage (`BP 1b, BP 4, BP 9`)** in **one single CAS call**, reading `_ALERTS_`, `_DETAILS_` (3rd time dimension / Sales Lag `actual > C_ijk`), `_WUMKR_` (2D Build × TIS heat-map cells), and `_BASELINE_` simultaneously.
   - `run_fqa_preflight_checks_tool`: Runs all 4 preflight gates (row/unit volume, candidate variable distinct cardinalities, Failure Relationships `>= 200` & `>= 20%` multi-code unit gate, and Text Mining `>= 50` / `>= 15` comment gate) in **one single CAS call**.
   - `screen_common_cause_candidates_tool`: Classifies components into the 4 FQA Common Cause vs. Special Cause screening quadrants (`HIGH_RATE_WEARING_OUT`, `HIGH_RATE_INFANT_BATCH`, `CHRONIC_COMMON_CAUSE`, `EMERGING_LOW_VOLUME_ACCELERATING`) with Weibull $\beta$ and B-life (`T01`–`T25`) in **one single CAS call**.
+  - `evaluate_subpopulation_lift_and_coverage_tool`: Quantifies a candidate root-cause subpopulation against the alert baseline and full fleet in **one single CAS call** (`COUNT(DISTINCT PRODUCT_ID)` unit-level lift, alert coverage % against the `>= 25%` Root-Cause Gate, **4-year 1D denominator dilution vs. multi-dimensional cohort rate**, and **co-linear pinned attributes** that have `distinct_levels == 1` inside the cohort and therefore do not require redundant filters).
+  - `synthesize_root_cause_data_selection_tool`: Converges the investigation onto **one and only one consolidated Root-Cause Data Selection** with pruned multi-domain filters (`PRODUCT`, `CLAIM`, `LABOR`, `PART`) and production/in-service date bounds, launches it in CAS, and optionally creates + runs a verification **Details Table (`DETAIL_PRODUCT`)** and **Pareto (`PARETO_PRODUCT`)** inside the FQA Project so the FQA UI immediately mirrors the root-cause narrative.
 - **Top-10 List Presentation Rule**:
   - Whenever a response contains a list (alerts, Emerging Issue runs, data selections, candidate variables, screened components, Pareto bars, etc.), **show only the top 10 entries** sorted by the explicit sorting criterion (`sort_by` / `sort_order`), state the total count and remaining entries (`remaining_count`), and **offer the user the option to show the rest of the list** (e.g., via `start=10`).
 
@@ -131,4 +133,5 @@ the EI run → output-table hash mapping, the variable dictionary, the data refr
 threshold overrides. If there is no profile, run onboarding first
 ([workflow.md § Onboarding](references/workflow.md#onboarding-a-new-tenant)). Never guess an
 output-table hash at runtime.
+
 
