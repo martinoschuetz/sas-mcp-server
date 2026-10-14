@@ -17,11 +17,16 @@ collateral damage.
 After the Pareto produced a surprising follow-up code, or drivers point to repair-induced or
 collateral failures.
 
-## Scope rule
-Mine on the **model-level cohort of the scoped build periods** (alert + baseline periods, all
-parts):
-- never on the alert part alone — a single-part cohort can't contain cross-code sequences;
-- never on full model history — old builds dilute the signal (reference tenant: lift ≈ 28 on the
+## Scope rule: Widen the Population in Phase 3
+Mine on the **model/series-level cohort of the scoped build periods** (alert + baseline periods, all
+parts/codes):
+- **Never run on a narrow Phase 2 subpopulation (e.g. a 25-unit Decision Tree leaf):** In a small
+  Phase 2 slice that already isolates a specific failure pattern, key product and event variables
+  are already **fixed (pinned) to a single or tiny number of levels**, and unit counts are far too
+  small to pass minimum support thresholds or build cross-component context. Always step back up
+  the project tree to the wider parent cohort before running Failure Relationships.
+- **Never on the alert part/code alone** — a single-part cohort can't contain cross-code sequences;
+- **Never on full model history** — old builds dilute the signal (reference tenant: lift ≈ 28 on the
   alert cohort vs. 0.76 on pre-alert builds for the same pair).
 
 Three further rules on the population (population-scoping.md):
@@ -51,21 +56,38 @@ reference tenant the driver was production period (→ PART first), but the PART
 cover the alert part (3 lines vs. 610 units) — a hard route would have ended with no evidence.
 If both domains fail, use the claim-level primary-code template.
 
-## Parameters (native `run_failure_relationships_analysis_tool`)
+## Parameters (native `run_failure_relationships_analysis_tool`) & Same-Claim vs. Sequential Mode
 - Defaults to the PART domain (`report_var=PART.REPL_PART_CD`) — set domain deliberately.
-- `max_inter_oc_time` = window in months (3 ≈ 90 days).
+- **`Maximum Inter-Occurrence Time` (`max_inter_oc_time`) controls the analysis mode:**
+  - **`max_inter_oc_time = 0` (Co-Occurrence / Same-Claim Association Analysis):** Finds items
+    (e.g., labor codes and replaced parts, or multiple parts) that occur together **within the
+    same claim / same day**. In the FQA UI, the **`Minimum Lift` filter is ONLY available when
+    `Maximum Inter-Occurrence Time = 0`**.
+  - **`max_inter_oc_time > 0` (Sequential Analysis across claims, e.g. `3` months $\approx$ 90 days):**
+    Finds chronological sequences where Event A on Claim 1 is followed by Event B on Claim 2 within
+    $N$ months on the same unit. In the FQA UI, **`Include Rule Progression Table` is ONLY
+    available when `Maximum Inter-Occurrence Time > 0`** (breaking down rule counts by the elapsed
+    months between antecedent and consequent).
 - `rule_type` (`TYPE4`), `min_support_p`, `min_conf_passoc`, `min_lift`, `rule_size`.
-- `repair_before_sold=true`.
+- `repair_before_sold=true` (`Include Pre-Delivery Claims`).
 - Returns `nosequencesfound_warning` on degenerate data — that is a preflight failure you
   should have caught.
 
-### UI configuration and field recommendations (native run)
+### UI configuration, output views, and field recommendations (native run)
 - Domains available: claims, labor codes, replaced parts, OTA/NASYS DTC, SSD, workshop orders —
-  the DS must contain the domain (data-selections.md).
-- Rule size `1-1`, `1-n`, `n-1`, `n-n`; start with `1-1,1-2` to keep rule counts manageable.
-- *Repeat repairs only* (`perform_repeat_repair`) restricts rules to the same code recurring.
-- Rule strength filters: min support (percent or count), confidence, lift, total rule cost
-  (`min_cost`), number of rules shown.
+  the DS must contain the domain (data-selections.md). Up to **3 reporting variables** can be
+  analyzed simultaneously (e.g. `Primary Labor Code` + `Replaced Part Code` to see which labor
+  operations co-occur with or precede part replacements).
+- **Rule Size** (`1-1`, `1-n`, `n-1`, `n-n`): Controls how many items appear on the antecedent and
+  consequent sides (`1-2` = 1 antecedent code leading to 2 consequent codes). Start with `1-1,1-2`
+  to keep rule counts manageable.
+- **Repeat repairs only** (`perform_repeat_repair`): Restricts rules to the *same* code recurring
+  on the same unit across subsequent claims.
+- **Four Output Views in the UI:**
+  1. **Node Link Graph**: Directed network where node size = support/cost and arrow thickness = confidence/lift.
+  2. **Constellation Plot**: Overview of rule clusters.
+  3. **Rule Details Table**: Support, Confidence, Lift, Transaction Count, Product Count, and Total Rule Cost per rule.
+  4. **Rule Progression Table** (when `max_inter_oc_time > 0`): Histogram of inter-occurrence times (Month 1, Month 2, Month 3, …) between Event A and Event B.
 - Field practice for the **native node** shown to users: 3–6 month window for slow sequences,
   `min_lift` ≈ 1.2 to drop trivial wear-item pairs, `min_cost` at a business-meaningful level
   (e.g. 10,000). These are display filters — the evidence thresholds below still apply.

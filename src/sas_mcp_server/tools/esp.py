@@ -8,9 +8,11 @@ from typing import Any
 
 from fastmcp import Context, FastMCP
 
+from ..config import VIYA_ENDPOINT
 from ..viya_client import (
     delete_resource,
     get_json,
+    raise_for_viya_status,
 )
 from ._common import make_session_helpers
 
@@ -31,20 +33,22 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         async with viya_session("esp_deploy_project", ctx) as client:
             # 1. Delete an existing project of the same name. Only "not found" is expected;
             #    auth/permission/server errors must surface instead of being masked by the POST.
-            resp_del = await client.delete(f"/SASEventStreamProcessingStudio/v4/projects/{project_name}")
+            resp_del = await client.delete(
+                f"{VIYA_ENDPOINT}/SASEventStreamProcessingStudio/v4/projects/{project_name}"
+            )
             if resp_del.status_code != 404:
-                resp_del.raise_for_status()
+                raise_for_viya_status(resp_del)
 
             # 2. Construct JSON dictionary
             body = {"name": project_name, "projectName": project_name, "friendlyName": project_name, "xml": xml_content}
 
             # 3. Issue POST
             resp = await client.post(
-                "/SASEventStreamProcessingStudio/v4/projects",
+                f"{VIYA_ENDPOINT}/SASEventStreamProcessingStudio/v4/projects",
                 json=body,
                 headers={"Content-Type": "application/vnd.sas.esp.espproject+json"},
             )
-            resp.raise_for_status()
+            raise_for_viya_status(resp)
             if resp.status_code == 204 or not resp.content:
                 return {"status": "success", "message": "Project deployed but no content returned."}
             return resp.json()

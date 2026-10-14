@@ -17,10 +17,12 @@ Thresholds are defaults; the tenant profile may override them.
 | Pareto, Summary Tables | levels of the reporting variable | ≤ 50 | aggregate to the code group (`LABOR_GRP_CD`, `REPL_PART_GRP_CD`); report both |
 | Pareto (interpretation) | top bar's Poisson excess vs. baseline share, Bonferroni over levels | p < 0.01 | run anyway, mark `weak_signal` |
 | Statistical Drivers, Decision Tree | target and every candidate exist in the **mart variable dictionary** | all present | drop missing candidates; say so |
+| Statistical Drivers (ANOM) | distinct levels of each candidate variable in the subset | 2 to 500 levels | drop variables with `< 2` levels (pinned by DS filter) or `> 500` levels (FQA returns `Decision Limit Exceeded = NA`); bin high-cardinality fields |
 | Statistical Drivers | effects tested within build-period strata | — | mark `confounded_with=production_period` |
 | Decision Tree | events in subset | ≥ 100 and ≥ 2 × min leaf | widen scope or skip |
-| Text Mining, comment review | non-missing comments **per field** | ≥ 15 | skip, report "insufficient text"; try the widest scope that still holds the pattern |
-| Reliability | failures per compared group; censoring times available | ≥ 30 per group | skip; rely on early-life rates |
+| Text Mining, comment review | non-missing comments **per field** AND reporting variable has ≥ 2 active levels | ≥ 15 comments (≥ 50 preferred for SVD) and ≥ 2 reporting levels | if run on a tight Phase 2 leaf where variables are fixed to 1 level, **widen to the parent cohort** and use `Production Quarter`, `Damage Code`, or `Alert` flag as reporting variable |
+| Failure Relationships, Text Mining | population is not an over-filtered Phase 2 subpopulation (e.g. a 25-unit Decision Tree leaf) | ≥ 200 units and unpinned contextual variables | step back up the tree to the parent model/series cohort across alert + baseline build periods |
+| Reliability | failures per compared group; censoring times available | ≥ 30 per group (MLE); falls back to Least Squares if smaller | skip if too sparse; rely on early-life rates |
 | Reliability, Failure Relationships | cohort is **not** restricted to units that already had the outcome | — | widen to a comparable population; filter the output, not the input |
 | Failure Relationships | observation time per unit in the cohort | enough for a second claim | use an older cohort of the same configuration, or read the claims directly |
 | Decision Tree, any rate target | every unit in the population reached the target age at the refresh date | all | shorten the window, or drop immature units |
@@ -32,6 +34,12 @@ Thresholds are defaults; the tenant profile may override them.
 
 ## Why these checks exist
 
+- **Phase 3 variable-level pinning on small Phase 2 cohorts:** Drilling through an EI alert, a
+  production year filter, and a Decision Tree leaf shrinks the population to a tiny, homogeneous
+  slice (e.g., 25 units / 7 claims) where model, engine, build year, and object code are already
+  fixed to a single level. Running Text Mining or Failure Relationships on that slice fails to
+  build context because there are no contrasting levels left to compare against and sample size is
+  too small for SVD or rule support.
 - Failure Relationships is association-rule mining over sequences. It needs units with several
   distinct events. An alert DS filtered to one part or one labor code has none → the native macro
   fails or returns `nosequencesfound_warning`.
@@ -39,6 +47,9 @@ Thresholds are defaults; the tenant profile may override them.
   coverage can't show the pattern even if it exists.
 - The DS variable profile tool lists only a few variables; checking it would wrongly fail valid
   analyses. The mart dictionary is the oracle.
+- In Statistical Drivers, FQA uses Analysis of Means (ANOM) decision limits and automatically
+  returns `Decision Limit Exceeded = NA` for any candidate variable with fewer than 2 levels
+  (already fixed by the DS filter) or more than 500 distinct levels.
 - Unstratified drivers mislead when the issue is a build-period step: every build-correlated
   variable (dealer allocation, region) lights up.
 - Conditioning the cohort on the outcome silently breaks two analyses while still producing
@@ -50,5 +61,7 @@ Thresholds are defaults; the tenant profile may override them.
 
 ## Widening is a rule, not a guess
 
-When a preflight fails because the scope is too narrow, the widened cohort is fixed: **same
-model, alert + baseline build periods, all parts**. Log that you widened and why.
+When a preflight fails because the scope is too narrow (or because Phase 2 pinned the key
+variables to a single level), the widened cohort is fixed: **same model/series, alert + baseline
+build periods, all parts/codes**. Log that you widened and why.
+

@@ -821,3 +821,46 @@ async def test_delete_removes_the_named_type():
         result = result_of(await client.call_tool("delete_analysis_type", {"name": "DEMO_PROFILE"}))
     assert result == {"status": "deleted", "name": "DEMO_PROFILE"}
     assert fake.requests[-1].method == "DELETE"
+
+
+async def test_read_local_analysis_type_package(tmp_path, monkeypatch):
+    pkg_bytes, _ = caf.build_package(GOOD_SPEC)
+    zip_path = tmp_path / "demo.zip"
+    zip_path.write_bytes(pkg_bytes)
+
+    fake = FakeViya()
+    async with caf_client(fake) as client:
+        # Summary without templates still reports template sizes and template_files
+        res_summary = result_of(
+            await client.call_tool("read_local_analysis_type_package", {"path": str(zip_path)})
+        )
+        assert "sizes" in res_summary
+        assert "DEMO_PROFILE_STP_1" in res_summary["sizes"]
+        assert "templates" not in res_summary
+
+        # Including templates for a specific step_id returns that template
+        res_tmpl = result_of(
+            await client.call_tool(
+                "read_local_analysis_type_package",
+                {"path": str(zip_path), "include_templates": True, "step_id": "DEMO_PROFILE_STP_1"},
+            )
+        )
+        assert "DEMO_PROFILE_STP_1" in res_tmpl["templates"]
+
+        # Unknown step_id lists real available templates
+        res_missing_step = result_of(
+            await client.call_tool(
+                "read_local_analysis_type_package",
+                {"path": str(zip_path), "include_templates": True, "step_id": "UNKNOWN_STEP"},
+            )
+        )
+        assert res_missing_step["status"] == "error"
+        assert "DEMO_PROFILE_STP_1" in res_missing_step["message"]
+
+        # Disabled local file upload blocks reading
+        monkeypatch.setenv("ALLOW_LOCAL_FILE_UPLOAD", "false")
+        res_disabled = result_of(
+            await client.call_tool("read_local_analysis_type_package", {"path": str(zip_path)})
+        )
+        assert res_disabled["status"] == "file_upload_disabled"
+

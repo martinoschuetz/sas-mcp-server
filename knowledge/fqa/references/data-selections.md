@@ -64,6 +64,27 @@ Consequences:
 Same-name columns across the parts of a combined DS must have identical label, format and
 security. If they don't, the combine fails or columns go missing.
 
+### Multi-domain join architecture (`PRODUCT` $\leftrightarrow$ `CLAIM` $\leftrightarrow$ `SSD`) and `Match rows`
+
+In the FQA data mart, event domains such as **Warranty Claims (`CLAIM`)** and **Support Service
+Desk (`SSD`)** are **never joined directly to each other** (joining on a claim/ticket key would
+drop every claim that had no SSD ticket). Instead, both event tables link `N:1` to the **Product
+(`PRODUCT` / VIN)** table:
+
+- **Product filter only** (e.g. `Model = X`): Pulls all matching vehicles, all claims on those
+  vehicles, and all SSD records on those vehicles.
+- **Event filter only** (e.g. `Claim Creation Date in 2022`, no product filter): Pulls all
+  vehicles that exist in the mart plus the filtered 2022 claims (units with no 2022 claim remain
+  in the product denominator with 0 events).
+- **`Match rows` setting when combining domains (`Match rows = YES` vs. `NO`):**
+  - **`Match rows = NO` (Default / Union behavior)**: Retains all selected products and all
+    events from each domain independently. A vehicle with a Claim but no SSD ticket (or vice
+    versa) keeps its event record.
+  - **`Match rows = YES` (Inner-match behavior)**: Restricts the combined selection to units that
+    have matching activity across the combined definitions — use when you specifically want
+    vehicles that appeared in *both* Simple DS A (e.g. had an SSD diagnostic session) *and* Simple
+    DS B (e.g. had a warranty claim).
+
 ## Entering values and limits
 
 - Separate values with a tab or a newline, **not commas**. Lists can be imported from CSV/TXT.
@@ -98,7 +119,7 @@ security. If they don't, the combine fails or columns go missing.
   - If you need to continue an investigation on an expired DS, copy it, re-filter it with
     `get_alert_filters_tool`, and launch it.
 
-## Sharing and ownership
+## Sharing, ownership, and Launchers
 
 - Data selections and projects can be shared with users or groups, and ownership can be changed. *Copy URL*
   gives a deep link.
@@ -107,6 +128,15 @@ security. If they don't, the combine fails or columns go missing.
 - The Projects list is filtered by owner by default (owner chip). Users must remove the chip to
   see projects shared with them. Recipients can add analyses to a shared project.
 - **No MCP tool for sharing.** Write UI steps instead: open the project → *Manage Sharing* → add users/groups → Save.
+- **Launchers (taking a Completed Data Selection outside FQA):** From the Data Selections
+  workspace, a completed DS can be exported or launched directly into other SAS Viya applications:
+  1. **Export Data Selection**: Exports the materialized product/event tables (e.g. to CSV).
+  2. **Develop SAS Code (SAS Studio)**: Opens SAS Studio with the launched CAS tables pre-bound
+     for custom SAS / FedSQL / CASL programming.
+  3. **Build Models (SAS Model Studio)**: Passes the launched table directly into Model Studio for
+     gradient boosting, random forest, or neural network pipelines.
+  4. **Explore and Visualize (SAS Visual Analytics)**: Opens the DS output in Visual Analytics for
+     ad-hoc dashboards and custom visual exploration.
 
 ## MCP recipes and traps
 
@@ -131,3 +161,4 @@ Traps:
 - On a demo tenant, rolling periods resolve to years in the past, because the refresh date is old.
 - Confirm the domain list before running a domain-specific analysis. Failure Relationships on
   LABOR needs Claim Labor Codes in the DS.
+

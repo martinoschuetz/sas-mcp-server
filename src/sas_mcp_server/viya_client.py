@@ -227,13 +227,42 @@ async def delete_resource(url: str, client: httpx.AsyncClient) -> None:
 class _PersistentAsyncClient(httpx.AsyncClient):
     async def __aenter__(self):
         return self
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
 
-_CLIENT_CACHE: dict[str, _PersistentAsyncClient] = {}
 
-def clear_client_cache():
+_CLIENT_CACHE: dict[str, _PersistentAsyncClient] = {}
+_CLIENT_CACHE_MAX = 10
+
+
+def _schedule_close(client: httpx.AsyncClient) -> None:
+    """Close *client* asynchronously if an event loop is running."""
+    import asyncio
+    import contextlib
+
+    with contextlib.suppress(RuntimeError):
+        loop = asyncio.get_running_loop()
+        loop.create_task(client.aclose())
+
+
+def clear_client_cache() -> None:
+    clients = list(_CLIENT_CACHE.values())
     _CLIENT_CACHE.clear()
+    for client in clients:
+        _schedule_close(client)
+
+
+async def close_client_cache() -> None:
+    """Close and clear all cached HTTP clients on server shutdown."""
+    import contextlib
+
+    clients = list(_CLIENT_CACHE.values())
+    _CLIENT_CACHE.clear()
+    for client in clients:
+        with contextlib.suppress(Exception):
+            await client.aclose()
+
 
 def make_client(token: str | None) -> httpx.AsyncClient:
     """Create an :class:`httpx.AsyncClient` with auth headers for Viya API calls.
@@ -247,20 +276,27 @@ def make_client(token: str | None) -> httpx.AsyncClient:
         if not token.startswith("Bearer "):
             token = f"Bearer {token}"
         headers["Authorization"] = token
-    
+
     cache_key = token or "anon"
-    
-    # Cap cache to prevent memory leaks from rolling tokens
-    if len(_CLIENT_CACHE) > 10:
-        _CLIENT_CACHE.clear()
-        
-    if cache_key not in _CLIENT_CACHE:
-        _CLIENT_CACHE[cache_key] = _PersistentAsyncClient(
-            headers=headers, 
-            verify=SSL_VERIFY, 
-            timeout=_CLIENT_TIMEOUT,
-            event_hooks=http_debug.event_hooks()
-        )
+
+    if cache_key in _CLIENT_CACHE:
+        # Refresh LRU order
+        client = _CLIENT_CACHE.pop(cache_key)
+        _CLIENT_CACHE[cache_key] = client
+        return client
+
+    # Evict least-recently-used client when full instead of dropping all clients
+    while len(_CLIENT_CACHE) >= _CLIENT_CACHE_MAX:
+        _, oldest = next(iter(_CLIENT_CACHE.items()))
+        del _CLIENT_CACHE[next(iter(_CLIENT_CACHE))]
+        _schedule_close(oldest)
+
+    _CLIENT_CACHE[cache_key] = _PersistentAsyncClient(
+        headers=headers,
+        verify=SSL_VERIFY,
+        timeout=_CLIENT_TIMEOUT,
+        event_hooks=http_debug.event_hooks(),
+    )
     return _CLIENT_CACHE[cache_key]
 
 

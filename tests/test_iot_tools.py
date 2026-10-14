@@ -125,3 +125,131 @@ async def test_list_iot_models(mock_env_vars):
     )
     result = await list_iot_models("fake_token")
     assert result["items"][0]["id"] == "m1"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_data_selection_cache_isolated_by_user_and_invalidated_on_delete(mock_env_vars):
+    from sas_mcp_server.tools.iot import data_selection_cache, delete_data_selection
+
+    data_selection_cache.clear()
+    route = respx.get(f"{VIYA_ENDPOINT}/dataSelection/dataSelections").mock(
+        side_effect=[
+            Response(200, json={"items": [{"id": "1", "name": "Alice DS"}]}),
+            Response(200, json={"items": [{"id": "2", "name": "Bob DS"}]}),
+            Response(200, json={"items": [{"id": "3", "name": "Alice DS Refreshed"}]}),
+        ]
+    )
+    respx.delete(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/1").mock(
+        return_value=Response(204)
+    )
+
+    r_alice = await list_data_selections("token_alice")
+    r_bob = await list_data_selections("token_bob")
+    assert r_alice["items"][0]["name"] == "Alice DS"
+    assert r_bob["items"][0]["name"] == "Bob DS"
+    assert route.call_count == 2
+
+    await delete_data_selection("1", "token_alice")
+    assert len(data_selection_cache) == 0
+    r_alice_after = await list_data_selections("token_alice")
+    assert r_alice_after["items"][0]["name"] == "Alice DS Refreshed"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_poll_job_handles_canceled_and_timeout(mock_env_vars):
+    from sas_mcp_server.tools.iot import poll_job
+
+    respx.get(f"{VIYA_ENDPOINT}/jobExecution/jobs/j_canceled").mock(
+        return_value=Response(200, json={"id": "j_canceled", "state": "canceled"})
+    )
+    res = await poll_job("/jobExecution/jobs/j_canceled", "fake_token")
+    assert res["state"] == "canceled"
+
+    respx.get(f"{VIYA_ENDPOINT}/jobExecution/jobs/j_stuck").mock(
+        return_value=Response(200, json={"id": "j_stuck", "state": "running"})
+    )
+    with pytest.raises(TimeoutError):
+        await poll_job("/jobExecution/jobs/j_stuck", "fake_token", poll_interval=0.01, timeout=0.0)
+
+
+def test_validate_sas_identifier_and_safe_path():
+    from sas_mcp_server.tools.iot import _validate_safe_path, _validate_sas_identifier
+
+    assert _validate_sas_identifier("QASMartStore") == "QASMartStore"
+    with pytest.raises(ValueError):
+        _validate_sas_identifier('foo"; quit; data _null_;')
+    assert _validate_safe_path("/export/sas-viya/homes/user/FQA") == "/export/sas-viya/homes/user/FQA"
+    with pytest.raises(ValueError):
+        _validate_safe_path("/export/../etc/passwd")
+    with pytest.raises(ValueError):
+        _validate_safe_path("/export/foo'; % abort;")
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_forecasting_and_fqa_tools_via_fastmcp(mock_env_vars):
+    from fastmcp import Client, FastMCP
+    from sas_mcp_server.tools.iot import register
+
+    mcp = FastMCP("iot-test")
+
+    async def fake_token(ctx):  # noqa: ARG001
+        return "fake_token"
+
+    register(mcp, fake_token)
+
+    respx.get(f"{VIYA_ENDPOINT}/forecastingGateway/dataDefinitions").mock(
+        return_value=Response(200, json={"items": [{"id": "dd1"}], "count": 1})
+    )
+    respx.get(f"{VIYA_ENDPOINT}/forecastingGateway/filters/f1").mock(
+        return_value=Response(200, json={"id": "f1", "name": "Filter 1"})
+    )
+    respx.get(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/ds-1").mock(
+        return_value=Response(
+            200,
+            json={
+                "id": "ds-1",
+                "launchColumns": [{"columnTableName": "PRODUCT", "columnName": "MODEL_CD"}],
+            },
+        )
+    )
+    respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses").mock(
+        return_value=Response(
+            200,
+            json={"items": [{"id": "an-child", "dataSelectionId": "ds-1"}]},
+        )
+    )
+    del_an = respx.delete(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/an-child").mock(
+        return_value=Response(204)
+    )
+    del_ds = respx.delete(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/ds-1").mock(
+        return_value=Response(204)
+    )
+
+    async with Client(mcp) as client:
+        dd_res = (await client.call_tool("list_forecasting_data_definitions", {"limit": 5})).data
+        assert dd_res["items"] == [{"id": "dd1"}]
+        assert dd_res["count"] == 1
+
+        flt_res = (await client.call_tool("get_forecasting_filter", {"filter_id": "f1"})).data
+        assert flt_res["id"] == "f1"
+
+        vars_res = (
+            await client.call_tool(
+                "list_fqa_data_model_variables_tool", {"data_selection_id": "ds-1"}
+            )
+        ).data
+        assert "PRODUCT.MODEL_CD" in vars_res["variables"]
+
+        force_res = (
+            await client.call_tool(
+                "force_delete_fqa_object_tool", {"data_selection_id": "ds-1"}
+            )
+        ).data
+        assert force_res["status"] == "FORCE_DELETED"
+        assert force_res["deleted_analyses"] == ["an-child"]
+        assert del_an.called
+        assert del_ds.called
+

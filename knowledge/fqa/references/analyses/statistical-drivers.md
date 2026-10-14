@@ -8,9 +8,29 @@ Failure Relationships domain.
 After the descriptive phase, to learn *which kind* of variable drives the excess:
 production-side (build period, model, plant, supplier) or field-side (dealer, region, technician).
 
-## Parameters
+## Parameters & ANOM Mechanics
 Native: `run_statistical_driver_analysis_tool`. Candidates must exist in the mart variable
 dictionary (not just the DS profile).
+
+FQA's Statistical Drivers node uses **Analysis of Means (ANOM)** to test whether specific levels
+of each candidate reporting variable deviate significantly from the overall population mean:
+- **Summary Table**: Ranks candidate variables and flags `Decision Limit Exceeded` as **`Yes`**,
+  **`No`**, or **`NA`**.
+  - **`NA` occurs when a variable has fewer than 2 distinct levels** (e.g. already pinned to 1
+    value by the Data Selection filter) **or more than 500 distinct levels**.
+- **ANOM Decision Charts (Varying vs. Constant Decision Limits):**
+  - **Product Attributes (Varying Decision Limits):** When evaluating a product attribute (e.g.
+    `Model Code`, `Production Month`, `Plant`), each level has a *different* number of units in its
+    denominator. Because **smaller sample sizes produce wider decision limits** (and larger sample
+    sizes produce narrower limits), the upper and lower decision limit lines step up and down
+    across the levels of a product attribute.
+  - **Event Attributes (Constant Decision Limits):** When evaluating an event attribute (e.g.
+    `Primary Labor Group`, `Claim Status`), every level shares the *same* total fleet denominator
+    (since any unit could experience any event type), producing **flat, constant upper and lower
+    decision limits** across all levels.
+- **Effect of `Alpha` ($\alpha$):** Default is `0.05`. Making `Alpha` smaller (e.g. `0.01`)
+  **widens the decision limits**, requiring a larger deviation from the mean to flag a level as
+  statistically significant (fewer `Yes` flags). Making `Alpha` larger narrows the limits.
 
 Prune collinear candidates before running. Keep **one** time field (build month, engine build
 month, delivery month and registration month all encode the same thing), one of each

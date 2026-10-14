@@ -54,7 +54,7 @@ from .prompts import register_prompts
 from .telemetry import install_telemetry
 from .tools import register_tools
 from .user_log import install_user_log
-from .viya_client import announce_startup, logger, raise_for_viya_status
+from .viya_client import announce_startup, close_client_cache, logger, raise_for_viya_status
 from .viya_utils import shutdown_session_cache
 
 load_dotenv()
@@ -73,6 +73,9 @@ HELPER_CLIENT_ID = os.getenv("AUTH_HELPER_CLIENT_ID", "vscode")
 # in flight can race the real expiry.
 TOKEN_EXPIRY_SKEW = 60
 
+# In-memory cache of parsed credential files: path -> ((mtime_ns, size), default_dict)
+_CREDENTIALS_CACHE: dict[Path, tuple[tuple[int, int], dict]] = {}
+
 
 def _sas_cli_credentials_path() -> Path:
     """Location of the access token cached by ``sas-viya auth loginCode``."""
@@ -87,11 +90,22 @@ def _helper_credentials_path() -> Path:
 
 def _load_credentials(path: Path) -> dict | None:
     """Return the ``Default`` credential block from *path*, or ``None``."""
-    if not path.exists():
-        return None
     try:
-        return json.loads(path.read_text())["Default"]
+        st = path.stat()
+    except OSError:
+        _CREDENTIALS_CACHE.pop(path, None)
+        return None
+    sig = (st.st_mtime_ns, st.st_size)
+    cached = _CREDENTIALS_CACHE.get(path)
+    if cached is not None and cached[0] == sig:
+        return dict(cached[1])
+    try:
+        default_block = json.loads(path.read_text())["Default"]
+        if isinstance(default_block, dict):
+            _CREDENTIALS_CACHE[path] = (sig, dict(default_block))
+        return default_block
     except (KeyError, json.JSONDecodeError, OSError) as exc:
+        _CREDENTIALS_CACHE.pop(path, None)
         logger.warning("Could not read credentials at %s: %s", path, exc)
         return None
 
@@ -252,6 +266,7 @@ def _write_credentials(
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload, indent=2))
+        _CREDENTIALS_CACHE.pop(path, None)
         with contextlib.suppress(OSError):
             os.chmod(path, 0o600)
     except OSError as exc:
@@ -309,11 +324,12 @@ async def _stdio_get_token(ctx: Context) -> str:
 
 @asynccontextmanager
 async def _lifespan(server: FastMCP) -> AsyncIterator[dict]:
-    """Tear down warm compute sessions when the server stops."""
+    """Tear down warm compute sessions and HTTP clients when the server stops."""
     try:
         yield {}
     finally:
         await shutdown_session_cache()
+        await close_client_cache()
 
 
 SERVER_VERSION = server_version()

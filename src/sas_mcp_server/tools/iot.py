@@ -5,6 +5,8 @@
 
 import asyncio
 import json
+import re
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -14,10 +16,29 @@ from fastmcp import Context, FastMCP
 
 from ..config import AIOT_LAUNCH_KEY_DIM, AIOT_LAUNCH_TRANSPOSE, VIYA_ENDPOINT
 from ..viya_client import logger, make_client
-from ..viya_utils import run_one_snippet
+from ..viya_utils import _token_user_key, run_one_snippet
 from ._common import make_session_helpers
 
 data_selection_cache = TTLCache(maxsize=100, ttl=60)
+
+_SAS_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]{0,63}$")
+_SAFE_PATH_RE = re.compile(r"^[A-Za-z0-9_./:-]+$")
+
+
+def _validate_sas_identifier(value: str, label: str = "identifier") -> str:
+    """Validate that *value* is a safe SAS/CAS identifier with no quotes or semicolons."""
+    cleaned = (value or "").strip()
+    if not cleaned or not _SAS_IDENTIFIER_RE.match(cleaned):
+        raise ValueError(f"Invalid SAS {label}: {value!r}")
+    return cleaned
+
+
+def _validate_safe_path(value: str) -> str:
+    """Validate that a filesystem path contains no quotes or injection characters."""
+    cleaned = (value or "").strip()
+    if not cleaned or ".." in cleaned or not _SAFE_PATH_RE.match(cleaned):
+        raise ValueError(f"Invalid or unsafe path: {value!r}")
+    return cleaned
 
 
 async def _get_json(url, client, params=None, accept="application/json"):
@@ -92,7 +113,7 @@ async def _delete_resource(url, client):
 
 async def list_data_selections(token: str, filter_query: str = None, start: int = 0, limit: int = 10) -> dict:  # pyright: ignore
     """Lists available SAS Analytics for IoT data selections with TTL caching."""
-    cache_key = (filter_query, start, limit)
+    cache_key = (_token_user_key(token), filter_query, start, limit)
     if cache_key in data_selection_cache:
         logger.info("Returning cached results for data selection list: %s", cache_key)
         return data_selection_cache[cache_key]  # pyright: ignore
@@ -126,15 +147,18 @@ async def update_data_selection(selection_id: str, selection_data: dict, token: 
         resp.raise_for_status()
         etag = resp.headers.get("ETag")
         
-        return await _put_json(url, client, body=selection_data,
-                               accept="application/vnd.sas.data.selection+json",
-                               if_match=etag)
+        result = await _put_json(url, client, body=selection_data,
+                                 accept="application/vnd.sas.data.selection+json",
+                                 if_match=etag)
+        data_selection_cache.clear()
+        return result
 
 
 async def delete_data_selection(selection_id: str, token: str) -> None:
     """Deletes a SAS AIoT data selection."""
     async with make_client(token) as client:
         await _delete_resource(f"/dataSelection/dataSelections/{selection_id}", client)
+        data_selection_cache.clear()
 
 
 async def launch_data_selection(selection_id: str, token: str, table_name: str | None = None,
@@ -171,18 +195,22 @@ async def copy_data_selection(selection_id: str, new_name: str, token: str, new_
         body = {"name": new_name, "description": new_description}
         if creation_type:
             body["creationType"] = creation_type
-        return await _post_json(f"/dataSelection/dataSelections/{selection_id}/copy", client,
-                                body=body,
-                                accept="application/vnd.sas.data.selection+json")
+        result = await _post_json(f"/dataSelection/dataSelections/{selection_id}/copy", client,
+                                  body=body,
+                                  accept="application/vnd.sas.data.selection+json")
+        data_selection_cache.clear()
+        return result
 
 
 async def copy_data_selections(selection_ids: list[str], token: str) -> dict:
     """Copies multiple SAS AIoT data selections."""
     async with make_client(token) as client:
         body = {"resources": selection_ids}
-        return await _post_json("/dataSelection/dataSelectionActions/copies", client,
-                                body=body,
-                                accept="application/json")
+        result = await _post_json("/dataSelection/dataSelectionActions/copies", client,
+                                  body=body,
+                                  accept="application/json")
+        data_selection_cache.clear()
+        return result
 
 
 async def list_iot_projects(token: str) -> dict:
@@ -421,16 +449,33 @@ async def get_cas_summary_statistics(server_id: str, caslib_name: str, table_nam
 # High-Level Workflow Orchestration
 # ---------------------------------------------------------------------------
 
-async def poll_job(job_url: str, token: str, poll_interval: float = 1.0) -> dict:
-    """Polls a job status until it reaches a terminal state."""
+_TERMINAL_JOB_STATES = {
+    "completed",
+    "failed",
+    "cancelled",
+    "canceled",
+    "error",
+    "timedout",
+    "timed_out",
+    "warning",
+}
+
+
+async def poll_job(
+    job_url: str, token: str, poll_interval: float = 1.0, timeout: float = 3600.0
+) -> dict:
+    """Polls a job status until it reaches a terminal state or *timeout* elapses."""
+    deadline = time.monotonic() + timeout
     async with make_client(token) as client:
         while True:
             resp = await client.get(f"{VIYA_ENDPOINT}{job_url}", headers={"Accept": "application/json"})
             resp.raise_for_status()
             status_data = resp.json()
-            state = status_data.get("state")
-            if state in ["completed", "failed", "cancelled"]:
+            state = (status_data.get("state") or status_data.get("status") or "").lower()
+            if state in _TERMINAL_JOB_STATES:
                 return status_data
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"Polling job {job_url} timed out after {timeout}s (last state: {state!r})")
             await asyncio.sleep(poll_interval)
             # Exponential backoff up to 10s
             poll_interval = min(poll_interval * 1.5, 10.0)
@@ -693,59 +738,72 @@ def register(
         logger.info("--- TOOL USED: list_data_selections (filter: %s) ---", filter_query)
         token = await get_token(ctx)
 
-        # To support local filtering across the entire collection, fetch all items in batches
-        all_items = []
-        current_start = 0
-        fetch_limit = 100
-
-        while True:
+        has_local_filters = any(
+            [owner, owner_display_name, created_by, name, category, creation_type, attribute_filters]
+        )
+        if not has_local_filters:
             raw_data = await list_data_selections(
                 token,
                 filter_query=filter_query,
-                start=current_start,
-                limit=fetch_limit
+                start=start,
+                limit=limit,
             )
-            items = raw_data.get("items", [])
-            all_items.extend(items)
-            
-            total_count = raw_data.get("count", 0)
-            if len(items) < fetch_limit or len(all_items) >= total_count:
-                break
-            current_start += fetch_limit
+            paginated_items = raw_data.get("items", [])
+            total_filtered_count = raw_data.get("count", len(paginated_items))
+        else:
+            # To support local filtering across the entire collection, fetch all items in batches
+            all_items = []
+            current_start = 0
+            fetch_limit = 100
 
-        # Apply client-side attribute filtering
-        filtered_items = all_items
+            while True:
+                raw_data = await list_data_selections(
+                    token,
+                    filter_query=filter_query,
+                    start=current_start,
+                    limit=fetch_limit
+                )
+                items = raw_data.get("items", [])
+                all_items.extend(items)
+                
+                total_count = raw_data.get("count", 0)
+                if len(items) < fetch_limit or len(all_items) >= total_count:
+                    break
+                current_start += fetch_limit
 
-        def matches_filter(item_val, filter_val) -> bool:
-            if item_val is None:
-                return False
-            return str(filter_val).lower() in str(item_val).lower()
+            # Apply client-side attribute filtering
+            filtered_items = all_items
 
-        if owner:
-            filtered_items = [item for item in filtered_items if matches_filter(item.get("owner"), owner)]
-        if owner_display_name:
-            filtered_items = [
-                item for item in filtered_items
-                if matches_filter(item.get("ownerDisplayName"), owner_display_name)
-            ]
-        if created_by:
-            filtered_items = [item for item in filtered_items if matches_filter(item.get("createdBy"), created_by)]
-        if name:
-            filtered_items = [item for item in filtered_items if matches_filter(item.get("name"), name)]
-        if category:
-            filtered_items = [item for item in filtered_items if matches_filter(item.get("category"), category)]
-        if creation_type:
-            filtered_items = [
-                item for item in filtered_items
-                if matches_filter(item.get("creationType"), creation_type)
-            ]
+            def matches_filter(item_val, filter_val) -> bool:
+                if item_val is None:
+                    return False
+                return str(filter_val).lower() in str(item_val).lower()
 
-        if attribute_filters:
-            for attr, val in attribute_filters.items():
-                filtered_items = [item for item in filtered_items if matches_filter(item.get(attr), val)]
+            if owner:
+                filtered_items = [item for item in filtered_items if matches_filter(item.get("owner"), owner)]
+            if owner_display_name:
+                filtered_items = [
+                    item for item in filtered_items
+                    if matches_filter(item.get("ownerDisplayName"), owner_display_name)
+                ]
+            if created_by:
+                filtered_items = [item for item in filtered_items if matches_filter(item.get("createdBy"), created_by)]
+            if name:
+                filtered_items = [item for item in filtered_items if matches_filter(item.get("name"), name)]
+            if category:
+                filtered_items = [item for item in filtered_items if matches_filter(item.get("category"), category)]
+            if creation_type:
+                filtered_items = [
+                    item for item in filtered_items
+                    if matches_filter(item.get("creationType"), creation_type)
+                ]
 
-        total_filtered_count = len(filtered_items)
-        paginated_items = filtered_items[start : start + limit]
+            if attribute_filters:
+                for attr, val in attribute_filters.items():
+                    filtered_items = [item for item in filtered_items if matches_filter(item.get(attr), val)]
+
+            total_filtered_count = len(filtered_items)
+            paginated_items = filtered_items[start : start + limit]
 
         # Prune response but include key attributes for transparency
         pruned_items = [
@@ -1203,60 +1261,52 @@ def register(
 
         model_name = analysis.get("modelName", "EIENTERPRISE_PRODUCT")
         prefix = model_name.split("_")[0] if "_" in model_name else model_name
+        default_table = _validate_sas_identifier(f"{prefix}_ALERTS_{short_id}".upper(), "table")
 
-        # 2. Query CAS server to find the exact alerts table name
-        cas_code = """
-        cas mySession;
-        caslib _all_ assign;
-        proc cas;
-          table.tableInfo / caslib="QASANLOUT";
-        quit;
-        """
-        
-        res = await run_one_snippet(cas_code, "find_alerts_table", token)
-        listing = res.get("listing", "")
-        
-        import re
-        table_pattern = rf"([A-Za-z0-9_]+_ALERTS_{short_id})"
-        matches = re.findall(table_pattern, listing, re.IGNORECASE)
-        
-        if matches:
-            matched_table = matches[0].upper()
-            logger.info("Dynamically discovered alerts table name: %s", matched_table)
-        else:
-            matched_table = f"{prefix}_ALERTS_{short_id}".upper()
-            logger.warning(
-                "Could not discover alerts table name via tableInfo. "
-                f"Falling back to default: {matched_table}"
-            )
-
-        # 3. Export discovered table to JSON using SAS PROC JSON in a compute session
+        # 2. Discover and export the alerts table in a single compute snippet
+        #    (binds only QASANLOUT rather than caslib _all_ assign, and terminates the CAS session).
         export_code = f"""
         cas mySession;
-        caslib _all_ assign;
         libname mycas cas caslib="QASANLOUT" sessref=mySession;
 
-        filename myjson temp;
-        proc json out=myjson pretty;
-          export mycas.{matched_table};
-        run;
+        proc cas;
+          table.tableInfo r=t / caslib="QASANLOUT";
+          matched = "";
+          do row over t.TableInfo;
+            if index(upcase(row.Name), upcase("_ALERTS_{short_id}")) > 0 then matched = upcase(row.Name);
+          end;
+          if matched = "" then matched = "{default_table}";
+          symputx("ALERT_TBL", matched, "G");
+        quit;
 
-        data _null_;
-          infile myjson;
-          input;
-          put "JSON_OUT: " _infile_;
-        run;
+        %macro _export_alerts;
+          %if %sysfunc(exist(mycas.&ALERT_TBL)) %then %do;
+            filename myjson temp;
+            proc json out=myjson pretty;
+              export mycas.&ALERT_TBL;
+            run;
+
+            data _null_;
+              infile myjson;
+              input;
+              put "JSON_OUT: " _infile_;
+            run;
+          %end;
+        %mend _export_alerts;
+        %_export_alerts;
+        cas mySession terminate;
         """
-        
+
         export_res = await run_one_snippet(export_code, "export_alerts", token)
         export_log = export_res.get("log", "")
-        
-        # 4. Extract and parse JSON data
+        matched_table = default_table
+
+        # 3. Extract and parse JSON data
         json_lines = []
         for line in export_log.splitlines():
             if line.startswith("JSON_OUT: "):
                 json_lines.append(line[len("JSON_OUT: "):])
-        
+
         json_str = "\n".join(json_lines)
         if not json_str.strip():
             logger.error("No JSON output from PROC JSON. Check log: %s", export_log)
@@ -1268,7 +1318,7 @@ def register(
                 "message": (
                     f"No alerts found for run '{analysis_id}'. It might not "
                     f"have generated any alerts or table '{matched_table}' is empty."
-                )
+                ),
             }
 
         try:
@@ -1285,7 +1335,7 @@ def register(
                 "total": 0,
                 "start": start,
                 "limit": limit,
-                "error": f"Failed to parse alerts data from SAS log: {str(e)}"
+                "error": f"Failed to parse alerts data from SAS log: {str(e)}",
             }
 
         # 5. Apply filtering on retrieved alerts
@@ -3277,12 +3327,15 @@ def register(
             table_name: The table to drop.
         """
         logger.info("--- TOOL USED: drop_table_from_memory (%s.%s) ---", caslib_name, table_name)
+        caslib_name = _validate_sas_identifier(caslib_name, "caslib_name")
+        table_name = _validate_sas_identifier(table_name, "table_name")
         token = await get_token(ctx)
         code = f"""
         cas mySession;
         proc cas;
           table.dropTable / caslib="{caslib_name}" name="{table_name}" quiet=true;
         quit;
+        cas mySession terminate;
         """
         res = await run_one_snippet(code, "drop_table", token)
         if res.get("state") == "completed":
@@ -3311,6 +3364,8 @@ def register(
             table_name: The table to reload.
         """
         logger.info("--- TOOL USED: reload_table_to_memory (%s.%s) ---", caslib_name, table_name)
+        caslib_name = _validate_sas_identifier(caslib_name, "caslib_name")
+        table_name = _validate_sas_identifier(table_name, "table_name")
         token = await get_token(ctx)
         code = f"""
         cas mySession;
@@ -3330,6 +3385,7 @@ def register(
             path=src_file 
             casout={{caslib="{caslib_name}" name="{table_name}" promote=true}};
         quit;
+        cas mySession terminate;
         """
         res = await run_one_snippet(code, "reload_table", token)
         if res.get("state") == "completed":
@@ -3361,6 +3417,7 @@ def register(
                                  (e.g., "/export/sas-viya/homes/germsz/AIoT/FQA/Demo_Data_transformed").
         """
         logger.info("--- TOOL USED: reload_fqa_metadata_tool (%s) ---", fqa_base_path)
+        fqa_base_path = _validate_safe_path(fqa_base_path).rstrip("/")
         token = await get_token(ctx)
         
         code = f"""
@@ -3410,7 +3467,7 @@ def register(
         """Remediates high-cardinality columns in a CAS table to make them suitable for standard analyses.
 
         Supports three strategies:
-        - 'binning': Groups the top 10 values by frequency and bins the rest as -99 ('OTHER').
+        - 'binning': Groups the top 10 values by frequency and bins the rest as 'OTHER'.
         - 'temporal': Extracts Year-Month and relative age offsets (requires target_column representing inservice_date).
         - 'target_encoding': Calculates target encoding using the mean of target_column.
 
@@ -3422,13 +3479,12 @@ def register(
             target_column: Name of the target variable for target encoding or target inservice_date for temporal.
         """
         logger.info("--- TOOL USED: remediate_high_cardinality (%s.%s.%s) ---", caslib_name, table_name, column_name)
-        token = await get_token(ctx)
-        
-        column_name = column_name.upper()
-        table_name = table_name.upper()
-        caslib_name = caslib_name.upper()
+        caslib_name = _validate_sas_identifier(caslib_name, "caslib_name").upper()
+        table_name = _validate_sas_identifier(table_name, "table_name").upper()
+        column_name = _validate_sas_identifier(column_name, "column_name").upper()
         if target_column:
-            target_column = target_column.upper()
+            target_column = _validate_sas_identifier(target_column, "target_column").upper()
+        token = await get_token(ctx)
             
         strategy = strategy.lower()
         if strategy not in ["binning", "temporal", "target_encoding"]:
@@ -3445,13 +3501,13 @@ def register(
         new_col = ""
         new_desc = ""
         new_label = ""
-        new_type = 3
+        new_type = 2
         
         if strategy == "binning":
             new_col = f"{column_name}_BINNED"
             new_desc = f"Binned {column_name} (Top 10 + Other)"
             new_label = f"Binned {column_name}"
-            new_type = 3
+            new_type = 2
             
             code += f"""
             proc freq data=mycas.{table_name} order=freq;
@@ -3465,8 +3521,8 @@ def register(
             proc fedsql sessref=mySession;
                 create table {caslib_name}.{table_name}_new as
                 select t1.*, 
-                       case when t2.{column_name} is not null then t1.{column_name}
-                            else -99
+                       case when t2.{column_name} is not null then cast(t1.{column_name} as varchar(256))
+                            else 'OTHER'
                        end as {new_col}
                 from {caslib_name}.{table_name} as t1
                 left join {caslib_name}.freq_out_top10 as t2
@@ -3621,6 +3677,7 @@ def register(
             %end;
         %mend update_metadata;
         %update_metadata;
+        cas mySession terminate;
         """
         
         res = await run_one_snippet(code, "remediate", token)
@@ -3632,7 +3689,7 @@ def register(
                     f"{caslib_name}.{table_name} using strategy "
                     f"'{strategy}'. Created column {new_col}."
                 ),
-                "log": res.get("log")[:1000]  # pyright: ignore
+                "log": (res.get("log") or "")[:1000]
             }
         else:
             return {
@@ -3719,6 +3776,7 @@ def register(
                 headers=headers_put
             )
             resp_put.raise_for_status()
+            data_selection_cache.clear()
             
             cols = [
                 {"columnName": "PRODUCTION_DATE", "columnNameLabel": "Production Date",
@@ -3765,18 +3823,21 @@ def register(
             resp_launch.raise_for_status()
             launch_id = resp_launch.json()["id"]
             
-            import asyncio
             poll_interval = 1.0
+            deadline = time.monotonic() + 3600.0
             while True:
                 resp_status = await client.get(
                     f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{new_ds_id}/launches/{launch_id}",
                     headers={"Accept": "application/vnd.sas.data.selection.launch+json"}
                 )
-                launch_status = resp_status.json().get("status", "")
+                resp_status.raise_for_status()
+                launch_status = (resp_status.json().get("status") or "").upper()
                 if launch_status == "COMPLETED":
                     break
-                elif launch_status in ("FAILED", "ERROR"):
+                if launch_status in ("FAILED", "ERROR", "CANCELED", "CANCELLED", "TIMEDOUT"):
                     raise RuntimeError(f"Data selection launch failed with status {launch_status}")
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(f"Data selection launch {launch_id} timed out")
                 await asyncio.sleep(poll_interval)
                 poll_interval = min(poll_interval * 1.5, 10.0)
                 
@@ -3897,22 +3958,26 @@ def register(
                     f"No job link in run response for analysis {analysis_id} step {step_id}"
                 )
             
-            import asyncio
             poll_interval = 1.0
+            deadline = time.monotonic() + 3600.0
             while True:
                 resp_job = await client.get(f"{VIYA_ENDPOINT}{job_link}")
-                job_status = resp_job.json().get("state", "")
+                resp_job.raise_for_status()
+                job_status = (resp_job.json().get("state") or "").lower()
                 if job_status == "completed":
                     break
-                elif job_status in ("failed", "error", "canceled"):
+                if job_status in ("failed", "error", "canceled", "cancelled", "timedout", "timed_out"):
                     try:
                         log_resp = await client.get(f"{VIYA_ENDPOINT}{job_link}/log?limit=1000")
-                        log_lines = [item.get("line") for item in log_resp.json().get("items", [])]
+                        log_lines = [item.get("line", "") for item in log_resp.json().get("items", [])]
                         logger.error("Job log output:\n" + "\n".join(log_lines))
                     except Exception:
                         pass
                     raise RuntimeError(f"Analysis job failed with status {job_status}")
-                await asyncio.sleep(1)
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(f"Analysis job {job_link} timed out")
+                await asyncio.sleep(poll_interval)
+                poll_interval = min(poll_interval * 1.5, 10.0)
                 
             if folder_id:
                 member_body = {
@@ -3949,87 +4014,144 @@ def register(
     async def list_forecasting_data_definitions(limit: int = 10, start: int = 0, ctx: Context = None) -> dict:  # pyright: ignore
         """List Visual Forecasting data definitions."""
         async with viya_session("list_forecasting_data_definitions", ctx) as client:
-            return await _get_paged_items(client, "/dataDefinitions", limit, start)  # pyright: ignore
+            items, count = await _get_paged_items(
+                "/forecastingGateway/dataDefinitions", client, limit=limit, start=start
+            )
+            return {"items": items, "count": count, "start": start, "limit": limit}
 
     @mcp.tool()
     async def get_forecasting_data_definition(data_definition_id: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Get details of a specific Visual Forecasting data definition."""
         async with viya_session("get_forecasting_data_definition", ctx) as client:
-            return await _get_json(client, f"/dataDefinitions/{data_definition_id}")
+            return await _get_json(
+                f"/forecastingGateway/dataDefinitions/{data_definition_id}", client
+            )
 
     @mcp.tool()
     async def create_forecasting_data_definition(body: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Create a new Visual Forecasting data definition (pass configuration as a JSON string)."""
         async with viya_session("create_forecasting_data_definition", ctx) as client:
-            return await _post_json(client, "/dataDefinitions", json.loads(body))
+            return await _post_json(
+                "/forecastingGateway/dataDefinitions", client, body=json.loads(body)
+            )
 
     @mcp.tool()
     async def delete_forecasting_data_definition(data_definition_id: str, ctx: Context = None) -> str:  # pyright: ignore
         """Delete a Visual Forecasting data definition."""
         async with viya_session("delete_forecasting_data_definition", ctx) as client:
-            await _delete_resource(client, f"/dataDefinitions/{data_definition_id}")
+            await _delete_resource(
+                f"/forecastingGateway/dataDefinitions/{data_definition_id}", client
+            )
             return f"Deleted data definition {data_definition_id}"
 
     @mcp.tool()
     async def run_final_forecast(data_definition_id: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Run the final forecast for a data definition."""
         async with viya_session("run_final_forecast", ctx) as client:
-            return await _post_json(client, f"/dataDefinitions/{data_definition_id}/finalForecast", {})
+            return await _post_json(
+                f"/forecastingGateway/dataDefinitions/{data_definition_id}/finalForecast",
+                client,
+                body={},
+            )
 
     @mcp.tool()
     async def list_forecasting_filters(limit: int = 10, start: int = 0, ctx: Context = None) -> dict:  # pyright: ignore
         """List Visual Forecasting filters."""
         async with viya_session("list_forecasting_filters", ctx) as client:
-            return await _get_paged_items(client, "/filters", limit, start)  # pyright: ignore
+            items, count = await _get_paged_items(
+                "/forecastingGateway/filters", client, limit=limit, start=start
+            )
+            return {"items": items, "count": count, "start": start, "limit": limit}
 
     @mcp.tool()
     async def get_forecasting_filter(filter_id: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Get details of a specific Visual Forecasting filter."""
         async with viya_session("get_forecasting_filter", ctx) as client:
-            return await _get_json(client, f"/filters/{filter_id}")
-
+            return await _get_json(f"/forecastingGateway/filters/{filter_id}", client)
 
     @mcp.tool()
     async def get_forecasting_pipeline_results(pipeline_id: str, component_id: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Get the results of a specific component within a forecasting pipeline."""
         async with viya_session("get_forecasting_pipeline_results", ctx) as client:
-            return await _get_json(client, f"/pipelines/{pipeline_id}/components/{component_id}/results")
+            return await _get_json(
+                f"/forecastingGateway/pipelines/{pipeline_id}/components/{component_id}/results",
+                client,
+            )
 
     @mcp.tool()
     async def run_forecasting_comparison(body: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Run a forecasting pipeline comparison (pass configuration as a JSON string)."""
         async with viya_session("run_forecasting_comparison", ctx) as client:
-            return await _post_json(client, "/comparison", json.loads(body))
+            return await _post_json(
+                "/forecastingGateway/comparison", client, body=json.loads(body)
+            )
 
     @mcp.tool()
     async def get_forecasting_comparison_results(ctx: Context = None) -> dict:  # pyright: ignore
         """Get forecasting comparison results."""
         async with viya_session("get_forecasting_comparison_results", ctx) as client:
-            return await _get_json(client, "/comparison/results")
+            return await _get_json("/forecastingGateway/comparison/results", client)
 
     @mcp.tool()
     async def generate_forecasting_timeseries_plot(body: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Generate a time series plot for exploration (pass configuration as a JSON string)."""
         async with viya_session("generate_forecasting_timeseries_plot", ctx) as client:
-            return await _post_json(client, "/timeSeriesPlot", json.loads(body))
+            return await _post_json(
+                "/forecastingGateway/timeSeriesPlot", client, body=json.loads(body)
+            )
 
     @mcp.tool()
     async def generate_forecast_plot(body: str, ctx: Context = None) -> dict:  # pyright: ignore
         """Generate a forecast plot for exploration (pass configuration as a JSON string)."""
         async with viya_session("generate_forecast_plot", ctx) as client:
-            return await _post_json(client, "/forecastPlot", json.loads(body))
+            return await _post_json(
+                "/forecastingGateway/forecastPlot", client, body=json.loads(body)
+            )
 
 
     @mcp.tool()
     async def list_fqa_data_model_variables_tool(data_selection_id: str, ctx: Context) -> dict:
         """
         Lists the available variables/fields for the FQA data model in a given Data Selection.
-        This queries the underlying CAS tables used by the FQA data model.
+        This queries the Data Selection definition and extracts configured launch/filter columns.
         """
         logger.info("--- TOOL USED: list_fqa_data_model_variables (%s) ---", data_selection_id)
         token = await get_token(ctx)
-        async with make_client(token) as client:
-            return {"variables": ["PRODUCT.MODEL_CD", "CLAIM.PRIM_REPL_PART_CD", "CLAIM.TOTAL_EVENT_AMT", "BUILD_PERIOD", "INSERVICE_PERIOD"]}
+        default_vars = [
+            "PRODUCT.MODEL_CD",
+            "CLAIM.PRIM_REPL_PART_CD",
+            "CLAIM.TOTAL_EVENT_AMT",
+            "BUILD_PERIOD",
+            "INSERVICE_PERIOD",
+        ]
+        try:
+            ds = await get_data_selection(data_selection_id, token)
+        except Exception:
+            return {"data_selection_id": data_selection_id, "variables": default_vars}
+
+        discovered: list[str] = []
+        for col in ds.get("launchColumns") or ds.get("selectedColumns") or []:
+            if isinstance(col, dict):
+                tbl = col.get("columnTableName") or col.get("component") or ""
+                cname = col.get("columnName") or ""
+                if cname:
+                    entry = f"{tbl}.{cname}" if tbl else cname
+                    if entry not in discovered:
+                        discovered.append(entry)
+        for group_items in (ds.get("filterCriteria") or {}).values():
+            if isinstance(group_items, list):
+                for crit in group_items:
+                    if isinstance(crit, dict):
+                        tbl = crit.get("component") or crit.get("componentTypeCode") or ""
+                        cname = crit.get("columnName") or ""
+                        if cname:
+                            entry = f"{tbl}.{cname}" if tbl else cname
+                            if entry not in discovered:
+                                discovered.append(entry)
+        return {
+            "data_selection_id": data_selection_id,
+            "variables": discovered or default_vars,
+        }
 
     @mcp.tool()
     async def create_root_emerging_issues_analysis_tool(name: str, data_selection_id: str, base_analysis_id: str, ctx: Context) -> dict:
@@ -4046,14 +4168,28 @@ def register(
             resp.raise_for_status()
             new_analysis = resp.json()
             new_id = new_analysis["id"]
-            
+            etag = resp.headers.get("ETag") or new_analysis.get("etag")
+            if not etag:
+                resp_get = await client.get(
+                    f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{new_id}",
+                    headers={"Accept": "application/vnd.sas.iot.analysis+json"},
+                )
+                resp_get.raise_for_status()
+                new_analysis = resp_get.json()
+                etag = resp_get.headers.get("ETag") or "*"
+
             new_analysis["dataSelectionId"] = data_selection_id
             update_url = f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{new_id}"
             resp_update = await client.put(
-                update_url, 
-                json=new_analysis, 
-                headers={"Accept": "application/vnd.sas.iot.analysis+json", "If-Match": new_analysis.get("etag", "*")}
+                update_url,
+                json=new_analysis,
+                headers={
+                    "Accept": "application/vnd.sas.iot.analysis+json",
+                    "Content-Type": "application/vnd.sas.iot.analysis+json",
+                    "If-Match": etag,
+                },
             )
+            resp_update.raise_for_status()
             return {"id": new_id, "name": name, "dataSelectionId": data_selection_id, "status": "CREATED_AND_UPDATED"}
 
     @mcp.tool()
@@ -4104,6 +4240,7 @@ def register(
                 f"{VIYA_ENDPOINT}/dataSelection/dataSelections/{new_ds_id}", 
                 headers={"Accept": "application/vnd.sas.data.selection+json"}
             )
+            resp_get.raise_for_status()
             ds_details = resp_get.json()
             etag = resp_get.headers.get("ETag", "")
 
@@ -4135,6 +4272,7 @@ def register(
                 headers={"If-Match": etag, "Content-Type": "application/json", "Accept": "application/vnd.sas.data.selection+json"}
             )
             resp_put.raise_for_status()
+            data_selection_cache.clear()
 
             # 3. Create the Analysis Object in the specified folder
             an_body = {
@@ -4247,6 +4385,7 @@ def register(
                 headers={"If-Match": etag, "Content-Type": "application/json", "Accept": "application/vnd.sas.data.selection+json"}
             )
             resp_put.raise_for_status()
+            data_selection_cache.clear()
             return {"id": new_ds_id, "name": new_name, "status": "CREATED_AND_MERGED"}
 
     @mcp.tool()
@@ -4299,6 +4438,7 @@ def register(
                 headers={"If-Match": etag, "Content-Type": "application/json", "Accept": "application/vnd.sas.data.selection+json"}
             )
             resp_put.raise_for_status()
+            data_selection_cache.clear()
             return {"id": data_selection_id, "status": "UPDATED"}
 
     @mcp.tool()
@@ -4361,8 +4501,28 @@ def register(
         """
         logger.info("--- TOOL USED: force_delete_fqa_object_tool (%s) ---", data_selection_id)
         token = await get_token(ctx)
-        async with make_client(token) as client:
-            return {"status": "FORCE_DELETED", "id": data_selection_id}
+        deleted_analyses: list[str] = []
+        try:
+            analyses_resp = await list_iot_analyses(token, limit=1000)
+            for item in analyses_resp.get("items", []):
+                if item.get("dataSelectionId") == data_selection_id and item.get("id"):
+                    aid = item["id"]
+                    await delete_iot_analysis(aid, token)
+                    deleted_analyses.append(aid)
+        except Exception:
+            logger.warning("Could not enumerate/delete child analyses for %s", data_selection_id)
+        await delete_data_selection(data_selection_id, token)
+        return {
+            "status": "FORCE_DELETED",
+            "id": data_selection_id,
+            "deleted_analyses": deleted_analyses,
+        }
+
+    async def _safe_run(coro: Awaitable[Any]) -> Any:
+        try:
+            return await coro
+        except Exception as exc:
+            return exc
 
     @mcp.tool()
     async def fqa_template_descriptive_triage_tool(
@@ -4418,15 +4578,14 @@ def register(
         Executes Phase 1 of the FQA Best Practice workflow (Descriptive Triage and Spatial-Temporal Filtering).
         Automatically creates Pareto, Geographic, and Trend & Control analyses concurrently.
         """
-        import asyncio
         pareto = run_pareto_analysis_tool(name=f"{name_prefix}_Pareto", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, by_var=by_var, report_var=report_var, data_domain=data_domain, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, max_by_var=max_by_var, num_bars=num_bars, calc_method=calc_method, exp_chart_type=exp_chart_type, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, tis_point_of_view=tis_point_of_view, unique_value=unique_value, usage_profile=usage_profile, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, value_var=value_var, wait_for_completion=wait_for_completion)
         geographic = run_geographic_analysis_tool(name=f"{name_prefix}_Geographic", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, color_var=color_var, data_domain=data_domain, exposure_type=exposure_type, tis_point_of_view=tis_point_of_view, calc_method=calc_method, exp_chart_type=exp_chart_type, exp_measurement_type=exp_measurement_type, find_exp_measurement=find_exp_measurement, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, unique_value=unique_value, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, claim_submit_lag=claim_submit_lag, display_type=display_type, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
         trend = run_trend_analysis_tool(name=f"{name_prefix}_Trend", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, by_var=by_var, report_var=report_var, data_domain=data_domain, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, max_by_var=max_by_var, calc_method=calc_method, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, tis_point_of_view=tis_point_of_view, unique_value=unique_value, usage_profile=usage_profile, control_charts=control_charts, control_limits_type=control_limits_type, display_grid=display_grid, ucl=ucl, lcl=lcl, horiz_ref_value=horiz_ref_value, horiz_ref_label=horiz_ref_label, vert_ref_value=vert_ref_value, vert_ref_label=vert_ref_label, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
 
         async with asyncio.TaskGroup() as tg:
-            t1 = tg.create_task(pareto)
-            t2 = tg.create_task(geographic)
-            t3 = tg.create_task(trend)
+            t1 = tg.create_task(_safe_run(pareto))
+            t2 = tg.create_task(_safe_run(geographic))
+            t3 = tg.create_task(_safe_run(trend))
         results = [t1.result(), t2.result(), t3.result()]
         return {
             "pareto": str(results[0]) if isinstance(results[0], Exception) else results[0],
@@ -4480,13 +4639,12 @@ def register(
         Executes Phase 2 of the FQA Best Practice workflow (Algorithmic Subpopulation Segmentation).
         Automatically creates Statistical Drivers and Decision Tree analyses concurrently.
         """
-        import asyncio
         statistical = run_statistical_driver_analysis_tool(name=f"{name_prefix}_Statistical", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, data_domain=data_domain, alpha_level=alpha_level, max_report_level=max_report_level, area_of_opportunity_unit=area_of_opportunity_unit, display_grid=display_grid, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, tis_point_of_view=tis_point_of_view, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, display_type=display_type, wait_for_completion=wait_for_completion)
         decision = run_decision_tree_analysis_tool(name=f"{name_prefix}_Decision", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, data_domain=data_domain, max_branch=max_branch, max_depth=max_depth, leaf_size=leaf_size, alpha_level=alpha_level, min_num_obs=min_num_obs, max_report_level=max_report_level, max_report_var=max_report_var, area_of_opportunity_unit=area_of_opportunity_unit, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, exp_chart_type=exp_chart_type, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, tis_point_of_view=tis_point_of_view, unique_value=unique_value, usage_profile=usage_profile, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, display_type=display_type, wait_for_completion=wait_for_completion)
 
         async with asyncio.TaskGroup() as tg:
-            t1 = tg.create_task(statistical)
-            t2 = tg.create_task(decision)
+            t1 = tg.create_task(_safe_run(statistical))
+            t2 = tg.create_task(_safe_run(decision))
         results = [t1.result(), t2.result()]
         return {
             "statistical": str(results[0]) if isinstance(results[0], Exception) else results[0],
@@ -4587,15 +4745,14 @@ def register(
         Executes Phases 3 & 4 of the FQA Best Practice workflow (Validation, Normalization, and Predictive Forecasting).
         Automatically creates Failure Relationships, Exposure, and Reliability analyses concurrently.
         """
-        import asyncio
         failure = run_failure_relationships_analysis_tool(name=f"{name_prefix}_Failure", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, data_domain=data_domain, rv_dim_column=rv_dim_column, threshold_slider_variable=threshold_slider_variable, xvar1=xvar1, dmdb_max_lev=dmdb_max_lev, chart_scaling_factor=chart_scaling_factor, node_tip=node_tip, node_size=node_size, bin_increment=bin_increment, rv_table_name_key=rv_table_name_key, rv_table_name_value=rv_table_name_value, rv_table_name=rv_table_name, exposure_type=exposure_type, find_first_fail_flag=find_first_fail_flag, link_tip=link_tip, link_value_variable=link_value_variable, link_width=link_width, link_width_variable=link_width_variable, max_link_number=max_link_number, max_link_width=max_link_width, max_node_number=max_node_number, min_items=min_items, nodesize_variable=nodesize_variable, min_conf_passoc=min_conf_passoc, bin_length=bin_length, onetrvruledsflag=onetrvruledsflag, pseudoliftincludeflag=pseudoliftincludeflag, sas_file=sas_file, seq_proc_threshold=seq_proc_threshold, show_immature_exposure=show_immature_exposure, threshold_slider_scale_type=threshold_slider_scale_type, assoc_table_threshold=assoc_table_threshold, trule_end_start_flag=trule_end_start_flag, uniform_link_width=uniform_link_width, rule_type=rule_type, perform_repeat_repair=perform_repeat_repair, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, max_inter_oc_time=max_inter_oc_time, min_conf_p=min_conf_p, min_lift=min_lift, min_cost=min_cost, no_rules_to_display=no_rules_to_display, yvar2=yvar2, yvar1=yvar1, xvar2=xvar2, rule_filter_criteria=rule_filter_criteria, tis_point_of_view=tis_point_of_view, apply_int_oc_time_incr=apply_int_oc_time_incr, apply_rule_st_criteria=apply_rule_st_criteria, min_support_type=min_support_type, rule_size=rule_size, min_support_p=min_support_p, min_support_c=min_support_c, display_type=display_type, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
         exposure = run_exposure_analysis_tool(name=f"{name_prefix}_Exposure", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, by_var=by_var, data_domain=data_domain, exposure_type=exposure_type, tis_point_of_view=tis_point_of_view, calc_method=calc_method, exp_chart_type=exp_chart_type, exp_measurement_type=exp_measurement_type, find_exp_measurement=find_exp_measurement, find_first_fail_flag=find_first_fail_flag, show_immature_exposure=show_immature_exposure, unique_value=unique_value, usage_profile=usage_profile, usage_type=usage_type, wrty_usage_max_mileage=wrty_usage_max_mileage, wrty_usage_max_hours=wrty_usage_max_hours, wrty_usage_max_km=wrty_usage_max_km, repair_before_sold=repair_before_sold, failures=failures, maturity_level=maturity_level, max_exp_val=max_exp_val, min_sample_size=min_sample_size, min_sample_size_type=min_sample_size_type, claim_submit_lag=claim_submit_lag, display_type=display_type, display_grid=display_grid, bin_increment=bin_increment, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
         reliability = run_reliability_analysis_tool(name=f"{name_prefix}_Reliability", data_selection_id=data_selection_id, ctx=ctx, folder_id=folder_id, analysis_var=analysis_var, report_var=report_var, by_var=by_var, reliab_var=reliab_var, data_domain=data_domain, exp_chart_type=exp_chart_type, projected_values_hours=projected_values_hours, confidence=confidence, bin_increment=bin_increment, display_grid=display_grid, exp_measurement_type=exp_measurement_type, exposure_type=exposure_type, find_exp_measurement=find_exp_measurement, show_immature_exposure=show_immature_exposure, seas_sale_lag=seas_sale_lag, max_by_var=max_by_var, find_first_fail_flag=find_first_fail_flag, wrty_usage_max_km=wrty_usage_max_km, user_title=user_title, user_subtitle=user_subtitle, user_footnote=user_footnote, wait_for_completion=wait_for_completion)
 
         async with asyncio.TaskGroup() as tg:
-            t1 = tg.create_task(failure)
-            t2 = tg.create_task(exposure)
-            t3 = tg.create_task(reliability)
+            t1 = tg.create_task(_safe_run(failure))
+            t2 = tg.create_task(_safe_run(exposure))
+            t3 = tg.create_task(_safe_run(reliability))
         results = [t1.result(), t2.result(), t3.result()]
         return {
             "failure": str(results[0]) if isinstance(results[0], Exception) else results[0],

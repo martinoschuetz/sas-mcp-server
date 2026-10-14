@@ -3,6 +3,7 @@
 
 """Tier 1 — Data Discovery tools (SAS Data Governance catalog, compute & CAS metadata)."""
 
+import asyncio
 import contextlib
 import uuid
 from collections.abc import Awaitable, Callable
@@ -21,7 +22,7 @@ from ..viya_client import (
     raise_for_viya_status,
     return_items,
 )
-from ..viya_utils import submit_job, wait_job
+from ..viya_utils import get_session_job_lock, submit_job, wait_job
 from ._common import make_session_helpers
 
 #: Appended to a 409 raised while *reading* a caslib's tables. casManagement
@@ -898,13 +899,18 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
             client,
             session_id,
         ):
-            col_items, _ = await get_paged_items(
-                base.format(sid=session_id) + "/columns", client, limit=1000
-            )
+            async with asyncio.TaskGroup() as tg:
+                col_task = tg.create_task(
+                    get_paged_items(base.format(sid=session_id) + "/columns", client, limit=1000)
+                )
+                row_task = tg.create_task(
+                    get_paged_items(
+                        base.format(sid=session_id) + "/rows", client, limit=limit, start=start
+                    )
+                )
+            col_items, _ = col_task.result()
+            row_items, total = row_task.result()
             columns = fedsql_helpers.describe_columns(col_items)
-            row_items, total = await get_paged_items(
-                base.format(sid=session_id) + "/rows", client, limit=limit, start=start
-            )
             names = [c["name"] for c in columns]
             rows = [
                 dict(zip(names, item.get("cells", []), strict=False)) for item in row_items
@@ -997,56 +1003,69 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
         )
         context_name = compute_context_name or CONTEXT_NAME
         async with compute_tool_session("query_data", ctx, context_name) as (client, session_id):
-            job_id = await submit_job(client, session_id, code)
-            # poll=0.5: the 2s default dominates the ~0.6s a small query takes.
-            state, log, _ = await wait_job(client, session_id, job_id, poll=0.5)
-            try:
-                # A failed FedSQL step can still report state 'completed', so the
-                # log is the authority on success — never the state alone.
-                mapped = fedsql_helpers.map_error(log)
-                if mapped is not None:
-                    return mapped
-                if state != "completed":
-                    return {
-                        "status": "query_failed",
-                        "message": f"The query ended in state '{state}' without a reported error.",
-                        "sas_errors": [],
-                    }
+            job_lock = await get_session_job_lock(session_id)
+            async with job_lock:
+                job_id = await submit_job(client, session_id, code)
+                # poll=0.5: the 2s default dominates the ~0.6s a small query takes.
+                state, log, _ = await wait_job(client, session_id, job_id, poll=0.5)
+                try:
+                    # A failed FedSQL step can still report state 'completed', so the
+                    # log is the authority on success — never the state alone.
+                    mapped = fedsql_helpers.map_error(log)
+                    if mapped is not None:
+                        return mapped
+                    if state != "completed":
+                        return {
+                            "status": "query_failed",
+                            "message": f"The query ended in state '{state}' without a reported error.",
+                            "sas_errors": [],
+                        }
 
-                col_items, _ = await get_paged_items(
-                    f"/compute/sessions/{session_id}/data/WORK/_Q{uid}/columns",
-                    client,
-                    limit=1000,
-                )
-                columns = fedsql_helpers.describe_columns(col_items)
-                # Rows come from the format-stripped twin so numerics stay
-                # numeric and missings stay null; formats are taken from the
-                # columns above to restore dates.
-                row_items, _ = await get_paged_items(
-                    f"/compute/sessions/{session_id}/data/WORK/_F{uid}/rows",
-                    client,
-                    # One past the page: the extra row is what proves more data
-                    # exists. It is materialised by the injected cap and trimmed
-                    # off below, so it never reaches the caller.
-                    limit=limit + 1,
-                    start=start,
-                )
-                truncated = len(row_items) > limit
-                rows = fedsql_helpers.convert_rows(row_items[:limit], columns)
-                result: dict[str, Any] = {
-                    "columns": [c["name"] for c in columns],
-                    "rows": rows,
-                    "count": len(rows),
-                    "start": start,
-                    "limit": limit,
-                    "truncated": truncated,
-                    "column_types": {c["name"]: c["type"] for c in columns},
-                }
-                if create_view_name:
-                    result["create_view_sql"] = fedsql_helpers.build_view_sql(query, create_view_name)
-                return result
-            finally:
-                # Best effort: WORK dies with the session anyway, but a long-lived
-                # warm session would otherwise accumulate scratch tables.
-                with contextlib.suppress(Exception):
-                    await submit_job(client, session_id, fedsql_helpers.build_cleanup_code(uid))
+                    # Rows come from the format-stripped twin so numerics stay
+                    # numeric and missings stay null; formats are taken from the
+                    # columns to restore dates. Fetch both in parallel.
+                    async with asyncio.TaskGroup() as tg:
+                        col_task = tg.create_task(
+                            get_paged_items(
+                                f"/compute/sessions/{session_id}/data/WORK/_Q{uid}/columns",
+                                client,
+                                limit=1000,
+                            )
+                        )
+                        row_task = tg.create_task(
+                            get_paged_items(
+                                f"/compute/sessions/{session_id}/data/WORK/_F{uid}/rows",
+                                client,
+                                # One past the page: the extra row is what proves more data
+                                # exists. It is materialised by the injected cap and trimmed
+                                # off below, so it never reaches the caller.
+                                limit=limit + 1,
+                                start=start,
+                            )
+                        )
+                    col_items, _ = col_task.result()
+                    row_items, _ = row_task.result()
+                    columns = fedsql_helpers.describe_columns(col_items)
+                    truncated = len(row_items) > limit
+                    rows = fedsql_helpers.convert_rows(row_items[:limit], columns)
+                    result: dict[str, Any] = {
+                        "columns": [c["name"] for c in columns],
+                        "rows": rows,
+                        "count": len(rows),
+                        "start": start,
+                        "limit": limit,
+                        "truncated": truncated,
+                        "column_types": {c["name"]: c["type"] for c in columns},
+                    }
+                    if create_view_name:
+                        result["create_view_sql"] = fedsql_helpers.build_view_sql(query, create_view_name)
+                    return result
+                finally:
+                    # Best effort: WORK dies with the session anyway, but a long-lived
+                    # warm session would otherwise accumulate scratch tables.
+                    with contextlib.suppress(Exception):
+                        cleanup_jid = await submit_job(
+                            client, session_id, fedsql_helpers.build_cleanup_code(uid)
+                        )
+                        if isinstance(cleanup_jid, str) and cleanup_jid:
+                            await wait_job(client, session_id, cleanup_jid, poll=0.2)

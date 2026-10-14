@@ -68,20 +68,27 @@ To isolate actionable failure patterns in FQA, follow a 4-phase systematic funne
   * Trace the logical path backward from a high-risk terminal leaf to the root node to extract the combined filter logic (e.g., Engine = 15L Diesel AND DTC = P0299 AND Transmission = AMT AND GVWR > 80,000 lbs).
   * Save this rule set as a **Data Selection** in FQA, allowing you to re-apply the exact subpopulation filter across all other analytical nodes in the workspace.
 
-#### Phase 3: Context & Causality Integration
+#### Phase 3: Context & Causality Integration (Crucial Population Expansion Rule)
+* **Why You Must Widen the Population Before Running Phase 3 (`Text Mining` & `Failure Relationships`)**:
+  * A typical drill-down from Phase 0 to Phase 2 shrinks the population dramatically (e.g., Root Data Selection: 1.1M units $\to$ EI Alert: 13,291 units / 40 claims $\to$ Year filter: 3,740 units / 15 claims $\to$ Decision Tree leaf: 25 units / 7 claims).
+  * If you run **Text Mining** or **Failure Relationships** directly on that small, tightly filtered Phase 2 subpopulation, two failure modes occur:
+    1. **Variables Are Fixed to Too Few Levels**: Because the subpopulation was isolated using specific splits (e.g., `Model = X`, `Production Year = 2022`, `Engine = Y`, `Object Code = Z`), those attributes are already fixed to a single level or a tiny number of levels. You cannot build context by comparing how symptom clusters or repair rules vary across attributes, nor can you contrast the failing pattern against baseline behavior.
+    2. **Statistical Starvation & Single-Code Degeneracy**: SVD/k-means clustering requires $\ge 15$–$50+$ comments to form stable topics without splitting noise, and Failure Relationships requires hundreds of units with $\ge 2$ distinct event codes over elapsed time (a single-part filter or a cohort conditioned on already having failed collapses Lift to Confidence).
+  * **Action Required in Phase 3**: Step back up the project tree and **increase/widen the population** (e.g., to the parent model/series cohort across alert + baseline build periods, removing single-part event filters for Failure Relationships) while using the `alert` flag, production quarter, or a binary indicator of the Decision Tree rule as the reporting/grouping contrast variable. Reserve the tiny Phase 2 leaf *only* for the **Details Table** human read.
 * **Text Mining**:
-  * Applies Natural Language Processing (tokenization, lemmatization, SVD, and k-means clustering) to Support Service Desk logs and technician notes to form structured symptom clusters (e.g., "coolant, leak, reservoir" or "bracket vibration fracture").
-  * Inject these **Text Cluster IDs** back into the Decision Tree or Statistical Drivers as categorical variables to synthesize physical build attributes with qualitative failure symptoms.
-* **Failure Relationships**: Maps associations and chronological sequences between primary parts, secondary damage, and labor codes via link graphs to separate the root cause component from collateral damage.
-* **Details Table**: Apply the saved Data Selection filter to review unaggregated, record-by-record technician narratives as a final human validation step before taking engineering action.
+  * Applies Natural Language Processing (tokenization, lemmatization, SVD, and k-means clustering) using the mart's `SYNONYMS` and `STOPLIST` tables to Support Service Desk (SSD) logs and technician/customer notes on a **sufficiently wide population** to form structured symptom clusters (e.g., "coolant, leak, reservoir" vs. "bracket vibration fracture").
+  * Cross-tabulate topics against a multi-level reporting variable (e.g., Production Quarter, Damage Code, or Alert vs. Baseline) or inject **Text Cluster IDs** back into the Decision Tree or Statistical Drivers as categorical variables.
+* **Failure Relationships**:
+  * Maps co-occurring (`Maximum Inter-Occurrence Time = 0`, enabling `Minimum Lift`) and chronological sequential (`Maximum Inter-Occurrence Time > 0`, enabling `Include Rule Progression Table`) associations between primary parts, secondary damage, and labor codes via link graphs on an **unfiltered event cohort** to separate the root cause component from collateral damage or faulty prior repairs.
+* **Details Table**: Apply the saved narrow Phase 2 Data Selection filter here to review unaggregated, record-by-record technician narratives (and use **Enable Find Similar Contents = Yes** to expand thin themes across a broader selection) as a final human validation step before taking engineering action.
 
 #### Phase 4: Normalization & Predictive Forecasting
 * **Exposure Analysis**: Normalizes claim counts against operational metrics (Time-in-Service, cumulative mileage, engine hours) to verify that the elevated claims stem from an inherent defect rather than heavy fleet utilization.
-* **Reliability Analysis (Weibull Distribution)**:
-  * Fits time-to-first-failure and suspension data to a Weibull distribution.
-  * Evaluate the **Shape Parameter (\beta)**: \beta < 1 indicates infant mortality/assembly defects; \beta ≈ 1 indicates random/environmental failures; \beta > 1 indicates wear-out or fatigue failure modes.
-  * Compare the Weibull shape parameter and projected 12-month failure rates of alert vs. non-alert groups to confirm statistical significance and project future claim liabilities.
-* **Event Forecasting**: Uses time-series models (ARIMA or exponential smoothing) to forecast aggregate short-term claim costs and labor hours for financial budgeting.
+* **Reliability Analysis (Weibull Distribution & False Positive Verification)**:
+  * Fits time-to-first-failure and suspension (right-censored survivor) data to a Weibull (or **Bi-Weibull** mixture when both infant mortality and wear-out modes coexist) distribution.
+  * Evaluate the **Shape Parameter ($\beta$)**: $\beta < 1$ indicates infant mortality/assembly defects; $\beta \approx 1$ indicates random/environmental failures; $\beta > 1$ indicates wear-out or fatigue failure modes.
+  * **False Positive / Acceleration Test (BP 3 & 4)**: Compare the Weibull shape parameter $\beta$ **Confidence Intervals** between alert build columns and prior non-alert baseline build columns. If the $\beta$ confidence intervals **do not overlap**, the change in failure mode/acceleration is statistically significant. Also compare projected failure rates at the warranty period limit (e.g. 12m / 24m) and B-life percentiles (`Time to 1/5/10/20/25 Pct Failure`).
+* **Event Forecasting**: Uses time-series models (ARIMA or exponential smoothing) to forecast aggregate short-term claim costs and labor hours for financial budgeting (always truncating recent periods affected by claim submit lag).
 
 ### Part 2: Advanced Failure Pattern Analysis on Raw Data
 

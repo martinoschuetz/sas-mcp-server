@@ -38,7 +38,7 @@ from .prompts import register_prompts
 from .telemetry import install_telemetry
 from .tools import register_tools
 from .user_log import install_user_log
-from .viya_client import announce_startup, logger
+from .viya_client import announce_startup, close_client_cache, logger
 from .viya_utils import shutdown_session_cache
 
 # Load environment variables before accessing them
@@ -73,11 +73,12 @@ class AuthMiddleware(Middleware):
 
 @asynccontextmanager
 async def _lifespan(server: FastMCP) -> AsyncIterator[dict]:
-    """Tear down warm compute sessions when the server stops."""
+    """Tear down warm compute sessions and HTTP clients when the server stops."""
     try:
         yield {}
     finally:
         await shutdown_session_cache()
+        await close_client_cache()
 
 
 # Initialize the FastMCP server
