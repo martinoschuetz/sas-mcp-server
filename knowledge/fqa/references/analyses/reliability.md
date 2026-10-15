@@ -45,7 +45,17 @@ times available (time in service of units without failure at the refresh date).
 - **False-Positive / Significance Check via $\beta$ Confidence Intervals (BP 3 & 4):**
   When comparing the alert build cohort against the pre-alert baseline cohort, inspect the **95 % confidence intervals for $\beta$** in the Parameter Estimates table:
   - If the $\beta$ confidence intervals **do not overlap**, the change in failure acceleration / failure mode is **statistically significant**.
-  - Also compare the **Projected Failure Rate** at the warranty horizon (e.g. 12 months, 24 months) and B-life percentiles (`B1`, `B5`, `B10`, `B20`, `B25`).
+  - Also compare the **Projected Failure Rate** at the warranty horizon (e.g. 12 months, 24 months) and B-life percentiles (`T01`/`B1`, `T05`/`B5`, `T10`/`B10`, `T20`/`B20`, `T25`/`B25`).
+- **Weibull CDF & Closed-Form Time-to-Failure (`T01`–`T25`) Formula:**
+  - Cumulative failure probability at time $t$: $F(t) = 1 - \exp[-(t / \eta)^\beta]$, where $\beta$ is the shape parameter (acceleration) and $\eta$ is the scale parameter (characteristic life).
+  - Projected time $t_x$ to reach failure proportion $F_x \in \{0.01, 0.05, 0.10, 0.20, 0.25\}$:
+    $$t_x = \eta \cdot [-\ln(1 - F_x)]^{1/\beta}$$
+  - In Emerging Issues alert tables, `Overall acceleration` and `T01`–`T25` are fitted over the **complete monitoring window** (in the unit of the selected analysis interval, e.g. months), whereas `Alert-period acceleration` (`Acceleration_AP`) is fitted strictly over **`Alert Start Date` through `Alert End Date`**.
+  - **Joint Interpretation of $\beta$ and `T01`–`T25`:**
+    1. *High $\beta > 1$ + shorter `T01`–`T25`*: Rapidly increasing wear-out reaching failure thresholds soon (highest urgency).
+    2. *High $\beta > 1$ + longer `T01`–`T25`*: Increasing wear-out pattern, but projected fleet impact is further in the future.
+    3. *Lower $\beta < 1$ + shorter `T01`–`T25`*: Early-life / batch failures appearing early without aging/wear progression.
+    4. *$\beta \approx 1$*: Constant hazard rate; investigate broad process, environment, and usage conditions.
 - **Common Cause Screening (`Analyze Separately`):** From an unadjusted Pareto of top component codes on 12–18m of warranty data, select the top 10+ bars and run Weibull Reliability with **Analyze Separately** to compile each component's 12m/24m projected rate and $\beta$ into the Common Cause prioritization matrix (workflow.md).
 
 ## Pitfalls

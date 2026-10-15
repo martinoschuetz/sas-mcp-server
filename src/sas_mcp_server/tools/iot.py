@@ -1403,13 +1403,13 @@ def register(
         ctx: Context,
         start: int = 0,
         limit: int = 10,
-        alert_id: str = None,  # pyright: ignore
-        alert_type: str = None,  # pyright: ignore
-        model_cd: str = None,  # pyright: ignore
-        cstmr_country_cd: str = None,  # pyright: ignore
-        seasonal_flag: str = None,  # pyright: ignore
-        display_status_cd: str = None,  # pyright: ignore
-        attribute_filters: dict = None,  # pyright: ignore
+        alert_id: str | None = None,
+        alert_type: str | None = None,
+        model_cd: str | None = None,
+        cstmr_country_cd: str | None = None,
+        seasonal_flag: str | None = None,
+        display_status_cd: str | None = None,
+        attribute_filters: dict | None = None,
         sort_by: str = "score",
         sort_order: str = "desc",
     ) -> dict:

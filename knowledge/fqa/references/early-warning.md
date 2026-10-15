@@ -82,22 +82,47 @@ sensitive alpha, or as Threshold analyses.
 - **Never use raw Damaged Part Number or Replaced Part Number** (~60,000–85,000 distinct values) as an EI event reporting variable. It fragments claims across superseded part numbers, starves cell counts, and explodes runtime. Use the component/object code in EI, then drill into part numbers via Pareto in Phase 1.
 - **Never use Position, Location, or Damage Code** as primary EI event reporting variables — reserve those for Data Selections, Pareto, Statistical Drivers, and Failure Relationships during RCA.
 
-## New Emerging Issues Columns (LTS 2026.09+)
+## New Emerging Issues Reliability Columns & Joint Interpretation (LTS 2026.09+)
 
-In LTS 2026.09+, the Alert table (`WMEXT`) and UI include Weibull acceleration and B-life columns that quantify both the speed and severity of each alert:
+In LTS 2026.09+, the Alert table (`WMEXT`) and UI include Weibull-based reliability columns fitted to observed failure data using two Weibull parameters:
+- **Shape parameter ($\beta$)**: Describes how the fitted failure rate changes over time ($\beta < 1$ decreasing / early-life; $\beta = 1$ constant / random; $\beta > 1$ increasing / wear, degradation, or aging) and provides the **acceleration** value.
+- **Scale parameter ($\eta$)**: Represents the characteristic life of the fitted population and drives the projected time-to-failure calculations.
 
-| Column | Meaning | Analytical Use |
+### 1. Columns and Data Windows (Critical Comparison Rule)
+Because overall columns and alert-period columns are fitted over **different data windows**, always confirm which column is being reviewed before comparing or ranking alerts:
+
+| Column | Data Window Used | What the Value Shows & Analytical Use |
 |---|---|---|
-| `Acceleration-Overall` | Weibull shape parameter ($\beta$) estimated across the **complete monitoring window** | Measures the overall failure-mode slope across all builds in the monitoring window |
-| `Acceleration-Alert Period` | Weibull shape parameter ($\beta$) estimated strictly between `Alert Start Date` and `Alert End Date` | Measures how fast failures are accelerating inside the flagged alert cohort ($\beta > 1$ = accelerating wear-out/runaway issue; $\beta < 1$ = early-life infant mortality) |
-| `Events-Overall` | Total events across the complete monitoring window | Context for total volume vs. alert-period volume |
-| `Events-Alert Period` | Events occurring within the `Alert Start Date` to `Alert End Date` window | Direct size of the anomaly |
-| `Alert Duration (Months)` | Number of months between `Alert Start Date` and `Alert End Date` | Distinguishes a 1-month batch spike from a sustained multi-month design/process issue |
-| `Time To 1 Pct Failure` (`B1`) | Estimated time in service (in analysis interval units, typically months) until **1 %** of the cohort fails | Early warning severity benchmark for high-cost or safety-critical components |
-| `Time to 5 Pct Failure` (`B5`) | Estimated time in service until **5 %** of the cohort fails | Standard reliability milestone |
-| `Time to 10 Pct Failure` (`B10`) | Estimated time in service until **10 %** of the cohort fails | Industry-standard B10 life metric |
-| `Time to 20 Pct Failure` (`B20`) | Estimated time in service until **20 %** of the cohort fails | Severe degradation benchmark |
-| `Time to 25 Pct Failure` (`B25`) | Estimated time in service until **25 %** of the cohort fails | Extreme fleet impact benchmark |
+| `Acceleration-Overall` (`Acceleration`) | **Complete monitoring window** | How the fitted failure rate ($\beta$) changes across the full analysis period (longer-term failure behavior). |
+| `Acceleration-Alert Period` (`Acceleration_AP`) | **`Alert Start Date` through `Alert End Date`** | How the fitted failure rate ($\beta$) changes strictly during the alert window. Essential when recent cohort behavior diverges from the longer-term pattern. |
+| `Events-Overall` | **Complete monitoring window** | Total events across the complete monitoring window. |
+| `Events-Alert Period` (`Events`) | **`Alert Start Date` through `Alert End Date`** | Events occurring within the flagged alert window. |
+| `Alert Duration (Months)` | **`Alert Start Date` through `Alert End Date`** | Number of months spanned by the alert window (1-month batch spike vs. sustained multi-month issue). |
+| `T01` (`Time To 1 Pct Failure`, `B1`) | **Complete monitoring window** | Estimated time for **1 %** ($F_x = 0.01$) of the population to fail. |
+| `T05` (`Time to 5 Pct Failure`, `B5`) | **Complete monitoring window** | Estimated time for **5 %** ($F_x = 0.05$) of the population to fail. |
+| `T10` (`Time to 10 Pct Failure`, `B10`) | **Complete monitoring window** | Estimated time for **10 %** ($F_x = 0.10$) of the population to fail. |
+| `T20` (`Time to 20 Pct Failure`, `B20`) | **Complete monitoring window** | Estimated time for **20 %** ($F_x = 0.20$) of the population to fail. |
+| `T25` (`Time to 25 Pct Failure`, `B25`) | **Complete monitoring window** | Estimated time for **25 %** ($F_x = 0.25$) of the population to fail. |
+
+> **Unit Rule for `T01`–`T25`:** The unit for `T01`, `T05`, `T10`, `T20`, and `T25` always follows the **selected analysis interval** of the Emerging Issues run. If the analysis interval is expressed in **months**, the time-to-failure values are also expressed in **months**.
+
+### 2. Closed-Form Weibull Calculation for `T01`–`T25`
+The time-to-failure values are derived from the Weibull cumulative distribution function (CDF):
+$$F(t) = 1 - \exp\left[-\left(\frac{t}{\eta}\right)^\beta\right]$$
+For a selected failure proportion $F_x \in \{0.01, 0.05, 0.10, 0.20, 0.25\}$, the equation is inverted to estimate the corresponding time $t_x$:
+$$t_x = \eta \cdot [-\ln(1 - F_x)]^{1/\beta}$$
+
+### 3. Reading Acceleration ($\beta$) and Time-to-Failure (`T01`–`T25`) Together
+Acceleration describes the **direction and speed of change** in the fitted failure pattern, while `T01`–`T25` estimate **when specific failure thresholds will be reached**. Reading both together provides a more complete prioritization view than either metric alone:
+
+| Joint Pattern | What It Indicates | Investigation & Prioritization Implication |
+|---|---|---|
+| **High acceleration ($\beta > 1$) + shorter `T01`–`T25` values** | Failures are increasing rapidly and selected failure thresholds are projected to be reached sooner. | **Highest urgency:** Runaway wear-out or degradation that will hit fleet failure milestones quickly. |
+| **High acceleration ($\beta > 1$) + longer `T01`–`T25` values** | The failure pattern is increasing over time, but the projected fleet impact is further into the future. | **Emerging aging issue:** Escalate to engineering with lead time before warranty maturity is reached. |
+| **Lower acceleration ($\beta < 1$) + shorter `T01`–`T25` values** | Failures appear early in service, but the pattern is not driven by aging or wear. | **Early-life / batch defect:** Investigate manufacturing lot, supplier batch, assembly, or pre-delivery handling. |
+| **Acceleration near 1 ($\beta \approx 1$)** | The fitted pattern is consistent with a relatively constant hazard rate over time. | **Random / broad exposure:** Requires broader investigation of process, operating environment, and usage conditions. |
+
+> **Guardrail:** These values are analytical estimates based on the available data and selected analysis interval. Always combine them with broader issue context, supporting data (`_DETAILS_` sales lag, `_WUMKR_` cell breadth), and domain knowledge rather than using them as a standalone decision rule.
 
 ## Emerging Issues properties
 
