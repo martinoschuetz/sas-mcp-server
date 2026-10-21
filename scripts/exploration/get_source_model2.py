@@ -12,4 +12,4 @@ res = client.post(f'{base_url}/SASLogon/oauth/token',
 token = res.json().get('access_token')
 headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/json'}
 res = client.get(f'{base_url}/iotAnalysis/analyses/{source_id}', headers=headers)
-print("print('Error:', res.json())
+print('Error:', res.json())
