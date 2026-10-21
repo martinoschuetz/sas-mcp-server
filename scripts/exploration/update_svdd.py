@@ -1,3 +1,4 @@
+import os
 import httpx
 import json
 
@@ -6,7 +7,7 @@ analysis_id = '21db64e2-c461-4ea2-b508-bece04182500'
 
 with httpx.Client(verify=False) as client:
     res = client.post(f'{base_url}/SASLogon/oauth/token', 
-                      data={'grant_type': 'password', 'username': 'germsz', 'password': '<REDACTED-USE-VIYA_PASSWORD-ENV-VAR>'},
+                      data={'grant_type': 'password', 'username': os.environ['VIYA_USERNAME'], 'password': os.environ['VIYA_PASSWORD']},
                       auth=('sas.cli', ''))
     token = res.json().get('access_token')
 
