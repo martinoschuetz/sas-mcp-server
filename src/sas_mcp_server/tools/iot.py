@@ -311,12 +311,21 @@ async def delete_data_selection(selection_id: str, token: str) -> None:
 async def launch_data_selection(selection_id: str, token: str, table_name: str | None = None,
                                 launch_key_dim: str | None = None,
                                 launch_app_name: str = "CAS",
-                                transpose_flag: bool = AIOT_LAUNCH_TRANSPOSE) -> dict:
+                                transpose_flag: bool = AIOT_LAUNCH_TRANSPOSE,
+                                launch_columns: list[dict] | None = None,
+                                launch_column_tables: list[str] | None = None) -> dict:
     """Triggers a launch job for a specific data selection.
 
     ``launch_key_dim`` falls back to AIOT_LAUNCH_KEY_DIM rather than being
     omitted — the service rejects a launch that names no key dimension.
+    The service also rejects a launch without columns (errorCode 76010,
+    "Specify the columns for the data selection launch."). Each column is
+    ``{"columnName", "columnTableName"}`` plus optional labels;
+    ``launch_column_tables`` defaults to the columns' tables.
     """
+    columns = list(launch_columns or [])
+    tables = list(launch_column_tables) if launch_column_tables else sorted(
+        {c["columnTableName"] for c in columns if c.get("columnTableName")})
     body: dict[str, Any] = {
         "tableName": table_name or f"DS_{selection_id.replace('-', '_')[:24]}",
         "launchAppName": launch_app_name,
@@ -324,8 +333,8 @@ async def launch_data_selection(selection_id: str, token: str, table_name: str |
         # service reports it back as a boolean. bool is an int, so a caller
         # passing either spelling lands on the same wire value.
         "transposeFlag": int(transpose_flag),
-        "launchColumnTables": [],
-        "launchColumns": [],
+        "launchColumnTables": tables,
+        "launchColumns": columns,
     }
     key_dim = launch_key_dim or AIOT_LAUNCH_KEY_DIM
     if key_dim:
@@ -1059,7 +1068,9 @@ def register(
     async def launch_data_selection_tool(selection_id: str, ctx: Context,
                                          table_name: str | None = None,
                                          launch_key_dim: str | None = None,
-                                         transpose_flag: bool = AIOT_LAUNCH_TRANSPOSE) -> dict:
+                                         transpose_flag: bool = AIOT_LAUNCH_TRANSPOSE,
+                                         launch_columns: list[dict] | None = None,
+                                         launch_column_tables: list[str] | None = None) -> dict:
         """
         Triggers a launch job for a specific data selection, loading the data into CAS for analysis.
 
@@ -1069,18 +1080,27 @@ def register(
             launch_key_dim (str, optional): Key dimension for the launch, e.g. 'ASSET', 'PRODUCT' or 'BATCH'.
                 Defaults to this deployment's AIOT_LAUNCH_KEY_DIM.
             transpose_flag (bool, optional): Whether to transpose the launched table.
+            launch_columns (list[dict], optional): Columns to launch, each
+                {"columnName": ..., "columnTableName": ...} (labels optional). Viya rejects a
+                launch without columns (errorCode 76010).
+            launch_column_tables (list[str], optional): Tables of the columns, e.g.
+                ["CLAIM", "PART", "PRODUCT"]. Defaults to the tables named in launch_columns.
         """
         logger.info("--- TOOL USED: launch_data_selection (%s) ---", selection_id)
         token = await get_token(ctx)
         return await launch_data_selection(selection_id, token, table_name=table_name,
                                            launch_key_dim=launch_key_dim,
-                                           transpose_flag=transpose_flag)
+                                           transpose_flag=transpose_flag,
+                                           launch_columns=launch_columns,
+                                           launch_column_tables=launch_column_tables)
 
     @mcp.tool()
     async def launch_data_selection_and_wait_tool(selection_id: str, ctx: Context,
                                                   table_name: str | None = None,
                                                   launch_key_dim: str | None = None,
-                                                  transpose_flag: bool = AIOT_LAUNCH_TRANSPOSE) -> dict:
+                                                  transpose_flag: bool = AIOT_LAUNCH_TRANSPOSE,
+                                                  launch_columns: list[dict] | None = None,
+                                                  launch_column_tables: list[str] | None = None) -> dict:
         """
         Launches a data selection and waits for the job to complete.
 
@@ -1090,12 +1110,19 @@ def register(
             launch_key_dim (str, optional): Key dimension for the launch, e.g. 'ASSET', 'PRODUCT' or 'BATCH'.
                 Defaults to this deployment's AIOT_LAUNCH_KEY_DIM.
             transpose_flag (bool, optional): Whether to transpose the launched table.
+            launch_columns (list[dict], optional): Columns to launch, each
+                {"columnName": ..., "columnTableName": ...} (labels optional). Viya rejects a
+                launch without columns (errorCode 76010).
+            launch_column_tables (list[str], optional): Tables of the columns, e.g.
+                ["CLAIM", "PART", "PRODUCT"]. Defaults to the tables named in launch_columns.
         """
         logger.info("--- TOOL USED: launch_data_selection_and_wait (%s) ---", selection_id)
         token = await get_token(ctx)
         return await launch_data_selection_and_wait(selection_id, token, table_name=table_name,
                                                     launch_key_dim=launch_key_dim,
-                                                    transpose_flag=transpose_flag)
+                                                    transpose_flag=transpose_flag,
+                                                    launch_columns=launch_columns,
+                                                    launch_column_tables=launch_column_tables)
 
     @mcp.tool()
     async def copy_data_selection_tool(selection_id: str, new_name: str, 

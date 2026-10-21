@@ -67,6 +67,23 @@ async def test_launch_data_selection_sends_launch_payload(mock_env_vars):
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_launch_data_selection_sends_columns(mock_env_vars):
+    """Viya rejects a launch without columns (errorCode 76010); the tables default to the columns' tables."""
+    route = respx.post(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/1/launches").mock(
+        return_value=Response(201, json={"id": "launch_1", "jobId": "job_1"})
+    )
+    cols = [{"columnName": "MODEL_CD", "columnTableName": "PRODUCT"},
+            {"columnName": "PRIM_LABOR_CD", "columnTableName": "CLAIM"}]
+    await launch_data_selection("1", "fake_token", launch_key_dim="PRODUCT", transpose_flag=False, launch_columns=cols)
+    body = json.loads(route.calls.last.request.content)
+    assert body["launchColumns"] == cols
+    assert body["launchColumnTables"] == ["CLAIM", "PRODUCT"]
+    assert body["transposeFlag"] == 0
+    await launch_data_selection("1", "fake_token", launch_columns=cols, launch_column_tables=["PRODUCT", "CLAIM", "PART"])
+    assert json.loads(route.calls.last.request.content)["launchColumnTables"] == ["PRODUCT", "CLAIM", "PART"]
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_launch_data_selection_defaults_key_dim(mock_env_vars):
     """A caller that names no key dimension still sends one -- omitting it 400s."""
     route = respx.post(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/1/launches").mock(
@@ -655,3 +672,111 @@ async def test_rca_lift_dilution_tiebreaker_and_synthesis_tools(mock_env_vars):
 
 
 
+@pytest.mark.asyncio
+@respx.mock
+async def test_launch_data_selection_mcp_tools_schema_and_execution(mock_env_vars):
+    """Deep test of launch_data_selection_tool and launch_data_selection_and_wait_tool:
+    1. Verifies FastMCP list_tools exposes launch_columns and launch_column_tables as optional parameters.
+    2. Verifies launch_data_selection_tool derives sorted launchColumnTables from 11 FQA columns and preserves optional labels.
+    3. Verifies launch_data_selection_and_wait_tool forwards launch_columns and explicit launch_column_tables and polls jobId.
+    4. Verifies backward-compatible invocation when launch_columns and launch_column_tables are omitted.
+    """
+    from fastmcp import Client, FastMCP
+    from sas_mcp_server.tools.iot import register
+
+    mcp = FastMCP("test-launch-columns")
+
+    async def fake_token(ctx):  # noqa: ARG001
+        return "fake_token"
+
+    register(mcp, fake_token)
+
+    launch_route = respx.post(
+        f"{VIYA_ENDPOINT}/dataSelection/dataSelections/ds-wb1-12345678-90ab-cdef/launches"
+    ).mock(return_value=Response(201, json={"id": "launch_wb1", "jobId": "job_wb1"}))
+
+    job_route = respx.get(f"{VIYA_ENDPOINT}/jobExecution/jobs/job_wb1").mock(
+        return_value=Response(200, json={"id": "job_wb1", "state": "completed"})
+    )
+
+    fqa_11_columns = [
+        {"columnName": "PRODUCTION_DATE", "columnTableName": "PRODUCT", "columnNameLabel": "Production Date", "columnTableNameLabel": "Product"},
+        {"columnName": "SALE_DATE", "columnTableName": "PRODUCT"},
+        {"columnName": "MODEL_YEAR", "columnTableName": "PRODUCT"},
+        {"columnName": "MODEL_CD", "columnTableName": "PRODUCT"},
+        {"columnName": "ENGINE_MODEL", "columnTableName": "PRODUCT"},
+        {"columnName": "ASSEMBLY_PLANT_CD", "columnTableName": "PRODUCT"},
+        {"columnName": "SELLING_DEALER_CD", "columnTableName": "PRODUCT"},
+        {"columnName": "CSTMR_STATE_CD", "columnTableName": "PRODUCT"},
+        {"columnName": "PRIM_REPL_PART_CD", "columnTableName": "CLAIM"},
+        {"columnName": "PRIM_LABOR_CD", "columnTableName": "CLAIM"},
+        {"columnName": "REPL_PART_CD", "columnTableName": "PART"},
+    ]
+
+    async with Client(mcp) as client:
+        # 1. Check MCP tool schema for both tools (Acceptance Check 1)
+        tools = await client.list_tools()
+        tools_by_name = {t.name: t for t in tools}
+        for tool_name in ("launch_data_selection_tool", "launch_data_selection_and_wait_tool"):
+            assert tool_name in tools_by_name
+            schema = tools_by_name[tool_name].inputSchema
+            props = schema.get("properties", {})
+            required = schema.get("required", [])
+            assert "launch_columns" in props
+            assert "launch_column_tables" in props
+            assert "launch_columns" not in required
+            assert "launch_column_tables" not in required
+            assert "76010" in props["launch_columns"].get("description", "")
+            assert "launch_columns" in props["launch_column_tables"].get("description", "")
+
+        # 2. Call launch_data_selection_tool with 11 FQA columns (derived launchColumnTables)
+        res1 = (
+            await client.call_tool(
+                "launch_data_selection_tool",
+                {
+                    "selection_id": "ds-wb1-12345678-90ab-cdef",
+                    "launch_key_dim": "PRODUCT",
+                    "transpose_flag": False,
+                    "launch_columns": fqa_11_columns,
+                },
+            )
+        ).data
+        assert res1["id"] == "launch_wb1"
+        body1 = json.loads(launch_route.calls.last.request.content)
+        assert body1["tableName"] == "DS_ds_wb1_12345678_90ab_cde"
+        assert body1["launchAppName"] == "CAS"
+        assert body1["transposeFlag"] == 0
+        assert body1["launchKeyDim"] == "PRODUCT"
+        assert body1["launchColumnTables"] == ["CLAIM", "PART", "PRODUCT"]
+        assert body1["launchColumns"] == fqa_11_columns
+
+        # 3. Call launch_data_selection_and_wait_tool with explicit launch_column_tables order and custom table_name
+        res2 = (
+            await client.call_tool(
+                "launch_data_selection_and_wait_tool",
+                {
+                    "selection_id": "ds-wb1-12345678-90ab-cdef",
+                    "table_name": "DS_CUSTOM_WB1",
+                    "launch_key_dim": "PRODUCT",
+                    "transpose_flag": True,
+                    "launch_columns": fqa_11_columns,
+                    "launch_column_tables": ["PRODUCT", "CLAIM", "PART"],
+                },
+            )
+        ).data
+        assert job_route.called
+        assert res2["state"] == "completed"
+        body2 = json.loads(launch_route.calls.last.request.content)
+        assert body2["tableName"] == "DS_CUSTOM_WB1"
+        assert body2["transposeFlag"] == 1
+        assert body2["launchColumnTables"] == ["PRODUCT", "CLAIM", "PART"]
+        assert body2["launchColumns"] == fqa_11_columns
+
+        # 4. Backward compatibility: omitting launch_columns & launch_column_tables sends []
+        await client.call_tool(
+            "launch_data_selection_tool",
+            {"selection_id": "ds-wb1-12345678-90ab-cdef"},
+        )
+        body3 = json.loads(launch_route.calls.last.request.content)
+        assert body3["launchColumns"] == []
+        assert body3["launchColumnTables"] == []
