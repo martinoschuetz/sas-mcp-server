@@ -104,7 +104,7 @@ async def test_composes_with_tier_selection():
 
 async def test_composes_with_tier_range():
     names = await _register(tiers="0-4", read_only=True)
-    assert len(names) == 29
+    assert len(names) == 30
     assert "list_compute_contexts" in names  # tier 0, read
     assert "execute_sas_code" not in names  # tier 0, write
     assert "list_mas_modules" not in names  # tier 6, not selected
