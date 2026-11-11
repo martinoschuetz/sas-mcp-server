@@ -195,6 +195,12 @@ def test_validate_sas_identifier_and_safe_path():
     from sas_mcp_server.tools.iot import _validate_safe_path, _validate_sas_identifier
 
     assert _validate_sas_identifier("QASMartStore") == "QASMartStore"
+    assert _validate_sas_identifier("562313AF", "short_id") == "562313AF"
+    assert _validate_sas_identifier("818c2846", allow_leading_digit=True) == "818c2846"
+    with pytest.raises(ValueError):
+        _validate_sas_identifier("562313AF", "table_name")
+    with pytest.raises(ValueError):
+        _validate_sas_identifier('562313AF"; quit;', "short_id")
     with pytest.raises(ValueError):
         _validate_sas_identifier('foo"; quit; data _null_;')
     assert _validate_safe_path("/export/sas-viya/homes/user/FQA") == "/export/sas-viya/homes/user/FQA"
@@ -780,3 +786,129 @@ async def test_launch_data_selection_mcp_tools_schema_and_execution(mock_env_var
         body3 = json.loads(launch_route.calls.last.request.content)
         assert body3["launchColumns"] == []
         assert body3["launchColumnTables"] == []
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_digit_leading_hex_short_id_in_fqa_tools(mock_env_vars):
+    from unittest.mock import AsyncMock, patch
+
+    from fastmcp import Client, FastMCP
+
+    from sas_mcp_server.tools.iot import register
+
+    mcp = FastMCP("iot-digit-shortid-test")
+
+    async def fake_token(ctx):  # noqa: ARG001
+        return "fake_token"
+
+    register(mcp, fake_token)
+
+    run_a = "818c2846-5c64-48c5-85b9-c5a74e778868"
+    run_b = "2070c8be-1111-2222-3333-444444444444"
+
+    respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses").mock(
+        return_value=Response(
+            200,
+            json={
+                "items": [
+                    {
+                        "id": run_a,
+                        "name": "EI Reference Run",
+                        "modelName": "EIENTERPRISE_PRODUCT",
+                        "status": "Completed",
+                        "lastRunDate": "2026-11-10T10:00:00Z",
+                    },
+                    {
+                        "id": run_b,
+                        "name": "EI Fallback ShortId Run",
+                        "modelName": "EIENTERPRISE_PRODUCT",
+                        "status": "Completed",
+                        "lastRunDate": "2026-11-10T11:00:00Z",
+                    },
+                ]
+            },
+        )
+    )
+    respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{run_a}").mock(
+        return_value=Response(
+            200,
+            json={
+                "id": run_a,
+                "shortId": "562313AF",
+                "name": "EI Reference Run",
+                "modelName": "EIENTERPRISE_PRODUCT",
+            },
+        )
+    )
+    respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{run_b}").mock(
+        return_value=Response(
+            200,
+            json={
+                "id": run_b,
+                "shortId": None,
+                "name": "EI Fallback ShortId Run",
+                "modelName": "EIENTERPRISE_PRODUCT",
+            },
+        )
+    )
+
+    alerts_a = [
+        {
+            "alert_id": "21823",
+            "alert_type": "PRODUCTIONPERIOD",
+            "score": 796.41,
+            "cost_score": 14500.0,
+            "Events": 610,
+            "Acceleration_AP": 1.38,
+            "T05": 120,
+        }
+    ]
+    alerts_b = [{"alert_id": "30001", "score": 95.0, "Events": 12, "Acceleration_AP": 0.92}]
+
+    bundled_log = (
+        "BUNDLE_RUN_START:0:EIENTERPRISE_ALERTS_562313AF\n"
+        f'BUNDLE_JSON:0: {json.dumps({"SASTableData+EIENTERPRISE_ALERTS_562313AF": alerts_a})}\n'
+        "BUNDLE_RUN_START:1:EIENTERPRISE_ALERTS_2070C8BE\n"
+        f'BUNDLE_JSON:1: {json.dumps({"SASTableData+EIENTERPRISE_ALERTS_2070C8BE": alerts_b})}\n'
+    )
+    ctx_log = (
+        f'CTX_ALERTS: {json.dumps({"SASTableData+ALERTS": alerts_a})}\n'
+        'CTX_WUMKR: {"SASTableData+WUMKR": [{"alert_id": "21823", "Events": 42, "TIS": 4}]}\n'
+    )
+    single_run_log = "\n".join(
+        f"JSON_OUT: {line}"
+        for line in json.dumps({"SASTableData+EIENTERPRISE_ALERTS_562313AF": alerts_a}, indent=2).splitlines()
+    )
+
+    mock_snippet = AsyncMock(
+        side_effect=[
+            {"log": bundled_log, "listing": ""},
+            {"log": ctx_log, "listing": ""},
+            {"log": single_run_log, "listing": ""},
+        ]
+    )
+
+    with patch("sas_mcp_server.tools.iot.run_one_snippet", mock_snippet):
+        async with Client(mcp) as client:
+            triage_res = (await client.call_tool("triage_emerging_issue_runs_tool", {})).data
+            assert triage_res["top_run"]["id"] == run_a
+            assert triage_res["top_run"]["shortId"] == "562313AF"
+            runs_by_id = {r["id"]: r for r in triage_res["runs"]["items"]}
+            assert runs_by_id[run_b]["shortId"] == "2070c8be"
+
+            ctx_res = (
+                await client.call_tool(
+                    "inspect_emerging_issue_alert_context_tool",
+                    {"analysis_id": run_a, "alert_id": "21823"},
+                )
+            ).data
+            assert ctx_res["short_id"] == "562313AF"
+            assert ctx_res["alert_id"] == "21823"
+
+            cc_res = (
+                await client.call_tool("screen_common_cause_candidates_tool", {"analysis_id": run_a})
+            ).data
+            assert cc_res["candidates"]["returned_count"] == 1
+            assert cc_res["candidates"]["items"][0]["alert_id"] == "21823"
+

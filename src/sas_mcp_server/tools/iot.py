@@ -23,13 +23,20 @@ from ._common import make_session_helpers
 data_selection_cache = TTLCache(maxsize=100, ttl=60)
 
 _SAS_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]{0,63}$")
+_SAS_SUFFIX_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$")
 _SAFE_PATH_RE = re.compile(r"^[A-Za-z0-9_./:-]+$")
 
 
-def _validate_sas_identifier(value: str, label: str = "identifier") -> str:
-    """Validate that *value* is a safe SAS/CAS identifier with no quotes or semicolons."""
+def _validate_sas_identifier(
+    value: str,
+    label: str = "identifier",
+    *,
+    allow_leading_digit: bool = False,
+) -> str:
+    """Validate that *value* is a safe SAS/CAS identifier (or suffix token) with no quotes or semicolons."""
     cleaned = (value or "").strip()
-    if not cleaned or not _SAS_IDENTIFIER_RE.match(cleaned):
+    pattern = _SAS_SUFFIX_RE if (allow_leading_digit or label == "short_id") else _SAS_IDENTIFIER_RE
+    if not cleaned or not pattern.match(cleaned):
         raise ValueError(f"Invalid SAS {label}: {value!r}")
     return cleaned
 
@@ -1466,12 +1473,17 @@ def register(
 
         # 1. Retrieve the analysis definition to check its shortId
         analysis = await get_iot_analysis(analysis_id, token)
-        short_id = analysis.get("shortId")
-        if not short_id:
-            short_id = analysis_id.split("-")[0]
+        short_id = _validate_sas_identifier(
+            str(analysis.get("shortId") or analysis_id.split("-")[0]).strip(),
+            "short_id",
+            allow_leading_digit=True,
+        )
 
-        model_name = analysis.get("modelName", "EIENTERPRISE_PRODUCT")
-        prefix = model_name.split("_")[0] if "_" in model_name else model_name
+        model_name = str(analysis.get("modelName") or "EIENTERPRISE_PRODUCT")
+        prefix = _validate_sas_identifier(
+            (model_name.split("_")[0] if "_" in model_name else model_name).upper(),
+            "prefix",
+        )
         default_table = _validate_sas_identifier(f"{prefix}_ALERTS_{short_id}".upper(), "table")
 
         # 2. Discover and export the alerts table in a single compute snippet
@@ -5163,7 +5175,7 @@ def register(
         run_short_map: dict[str, str] = {}
         for idx, (rid, rmeta) in enumerate(detailed_runs.items()):
             short_id = str(rmeta.get("shortId") or rid.split("-")[0]).strip()
-            safe_short = _validate_sas_identifier(short_id, "short_id")
+            safe_short = _validate_sas_identifier(short_id, "short_id", allow_leading_digit=True)
             model_name = str(rmeta.get("modelName") or "EIENTERPRISE_PRODUCT")
             prefix = model_name.split("_")[0] if "_" in model_name else model_name
             default_tbl = _validate_sas_identifier(f"{prefix}_ALERTS_{safe_short}".upper(), "table")
@@ -5373,6 +5385,7 @@ def register(
         short_id = _validate_sas_identifier(
             str(analysis.get("shortId") or analysis_id.split("-")[0]).strip(),
             "short_id",
+            allow_leading_digit=True,
         )
         model_name = str(analysis.get("modelName") or "EIENTERPRISE_PRODUCT")
         prefix = _validate_sas_identifier(
