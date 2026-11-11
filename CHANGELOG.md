@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **SAS Field Quality Analytics (`iot.py`): digit-leading hex `shortId` suffixes are accepted in Emerging Issues run tools.** `get_iot_analysis_details_tool` returns hexadecimal `shortId` suffixes (and 8-character UUID prefixes when `shortId` is absent) that begin with a digit `0`–`9` roughly 62% of the time (for example `"562313AF"`), which are appended after an alphabetic table prefix (`EIENTERPRISE_ALERTS_562313AF`) rather than used as standalone SAS identifiers. `_validate_sas_identifier` rejected any leading digit, breaking `list_alerts_for_run_tool`, `triage_emerging_issue_runs_tool`, `inspect_emerging_issue_alert_context_tool`, and `screen_common_cause_candidates_tool` on those runs. `_validate_sas_identifier` now validates suffixes with `_SAS_SUFFIX_RE` (`allow_leading_digit=True` / `label="short_id"`) while keeping standalone SAS table, caslib, column, and prefix checks strictly `[A-Za-z_]`-leading.
+
 ## [1.19.1] - 2026-10-30
 
 ### Changed
