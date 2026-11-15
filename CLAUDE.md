@@ -4,7 +4,7 @@ Welcome to the SAS MCP Server project!
 When developing in this project or acting as a SAS Viya / Analytics for IoT domain agent, adhere to the following standards and skill playbooks.
 
 ## Core Architectural Guidelines
-- **Tool Development**: All tools are grouped into tiers (`0`–`14`). When creating new tools, add them to the appropriate tier module in `src/sas_mcp_server/tools/` and classify them correctly in `src/sas_mcp_server/tools/_access.py` as `READ_ONLY_TOOLS` or `WRITE_TOOLS`.
+- **Tool Development**: All tools are grouped into tiers (`0`–`16`). When creating new tools, add them to the appropriate tier module in `src/sas_mcp_server/tools/` and classify them correctly in `src/sas_mcp_server/tools/_access.py` as `READ_ONLY_TOOLS` or `WRITE_TOOLS`.
 - **Testing**: Ensure that tool counts are updated in `tests/test_read_only.py` and `tests/test_tier_selection.py` when adding new tools.
 
 ## Agent Skills & Domain Playbooks (Extremely Important)

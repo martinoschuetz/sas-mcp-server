@@ -44,6 +44,7 @@ from . import (
     glossary,
     iot,
     jobs,
+    model_lifecycle,
     model_scoring,
     reports,
     workbench,
@@ -72,11 +73,12 @@ _TIER_REGISTRARS: dict[int, Registrar] = {
     8: workbench.register,
     9: glossary.register,
     10: decisioning_content.register,
-    11: iot.register,
-    12: genai.register,
-    13: esp.register,
-    14: caf.register,
-    15: knowledge.register,
+    11: model_lifecycle.register,
+    12: iot.register,
+    13: genai.register,
+    14: esp.register,
+    15: caf.register,
+    16: knowledge.register,
 }
 
 TIER_TITLES: dict[int, str] = {
@@ -91,11 +93,12 @@ TIER_TITLES: dict[int, str] = {
     8: "Workbench (Execute Code Only)",
     9: "Business Glossary (SAS Data Governance)",
     10: "Decisioning Advanced (SAS Intelligent Decisioning)",
-    11: "IoT & FQA (Field Quality Analytics)",
-    12: "Generative AI",
-    13: "Event Stream Processing (ESP)",
-    14: "Custom Analysis Framework (AIoT analysis types)",
-    15: "Knowledge Base (Domain Playbooks)",
+    11: "Model Lifecycle (SAS Model Manager)",
+    12: "IoT & FQA (Field Quality Analytics)",
+    13: "Generative AI",
+    14: "Event Stream Processing (ESP)",
+    15: "Custom Analysis Framework (AIoT analysis types)",
+    16: "Knowledge Base (Domain Playbooks)",
 }
 
 ALL_TIERS: frozenset[int] = frozenset(_TIER_REGISTRARS)
