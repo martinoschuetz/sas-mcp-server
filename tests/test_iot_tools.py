@@ -961,8 +961,9 @@ async def test_caf_step_parameter_update_etag_and_step_job_polling(mock_env_vars
         if request.headers.get("If-Match") != 'W/"etag-svdd-42"':
             return Response(428, json={"message": "Missing If-Match"})
         payload = json.loads(request.content)
-        # Full step list must be preserved on PUT
-        assert len(payload["steps"]) == 2
+        # PUT must send [matched_step] as steps[0] so sas-iot-analysis persists downstream step inputs
+        assert len(payload["steps"]) == 1
+        assert payload["steps"][0]["id"] == step2_id
         return Response(200, json=payload)
 
     respx.put(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{analysis_id}").mock(side_effect=handle_put)

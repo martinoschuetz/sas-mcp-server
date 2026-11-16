@@ -863,21 +863,25 @@ def register(
             etag = resp_get.headers.get("ETag") or "*"
             target = resp_get.json()
 
-            step_found = False
+            matched_step = None
             for s in target.get("steps", []):
                 if s.get("id") == step_id or s.get("modelStepId") == step_id:
-                    step_found = True
+                    matched_step = s
                     for p in s.get("inputParameters", []):
                         p_name = p.get("parameterName")
                         if p_name in parameters:
                             p["parameterValue"] = str(parameters[p_name])
                     break
-            if not step_found:
+            if matched_step is None:
                 raise ValueError(f"Step {step_id} not found in analysis {analysis_id}")
 
+            # sas-iot-analysis only persists inputParameters for steps[0] on PUT while keeping
+            # all other steps in mfgapp.analysis_ins_step intact; send [matched_step] so
+            # downstream multi-step updates (Step 2 / Step 3+) are reliably persisted.
+            put_payload = {**target, "steps": [matched_step]}
             res = await client.put(
                 analysis_url,
-                json=target,
+                json=put_payload,
                 headers={
                     "Accept": "application/vnd.sas.iot.analysis+json",
                     "Content-Type": "application/vnd.sas.iot.analysis+json",
