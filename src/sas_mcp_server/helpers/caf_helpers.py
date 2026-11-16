@@ -59,6 +59,7 @@ from .caf_registry import (
     KEY_GROUPS,
     LOOKUP_TYPES,
     MINIMAL_TEMPLATE,
+    MODEL_ACCEPT,
     OUTPUT_CONTRACT,
     OUTPUT_PARAM_RE,
     OUTPUT_TABLE_RE,
@@ -1377,6 +1378,12 @@ async def upload_package(
     """
     full_url = f"{VIYA_ENDPOINT}{url}"
     attempts: list[dict[str, Any]] = []
+    base_headers: dict[str, str] = {"Accept": MODEL_ACCEPT}
+
+    if method.upper() == "PUT":
+        get_resp = await client.get(full_url, headers={"Accept": MODEL_ACCEPT})
+        raise_for_viya_status(get_resp)
+        base_headers["If-Match"] = get_resp.headers.get("etag") or "*"
 
     for strategy in UPLOAD_STRATEGIES:
         if strategy == "multipart":
@@ -1384,19 +1391,19 @@ async def upload_package(
                 method,
                 full_url,
                 files={"file": (filename, data, "application/zip")},
-                headers={"Accept": "application/json"},
+                headers=dict(base_headers),
             )
         else:
             request = client.build_request(
                 method,
                 full_url,
                 content=data,
-                headers={"Content-Type": "application/zip", "Accept": "application/json"},
+                headers={"Content-Type": "application/zip", **base_headers},
             )
         resp = await client.send(request)
         if resp.status_code < 400:
             body: dict[str, Any] = {}
-            if resp.content and resp.headers.get("content-type", "").startswith("application/json"):
+            if resp.content and "json" in resp.headers.get("content-type", "").lower():
                 body = resp.json()
             return {"status": "ok", "http_status": resp.status_code, "encoding": strategy, "response": body}
         attempts.append({"encoding": strategy, "http_status": resp.status_code, "detail": resp.text[:500]})

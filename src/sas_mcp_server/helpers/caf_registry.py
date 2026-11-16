@@ -59,6 +59,7 @@ COLLECTION_ACCEPT = "application/vnd.sas.collection+json"
 # among them.)
 MODEL_UI_XML_ACCEPT = "application/vnd.sas.iot.analysis.model.ui+xml"
 MODEL_DETAIL_MEDIA_TYPE = "application/vnd.sas.iot.analysis.model.detail"
+MODEL_ACCEPT = "application/vnd.sas.iot.analysis.model+json, application/json, */*"
 
 # The published OpenAPI spec documents no requestBody media type for POST /models
 # or PUT /models/{name}, so the upload encoding is not knowable from the contract.

@@ -912,3 +912,120 @@ async def test_digit_leading_hex_short_id_in_fqa_tools(mock_env_vars):
             assert cc_res["candidates"]["returned_count"] == 1
             assert cc_res["candidates"]["items"][0]["alert_id"] == "21823"
 
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_caf_step_parameter_update_etag_and_step_job_polling(mock_env_vars):
+    """Verify multi-step CAF execution tools send If-Match on PUT and poll the real
+    jobExecution/status URLs rather than the non-existent /steps/{id}/jobs/{id}."""
+    from fastmcp import Client, FastMCP
+    from httpx import Response
+
+    from sas_mcp_server.config import VIYA_ENDPOINT
+    from sas_mcp_server.tools.iot import register
+
+    mcp = FastMCP("iot-caf-step-test")
+
+    async def get_token(_ctx):
+        return "fake-token"
+
+    register(mcp, get_token)
+
+    analysis_id = "anl-svdd-1"
+    step1_id = "step-uuid-1"
+    step2_id = "step-uuid-2"
+
+    respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{analysis_id}").mock(
+        return_value=Response(
+            200,
+            headers={"ETag": 'W/"etag-svdd-42"'},
+            json={
+                "id": analysis_id,
+                "steps": [
+                    {
+                        "id": step1_id,
+                        "modelStepId": "SVDD_NEW_1",
+                        "inputParameters": [{"parameterName": "PERIODICITY", "parameterValue": "1"}],
+                    },
+                    {
+                        "id": step2_id,
+                        "modelStepId": "SVDD_NEW_2",
+                        "inputParameters": [{"parameterName": "TARGETVAR", "parameterValue": ""}],
+                    },
+                ],
+            },
+        )
+    )
+
+    def handle_put(request):
+        if request.headers.get("If-Match") != 'W/"etag-svdd-42"':
+            return Response(428, json={"message": "Missing If-Match"})
+        payload = json.loads(request.content)
+        # Full step list must be preserved on PUT
+        assert len(payload["steps"]) == 2
+        return Response(200, json=payload)
+
+    respx.put(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{analysis_id}").mock(side_effect=handle_put)
+
+    # Case 1: Live Viya returns step summary (id == step_id) with rel='job' link
+    respx.post(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{analysis_id}/steps/{step1_id}/jobs").mock(
+        return_value=Response(
+            200,
+            json={
+                "id": step1_id,
+                "status": "RUNNING",
+                "links": [
+                    {"rel": "job", "href": "/jobExecution/jobs/job-exec-99"},
+                    {
+                        "rel": "analysis-step-status",
+                        "href": f"/iotAnalysis/analysisActions/status?stepId={step1_id}",
+                    },
+                ],
+            },
+        )
+    )
+    respx.get(f"{VIYA_ENDPOINT}/jobExecution/jobs/job-exec-99").mock(
+        return_value=Response(200, json={"id": "job-exec-99", "state": "completed"})
+    )
+
+    # Case 2: Fallback when rel='job' has not materialized yet (id == step_id, no links)
+    respx.post(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{analysis_id}/steps/{step2_id}/jobs").mock(
+        return_value=Response(200, json={"id": step2_id, "status": "RUNNING"})
+    )
+    respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analysisActions/status?stepId={step2_id}").mock(
+        return_value=Response(200, json={"id": step2_id, "status": "COMPLETED"})
+    )
+
+    async with Client(mcp) as client:
+        updated = (
+            await client.call_tool(
+                "update_analysis_step_parameters_tool",
+                {
+                    "analysis_id": analysis_id,
+                    "step_id": "SVDD_NEW_2",
+                    "parameters": {"TARGETVAR": "CAT_DEGC"},
+                },
+            )
+        ).data
+        step2 = next(s for s in updated["steps"] if s["id"] == step2_id)
+        assert step2["inputParameters"][0]["parameterValue"] == "CAT_DEGC"
+
+        run1 = (
+            await client.call_tool(
+                "run_analysis_step_and_wait_tool",
+                {"analysis_id": analysis_id, "step_id": step1_id},
+            )
+        ).data
+        assert run1["id"] == "job-exec-99"
+        assert run1["state"] == "completed"
+
+        run2 = (
+            await client.call_tool(
+                "run_analysis_step_and_wait_tool",
+                {"analysis_id": analysis_id, "step_id": step2_id},
+            )
+        ).data
+        assert run2["id"] == step2_id
+        assert run2["status"] == "COMPLETED"
+
+

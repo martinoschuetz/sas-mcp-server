@@ -443,6 +443,31 @@ async def create_iot_analysis(
                                 accept="application/json")
 
 
+def _resolve_step_poll_url(run_res: dict[str, Any], analysis_id: str, step_id: str) -> str | None:
+    """Resolve the pollable URL from a ``POST .../steps/{stepId}/jobs`` response.
+
+    Live Viya returns an analysis-step summary whose ``id`` equals *step_id* (not
+    a job UUID) and exposes the compute job under ``links[rel='job']`` plus step
+    status under ``links[rel='analysis-step-status']``. Constructing
+    ``.../steps/{step_id}/jobs/{step_id}`` hits HTTP 404.
+    """
+    links = run_res.get("links") or []
+    for rel in ("job", "analysis-step-status"):
+        for link in links:
+            if link.get("rel") == rel:
+                target = link.get("href") or link.get("uri")
+                if target:
+                    return str(target)
+    if job_id := run_res.get("jobId"):
+        return f"/jobExecution/jobs/{job_id}"
+    raw_id = run_res.get("id")
+    if raw_id:
+        if raw_id == step_id:
+            return f"/iotAnalysis/analysisActions/status?stepId={step_id}"
+        return f"/iotAnalysis/analyses/{analysis_id}/steps/{step_id}/jobs/{raw_id}"
+    return None
+
+
 async def create_and_run_analysis(
     name: str,
     model_name: str,
@@ -514,14 +539,18 @@ async def create_and_run_analysis(
         # 4. Trigger the job
         step_id = steps[0]["id"] if steps else analysis_id
         job_url = f"/iotAnalysis/analyses/{analysis_id}/steps/{step_id}/jobs"
-        run_res = await _post_json(job_url, client, body={}, accept="application/json")
-        
+        run_res = await _post_json(
+            job_url,
+            client,
+            body={},
+            accept="application/vnd.sas.iot.analysis.step.summary+json, application/json, */*",
+        )
+
         # 5. Wait for completion if requested
         if wait_for_completion:
-            job_id = run_res.get("id")
-            if job_id:
-                job_exec_url = f"/iotAnalysis/analyses/{analysis_id}/steps/{step_id}/jobs/{job_id}"
-                poll_res = await poll_job(job_exec_url, token)
+            poll_url = _resolve_step_poll_url(run_res, analysis_id, step_id)
+            if poll_url:
+                poll_res = await poll_job(poll_url, token)
                 return {
                     "analysis": analysis_details,
                     "job": poll_res
@@ -825,7 +854,15 @@ def register(
         token = await get_token(ctx)
         
         async with make_client(token) as client:
-            target = await _get_json(f"/iotAnalysis/analyses/{analysis_id}", client, accept="application/vnd.sas.iot.analysis+json")
+            analysis_url = f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{analysis_id}"
+            resp_get = await client.get(
+                analysis_url,
+                headers={"Accept": "application/vnd.sas.iot.analysis+json"},
+            )
+            resp_get.raise_for_status()
+            etag = resp_get.headers.get("ETag") or "*"
+            target = resp_get.json()
+
             step_found = False
             for s in target.get("steps", []):
                 if s.get("id") == step_id or s.get("modelStepId") == step_id:
@@ -837,11 +874,16 @@ def register(
                     break
             if not step_found:
                 raise ValueError(f"Step {step_id} not found in analysis {analysis_id}")
-                
+
             res = await client.put(
-                f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{analysis_id}",
+                analysis_url,
                 json=target,
-                headers={"Accept": "application/vnd.sas.iot.analysis+json", "Content-Type": "application/vnd.sas.iot.analysis+json", "Authorization": f"Bearer {token}"}
+                headers={
+                    "Accept": "application/vnd.sas.iot.analysis+json",
+                    "Content-Type": "application/vnd.sas.iot.analysis+json",
+                    "If-Match": etag,
+                    "Authorization": f"Bearer {token}",
+                },
             )
             res.raise_for_status()
             return res.json()
@@ -853,15 +895,19 @@ def register(
         """
         logger.info("--- TOOL USED: run_analysis_step_and_wait_tool (%s, %s) ---", analysis_id, step_id)
         token = await get_token(ctx)
-        
+
         async with make_client(token) as client:
             job_url = f"/iotAnalysis/analyses/{analysis_id}/steps/{step_id}/jobs"
-            run_res = await _post_json(job_url, client, body={}, accept="application/json")
-            job_id = run_res.get("id")
-            if not job_id:
-                raise RuntimeError("Failed to obtain a job ID when launching step.")
-            job_exec_url = f"/iotAnalysis/analyses/{analysis_id}/steps/{step_id}/jobs/{job_id}"
-            return await poll_job(job_exec_url, token, poll_interval=2.0)
+            run_res = await _post_json(
+                job_url,
+                client,
+                body={},
+                accept="application/vnd.sas.iot.analysis.step.summary+json, application/json, */*",
+            )
+            poll_url = _resolve_step_poll_url(run_res, analysis_id, step_id)
+            if not poll_url:
+                raise RuntimeError("Failed to obtain a pollable job or step status URL when launching step.")
+            return await poll_job(poll_url, token, poll_interval=2.0)
 
 
 

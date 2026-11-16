@@ -190,12 +190,20 @@ class FakeViya:
                 return httpx.Response(200, json={"items": [{"id": "DEMO_PROFILE_STP_1", "order": 1}]})
             if request.headers.get("Accept") == "application/zip":
                 return httpx.Response(200, content=package_bytes())
-            return httpx.Response(200, json=MODELS["items"][0])
+            return httpx.Response(200, json=MODELS["items"][0], headers={"ETag": 'W/"etag-demo-1"'})
         if method == "GET" and path == "/iotAnalysisModels/lookups":
             return httpx.Response(
                 200, json={"items": [{"id": "DOMAIN", "name": "Domain", "type": "RESTAPI"}]}
             )
         if method == "POST" and path == "/iotAnalysisModels/models":
+            accept = request.headers.get("Accept", "")
+            if "application/vnd.sas.iot.analysis.model+json" not in accept and "*/*" not in accept:
+                return httpx.Response(
+                    406,
+                    json={
+                        "message": "Not Acceptable application/vnd.sas.iot.analysis.model+json application/zip"
+                    },
+                )
             if self.overrides.get("forbid_post"):
                 # The live deployment's wording, verbatim.
                 return httpx.Response(
@@ -209,7 +217,26 @@ class FakeViya:
                 return httpx.Response(415, json={"message": "unsupported"})
             return httpx.Response(201, json={"name": "DEMO_PROFILE"})
         if method == "PUT" and path.startswith("/iotAnalysisModels/models/"):
-            return httpx.Response(200, json={"name": "DEMO_PROFILE"})
+            accept = request.headers.get("Accept", "")
+            if "application/vnd.sas.iot.analysis.model+json" not in accept and "*/*" not in accept:
+                return httpx.Response(
+                    406,
+                    json={
+                        "message": "Not Acceptable application/vnd.sas.iot.analysis.model+json application/zip"
+                    },
+                )
+            if not request.headers.get("If-Match"):
+                return httpx.Response(
+                    428,
+                    json={"message": 'The header field "If-Match" is missing or does not have a value.'},
+                )
+            if self.overrides.get("put_text_plain_202"):
+                return httpx.Response(202, text="{}", headers={"Content-Type": "text/plain; charset=utf-8"})
+            return httpx.Response(
+                202,
+                json={"name": "DEMO_PROFILE"},
+                headers={"Content-Type": "application/vnd.sas.iot.analysis.model+json"},
+            )
         if method == "PATCH" and path.startswith("/iotAnalysisModels/models/"):
             return httpx.Response(200, json={"state": request.url.params.get("state")})
         if method == "DELETE" and path.startswith("/iotAnalysisModels/models/"):
@@ -795,8 +822,24 @@ async def test_update_puts_to_the_named_model():
             await client.call_tool("update_analysis_type", {"name": "DEMO_PROFILE", "spec": GOOD_SPEC})
         )
     assert result["status"] == "ok"
+    assert result["response"] == {"name": "DEMO_PROFILE"}
     puts = [r for r in fake.requests if r.method == "PUT"]
     assert puts[0].url.path == "/iotAnalysisModels/models/DEMO_PROFILE"
+    assert puts[0].headers.get("If-Match") == 'W/"etag-demo-1"'
+    assert "application/vnd.sas.iot.analysis.model+json" in puts[0].headers.get("Accept", "")
+
+
+async def test_update_handles_live_202_text_plain_response():
+    """Observed live on PUT /iotAnalysisModels/models/{name}: HTTP 202 with
+    Content-Type: text/plain; charset=utf-8 and body '{}'."""
+    fake = FakeViya(put_text_plain_202=True)
+    async with caf_client(fake) as client:
+        result = result_of(
+            await client.call_tool("update_analysis_type", {"name": "DEMO_PROFILE", "spec": GOOD_SPEC})
+        )
+    assert result["status"] == "ok"
+    assert result["http_status"] == 202
+    assert result["response"] == {}
 
 
 async def test_set_state_rejects_anything_but_active_or_inactive():

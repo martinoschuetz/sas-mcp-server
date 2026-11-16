@@ -30,6 +30,7 @@ from ..helpers import caf_helpers as caf
 from ..helpers.caf_registry import (
     COLLECTION_ACCEPT,
     LOOKUPS_PATH,
+    MODEL_ACCEPT,
     MODEL_PATH,
     MODEL_STEPS_PATH,
     MODELS_PATH,
@@ -569,7 +570,7 @@ def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> No
             resp = await client.patch(
                 f"{VIYA_ENDPOINT}{MODEL_PATH.format(name=name)}",
                 params={"state": state},
-                headers={"Accept": "application/json"},
+                headers={"Accept": MODEL_ACCEPT},
             )
             raise_for_viya_status(resp)
             return {"status": "ok", "name": name, "state": state, "http_status": resp.status_code}
