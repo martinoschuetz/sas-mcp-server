@@ -298,8 +298,10 @@ def _render_form_item(item: Any, indent: str) -> str:
         item = {"ref": item}
     ref = esc(_pick(item, "ref", default=""))
     kind = _pick(item, "type")
+    dtext = _pick(item, "display_text", "displayText")
     type_attr = f' type="{esc(kind)}"' if kind else ""
-    return f'{indent}<FormItem ref="{ref}"{type_attr}></FormItem>'
+    dtext_attr = f' displayText="{esc(dtext)}"' if dtext is not None else ""
+    return f'{indent}<FormItem ref="{ref}"{type_attr}{dtext_attr}></FormItem>'
 
 
 def _render_containers(containers: list[dict[str, Any]], indent: str) -> list[str]:
@@ -459,13 +461,17 @@ def _parse_lookup(node: ET.Element) -> dict[str, Any] | None:
     }
     rest = lookup.find("Rest")
     if rest is not None:
-        out["rest"] = {
+        rest_dict: dict[str, Any] = {
             "method": _text(rest, "Method", "GET"),
             "uri": _text(rest, "URI"),
             "headers": _text(rest, "Headers"),
             "key_path": _text(rest, "resKeyName").strip(),
             "value_path": _text(rest, "resValueName").strip(),
         }
+        body = _text(rest, "Body")
+        if body:
+            rest_dict["body"] = body
+        out["rest"] = rest_dict
     cas = lookup.find("CASTable")
     if cas is not None:
         out["cas_table"] = {
@@ -493,7 +499,15 @@ def _parse_containers(step: ET.Element) -> list[dict[str, Any]]:
                 {
                     "display_text": form.get("displayText", ""),
                     "items": [
-                        {"ref": item.get("ref", ""), "type": item.get("type")}
+                        (
+                            {
+                                "ref": item.get("ref", ""),
+                                "type": item.get("type"),
+                                "display_text": item.get("displayText"),
+                            }
+                            if item.get("displayText") is not None
+                            else {"ref": item.get("ref", ""), "type": item.get("type")}
+                        )
                         for item in form.findall("FormItem")
                     ],
                 }
@@ -594,6 +608,9 @@ def parse_input_xml(xml: str) -> dict[str, Any]:
                 "actions": actions,
             }
         )
+    zip_mod = _text(root, "ZipModifiedAt")
+    if zip_mod:
+        spec["zip_modified_at"] = zip_mod
     return spec
 
 
