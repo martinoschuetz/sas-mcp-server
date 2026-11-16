@@ -4,7 +4,7 @@ A Model Context Protocol (MCP) server for executing SAS code, training AutoML pr
 
 ## Features
 
-- 137 tools across 12 selectable tiers, spanning the Analytics Life Cycle on SAS Viya
+- 243 tools across 17 selectable tiers (137 in tiers 0–11 from upstream `sassoftware/sas-mcp-server`, 106 in this fork's tiers 12–16), spanning the Analytics Life Cycle on SAS Viya
 - Interactive views (MCP Apps) for data, SAS logs and glossary editing in clients that render them — Claude, ChatGPT, Microsoft 365 Copilot, VS Code, Cursor
 - Prompt Templates for improving your SAS Code
 - OAuth2 authentication with PKCE flow
@@ -167,6 +167,11 @@ Tools are grouped into numbered tiers. By default the server exposes all of them
 | 9 | Business Glossary (SAS Data Governance) |
 | 10 | Decisioning Advanced (SAS Intelligent Decisioning) — needs Tier 7 |
 | 11 | Model Lifecycle (SAS Model Manager) |
+| 12 | IoT & FQA (Field Quality Analytics) |
+| 13 | Generative AI |
+| 14 | Event Stream Processing (ESP) |
+| 15 | Custom Analysis Framework (AIoT analysis types) |
+| 16 | Knowledge Base (Domain Playbooks) |
 
 ```sh
 # Example: expose only compute/discovery/data-ops and reporting
@@ -175,7 +180,7 @@ MCP_TIERS=0-3 uv run app
 
 ### Read-only mode
 
-Set `MCP_READ_ONLY=true` to expose only tools that neither change server-side state nor cause server-side work — 64 of the 137 tools. Withheld tools are never registered, so they are absent from the client's tool list entirely: the model cannot see them, so it cannot attempt them.
+Set `MCP_READ_ONLY=true` to expose only tools that neither change server-side state nor cause server-side work — 111 of the 243 tools. Withheld tools are never registered, so they are absent from the client's tool list entirely: the model cannot see them, so it cannot attempt them.
 
 This is a filter over the tiers, not a tier of its own — the read/write split cuts across every tier (Tier 3 has both `get_report` and `delete_report`). The two settings compose:
 
@@ -453,6 +458,13 @@ The steps after a model is trained: register it, keep it in a project, make it t
 - **list_genai_sources** / **list_genai_llms**: Discover available data sources and Large Language Models (LLMs) configured in Viya.
 - **query_genai_agent**: Query a specific GenAI retrieval agent with a prompt, supporting session IDs for continuing existing conversations.
 
+#### Tier 14 — Event Stream Processing (ESP)
+- **esp_get_project_xml**: Fetch the XML of a project from ESP Studio.
+- **esp_deploy_project**: Create or replace an ESP project from XML.
+- **esp_delete_project**: Delete an ESP project.
+
+Authoring rules for agents are in the `sas-esp` skill (`knowledge/esp/`).
+
 #### Tier 15 — Custom Analysis Framework (AIoT analysis types)
 
 Tier 12 runs the analyses a deployment already offers. This tier builds the **types** those analyses are instances of — the input form, the SAS code, and the Visual Analytics report the results render into — packaged as the zip `/iotAnalysisModels` transports. The format fails in a particular way: a report token with no producer renders a blank page and raises nothing, so these tools validate before they upload and report what is wrong in terms of the fix. The vocabularies they check against were extracted from 34 shipped packages, every one of which round-trips through the renderer.
@@ -476,6 +488,12 @@ Tier 12 runs the analyses a deployment already offers. This tier builds the **ty
 - **delete_analysis_type**: Remove a type permanently
 
 Authoring rules for agents are in `.agents/rules/caf.md`.
+
+#### Tier 16 — Knowledge Base (Domain Playbooks)
+The domain skills under `knowledge/` (FQA, CAF, ESP, forecasting, API, SAS, standards), served to any MCP client, including ones without access to the repository.
+- **list_knowledge_domains**: The domains with their skill name, trigger description and entry topics.
+- **read_knowledge_topic**: One topic of a domain, e.g. `SKILL` or `references/population-scoping`.
+- **search_knowledge**: Search a domain's files for a pattern.
 
 ### Prompt Templates
 
@@ -731,7 +749,7 @@ tsv, and `file_path`/`data_format` coverage needs no extra deps. Generating a
 `sas7bdat`/`sashdat` fixture requires SAS itself, so those two formats are covered by
 unit-level payload tests only, not live.
 
-Every one of the 137 tools and 9 prompt templates has an integration test, enforced by the
+Every one of the 137 upstream tools (tiers 0–11) and 9 prompt templates has an integration test, and so do 65 of the fork's 106 tools; the other 41 (in the IoT & FQA and Custom Analysis Framework tiers) are not yet in the coverage map, so a live integration run currently fails the first of these guards. Coverage is enforced by the
 `test_every_tool_has_integration_coverage` / `test_every_prompt_has_integration_coverage`
 guards — adding a new tool or prompt without integration coverage fails the suite. The
 resource-dependent tests discover real targets on the instance: `score_data` scores the most

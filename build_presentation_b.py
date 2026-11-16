@@ -260,7 +260,7 @@ def build_presentation_b():
     s3 = prs.slides.add_slide(layout_content)
     set_slide_header(
         s3,
-        "SAS Viya MCP Server: Modular 15-Tier Architecture",
+        "SAS Viya MCP Server: Modular 17-Tier Architecture",
         "Enterprise Concurrency, Containerized Deployment on SAS RAM, and High-Throughput REST/CAS Gateways"
     )
 
@@ -279,14 +279,14 @@ def build_presentation_b():
 
     add_card(
         s3, margin_x_3 + card_w_3 + gap_3, card_y, card_w_3, card_h, c_teal,
-        "Modular 15-Tier Tool System",
+        "Modular 17-Tier Tool System",
         [
             ("Foundation Tiers (0–4)", "Session management, CAS data exploration, dynamic PROC execution, and batch job status monitoring."),
             ("Analytics Tiers (5–8)", "Automated Machine Learning (AutoML), Visual Analytics report authoring, Model Scoring (MAS), and Decisioning flows."),
-            ("Domain Tiers (9–13)", "Field Quality Analytics (Tier 10), Event Stream Processing (Tier 12), Custom Analysis Framework (Tier 13)."),
-            ("Knowledge RAG (Tier 14)", "Self-disclosing skill and documentation system allowing agents to dynamically query specialized domain playbooks.")
+            ("Domain Tiers (9–15)", "Model Lifecycle (Tier 11), Field Quality Analytics (Tier 12), Event Stream Processing (Tier 14), Custom Analysis Framework (Tier 15)."),
+            ("Knowledge RAG (Tier 16)", "Self-disclosing skill and documentation system allowing agents to dynamically query specialized domain playbooks.")
         ],
-        subtitle="Tier 0 through Tier 14",
+        subtitle="Tier 0 through Tier 16",
         mode='wide'
     )
 
@@ -294,7 +294,7 @@ def build_presentation_b():
         s3, margin_x_3 + 2 * (card_w_3 + gap_3), card_y, card_w_3, card_h, c_purple,
         "Containerization & SAS RAM",
         [
-            ("SAS RAM Packaging", "Built and published to sasram.azurecr.io/sas-mcp-server-msz:v.1.18.1 for enterprise agent orchestration."),
+            ("SAS RAM Packaging", "Built and published to sasram.azurecr.io/sas-mcp-server-msz:v1.20.1 for enterprise agent orchestration."),
             ("Hardened Docker Build", "Multi-stage build utilizing uv and pinned dependencies with strict secret isolation (.dockerignore & .gitignore hardening)."),
             ("Viya Auth Integration", "Dynamic OAuth2 Bearer token exchange with automatic token refresh and encrypted session caching."),
             ("RBAC & Safety Modes", "Configurable read-only tool gating (_access.py) ensuring agents cannot modify production assets without explicit permission.")
@@ -309,7 +309,7 @@ def build_presentation_b():
         "The server is implemented in modern Python 3.12 on top of FastMCP. We use structured concurrency with anyio, meaning the server can handle multiple concurrent agent requests without blocking.\n\n"
         "Notice the timeout handling: standard HTTP timeouts of 30 or 60 seconds fail immediately when running large CAS analytical jobs or complex ATSM forecasting tournaments. "
         "We engineered the server with VIYA_CLIENT_TIMEOUT set to 1800 seconds (30 minutes), enabling heavy industrial workflows.\n\n"
-        "The tools are partitioned into 15 logical tiers. An agent working on warranty only loads Tier 10 tools; an agent authoring IoT analyses loads Tier 13. "
+        "The tools are partitioned into 17 logical tiers. An agent working on warranty only loads Tier 12 tools; an agent authoring IoT analyses loads Tier 15. "
         "Furthermore, we package the server into a hardened Docker container published to Azure Container Registry for SAS Retrieval Agent Manager (RAM), allowing seamless deployment across enterprise AI platforms."
     )
 
@@ -636,7 +636,7 @@ def build_presentation_b():
             ("Display Control Reference", "Details the exact XML properties required for dropdowns, date pickers, numeric inputs, and radio groups."),
             ("Error-Free Authoring", "Equips LLMs with the exact vocabulary required to author valid packages from scratch.")
         ],
-        subtitle="Tier 13: Schema Introspection",
+        subtitle="Tier 15: Schema Introspection",
         mode='wide'
     )
 
@@ -649,7 +649,7 @@ def build_presentation_b():
             ("Circular Cascade Detection", "Detects self-retriggering interaction loops and invalid #ctx method calls in the input layer."),
             ("Actionable Error Diagnostics", "Returns precise line numbers and exact remediation instructions instead of generic HTTP 500 errors.")
         ],
-        subtitle="Tier 13: Preflight Validation",
+        subtitle="Tier 15: Preflight Validation",
         mode='wide'
     )
 
@@ -662,13 +662,13 @@ def build_presentation_b():
             ("create_analysis_type", "Registers the package directly with the /iotAnalysisModels service via HTTP POST."),
             ("hot-Patching with update_tool", "Allows instant hot-patching of SAS algorithms or UI parameters in active production deployments.")
         ],
-        subtitle="Tier 13: Packaging & Deployment",
+        subtitle="Tier 15: Packaging & Deployment",
         mode='wide'
     )
 
     set_slide_notes(
         s9,
-        "Slide 9 highlights the specialized MCP tools we engineered specifically for CAF authoring in Tier 13.\n\n"
+        "Slide 9 highlights the specialized MCP tools we engineered specifically for CAF authoring in Tier 15.\n\n"
         "First, describe_caf_schema. LLM context windows are precious. You don't want to load thousands of lines of XML schema into every prompt. "
         "This tool enables progressive disclosure: the agent asks for the parameter schema, then the lookup schema, then the interaction rules, authoring each piece with precision.\n\n"
         "Second, validate_analysis_type_spec. The Viya backend API will silently accept a zip with an invalid report token, but the user will see a broken report. "
@@ -949,7 +949,7 @@ def build_presentation_b():
         s14, margin_x_4 + card_w_4 + gap_4, card_y, card_w_4, card_h, c_teal,
         "2. Custom ML Isolation",
         [
-            ("CAF Model Execution", "Agent launches SVDD anomaly detection analysis type via MCP Tier 13."),
+            ("CAF Model Execution", "Agent launches SVDD anomaly detection analysis type via MCP Tier 15."),
             ("Multi-Sensor Isolation", "Confirms multivariate boundary deviation and isolates failing sensor tags.")
         ],
         subtitle="Custom IoT (CAF)",

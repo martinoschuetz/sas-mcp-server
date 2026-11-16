@@ -1,6 +1,6 @@
 # Custom Analysis Framework (CAF) Authoring Rules
 
-Rules for authoring SAS Analytics for IoT **analysis types** through the Tier 13 tools
+Rules for authoring SAS Analytics for IoT **analysis types** through the Tier 15 tools
 (`src/sas_mcp_server/tools/caf.py`). A CAF package is unforgiving in a specific way: almost
 everything that is wrong with one is **invisible until a user runs it**, and then it fails
 silently — a blank report page, an empty picker, no error anywhere. These rules exist because

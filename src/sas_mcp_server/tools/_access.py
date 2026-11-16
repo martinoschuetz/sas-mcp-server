@@ -153,14 +153,14 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
         "list_model_repositories",
         "list_model_projects",
         "get_project_kpis",
-        # Tier 11 (was 10)
+        # Tiers 13 (Generative AI) and 14 (ESP)
         "list_genai_agents",
         "get_genai_agent",
         "list_genai_sources",
         "list_genai_llms",
         "query_genai_agent",
         "esp_get_project_xml",
-        # Tier 13 — Custom Analysis Framework
+        # Tier 15 — Custom Analysis Framework
         "describe_caf_schema",  # bundled catalog, no network
         "list_analysis_types",
         "get_analysis_type",
@@ -338,7 +338,7 @@ WRITE_TOOLS: frozenset[str] = frozenset(
         "delete_kpi_alert_rule",
         "esp_deploy_project",
         "esp_delete_project",
-        # Tier 13 — Custom Analysis Framework
+        # Tier 15 — Custom Analysis Framework
         "create_analysis_type",
         "update_analysis_type",
         "set_analysis_type_state",

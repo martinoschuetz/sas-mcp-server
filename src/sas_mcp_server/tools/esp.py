@@ -1,7 +1,7 @@
 # Copyright a 2025, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tier 12 - Event Stream Processing (ESP) tools."""
+"""Tier 14 - Event Stream Processing (ESP) tools."""
 
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -18,7 +18,7 @@ from ._common import make_session_helpers
 
 
 def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> None:
-    """Register Tier 12 (ESP) tools on *mcp*."""
+    """Register Tier 14 (ESP) tools on *mcp*."""
 
     viya_session, _ = make_session_helpers(get_token)
 

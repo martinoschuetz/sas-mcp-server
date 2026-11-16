@@ -1,9 +1,9 @@
 # Copyright © 2025, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tier 13 — Custom Analysis Framework (authoring AIoT analysis types).
+"""Tier 15 — Custom Analysis Framework (authoring AIoT analysis types).
 
-Tier 10 runs the analyses a Viya deployment already offers. This tier builds the
+Tier 12 runs the analyses a Viya deployment already offers. This tier builds the
 *types* those analyses are instances of: the input form, the SAS code, and the
 Visual Analytics report the results render into, packaged as the zip
 ``/iotAnalysisModels`` transports.
@@ -54,7 +54,7 @@ async def _fetch_package(client: Any, name: str) -> dict[str, Any]:
 
 
 def register(mcp: FastMCP, get_token: Callable[[Context], Awaitable[str]]) -> None:
-    """Register Tier 13 (Custom Analysis Framework) tools on *mcp*."""
+    """Register Tier 15 (Custom Analysis Framework) tools on *mcp*."""
 
     viya_session, _ = make_session_helpers(get_token)
 

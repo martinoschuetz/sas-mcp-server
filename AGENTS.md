@@ -5,7 +5,7 @@ This file follows the open `AGENTS.md` standard (supported by OpenAI Codex, Goog
 ## 1. Repository Development Rules
 - **SAS Coding Standards & Performance**: Read [`knowledge/standards/sas.md`](./knowledge/standards/sas.md) for DATA step optimizations, `PROC FedSQL` usage in CAS, and macro best practices.
 - **Python Concurrency & Architecture**: Read [`knowledge/standards/python.md`](./knowledge/standards/python.md) for async, structured concurrency, and HTTP client patterns.
-- **Tool Tiers & Access Control**: All MCP tools live in `src/sas_mcp_server/tools/` (grouped into tiers `0`–`14`) and must be classified in `src/sas_mcp_server/tools/_access.py` as `READ_ONLY_TOOLS` or `WRITE_TOOLS`.
+- **Tool Tiers & Access Control**: All MCP tools live in `src/sas_mcp_server/tools/` (grouped into tiers `0`–`16`) and must be classified in `src/sas_mcp_server/tools/_access.py` as `READ_ONLY_TOOLS` or `WRITE_TOOLS`.
 - **Testing**: Update tool counts in `tests/test_read_only.py` and `tests/test_tier_selection.py` whenever adding or removing MCP tools.
 
 ## 2. Installed Domain Skills (`knowledge/` & `.agents/skills/` & `.claude/skills/`)

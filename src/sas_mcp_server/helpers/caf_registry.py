@@ -34,7 +34,7 @@ from typing import Any
 
 # --- endpoints ---------------------------------------------------------------
 # /iotAnalysisModels manages analysis TYPES; /iotAnalysis manages the instances
-# a user creates from them (Tier 10). The two are routinely confused.
+# a user creates from them (Tier 12). The two are routinely confused.
 
 MODELS_PATH = "/iotAnalysisModels/models"
 MODEL_PATH = "/iotAnalysisModels/models/{name}"
