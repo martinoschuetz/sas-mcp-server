@@ -1,0 +1,65 @@
+{
+  "skill_name": "sas-caf",
+  "note": "Behavioral evals testing critical CAF authoring, UI lookup, SpEL interaction, SAS/CAS compute, and BIRD XML template invariants.",
+  "evals": [
+    {
+      "id": "CAF-1-resolveonui-wiping-step2",
+      "prompt": "In my 3-step custom CAF model, Step 2 parameters (SM_ASSET_VARIABLE as SINGLESELECT, INPUTVARS as MULTISELECT, TARGETVAR as SINGLESELECT, and STABLE_PERIOD as STABLEPERIOD) are saved in PostgreSQL, but whenever I open Step 2 in the AIoT browser UI, SM_ASSET_VARIABLE, INPUTVARS, and TARGETVAR appear blank and STABLE_PERIOD shows no chart. Why?",
+      "expected_output": "Explains that RESOLVEONUI=true was set on SINGLESELECT/MULTISELECT lookups (or #ctx.getCurrentStep() guarded initial cascades). In app.js fetchPossibleValues, every control except STABLEPERIOD and MULTIINPCHKTABLE intersects currentValues with /possibleValues keys; returning the 6 RESOLVEONUI metadata keys wipes currentValues to [] on step open.",
+      "expectations": [
+        "Identifies RESOLVEONUI=true on SINGLESELECT and MULTISELECT lookups as the root cause wiping currentValues to [] in app.js fetchPossibleValues",
+        "Instructs removing RESOLVEONUI from SINGLESELECT, MULTISELECT, and DROPDOWN lookups while keeping RESOLVEONUI=true strictly on STABLEPERIOD",
+        "Checks that lookup cascade <Interactions> keep <Condition></Condition> empty rather than guarding with #ctx.getCurrentStep() (which returns '' on initial step open)"
+      ]
+    },
+    {
+      "id": "CAF-2-question-token-comment-trap",
+      "prompt": "Why did my CAF Step 1 SAS job fail on %qas_getconnections(g_cas=?g_cas, g_metadata=?g_metadata) with a syntax error showing literal '?g_cas' in the SAS log?",
+      "expected_output": "The AIoT mid-tier replaces ?g_cas, ?analysisID, ?g_metadata, ?limit, ?append, and ?filter only once at their very first occurrence in <Code>, including inside SAS /* ... */ comments.",
+      "expectations": [
+        "Explains first-occurrence one-shot substitution by the AIoT mid-tier",
+        "Points out that mentioning ?g_cas or ?analysisID in a header comment consumes the substitution",
+        "Advises removing all literal ?token strings from comments"
+      ]
+    },
+    {
+      "id": "CAF-3-cas-32char-and-step1-rerun",
+      "prompt": "My CAF Step 2 saves an ASTORE named ISOLATION_&G_ASSET_VARIABLE._AST2_&g_instance_nm in QASAnlOut. It failed on asset IDCP_CH18B with 'ERROR: Invalid data set name', and on shorter assets re-running Step 1 crashed in accessControl.updSomeAcsTable. How do I fix both?",
+      "expected_output": "ISOLATION_IDCP_CH18B_AST2_<8char> is 34 characters (> SAS 32-char dataset limit), and custom Step 2 tables/sashdat files need _&g_instance_nm strictly at the end plus an isolated Step 1 PROC CAS pre-cleanup (dropTable with remACs=true + deleteSource).",
+      "expectations": [
+        "Calculates the 32-character SAS dataset name limit violation (34 > 32)",
+        "Proposes deterministic <=8-char CRC32 asset key compression keeping _&g_instance_nm strictly last",
+        "Provides Step 1 pre-cleanup dropping *_${shortId} tables with remACs=true and deleting .sashdat sources while preserving options sessref"
+      ]
+    },
+    {
+      "id": "CAF-4-multiperiod-stableperiod-parsing",
+      "prompt": "How should Step 2 and Step 3 SAS code parse STABLE_PERIOD and SCORE_PERIOD when STABLE_PERIOD is optional and users can pick 3 windows in Step 2 and 2 windows in Step 3?",
+      "expected_output": "Read param_value_txt directly from mfgapp.analysis_ins_step_input (avoiding $100 truncation), fall back to (1=1) when %length(%superq(G_STABLE_PERIOD))=0, and loop with %scan(%superq(G_STABLE_PERIOD), &i., %str(,)) to build disjunctive (DATETIME ge ... and DATETIME le ...) OR clauses.",
+      "expectations": [
+        "Reads STABLE_PERIOD / SCORE_PERIOD from mfgapp.analysis_ins_step_input via PROC SQL without $100 truncation",
+        "Handles optional empty STABLE_PERIOD cleanly with (1=1)",
+        "Uses %superq or %nrbquote with explicit %str(,) in %scan so commas between windows never cause macro argument errors"
+      ]
+    },
+    {
+      "id": "CAF-5-va-template-blank-report",
+      "prompt": "My CAF step completed with 0 SAS errors and promoted DEMO_SUMMARY_A1B2C3D4 to QASAnlOut, and I replaced CasResource table=\"{{.SUMMARY}}\" in the BIRD XML, but the Visual Analytics report is still blank.",
+      "expected_output": "Two checks: both DataSource/@label and CasResource/@table must be tokenized to {{.SUMMARY}} (via templatize_va_report), and the step must publish SUMMARY in outputParams (via %afi_caf_postprocess / build_output_contract or POST .../outputParams).",
+      "expectations": [
+        "Identifies missing DataSource/@label=\"{{.SUMMARY}}\" dual-attribute tokenization",
+        "Verifies token/producer symmetry via build_output_contract / outputParams and validate_analysis_type_spec",
+        "Recommends templatize_va_report instead of manual BIRD XML edits"
+      ]
+    },
+    {
+      "id": "CAF-6-programmatic-step-param-update",
+      "prompt": "I sent a PUT /iotAnalysis/analyses/{id} request with all 3 steps [step1, step2, step3] to update Step 2's STABLE_PERIOD, got HTTP 200, and Step 2 still has the old STABLE_PERIOD. Why?",
+      "expected_output": "sas-iot-analysis PUT /iotAnalysis/analyses/{id} only persists inputParameters updates on steps[0] in the request payload while leaving other steps untouched in PostgreSQL; use update_analysis_step_parameters_tool or send {\"steps\": [step2]}.",
+      "expectations": [
+        "Explains the steps[0]-only persistence behavior of PUT /iotAnalysis/analyses/{id}",
+        "Recommends update_analysis_step_parameters_tool (or sending only the target step as steps[0])"
+      ]
+    }
+  ]
+}

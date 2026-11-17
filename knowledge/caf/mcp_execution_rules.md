@@ -1,149 +1,189 @@
-# Custom Analysis Framework (CAF) Authoring Rules
+# Custom Analysis Framework (CAF) — Authoring & Execution Rules
 
-Rules for authoring SAS Analytics for IoT **analysis types** through the Tier 15 tools
-(`src/sas_mcp_server/tools/caf.py`). A CAF package is unforgiving in a specific way: almost
-everything that is wrong with one is **invisible until a user runs it**, and then it fails
-silently — a blank report page, an empty picker, no error anywhere. These rules exist because
-each of them was learned from a package that imported cleanly and did the wrong thing.
+Authoritative rules for building, validating, deploying, and testing SAS Analytics for IoT (AIoT) **Custom Analysis Framework (CAF)** analysis types via Tier 15 (`src/sas_mcp_server/tools/caf.py`) and Tier 12 (`src/sas_mcp_server/tools/iot.py`).
 
-The full format reference lives outside this repo, in
-`C:\Git\martinoschuetz\AIoT\custom_analysis\CAF_documentation.md`. What follows is only the
-part an agent must hold while writing.
+A CAF package is uniquely unforgiving: almost every defect imports cleanly (`HTTP 200`/`202`) and fails **silently at runtime** — wiping saved parameters when a user reopens a step, leaving an interactive time-series picker blank, or rendering an empty Visual Analytics container with zero error banner. Every rule below is tagged with its evidence level:
+- **[VERIFIED]**: Confirmed on live SAS Viya AIoT deployments (`iot.viya-azure-gpu.unx.sas.com`), PostgreSQL `mfgapp` metadata tables, and reverse-engineered AIoT UI bundles (`app.js`, `4983.bundle.js`).
+- **[DOC]**: Taken from SAS Analytics for IoT documentation.
 
-## 1. Read before you write
+---
 
-Call `describe_caf_schema()` for the index, then the topic you are about to write. The
-vocabularies (`displayControl`, `dataType`, `KeyGroup`, `#ctx.*` methods, `<Property>` keys) are
-frozen in `helpers/caf_registry.py`, extracted from 34 shipped packages. An unknown value does
-not error on import; it degrades at runtime. So when authoring, stay inside them.
+## 0. Critical Rules (Read First)
 
-When *reading* a deployed type, treat them as a lower bound instead. Sweeping the 37 types on a
-live deployment turned up one `KeyGroup` (`BATCH`) and three `displayControl` values
-(`PQOPTIMIZATION`, `PQLINERCONSTRAINT`, `STABLEPERIODGRAPH`) that appear in no example package;
-until they were added, the validator rejected types the platform itself ships. If
-`validate_analysis_type_spec` rejects a value you took from an exported package, the registry is
-likelier to be incomplete than the package wrong — say so rather than editing the package to fit.
+1. **`RESOLVEONUI=true` belongs STRICTLY on `STABLEPERIOD` (and `MULTIINPCHKTABLE`) lookups — NEVER on `DROPDOWN`, `SINGLESELECT`, or `MULTISELECT`.** In `app.js` (`fetchPossibleValues`), every control except `STABLEPERIOD` and `MULTIINPCHKTABLE` intersects `currentValues` with the keys returned by `/possibleValues`. Because `RESOLVEONUI=true` causes `/possibleValues` to return 6 metadata rows (`RESOLVEONUI`, `LibraryName`, `TableName`, `KeyColumnName`, `ValueColumnName`, `WhereCondition`) instead of data rows, setting it on `SINGLESELECT` or `MULTISELECT` **wipes saved user selections to `[]` on step open**, and setting it on `DROPDOWN` renders literal metadata keys as dropdown options! → See §6 & `references/ui_lookups_and_interactions.md`. **[VERIFIED]**
+2. **Never guard step-open lookup cascades with `#ctx.getCurrentStep()`.** When a user opens a step in the AIoT UI (`_paramChanged == false`), `#ctx.getCurrentStep()` returns `""` (empty string), silently blocking `#ctx.fetchPossibleValues(...)` so `STABLEPERIOD` plots and child pickers stay blank on step load. Keep `<Condition></Condition>` empty whenever `sourceParamName` is unique to its step. → See §7. **[VERIFIED]**
+3. **Every CAS table in `QASAnlOut` must be uppercase, `<= 32` chars, and end strictly with `_&g_instance_nm`.** Violating `<= 32` chars crashes SAS (`ERROR: Invalid data set name`), and putting anything after `_&g_instance_nm` crashes Step 1 re-runs in `%qas_cas_output_lifetime` (`accessControl.updSomeAcsTable`). Include self-healing Step 1 pre-cleanup (`remACs=true` + `deleteSource`) whenever Steps 2+ save custom tables/ASTOREs. → See §4. **[VERIFIED]**
+4. **Never write `?g_cas`, `?analysisID`, `?g_metadata`, `?limit`, `?append`, or `?filter` in comments.** The AIoT mid-tier substitutes each `?token` **once, at its first occurrence in `<Code>` — including inside `/* ... */` comments**. → See §9. **[VERIFIED]**
+5. **Tokenize BOTH `DataSource/@label` and `CasResource/@table` in BIRD XML templates, and ensure every `{{.TOKEN}}` has a producer.** Use `templatize_va_report` + `build_output_contract` + `validate_analysis_type_spec` (`0` blocking errors required). → See §3 & §5. **[VERIFIED]**
+6. **Quote comma-separated multi-select and multi-period values with `%superq` / `%nrbquote`.** Both `MULTISELECT` tags and `STABLEPERIOD` multi-window strings (`W1,W2,W3`) contain literal commas. Unquoted `%scan(&G_PARAM., &i.)` splits on commas as macro argument delimiters! → See §8. **[VERIFIED]**
 
-When a format question can be answered by an example, answer it that way:
-`export_analysis_type("<a SAS-shipped type>")` returns real `input.xml`. Copying a working
-construct beats deriving one.
+---
 
-## 2. Token/producer symmetry is the whole name mapping
+## 1. Canonical Single-Folder CAF Architecture
 
-A report template reads `{{.TOKEN}}`. A token resolves from exactly one of:
+Author each CAF analysis type in a clean, self-contained folder using `templates/build_package.py` rather than hand-editing XML CDATA sections: **[VERIFIED]**
 
-1. an **output param** published by this step or an earlier one — `%let g_output_table_N` +
-   `%afi_caf_postprocess`, or an explicit POST to `…/steps/{stepId}/outputParams`;
-2. an **input parameter name** declared on the step;
-3. an **ambient framework token** (`CASSERVERNAME`, `LOCALE`, `REPORT_THEME`, `REPORTVAR`,
-   `__ANALYSISNAME__`, `USERTITLE`/`USERSUBTITLE`/`USERFOOTNOTE` — see
-   `caf_registry.AMBIENT_TOKENS`);
-4. a **companion suffix** on any of the above: `_DESC`, `_LABEL`, `_FORMAT`;
-5. the positional aliases `OUTPUTTABLENAME1`…`OUTPUTTABLENAME29` (STANDARD types).
-
-Anything else renders empty. Never hand-write the SAS tail — call `build_output_contract`,
-which writes it and names the tokens it creates, then run `validate_analysis_type_spec` to
-confirm both sides agree. The validator's "template token has no producer" is a blocking
-error for a reason; do not pass `skip_validation=true` to get past it.
-
-**The token is the bare member name, uppercased.** `%let g_output_table_1 = work.Filtered;`
-publishes `{{.FILTERED}}`, not `{{.work.Filtered}}`. The libref says where the table is read
-from, not what it is called downstream.
-
-## 3. A table name lives in two attributes, not one
-
-In BIRD XML every output table appears twice:
-
-```xml
-<DataSource ... label="{{.SAMPLE}}">
-  <CasResource server="{{.CASSERVERNAME}}" library="QASANLOUT" table="{{.SAMPLE}}"/>
+```text
+<CAF_FOLDER>/
+├── README.md                              # Methodology, step I/O contracts, Viya test matrix
+├── spec.json                              # Registration, parameters, lookups, containers & SpEL interactions
+├── build_package.py                       # Deterministic builder & validator (templates/build_package.py)
+├── <CAF_FOLDER>.zip                       # Generated deployable archive (<MODEL_NAME>/input.xml + *.template)
+├── steps/                                 # Pure UTF-8 (LF) SAS compute code per step
+│   ├── <MODEL_NAME>_1.sas
+│   └── <MODEL_NAME>_2.sas
+├── input/                                 # Generated by build_package.py (never hand-edit)
+│   ├── input_layer.xml                    # Pure UI/Input XML without embedded SAS code (fast review/diff)
+│   └── input.xml                          # Full compiled CAF input.xml packaged inside the .zip
+└── output/                                # Tokenized Visual Analytics BIRD XML templates
+    ├── <MODEL_NAME>_1_vaoutput.template
+    └── <MODEL_NAME>_2_vaoutput.template
 ```
 
-Tokenize **both**. Rewriting only `CasResource/@table` is the single most common hand-editing
-mistake, and the report still loads — it just binds nothing. `templatize_va_report` does both;
-prefer it over editing XML.
+---
 
-## 4. Build the output layer from a report that already works
+## 2. Schema Discovery & Corpus Reuse
 
-Do not generate BIRD XML from scratch. The supported path, and the one the tools are shaped
-around: build the report in Visual Analytics (or with Tier 3's `create_report`) against a real
-run's output tables → `templatize_va_report(report_id, table_tokens=…)` → paste the result into
-the step's `vaoutput_template`. A step that computes without visualizing gets the minimal legal
-template automatically; leave `vaoutput_template` unset rather than inventing one.
+1. Call `describe_caf_schema()` for the topic index, then drill into `registration`, `parameters`, `lookups`, `containers`, `interactions`, `code`, `output`, `tokens`, or `gotchas`. Vocabularies (`displayControl`, `dataType`, `KeyGroup`, `#ctx.*` methods, `<Property>` keys) live in `helpers/caf_registry.py` (extracted across 38 deployed `STANDARD`, `ALERTS`, and `CUSTOM` models, including `KeyGroup="BATCH"` and controls `PQOPTIMIZATION`, `PQLINERCONSTRAINT`, `STABLEPERIODGRAPH`). **[VERIFIED]**
+2. When unsure how a construct works, inspect a live working package with `get_analysis_type("<NAME>")`, `export_analysis_type("<NAME>")`, or `read_local_analysis_type_package("<PATH>.zip")`. Copying a proven pattern (`SVDD_ASSET`, `ISOLATION_FOREST`, `MTS`, `STABILITY_ASSET`) always beats guessing XML structure. **[VERIFIED]**
 
-## 5. Never invent a `#ctx` method
+---
 
-`<Interaction>` conditions and actions are Spring Expression Language against a `#ctx` root
-object. `caf_registry.CTX_METHODS` holds the 29 methods observed across the corpus, with
-counts. That list is the API. A misspelled method silently does nothing — the interaction just
-never fires, and the form looks merely unhelpful rather than broken.
+## 3. Token/Producer Symmetry (`{{.TOKEN}}`)
 
-Two interaction hazards the validator warns about:
+A VA report template reads `{{.TOKEN}}`. At report render time, Go `text/template` resolves `{{.TOKEN}}` from: **[VERIFIED]**
+1. **Step Output Parameters (`analysisStepOutputParams`):** Published by this step or an earlier step either declaratively via `%let g_output_table_N = lib.MEMBER;` + `%afi_caf_postprocess;` (Generation 2 — token is the **uppercase bare `MEMBER` name**, e.g. `work.Filtered` → `{{.FILTERED}}`), or explicitly via `PROC HTTP POST` to `/iotAnalysis/analyses/&G_INSTANCEID./steps/&G_ANALYSISID./outputParams` (Generation 1).
+2. **Step Input Parameters:** Any `<Parameter name="..."/>` declared on the step.
+3. **Ambient Framework Tokens:** `CASSERVERNAME`, `LOCALE`, `REPORT_THEME`, `REPORTVAR`, `__ANALYSISNAME__`, `USERTITLE`, `USERSUBTITLE`, `USERFOOTNOTE` (`caf_registry.AMBIENT_TOKENS`).
+4. **Companion Suffixes & Positional Aliases:** `_DESC`, `_LABEL`, `_FORMAT`, and `OUTPUTTABLENAME1`…`OUTPUTTABLENAME29` (`STANDARD` types).
 
-- **Self-retriggering cascade.** An interaction that fires on `P` and calls
-  `fetchPossibleValues('P')` loops. The guard is
-  `#ctx.getChangedParamName() != 'P'` in the condition — every shipped cascade has it.
-- **Dangling `sourceParamName`.** Firing on a parameter that no longer exists is dead code, not
-  an error; several shipped packages carry one. Clean it up in anything you author.
+Any unresolved `{{.TOKEN}}` renders a blank VA object with zero runtime error. Always verify `0` blocking errors via `validate_analysis_type_spec` before uploading. **[VERIFIED]**
 
-## 6. `RESOLVEONUI` and the one-selection-behind picker
+---
 
-A lookup whose URI or CAS filter interpolates another parameter's live value
-(`{{getCurrentValue $.values "p_x"}}`) needs `<Property key="RESOLVEONUI">true</Property>`
-inside **the lookup's** `<Properties>` — `LookupMetadata/Properties`, not the parameter's own.
-All nine shipped uses of it sit there, and the validator only looks there. Without it the value is bound once, at form load, and the picker shows options
-for the **previous** selection. Shipped packages get this wrong, which is why the validator
-warns rather than blocks — but in new work, set it.
+## 4. CAS Output Table Naming (`<= 32` Chars) & Step 1 Pre-Cleanup
 
-## 7. The `?token` substitution is a one-shot, comments included
+1. **Strict Suffix & Length Rule:** Every table promoted or saved as `.sashdat` in `QASAnlOut` **must** be uppercase, `<= 32` characters total (SAS dataset name limit), and end strictly with `_&g_instance_nm` (where `&g_instance_nm` is the 8-char CRC32 hex `shortId`, e.g., `A995BD6E`). **[VERIFIED]**
+   - **Good:** `ISOLATION_GIMPORTANCE_&g_instance_nm` (`30` chars), `ISOLATION_IDCP_CHB_M1_&g_instance_nm` (`30` chars).
+   - **Bad:** `SVDD_&g_instance_nm._GIMPORTANCE` (`_&g_instance_nm` not last — breaks `%qas_cas_output_lifetime` cleanup), `ISOLATION_LONG_ASSET_NAME_AST2_&g_instance_nm` (`> 32` chars — fails with `ERROR: Invalid data set name`).
+   - For per-asset model ASTOREs, hash asset IDs longer than 8 characters into a deterministic 8-char key (`substr(clean,1,4) || substr(CRC32(raw),1,4)` — see `templates/multistep_stableperiod_time_filter.sas`). **[VERIFIED]**
+2. **Self-Healing Step 1 Pre-Cleanup:** When Steps 2+ promote custom tables or save `.sashdat` files into `QASAnlOut`, re-running Step 1 triggers `%qas_cas_output_lifetime`, which can crash in `accessControl.updSomeAcsTable` if stale Step 2/3 tables with custom ACS rules remain loaded. At the very top of Step 1 (before `%qas_getconnections`), run an isolated `PROC CAS` session that drops `*_${shortId}` in-memory tables (`remACs=true`) and deletes `*_${shortId}.sashdat` files, then restores the original `options sessref`. **[VERIFIED]**
+3. **Concurrency-Safe Scratch Tables & `.sashdat` Reload:** Suffix any temporary `QASAnlOut` tables with `_&g_instance_nm` (`_IF_SC1_&g_instance_nm`, `_IF_SPC_&g_instance_nm`) so concurrent users never collide, and guard Steps 2+ with `table.tableExists` → `table.loadTable` from `.sashdat` in case CAS memory evicted Step 1/2 tables between runs. **[VERIFIED]**
 
-The mid-tier replaces `?g_cas`, `?analysisID`, `?g_metadata`, `?limit`, `?append` and `?filter`
-in the step's SAS code **once each, case-sensitively, at the first occurrence — including inside
-a comment**. A `/* pass ?g_cas here */` above the real call consumes the substitution and the
-actual code gets nothing. Do not mention these tokens in comments.
+---
 
-## 8. Package invariants
+## 5. Visual Analytics BIRD XML Output Layer
 
-- The zip's top-level folder name **must** equal `<Registration><Name>`. `build_package`
-  enforces it; do not construct the zip by hand.
-- The template filename comes from the **step id**, not `<TemplateID>`: strip a trailing
-  `_DEFAULT`, append `_vaoutput.template` (`caf.template_filename`).
-- `<Properties>` and `<UIGroup>` are mandatory on every parameter even when empty.
-- `input.xml` element order is fixed. Render it with `caf.render_input_xml`, never by string
-  assembly.
+1. **Dual-Attribute Table Binding:** Every CAS table in BIRD XML appears in **two** attributes that must **both** carry `{{.TOKEN}}`: **[VERIFIED]**
+   ```xml
+   <DataSource name="ds7" type="relational" label="{{.GIMPORTANCE_TABLE}}">
+     <CasResource server="{{.CASSERVERNAME}}" library="QASANLOUT" table="{{.GIMPORTANCE_TABLE}}" locale="{{.LOCALE}}"/>
+   ```
+   Rewriting `CasResource/@table` while leaving `DataSource/@label` hardcoded causes VA data binding to fail silently.
+2. **Never Hand-Write BIRD XML from Scratch:** Run the SAS step once so real output tables exist in `QASAnlOut`, build or adapt a working VA report (`create_report` / `apply_report_operations` or clone an exported `_vaoutput.template`), and run `templatize_va_report(report_id, table_tokens=...)`. Steps without visualization omit `vaoutput_template` (receiving the minimal legal stub automatically). **[VERIFIED]**
 
-## 9. Writes
+---
 
-`create_analysis_type` and `update_analysis_type` validate first and refuse to upload on
-errors. `update_analysis_type` is a **whole-package replacement, not a merge** — export the
-current package first if you mean to change part of it, and remember that analyses users
-already created keep running against the new definition, so changing a step's outputs can break
-their reports.
+## 6. Dynamic Lookups & The Exact `RESOLVEONUI=true` Rule
 
-To withdraw a type, prefer `set_analysis_type_state(name, 'inactive')` (reversible, hides it
-from users) over `delete_analysis_type`. Both activation and deactivation need an administrator.
+Understanding how the AIoT mid-tier and React client (`app.js` offset `194747` & `1563012`) process `<LookupMetadata>` is essential: **[VERIFIED]**
 
-**`create_analysis_type` may be refused whatever your permissions are.** On the reference
-deployment, `POST /iotAnalysisModels/models` answers `403 "not authorized to execute this api
-upsert embeded models"` for an identity that `POST /iotAnalysisModels/lookups` accepts (it
-reaches validation, 400) — so the endpoint enforces something of its own beyond the
-`/iotAnalysisModels/**` rules, which do grant writes. A refusal comes back as
-`status: "forbidden"`. Report it; do not rebuild the spec, do not retry the other encoding, and
-do not tell the user to go request a group until you have checked whether other writes to the
-same service succeed for them.
+1. **What `RESOLVEONUI=true` Actually Does on the Server:**
+   When `<Property key="RESOLVEONUI">true</Property>` is present inside `<LookupMetadata><Properties>`, calling `POST /iotAnalysis/analyses/{id}/steps/{modelStepId}/inputs/{param}/possibleValues` does **not** query the CAS table or REST endpoint. Instead, it interpolates Go templates (`{{getCurrentValue $.values "..."}}`) and returns **6 metadata key/value items**:
+   - For `CASTABLE`: `RESOLVEONUI`, `LibraryName`, `TableName`, `KeyColumnName`, `ValueColumnName`, `WhereCondition`.
+   - For `RESTAPI`: `RESOLVEONUI`, `Method`, `URI`, `Headers`, `resKeyName`, `resValueName`.
+2. **How Each UI Control Handles `/possibleValues` in `app.js`:**
+   - **`STABLEPERIOD` (chunk `4983.bundle.js`):** Expects those 6 metadata items from `/possibleValues`, preserves `currentValues` untouched, and issues a client-side `POST /casRowSets/servers/cas-shared-default/caslibs/{LibraryName}/tables/{TableName}/rowSets` request to render the interactive time-series plot. **Therefore, `STABLEPERIOD` lookups MUST set `"RESOLVEONUI": "true"`.**
+   - **`DROPDOWN`, `SINGLESELECT`, and `MULTISELECT` (`app.js`):** Expect `/possibleValues` to return the **actual option rows** (`[{"key": "IDCP_CH18B", "value": "..."}, ...]`) queried server-side by the mid-tier! Furthermore, `fetchPossibleValues` runs:
+     ```js
+     // app.js — wipes currentValues if keys don't match possibleValues!
+     for (let e of l.currentValues)
+       for (let t of l.possibleValues)
+         if (t.key == e.key) { a.push({...t}); break; }
+     l.displayControl !== MULTIINPCHKTABLE && l.displayControl !== STABLEPERIOD || !l.currentValues
+       ? this.setCurrentValues(e, t, a)
+       : this.setCurrentValues(e, t, l.currentValues);
+     ```
+     If you set `RESOLVEONUI=true` on `SINGLESELECT` or `MULTISELECT`, `l.possibleValues` contains the 6 metadata keys instead of asset/tag keys, so `a` becomes `[]` and **all saved user selections are wiped out in the UI whenever the step is opened!** On `DROPDOWN`, the literal words `RESOLVEONUI`, `LibraryName`, `TableName` appear as dropdown choices!
+3. **How Cascading `DROPDOWN` / `SINGLESELECT` / `MULTISELECT` Lookups Stay Fresh Without `RESOLVEONUI`:**
+   Keep `"properties": {}` on their `lookup`, write `{{getCurrentValue $.values "PARENT_PARAM"}}` in `uri` or `where`, and add a SpEL `<Interaction>` on `PARENT_PARAM` that calls `#ctx.fetchPossibleValues('CHILD_PARAM')`. When triggered, the browser POSTs the live `{"values": ...}` map to `/possibleValues`, and the server evaluates the Go template against the live parent selection and returns fresh rows.
+   - *Validator note:* `validate_analysis_type_spec` emits a **non-blocking `warning`** when a lookup interpolates `{{...}}` without `RESOLVEONUI=true`. For `DROPDOWN`, `SINGLESELECT`, and `MULTISELECT` backed by a `#ctx.fetchPossibleValues(...)` interaction, **leave `RESOLVEONUI` unset** and treat that lint warning as expected. **[VERIFIED]**
 
-## 10. References
+---
 
-- Format reference: `custom_analysis/CAF_documentation.md` (external to this repo)
-- SAS docs: [Working with Custom Analysis Types](https://go.documentation.sas.com/doc/en/aniotcdc/default/aniotcat/titlepage.htm)
-- SpEL: [Spring Expression Language](https://docs.spring.io/spring-framework/reference/core/expressions.html)
-- Template language: [Go `text/template`](https://pkg.go.dev/text/template)
+## 7. SpEL `<Interactions>` & The `#ctx.getCurrentStep()` Step-Open Trap
 
-## 11. Step Execution Context and Parameter Injection
+`<Interactions>` are model-level Spring Expression Language (SpEL) rules evaluated against `#ctx` (strictly stay within the 29 methods in `caf_registry.CTX_METHODS`; never write JavaScript `function(...)`). **[VERIFIED]**
 
-When an analysis step executes via /iotAnalysis/analyses/{id}/steps/{stepId}/jobs (or from the UI), the FQA microservice dynamically prepends a block of %GLOBAL macro variables (e.g., GLOBAL G_STABLE_PERIOD 29APR24:02...) to the job's SAS code. This preamble is constructed by fetching the step's inputParameters from the PostgreSQL backend and matching them against the parameters declared in the step's input model definition. 
+1. **The `#ctx.getCurrentStep()` Initialization Trap:**
+   When a user opens a step in the AIoT UI, initial interactions run with `_paramChanged == false`. During this pass, `#ctx.getCurrentStep()` returns `""` (empty string)! If a lookup cascade (`SEL_CASLIB -> SEL_SASTABLE`, `SM_ASSET_VARIABLE -> INPUTVARS/TARGETVAR`, `TARGETVAR -> STABLE_PERIOD`, `SCORE_ASSET_VARIABLE -> SCORE_TARGET_VARIABLE`, `SCORE_TARGET_VARIABLE -> SCORE_PERIOD`) has `<Condition>#ctx.getCurrentStep() == 'MY_MODEL_2'</Condition>`, it evaluates to `false` on step open and **never populates child lookups or `STABLEPERIOD` charts**.
+   - **Rule:** Keep `<Condition></Condition>` **empty** whenever `sourceParamName` is unique to a single step. Only use `#ctx.getCurrentStep()` when two steps share the exact same parameter name and the rule must fire strictly on interactive user edits. **[VERIFIED]**
+2. **Preventing Infinite Self-Fetch Loops:**
+   To populate a root lookup on step open (`_paramChanged == false`, where `getChangedParamName()` is `""`) without infinite recursion when the user changes that parameter:
+   ```spel
+   #ctx.getChangedParamName() != 'SM_ASSET_VARIABLE' ? #ctx.fetchPossibleValues('SM_ASSET_VARIABLE') : #ctx.getChangedParamName()
+   #ctx.fetchPossibleValues('INPUTVARS')
+   #ctx.fetchPossibleValues('TARGETVAR')
+   ```
 
-Critical execution gotchas discovered:
-- **Parameter Mapping Failure:** If a step's parameter is saved to the Analysis Instance via REST API (and is visible in GET /iotAnalysis/analyses/{id}), it will **still fail** to inject into the SAS execution preamble if the Analysis Type definition (input node) is missing the parameter binding. The parameter will inject as a blank value (e.g., GLOBAL G_STABLE_PERIOD ), leading to catastrophic SAS macro failures (e.g., The function STRIP ... has too few arguments). 
-- **Updating Parameters Programmatically:** Updating step parameters for multi-step analyses via PUT /iotAnalysis/analyses/{id} works and correctly saves to the backend. However, ensure that the *full* analysis object (all steps) is sent in the PUT payload; sending truncated step arrays can disrupt the analysis state.
-- **Job Arguments are Empty:** The FQA microservice passes parameters **exclusively** via the SAS code preamble, not via the JSON jobRequest.arguments in the compute job.
+---
+
+## 8. `STABLEPERIOD` Multi-Window Picker & Defensive SAS Macro Quoting
+
+1. **Serialization Format:** The `STABLEPERIOD` widget (`4983.bundle.js`) supports selecting $k \ge 1$ non-overlapping windows, sorted chronologically and serialized as comma-separated SAS datetime ranges:
+   `29APR24:02:05:35-12MAY24:23:55:00,16MAY24:00:00:00-28MAY24:23:55:00,01JUN24:00:00:00-11JUN24:01:44:55` **[VERIFIED]**
+2. **Optional `STABLEPERIOD` (`required: false`):** Unsupervised algorithms such as Isolation Forest (`PROC FOREST ... ISOLATION`) do not strictly require a labeled healthy baseline. Setting `"required": false` on `STABLE_PERIOD` (`"properties": {"SKIP_VALIDATION": "true"}`) allows users either to leave it blank (falling back in SAS to `G_TIME_FILTER = (1=1)` across full asset history) or to pick 1 or more normal windows. **[VERIFIED]**
+3. **Avoid Length Truncation & Unquoted Comma Traps in SAS:**
+   - Read `STABLE_PERIOD` / `SCORE_PERIOD` directly from `mfgapp.analysis_ins_step_input` via `PROC SQL` (`select coalesce(param_value_txt, '') into :G_STABLE_PERIOD trimmed`) so multi-window strings (`> 100` chars) are never truncated by `$100` helper tables.
+   - Always scan comma-separated parameters (`INPUTVARS`, `SM_ASSET_VARIABLE`, `STABLE_PERIOD`, `SCORE_PERIOD`) using `%superq(VAR)` or `%nrbquote(&VAR.)` and explicit `%str(,)`:
+     `%let PART = %scan(%superq(G_STABLE_PERIOD), &i., %str(,));`
+   - In `PROC SQL`, always write `INTO :VAR SEPARATED BY ','` (never `separated ','`). **[VERIFIED]**
+
+---
+
+## 9. The `?token` One-Shot Substitution Trap
+
+The AIoT mid-tier performs a single-pass, first-occurrence string replacement on `<Code>` for `?g_cas`, `?analysisID`, `?g_metadata`, `?limit`, `?append`, and `?filter` — **even inside `/* ... */` comments**. Writing `/* Uses ?g_cas and ?analysisID */` at line 2 consumes both tokens and leaves literal `?g_cas` and `?analysisID` in `%qas_getconnections` / `%anl_getanalysisattributes`! Never write literal `?token` strings in comments. **[VERIFIED]**
+
+---
+
+## 10. Package & XML Invariants
+
+- **ZIP Top-Level Folder:** Must equal `<Registration><Name>` (`build_package` enforces this). **[VERIFIED]**
+- **Template Filenames:** Derived from `<Step id="...">` (strip trailing `_DEFAULT`, append `_vaoutput.template`). **[VERIFIED]**
+- **Lookup ID Length (`<= 36` Chars):** Every `LookupMetadata/@id` and `@name` must be `<= 36` characters; longer IDs fail upload with `HTTP 400 errorCode 124206`. **[VERIFIED]**
+- **Contiguous Step Order:** `<Step order="..."/>` must be `1, 2, 3, ...` with no gaps. **[VERIFIED]**
+- **Mandatory Empty Tags:** `<Properties/>` and `<UIGroup/>` are required on every `<Parameter>` (`caf.render_input_xml` handles element ordering automatically). **[VERIFIED]**
+
+---
+
+## 11. Deploying, Updating & Activating Analysis Types
+
+1. **Creating & Activating (`create_analysis_type` + `set_analysis_type_state`):**
+   - `POST /iotAnalysisModels/models` (`create_analysis_type`) uploads a new package as `inactive`. Call `set_analysis_type_state(name, "active")` (`PATCH /iotAnalysisModels/models/{name}?state=active`) so users can select it in the AIoT **Analysis Types** dialog under its `KeyGroup` (`ASSET`, `PRODUCT`, etc.). **[VERIFIED]**
+   - **Authorization (`403 upsert embeded models`):** Writing to `/iotAnalysisModels/models` requires administrative / `SAS Solutions` authorization on the tenant. If a user's token receives `403 "not authorized to execute this api upsert embeded models"`, report `status: "forbidden"` clearly rather than mutating the spec. **[VERIFIED]**
+2. **In-Place Updates (`update_analysis_type`):**
+   - Models with existing analysis instances cannot be deleted (`DELETE` returns `HTTP 423 Locked`). Replace them in-place with `update_analysis_type` (`PUT /iotAnalysisModels/models/{name}` with `Accept: application/vnd.sas.iot.analysis.model+json, application/json, */*` and `If-Match: <ETag>` — handled automatically by `caf_helpers.upload_package`).
+   - `update_analysis_type` is a **whole-package replacement, not a merge**. Whenever adding or removing steps on an existing model, increment `"revision_no"` in `spec.json`. Follow with `set_analysis_type_state(name, "active")` to ensure the updated model stays active. **[VERIFIED]**
+
+---
+
+## 12. Live Step Execution, Preamble Injection & `steps[0]` Update Semantics
+
+1. **SAS Preamble Parameter Injection:**
+   When `POST /iotAnalysis/analyses/{id}/steps/{stepId}/jobs` executes a step, `sas-iot-analysis` matches the step's PostgreSQL `analysis_ins_step_input` rows against the parameters declared in the model's `input.xml` and prepends `%GLOBAL` macro assignments (or exposes them via `%anl_getanalysisattributes(?analysisID)` / `mfgapp.analysis_ins_step_input`). `jobRequest.arguments` is empty (`{"_contextName": "qasComputeContext"}`). If a parameter is missing from `input.xml`, its macro variable injects blank! **[VERIFIED]**
+2. **`PUT /iotAnalysis/analyses/{id}` Only Updates `steps[0]`:**
+   A critical quirk of `sas-iot-analysis`: `PUT /iotAnalysis/analyses/{id}` only persists `inputParameters` modifications on the **first element (`steps[0]`)** of the `steps` array in the JSON body while leaving all other steps in PostgreSQL intact! Sending all 3 steps in `[step1, step2, step3]` order silently ignores edits to Step 2 and Step 3. Always use `update_analysis_step_parameters_tool` (which sends `{"steps": [target_step]}` as `steps[0]`). **[VERIFIED]**
+3. **Job URI Resolution & Mandatory Smoke Test:**
+   `POST /iotAnalysis/analyses/{id}/steps/{stepId}/jobs` returns a step summary (`id == stepId`) whose actual compute job URI is in `links[rel='job']` (`/jobExecution/jobs/{uuid}` — handled automatically by `run_analysis_step_and_wait_tool`). Before declaring any CAF work complete:
+   - Run every step end-to-end (`run_analysis_step_and_wait_tool`).
+   - Inspect both the compute JSON log and redirected `*.log.txt` (`get_iot_analysis_step_log_tool`), confirming **`0` `ERROR:` lines** (note: AIoT's standard Step 1 `%anl_getstab_attributes` may emit benign `errorCode 5710` warning on `PAM_UNIQUE_ID` drop list, while actual `ERROR:` lines in SAS compute must be `0`).
+   - Verify all `outputParameters` CAS tables exist and contain expected row counts (`get_castable_data`), and verify `POST .../inputs/{param}/possibleValues` retains `100%` of saved `CurrentValues`. **[VERIFIED]**
+
+---
+
+## 13. References
+
+- Deep-dive topics in this domain: `references/ui_lookups_and_interactions.md`, `references/sas_cas_plumbing.md`, `references/va_output_templates.md`, `references/troubleshooting.md`, `references/case_study_isolation_forest.md`.
+- Boilerplate templates: `templates/build_package.py`, `templates/gen2_single_step_skeleton.sas`, `templates/multistep_stableperiod_time_filter.sas`.
+- Official SAS Docs: [Working with Custom Analysis Types](https://go.documentation.sas.com/doc/en/aniotcdc/default/aniotcat/titlepage.htm) | [SpEL Reference](https://docs.spring.io/spring-framework/reference/core/expressions.html) | [Go `text/template`](https://pkg.go.dev/text/template).
