@@ -16,11 +16,13 @@ from sas_mcp_server.tools.iot import (
     add_folder_member,
     create_data_selection,
     delete_data_selection_launch,
+    delete_folder,
     get_data_selection,
     get_data_selection_launch,
     get_iot_analysis_job,
     launch_data_selection,
     launch_data_selection_and_wait,
+    list_all_iot_analyses,
     list_data_selection_launches,
     list_data_selections,
     list_iot_analyses,
@@ -1164,6 +1166,101 @@ async def test_list_iot_analyses_pages(mock_env_vars):
 
     await list_iot_analyses("fake_token")
     assert "start" not in route.calls[1].request.url.params
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_all_iot_analyses_pages_to_the_end(mock_env_vars):
+    """Filtering needs the whole collection, so the scan follows count, not one page."""
+    pages = [
+        Response(200, json={"count": 250, "items": [{"id": f"a{i}"} for i in range(200)]}),
+        Response(200, json={"count": 250, "items": [{"id": f"a{i}"} for i in range(200, 250)]}),
+    ]
+    route = respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses").mock(side_effect=pages)
+
+    items, total, truncated = await list_all_iot_analyses("fake_token")
+    assert len(items) == 250 and total == 250 and truncated is False
+    assert route.calls[1].request.url.params["start"] == "200"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_iot_analyses_tool_filters_the_whole_tenant(mock_env_vars):
+    """The 2r dependency graph saw only the first page; a filter must span the tenant."""
+    from fastmcp import Client, FastMCP
+
+    from sas_mcp_server.tools.iot import register
+
+    mcp = FastMCP("test-analyses-filter")
+
+    async def fake_token(ctx):  # noqa: ARG001
+        return "fake_token"
+
+    register(mcp, fake_token)
+
+    first = [{"id": f"other{i}", "name": f"Other {i}", "modelName": "SVDD",
+              "dataSelectionId": "ds_other", "createdBy": "someone"} for i in range(200)]
+    second = [{"id": "mine", "name": "FQAAGENT_Pareto", "modelName": "PARETO_PRODUCT",
+               "dataSelectionId": "ds1", "createdBy": "germsz"}]
+    respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses").mock(
+        side_effect=[
+            Response(200, json={"count": 201, "items": first}),
+            Response(200, json={"count": 201, "items": second}),
+        ]
+    )
+
+    async with Client(mcp) as client:
+        result = (await client.call_tool(
+            "list_iot_analyses_tool", {"data_selection_id": "ds1"}
+        )).data
+
+    # The only match is the 201st analysis — beyond every server default page.
+    assert [i["id"] for i in result["items"]] == ["mine"]
+    assert result["scanned_count"] == 201
+    assert result["tenant_total"] == 201
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_iot_analyses_tool_unfiltered_takes_one_server_page(mock_env_vars):
+    """Without a filter it stays a single cheap call, as before."""
+    from fastmcp import Client, FastMCP
+
+    from sas_mcp_server.tools.iot import register
+
+    mcp = FastMCP("test-analyses-plain")
+
+    async def fake_token(ctx):  # noqa: ARG001
+        return "fake_token"
+
+    register(mcp, fake_token)
+
+    route = respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses").mock(
+        return_value=Response(200, json={"count": 201, "items": [{"id": "a1"}]})
+    )
+
+    async with Client(mcp) as client:
+        result = (await client.call_tool("list_iot_analyses_tool", {"start": 5, "limit": 2})).data
+
+    assert route.call_count == 1
+    assert result["items"][0]["id"] == "a1"
+    params = route.calls[0].request.url.params
+    assert params["start"] == "5" and params["limit"] == "2"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_delete_folder_recursive_is_opt_in(mock_env_vars):
+    """A non-empty folder must keep answering 409 unless recursive is asked for."""
+    route = respx.delete(f"{VIYA_ENDPOINT}/folders/folders/f1").mock(
+        return_value=Response(204)
+    )
+
+    await delete_folder("f1", "fake_token")
+    assert "recursive" not in str(route.calls[0].request.url)
+
+    await delete_folder("f1", "fake_token", recursive=True)
+    assert route.calls[1].request.url.params["recursive"] == "true"
 
 
 @pytest.mark.asyncio

@@ -469,6 +469,31 @@ async def list_iot_analyses(token: str, start: int = None, limit: int = None) ->
                                accept="application/vnd.sas.collection+json")
 
 
+MAX_ANALYSIS_SCAN = 2000
+
+
+async def list_all_iot_analyses(token: str, page_size: int = 200,
+                                cap: int = MAX_ANALYSIS_SCAN) -> tuple[list[dict], int, bool]:
+    """Pages through /iotAnalysis/analyses until the collection is exhausted or *cap* is reached.
+
+    Returns ``(items, total, truncated)``. Filtering a tenant's analyses needs the
+    whole collection, not the service's short default page — a filter applied to
+    the first 10 of several hundred analyses silently answers about the wrong set.
+    """
+    items: list[dict] = []
+    total = 0
+    start = 0
+    while len(items) < cap:
+        data = await list_iot_analyses(token, start=start, limit=min(page_size, cap - len(items)))
+        page = data.get("items") or []
+        total = data.get("count") or total
+        items.extend(page)
+        start += len(page)
+        if not page or (total and len(items) >= total):
+            break
+    return items[:cap], (total or len(items)), len(items) >= cap and bool(total) and total > cap
+
+
 async def get_iot_analysis(analysis_id: str, token: str) -> dict:
     """Retrieves the full definition of an IoT analysis."""
     async with make_client(token) as client:
@@ -903,10 +928,19 @@ async def remove_folder_member(folder_id: str, member_id: str, token: str) -> No
         await _delete_resource(f"/folders/folders/{folder_id}/members/{member_id}", client)
 
 
-async def delete_folder(folder_id: str, token: str) -> None:
-    """Deletes a folder by ID."""
+async def delete_folder(folder_id: str, token: str, recursive: bool = False) -> None:
+    """Deletes a folder by ID.
+
+    Without ``recursive`` the service refuses a folder that has children with
+    ``409 Conflict`` ("Folder has children, and recursive was not specified"),
+    which is the safe default: the refusal is the signal that something is in
+    there. ``recursive=True`` deletes the descendants with it.
+    """
+    url = f"/folders/folders/{folder_id}"
+    if recursive:
+        url += "?recursive=true"
     async with make_client(token) as client:
-        await _delete_resource(f"/folders/folders/{folder_id}", client)
+        await _delete_resource(url, client)
 
 
 async def delete_project(project_id: str, token: str) -> None:
@@ -1428,22 +1462,74 @@ def register(
 
     @mcp.tool()
     async def list_iot_analyses_tool(ctx: Context, start: int | None = None,
-                                     limit: int | None = None) -> dict:
+                                     limit: int | None = None,
+                                     model_name: str = None,  # pyright: ignore
+                                     data_selection_id: str = None,  # pyright: ignore
+                                     search: str = None,  # pyright: ignore
+                                     created_by: str = None,  # pyright: ignore
+                                     sort_by: str = None,  # pyright: ignore
+                                     sort_order: str = "desc") -> dict:
         """
         Lists defined SAS Analytics for IoT analyses.
 
-        The service pages this collection and defaults to a short page, so a tenant
-        with more analyses than the default returns a truncated `items` list whose
-        `count` is larger. Page through with `start` / `limit` — `count` in the
-        response is the full total, not the length of `items`.
+        The service pages this collection and defaults to a short page, so asking for
+        no page at all returns the first few analyses of the tenant next to a much
+        larger `count`. Page through with `start` / `limit`.
+
+        Any of the filters makes this scan the whole collection first and then filter
+        and page the result, so a filter answers about every analysis rather than
+        about the first page only.
 
         Args:
             start (int, optional): Zero-based index of the first analysis to return.
-            limit (int, optional): Maximum number of analyses to return in this page.
+            limit (int, optional): Maximum number of analyses to return. Defaults to 10 when filtering.
+            model_name (str, optional): Keep only analyses of this model, e.g. 'EIENTERPRISE_PRODUCT'.
+            data_selection_id (str, optional): Keep only analyses built on this data selection.
+            search (str, optional): Case-insensitive substring of the analysis name.
+            created_by (str, optional): Keep only analyses created by this user.
+            sort_by (str, optional): Field to sort by, e.g. 'creationTimeStamp'. Filtered results only.
+            sort_order (str): 'desc' (default) or 'asc'. Filtered results only.
         """
-        logger.info("--- TOOL USED: list_iot_analyses (start=%s, limit=%s) ---", start, limit)
+        logger.info(
+            "--- TOOL USED: list_iot_analyses (start=%s, limit=%s, model=%s, ds=%s, search=%s) ---",
+            start, limit, model_name, data_selection_id, search,
+        )
         token = await get_token(ctx)
-        return await list_iot_analyses(token, start=start, limit=limit)
+        if not any((model_name, data_selection_id, search, created_by, sort_by)):
+            return await list_iot_analyses(token, start=start, limit=limit)
+
+        items, total, truncated = await list_all_iot_analyses(token)
+        wanted = (
+            ("modelName", model_name),
+            ("dataSelectionId", data_selection_id),
+            ("createdBy", created_by),
+        )
+        matched = []
+        for item in items:
+            if any(
+                value is not None
+                and str(_extract_field_case_insensitive(item, field) or "").lower() != str(value).lower()
+                for field, value in wanted
+            ):
+                continue
+            if search and search.lower() not in str(
+                _extract_field_case_insensitive(item, "name") or ""
+            ).lower():
+                continue
+            matched.append(item)
+
+        result = _paginate_sorted_items(
+            matched, start=start or 0, limit=limit if limit is not None else 10,
+            sort_by=sort_by, sort_order=sort_order, item_label="analyses",
+        )
+        result["scanned_count"] = len(items)
+        result["tenant_total"] = total
+        if truncated:
+            result["scan_truncated"] = (
+                f"Scanned the first {len(items)} of {total} analyses "
+                f"(cap {MAX_ANALYSIS_SCAN}); analyses beyond that were not considered."
+            )
+        return result
 
     @mcp.tool()
     async def get_iot_analysis_details_tool(analysis_id: str, ctx: Context) -> dict:
@@ -1993,17 +2079,23 @@ def register(
         return f"Member {member_id} removed from folder {folder_id}."
 
     @mcp.tool()
-    async def delete_folder_tool(folder_id: str, ctx: Context = None) -> str:  # pyright: ignore
+    async def delete_folder_tool(folder_id: str, ctx: Context = None,  # pyright: ignore
+                                 recursive: bool = False) -> str:
         """
         Deletes an existing folder by its ID or URI.
 
         Args:
             folder_id (str): The ID of the folder to delete.
+            recursive (bool): Delete the folder's contents with it. Defaults to False,
+                where the service refuses a non-empty folder with 409 Conflict — check
+                what is inside (list_folders_and_projects_tool) before overriding it.
         """
-        logger.info("--- TOOL USED: delete_folder (folder_id=%s) ---", folder_id)
+        logger.info("--- TOOL USED: delete_folder (folder_id=%s, recursive=%s) ---",
+                    folder_id, recursive)
         token = await get_token(ctx)
-        await delete_folder(folder_id, token)
-        return f"Folder {folder_id} deleted successfully."
+        await delete_folder(folder_id, token, recursive=recursive)
+        suffix = " (recursive)" if recursive else ""
+        return f"Folder {folder_id} deleted successfully{suffix}."
 
     @mcp.tool()
     async def delete_project_tool(project_id: str, ctx: Context = None) -> str:  # pyright: ignore

@@ -10,7 +10,8 @@
   - *Standalone data selections.* **`create_data_selection_tool`** posts a cohort built from `filterCriteria` alone (`POST /dataSelection/dataSelections`), so a cohort no longer needs a surviving source to copy from.
   - *Folder members.* **`add_folder_member_tool`** adds an existing object to a folder by URI, as a `child` (owned by the folder, deleted with it, and in one folder only) or a `reference` (a link, unrestricted); **`remove_folder_member_tool`** removes one.
 - **`launch_app_name` on `launch_data_selection_tool` and `launch_data_selection_and_wait_tool`.** The underlying helper has always sent `launchAppName`, but the tools could not set it, so every launch through MCP went to CAS. A caller can now ask for `VA`, `SASStudio`, `ModelStudio` or `CSV`; omitted, it stays `CAS`, so existing callers see no change.
-- **`start` and `limit` on `list_iot_analyses_tool`.** The service pages `/iotAnalysis/analyses` and defaults to a short page, so a tenant with more analyses than the default got a silently truncated `items` list next to a larger `count`.
+- **Paging and filtering on `list_iot_analyses_tool`.** The service pages `/iotAnalysis/analyses` and defaults to a short page, so a tenant with more analyses than the default got a silently truncated `items` list next to a larger `count` — and anything reasoning about "the analyses on this data selection" was answering about the first page only. `start` / `limit` page it; `model_name`, `data_selection_id`, `search`, `created_by` and `sort_by` / `sort_order` scan the whole collection first (to a 2,000-analysis cap, reported as `scan_truncated` when reached) and then filter and page the result. An unfiltered call still makes exactly one request.
+- **`recursive` on `delete_folder_tool`.** Off by default, so the service keeps refusing a non-empty folder with `409 Conflict` — that refusal is the signal that something is in there.
 - 249 tools in 17 tiers; 113 of them are read-only.
 
 ### Fixed
