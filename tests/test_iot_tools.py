@@ -13,13 +13,19 @@ from sas_mcp_server.config import (
     VIYA_ENDPOINT,
 )
 from sas_mcp_server.tools.iot import (
+    add_folder_member,
+    create_data_selection,
+    delete_data_selection_launch,
     get_data_selection,
+    get_data_selection_launch,
     get_iot_analysis_job,
     launch_data_selection,
     launch_data_selection_and_wait,
+    list_data_selection_launches,
     list_data_selections,
     list_iot_analyses,
     list_iot_models,
+    remove_folder_member,
     run_iot_analysis,
 )
 
@@ -1028,5 +1034,262 @@ async def test_caf_step_parameter_update_etag_and_step_job_polling(mock_env_vars
         ).data
         assert run2["id"] == step2_id
         assert run2["status"] == "COMPLETED"
+
+
+# --- v1.21.0: launcher lifecycle, standalone data selection, folder members ---
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_create_data_selection_posts_vendor_type(mock_env_vars):
+    """A standalone cohort needs no source: POST /dataSelections with filterCriteria."""
+    route = respx.post(f"{VIYA_ENDPOINT}/dataSelection/dataSelections").mock(
+        return_value=Response(201, json={"id": "ds_new", "name": "FQAAGENT_Cohort"})
+    )
+    criteria = {"0": [{"columnName": "MODEL_CD", "operatorCode": "IN", "values": ["M3"]}]}
+    result = await create_data_selection(
+        "FQAAGENT_Cohort", "fake_token", description="d",
+        filter_criteria=criteria, creation_type="ADHOC",
+    )
+    assert result["id"] == "ds_new"
+    request = route.calls[0].request
+    assert json.loads(request.content) == {
+        "name": "FQAAGENT_Cohort", "description": "d",
+        "filterCriteria": criteria, "creationType": "ADHOC",
+    }
+    assert request.headers["Content-Type"] == "application/vnd.sas.data.selection+json"
+    assert request.headers["Accept"] == "application/vnd.sas.data.selection+json"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_create_data_selection_omits_absent_optional_fields(mock_env_vars):
+    """No filterCriteria key at all, rather than a null the service would reject."""
+    route = respx.post(f"{VIYA_ENDPOINT}/dataSelection/dataSelections").mock(
+        return_value=Response(201, json={"id": "ds_new"})
+    )
+    await create_data_selection("FQAAGENT_Bare", "fake_token")
+    assert json.loads(route.calls[0].request.content) == {"name": "FQAAGENT_Bare", "description": ""}
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_launcher_listing_scopes_and_paging(mock_env_vars):
+    """With a cohort the per-selection path is used; without one, the user-wide path."""
+    scoped = respx.get(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/ds1/launches").mock(
+        return_value=Response(200, json={"count": 1, "items": [{"id": "l1"}]})
+    )
+    user_wide = respx.get(f"{VIYA_ENDPOINT}/dataSelection/launches").mock(
+        return_value=Response(200, json={"count": 7, "items": [{"id": "l1"}]})
+    )
+
+    scoped_result = await list_data_selection_launches(
+        "fake_token", selection_id="ds1", start=10, limit=5,
+        filter_query="eq(launchAppName,'CAS')", sort_by="creationTimeStamp:descending",
+    )
+    assert scoped_result["items"][0]["id"] == "l1"
+    params = scoped.calls[0].request.url.params
+    assert params["start"] == "10" and params["limit"] == "5"
+    assert params["filter"] == "eq(launchAppName,'CAS')"
+    assert params["sortBy"] == "creationTimeStamp:descending"
+
+    assert (await list_data_selection_launches("fake_token"))["count"] == 7
+    assert user_wide.called
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_get_and_delete_launcher(mock_env_vars):
+    """A launcher reads by ID alone or inside its cohort; only the cohort path deletes."""
+    respx.get(f"{VIYA_ENDPOINT}/dataSelection/launches/l1").mock(
+        return_value=Response(200, json={"id": "l1", "tableName": "DS_ds1"})
+    )
+    respx.get(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/ds1/launches/l1").mock(
+        return_value=Response(200, json={"id": "l1", "tableName": "DS_ds1"})
+    )
+    delete_route = respx.delete(
+        f"{VIYA_ENDPOINT}/dataSelection/dataSelections/ds1/launches/l1"
+    ).mock(return_value=Response(204))
+
+    assert (await get_data_selection_launch("l1", "fake_token"))["tableName"] == "DS_ds1"
+    scoped = await get_data_selection_launch("l1", "fake_token", selection_id="ds1")
+    assert scoped["id"] == "l1"
+    assert await delete_data_selection_launch("ds1", "l1", "fake_token") is None
+    assert delete_route.called
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_folder_member_add_and_remove(mock_env_vars):
+    """Members are added by URI with an explicit child/reference type."""
+    add_route = respx.post(f"{VIYA_ENDPOINT}/folders/folders/f1/members").mock(
+        return_value=Response(201, json={"id": "mem1"})
+    )
+    remove_route = respx.delete(f"{VIYA_ENDPOINT}/folders/folders/f1/members/mem1").mock(
+        return_value=Response(204)
+    )
+
+    added = await add_folder_member(
+        "f1", "/iotAnalysis/projects/p1", "fake_token",
+        name="P1", member_type="reference", content_type="project",
+    )
+    assert added["id"] == "mem1"
+    request = add_route.calls[0].request
+    assert json.loads(request.content) == {
+        "uri": "/iotAnalysis/projects/p1", "type": "reference",
+        "name": "P1", "contentType": "project",
+    }
+    assert request.headers["Content-Type"] == "application/vnd.sas.content.folder.member+json"
+
+    await add_folder_member("f1", "/iotAnalysis/projects/p2", "fake_token")
+    assert json.loads(add_route.calls[1].request.content) == {
+        "uri": "/iotAnalysis/projects/p2", "type": "child",
+    }
+
+    assert await remove_folder_member("f1", "mem1", "fake_token") is None
+    assert remove_route.called
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_iot_analyses_pages(mock_env_vars):
+    """The collection is paged; start/limit must reach the service."""
+    route = respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses").mock(
+        return_value=Response(200, json={"count": 120, "items": [{"id": "a21"}]})
+    )
+    result = await list_iot_analyses("fake_token", start=20, limit=50)
+    assert result["count"] == 120
+    params = route.calls[0].request.url.params
+    assert params["start"] == "20" and params["limit"] == "50"
+
+    await list_iot_analyses("fake_token")
+    assert "start" not in route.calls[1].request.url.params
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_launch_app_name_reaches_the_service_through_the_tools(mock_env_vars):
+    """launch_app_name picks the launcher kind, so both launch tools must expose it."""
+    from fastmcp import Client, FastMCP
+
+    from sas_mcp_server.tools.iot import register
+
+    mcp = FastMCP("test-launch-app-name")
+
+    async def fake_token(ctx):  # noqa: ARG001
+        return "fake_token"
+
+    register(mcp, fake_token)
+
+    route = respx.post(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/ds1/launches").mock(
+        return_value=Response(201, json={"id": "l1", "jobId": "job_1"})
+    )
+    respx.get(f"{VIYA_ENDPOINT}/jobExecution/jobs/job_1").mock(
+        return_value=Response(200, json={"id": "job_1", "state": "completed"})
+    )
+
+    async with Client(mcp) as client:
+        tools = {t.name: t for t in await client.list_tools()}
+        for name in ("launch_data_selection_tool", "launch_data_selection_and_wait_tool"):
+            assert "launch_app_name" in tools[name].inputSchema["properties"]
+            assert name not in tools[name].inputSchema.get("required", [])
+
+        await client.call_tool(
+            "launch_data_selection_tool",
+            {"selection_id": "ds1", "launch_app_name": "VA",
+             "launch_columns": [{"columnName": "C", "columnTableName": "CLAIM"}]},
+        )
+        assert json.loads(route.calls[0].request.content)["launchAppName"] == "VA"
+
+        await client.call_tool(
+            "launch_data_selection_and_wait_tool",
+            {"selection_id": "ds1", "launch_app_name": "CSV",
+             "launch_columns": [{"columnName": "C", "columnTableName": "CLAIM"}]},
+        )
+        assert json.loads(route.calls[1].request.content)["launchAppName"] == "CSV"
+
+        # Unchanged default for every existing caller.
+        await client.call_tool("launch_data_selection_tool", {"selection_id": "ds1"})
+        assert json.loads(route.calls[2].request.content)["launchAppName"] == "CAS"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_create_root_emerging_issues_analysis_uses_the_copies_contract(mock_env_vars):
+    """Regression for the 406: the copies action takes {version, resources} and answers JSON.
+
+    It also does not rename, so the requested name has to be applied by the PUT
+    that swaps in the new data selection.
+    """
+    from fastmcp import Client, FastMCP
+
+    from sas_mcp_server.tools.iot import register
+
+    mcp = FastMCP("test-root-ei")
+
+    async def fake_token(ctx):  # noqa: ARG001
+        return "fake_token"
+
+    register(mcp, fake_token)
+
+    copy_route = respx.post(f"{VIYA_ENDPOINT}/iotAnalysis/analysisActions/copies").mock(
+        return_value=Response(201, json={"base1": {"id": "new1", "name": "Copy of Base"}})
+    )
+    respx.get(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/new1").mock(
+        return_value=Response(200, headers={"ETag": "etag-new1"},
+                              json={"id": "new1", "name": "Copy of Base",
+                                    "dataSelectionId": "old_ds", "steps": []})
+    )
+    put_route = respx.put(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/new1").mock(
+        return_value=Response(200, json={"id": "new1"})
+    )
+
+    async with Client(mcp) as client:
+        result = (await client.call_tool(
+            "create_root_emerging_issues_analysis_tool",
+            {"name": "FQAAGENT_Root_EI", "data_selection_id": "ds9", "base_analysis_id": "base1"},
+        )).data
+
+    assert result["id"] == "new1"
+    assert result["status"] == "CREATED_AND_UPDATED"
+
+    copy_request = copy_route.calls[0].request
+    assert json.loads(copy_request.content) == {"version": 1, "resources": ["base1"]}
+    assert copy_request.headers["Accept"] == "application/json"
+    assert "name=" not in str(copy_request.url)
+
+    put_request = put_route.calls[0].request
+    body = json.loads(put_request.content)
+    assert body["name"] == "FQAAGENT_Root_EI"
+    assert body["dataSelectionId"] == "ds9"
+    assert put_request.headers["If-Match"] == "etag-new1"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_create_root_emerging_issues_analysis_reports_an_empty_copy(mock_env_vars):
+    """An empty copies response must fail loudly, not IndexError somewhere later."""
+    from fastmcp import Client, FastMCP
+
+    from sas_mcp_server.tools.iot import register
+
+    mcp = FastMCP("test-root-ei-empty")
+
+    async def fake_token(ctx):  # noqa: ARG001
+        return "fake_token"
+
+    register(mcp, fake_token)
+
+    respx.post(f"{VIYA_ENDPOINT}/iotAnalysis/analysisActions/copies").mock(
+        return_value=Response(201, json={})
+    )
+
+    async with Client(mcp) as client:
+        with pytest.raises(Exception, match="no new analysis ID"):
+            await client.call_tool(
+                "create_root_emerging_issues_analysis_tool",
+                {"name": "n", "data_selection_id": "ds9", "base_analysis_id": "base1"},
+            )
+
 
 

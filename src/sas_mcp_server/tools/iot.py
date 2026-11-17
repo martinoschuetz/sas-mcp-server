@@ -376,6 +376,79 @@ async def copy_data_selections(selection_ids: list[str], token: str) -> dict:
         return result
 
 
+async def create_data_selection(name: str, token: str, description: str = "",
+                                filter_criteria: dict | None = None,
+                                creation_type: str | None = None) -> dict:
+    """Creates a standalone data selection (``POST /dataSelection/dataSelections``).
+
+    The copy endpoint needs a surviving source; this one does not, so a cohort
+    can be built from filter criteria alone. ``filter_criteria`` is the service's
+    own ``filterCriteria`` shape — groups keyed by index, each a list of
+    ``{"columnName", "operatorCode", "values", "filterAttributeId", …}``.
+    Only ``name`` is mandatory.
+    """
+    body: dict[str, Any] = {"name": name, "description": description or ""}
+    if filter_criteria is not None:
+        body["filterCriteria"] = filter_criteria
+    if creation_type:
+        body["creationType"] = creation_type
+    async with make_client(token) as client:
+        resp = await client.post(
+            f"{VIYA_ENDPOINT}/dataSelection/dataSelections",
+            json=body,
+            headers={
+                "Accept": "application/vnd.sas.data.selection+json",
+                "Content-Type": "application/vnd.sas.data.selection+json",
+            },
+        )
+        resp.raise_for_status()
+        data_selection_cache.clear()
+        return resp.json()
+
+
+async def list_data_selection_launches(token: str, selection_id: str | None = None,
+                                       start: int = 0, limit: int = 10,
+                                       filter_query: str | None = None,
+                                       sort_by: str | None = None) -> dict:
+    """Lists data selection launches (launchers).
+
+    With ``selection_id`` this lists the launches of that one cohort
+    (``/dataSelections/{id}/launches``); without it, every launch the calling
+    user can see (``/launches``).
+    """
+    params: dict[str, Any] = {"start": start, "limit": limit}
+    if filter_query:
+        params["filter"] = filter_query
+    if sort_by:
+        params["sortBy"] = sort_by
+    url = (f"/dataSelection/dataSelections/{selection_id}/launches"
+           if selection_id else "/dataSelection/launches")
+    async with make_client(token) as client:
+        return await _get_json(url, client, params=params,
+                               accept="application/vnd.sas.collection+json")
+
+
+async def get_data_selection_launch(launch_id: str, token: str,
+                                    selection_id: str | None = None) -> dict:
+    """Retrieves one data selection launch, by launch ID alone or within its cohort."""
+    url = (f"/dataSelection/dataSelections/{selection_id}/launches/{launch_id}"
+           if selection_id else f"/dataSelection/launches/{launch_id}")
+    async with make_client(token) as client:
+        return await _get_json(url, client,
+                               accept="application/vnd.sas.data.selection.launch+json")
+
+
+async def delete_data_selection_launch(selection_id: str, launch_id: str, token: str) -> None:
+    """Deletes a data selection launch.
+
+    Only the cohort-scoped path accepts DELETE — ``/dataSelection/launches/{id}``
+    is read-only — so the owning ``selection_id`` is required.
+    """
+    async with make_client(token) as client:
+        await _delete_resource(
+            f"/dataSelection/dataSelections/{selection_id}/launches/{launch_id}", client)
+
+
 async def list_iot_projects(token: str) -> dict:
     """Lists project instances from the IoT analysis service."""
     async with make_client(token) as client:
@@ -790,6 +863,46 @@ async def create_project(name: str, token: str, folder_id: str = "@myFolder", de
         return resp.json()
 
 
+async def add_folder_member(folder_id: str, member_uri: str, token: str,
+                            name: str | None = None, member_type: str = "child",
+                            content_type: str | None = None) -> dict:
+    """Adds an existing object to a folder as a member.
+
+    ``member_uri`` is the object's own URI (``/iotAnalysis/projects/<id>``,
+    ``/reports/reports/<id>``, …). ``member_type`` is ``"child"`` (the object is
+    owned by the folder and deleted with it; an object can be a child of exactly
+    one folder) or ``"reference"`` (a link, unrestricted). For SAS-managed
+    objects the service overrides ``name`` with the object's own name.
+    """
+    body: dict[str, Any] = {"uri": member_uri, "type": member_type}
+    if name:
+        body["name"] = name
+    if content_type:
+        body["contentType"] = content_type
+    async with make_client(token) as client:
+        resp = await client.post(
+            f"{VIYA_ENDPOINT}/folders/folders/{folder_id}/members",
+            json=body,
+            headers={
+                "Accept": "application/vnd.sas.content.folder.member+json",
+                "Content-Type": "application/vnd.sas.content.folder.member+json",
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def remove_folder_member(folder_id: str, member_id: str, token: str) -> None:
+    """Removes a member from a folder.
+
+    This unlinks the member. Whether the underlying object survives is the
+    folders service's call: a ``reference`` member is only a link, while
+    removing a ``child`` member detaches an object the folder owned.
+    """
+    async with make_client(token) as client:
+        await _delete_resource(f"/folders/folders/{folder_id}/members/{member_id}", client)
+
+
 async def delete_folder(folder_id: str, token: str) -> None:
     """Deletes a folder by ID."""
     async with make_client(token) as client:
@@ -1125,6 +1238,7 @@ def register(
     async def launch_data_selection_tool(selection_id: str, ctx: Context,
                                          table_name: str | None = None,
                                          launch_key_dim: str | None = None,
+                                         launch_app_name: str = "CAS",
                                          transpose_flag: bool = AIOT_LAUNCH_TRANSPOSE,
                                          launch_columns: list[dict] | None = None,
                                          launch_column_tables: list[str] | None = None) -> dict:
@@ -1136,6 +1250,8 @@ def register(
             table_name (str, optional): Name for the resulting CAS table. Defaults to a name derived from selection_id.
             launch_key_dim (str, optional): Key dimension for the launch, e.g. 'ASSET', 'PRODUCT' or 'BATCH'.
                 Defaults to this deployment's AIOT_LAUNCH_KEY_DIM.
+            launch_app_name (str, optional): Target application for the launch — 'CAS' (default),
+                'VA', 'SASStudio', 'ModelStudio' or 'CSV'. Picks which launcher the cohort gets.
             transpose_flag (bool, optional): Whether to transpose the launched table.
             launch_columns (list[dict], optional): Columns to launch, each
                 {"columnName": ..., "columnTableName": ...} (labels optional). Viya rejects a
@@ -1143,10 +1259,12 @@ def register(
             launch_column_tables (list[str], optional): Tables of the columns, e.g.
                 ["CLAIM", "PART", "PRODUCT"]. Defaults to the tables named in launch_columns.
         """
-        logger.info("--- TOOL USED: launch_data_selection (%s) ---", selection_id)
+        logger.info("--- TOOL USED: launch_data_selection (%s, app=%s) ---",
+                    selection_id, launch_app_name)
         token = await get_token(ctx)
         return await launch_data_selection(selection_id, token, table_name=table_name,
                                            launch_key_dim=launch_key_dim,
+                                           launch_app_name=launch_app_name,
                                            transpose_flag=transpose_flag,
                                            launch_columns=launch_columns,
                                            launch_column_tables=launch_column_tables)
@@ -1155,6 +1273,7 @@ def register(
     async def launch_data_selection_and_wait_tool(selection_id: str, ctx: Context,
                                                   table_name: str | None = None,
                                                   launch_key_dim: str | None = None,
+                                                  launch_app_name: str = "CAS",
                                                   transpose_flag: bool = AIOT_LAUNCH_TRANSPOSE,
                                                   launch_columns: list[dict] | None = None,
                                                   launch_column_tables: list[str] | None = None) -> dict:
@@ -1166,6 +1285,8 @@ def register(
             table_name (str, optional): Name for the resulting CAS table. Defaults to a name derived from selection_id.
             launch_key_dim (str, optional): Key dimension for the launch, e.g. 'ASSET', 'PRODUCT' or 'BATCH'.
                 Defaults to this deployment's AIOT_LAUNCH_KEY_DIM.
+            launch_app_name (str, optional): Target application for the launch — 'CAS' (default),
+                'VA', 'SASStudio', 'ModelStudio' or 'CSV'. Picks which launcher the cohort gets.
             transpose_flag (bool, optional): Whether to transpose the launched table.
             launch_columns (list[dict], optional): Columns to launch, each
                 {"columnName": ..., "columnTableName": ...} (labels optional). Viya rejects a
@@ -1173,16 +1294,103 @@ def register(
             launch_column_tables (list[str], optional): Tables of the columns, e.g.
                 ["CLAIM", "PART", "PRODUCT"]. Defaults to the tables named in launch_columns.
         """
-        logger.info("--- TOOL USED: launch_data_selection_and_wait (%s) ---", selection_id)
+        logger.info("--- TOOL USED: launch_data_selection_and_wait (%s, app=%s) ---",
+                    selection_id, launch_app_name)
         token = await get_token(ctx)
         return await launch_data_selection_and_wait(selection_id, token, table_name=table_name,
                                                     launch_key_dim=launch_key_dim,
+                                                    launch_app_name=launch_app_name,
                                                     transpose_flag=transpose_flag,
                                                     launch_columns=launch_columns,
                                                     launch_column_tables=launch_column_tables)
 
     @mcp.tool()
-    async def copy_data_selection_tool(selection_id: str, new_name: str, 
+    async def create_data_selection_tool(name: str, ctx: Context,
+                                         description: str = "",
+                                         filter_criteria: dict | None = None,
+                                         creation_type: str | None = None) -> dict:
+        """
+        Creates a new standalone SAS Analytics for IoT data selection from filter criteria.
+
+        Unlike copy_data_selection_tool this needs no source cohort, so it is the way to
+        build a cohort that no existing data selection resembles. The new selection holds
+        no data until it is launched (launch_data_selection_tool).
+
+        Args:
+            name (str): Name of the new data selection (mandatory).
+            description (str): Optional description.
+            filter_criteria (dict, optional): The service's filterCriteria shape — filter
+                groups keyed by index, each a list of criteria, e.g.
+                {"0": [{"columnName": "PRODUCTION_DATE", "operatorCode": "BETWEEN",
+                        "excludeFlag": false, "filterAttributeId": "DSA002",
+                        "values": ["2022-11-08", "2022-11-09"]}]}.
+                Omit for an unfiltered selection.
+            creation_type (str, optional): Override the creationType (e.g. 'ADHOC').
+        """
+        logger.info("--- TOOL USED: create_data_selection (%s) ---", name)
+        token = await get_token(ctx)
+        return await create_data_selection(name, token, description, filter_criteria, creation_type)
+
+    @mcp.tool()
+    async def list_launchers_tool(ctx: Context, selection_id: str | None = None,
+                                  start: int = 0, limit: int = 10,
+                                  filter_query: str | None = None,
+                                  sort_by: str | None = None) -> dict:
+        """
+        Lists data selection launchers (launches).
+
+        A launcher is what materializes a data selection into a target application —
+        a CAS table, a VA report, a CSV export. Pass selection_id to see one cohort's
+        launchers, or omit it for every launcher the calling user can see.
+
+        Args:
+            selection_id (str, optional): Restrict to the launchers of this data selection.
+            start (int): Zero-based index of the first launcher to return. Defaults to 0.
+            limit (int): Maximum number of launchers to return. Defaults to 10.
+            filter_query (str, optional): Viya filter expression, e.g. eq(launchAppName,'CAS').
+            sort_by (str, optional): Viya sort expression, e.g. 'creationTimeStamp:descending'.
+        """
+        logger.info("--- TOOL USED: list_launchers (selection_id=%s) ---", selection_id)
+        token = await get_token(ctx)
+        return await list_data_selection_launches(token, selection_id=selection_id,
+                                                  start=start, limit=limit,
+                                                  filter_query=filter_query, sort_by=sort_by)
+
+    @mcp.tool()
+    async def get_launcher_details_tool(launch_id: str, ctx: Context,
+                                        selection_id: str | None = None) -> dict:
+        """
+        Retrieves one data selection launcher, including its target table and state.
+
+        Args:
+            launch_id (str): The unique identifier of the launcher.
+            selection_id (str, optional): The owning data selection. Omit to look the
+                launcher up by its ID alone.
+        """
+        logger.info("--- TOOL USED: get_launcher_details (%s) ---", launch_id)
+        token = await get_token(ctx)
+        return await get_data_selection_launch(launch_id, token, selection_id=selection_id)
+
+    @mcp.tool()
+    async def delete_launcher_tool(selection_id: str, launch_id: str, ctx: Context) -> str:
+        """
+        Deletes a data selection launcher.
+
+        This removes the launch and the materialized output it owns; the data selection
+        itself survives and can be launched again. The owning selection_id is required —
+        the user-wide /launches path is read-only.
+
+        Args:
+            selection_id (str): The data selection that owns the launcher.
+            launch_id (str): The unique identifier of the launcher to delete.
+        """
+        logger.info("--- TOOL USED: delete_launcher (%s/%s) ---", selection_id, launch_id)
+        token = await get_token(ctx)
+        await delete_data_selection_launch(selection_id, launch_id, token)
+        return f"Launcher {launch_id} of data selection {selection_id} deleted successfully."
+
+    @mcp.tool()
+    async def copy_data_selection_tool(selection_id: str, new_name: str,
                                        ctx: Context, new_description: str = "", creation_type: str | None = None) -> dict:
         """
         Copies a specific SAS Analytics for IoT data selection.
@@ -1219,13 +1427,23 @@ def register(
         return await list_iot_projects(token)
 
     @mcp.tool()
-    async def list_iot_analyses_tool(ctx: Context) -> dict:
+    async def list_iot_analyses_tool(ctx: Context, start: int | None = None,
+                                     limit: int | None = None) -> dict:
         """
-        Lists all defined SAS Analytics for IoT analyses.
+        Lists defined SAS Analytics for IoT analyses.
+
+        The service pages this collection and defaults to a short page, so a tenant
+        with more analyses than the default returns a truncated `items` list whose
+        `count` is larger. Page through with `start` / `limit` — `count` in the
+        response is the full total, not the length of `items`.
+
+        Args:
+            start (int, optional): Zero-based index of the first analysis to return.
+            limit (int, optional): Maximum number of analyses to return in this page.
         """
-        logger.info("--- TOOL USED: list_iot_analyses ---")
+        logger.info("--- TOOL USED: list_iot_analyses (start=%s, limit=%s) ---", start, limit)
         token = await get_token(ctx)
-        return await list_iot_analyses(token)
+        return await list_iot_analyses(token, start=start, limit=limit)
 
     @mcp.tool()
     async def get_iot_analysis_details_tool(analysis_id: str, ctx: Context) -> dict:
@@ -1730,6 +1948,49 @@ def register(
         logger.info("--- TOOL USED: create_project (name=%s, folder=%s) ---", name, folder_id)
         token = await get_token(ctx)
         return await create_project(name, token, folder_id, description)
+
+    @mcp.tool()
+    async def add_folder_member_tool(
+        folder_id: str,
+        member_uri: str,
+        ctx: Context,
+        name: str = None,  # pyright: ignore
+        member_type: str = "child",
+        content_type: str = None  # pyright: ignore
+    ) -> dict:
+        """
+        Adds an existing object to a folder as a member.
+
+        Args:
+            folder_id (str): The folder that receives the member (ID or '@myFolder').
+            member_uri (str): URI of the object to add, e.g. '/iotAnalysis/projects/<id>'
+                or '/reports/reports/<id>'.
+            name (str, optional): Member name. For SAS-managed objects the service
+                overrides this with the object's own name.
+            member_type (str): 'child' (owned by the folder, deleted with it, and an
+                object can be a child of only one folder) or 'reference' (a link, with
+                no such restriction). Defaults to 'child'.
+            content_type (str, optional): Content type hint, e.g. 'report'.
+        """
+        logger.info("--- TOOL USED: add_folder_member (%s <- %s) ---", folder_id, member_uri)
+        token = await get_token(ctx)
+        return await add_folder_member(folder_id, member_uri, token, name=name,
+                                       member_type=member_type, content_type=content_type)
+
+    @mcp.tool()
+    async def remove_folder_member_tool(folder_id: str, member_id: str, ctx: Context) -> str:
+        """
+        Removes a member from a folder.
+
+        Args:
+            folder_id (str): The folder holding the member.
+            member_id (str): The member's ID (from the folder's members list — this is the
+                member record's ID, not always the underlying object's ID).
+        """
+        logger.info("--- TOOL USED: remove_folder_member (%s / %s) ---", folder_id, member_id)
+        token = await get_token(ctx)
+        await remove_folder_member(folder_id, member_id, token)
+        return f"Member {member_id} removed from folder {folder_id}."
 
     @mcp.tool()
     async def delete_folder_tool(folder_id: str, ctx: Context = None) -> str:  # pyright: ignore
@@ -4463,22 +4724,37 @@ def register(
         logger.info("--- TOOL USED: create_root_emerging_issues_analysis_tool (%s) ---", name)
         token = await get_token(ctx)
         async with make_client(token) as client:
-            copy_url = f"{VIYA_ENDPOINT}/iotAnalysis/analysisActions/copies?name={name}"
-            payload = {"analysisId": base_analysis_id}
-            resp = await client.post(copy_url, json=payload, headers={"Accept": "application/vnd.sas.iot.analysis+json"})
+            # The copies action takes {version, resources:[…]} and answers
+            # application/json — asking for the single-analysis vendor type with an
+            # {analysisId} body got a 406 Not Acceptable and created nothing. It
+            # answers {"<source id>": {"id", "name", …}}, and it does not rename, so
+            # the name is applied by the PUT below together with the data selection.
+            resp = await client.post(
+                f"{VIYA_ENDPOINT}/iotAnalysis/analysisActions/copies",
+                json={"version": 1, "resources": [base_analysis_id]},
+                headers={"Accept": "application/json"},
+            )
             resp.raise_for_status()
-            new_analysis = resp.json()
-            new_id = new_analysis["id"]
-            etag = resp.headers.get("ETag") or new_analysis.get("etag")
-            if not etag:
-                resp_get = await client.get(
-                    f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{new_id}",
-                    headers={"Accept": "application/vnd.sas.iot.analysis+json"},
-                )
-                resp_get.raise_for_status()
-                new_analysis = resp_get.json()
-                etag = resp_get.headers.get("ETag") or "*"
+            copies = resp.json() or {}
+            copied = copies.get(base_analysis_id)
+            if not isinstance(copied, dict):
+                copied = next((v for v in copies.values() if isinstance(v, dict) and v.get("id")), None)
+            if not copied or not copied.get("id"):
+                raise RuntimeError(
+                    f"The copy of analysis {base_analysis_id} returned no new analysis ID: {copies!r}")
+            new_id = copied["id"]
 
+            # The copy response is a summary, so re-read the full representation
+            # (and its ETag) before updating it.
+            resp_get = await client.get(
+                f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{new_id}",
+                headers={"Accept": "application/vnd.sas.iot.analysis+json"},
+            )
+            resp_get.raise_for_status()
+            new_analysis = resp_get.json()
+            etag = resp_get.headers.get("ETag") or new_analysis.get("etag") or "*"
+
+            new_analysis["name"] = name
             new_analysis["dataSelectionId"] = data_selection_id
             update_url = f"{VIYA_ENDPOINT}/iotAnalysis/analyses/{new_id}"
             resp_update = await client.put(

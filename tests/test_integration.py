@@ -2584,12 +2584,16 @@ TOOL_COVERAGE = {
 
     # AIoT and CAS Summary Tools
     "list_data_selections_tool": "test_iot_workflow",
+    "create_data_selection_tool": "test_iot_workflow",
     "get_data_selection_details": "test_iot_workflow",
     "update_data_selection_tool": "test_iot_workflow",
     "delete_data_selection_tool": "test_iot_workflow",
     "set_data_selection_date_range_tool": "test_iot_workflow",
     "launch_data_selection_tool": "test_iot_workflow",
     "launch_data_selection_and_wait_tool": "test_iot_workflow",
+    "list_launchers_tool": "test_iot_workflow",
+    "get_launcher_details_tool": "test_iot_workflow",
+    "delete_launcher_tool": "test_iot_workflow",
     "copy_data_selection_tool": "test_iot_workflow",
     "copy_data_selections_tool": "test_iot_workflow",
     "list_iot_projects_tool": "test_iot_workflow",
@@ -2609,6 +2613,8 @@ TOOL_COVERAGE = {
     "list_folders_and_projects_tool": "test_iot_workflow",
     "create_folder_tool": "test_iot_workflow",
     "create_project_tool": "test_iot_workflow",
+    "add_folder_member_tool": "test_iot_workflow",
+    "remove_folder_member_tool": "test_iot_workflow",
     "delete_folder_tool": "test_iot_workflow",
     "delete_project_tool": "test_iot_workflow",
     "run_pareto_analysis_tool": "test_fqa_analysis_tools",
@@ -2771,6 +2777,24 @@ async def test_iot_workflow(integration_mcp_server):
     respx.post(f"{viya_url}/dataSelection/dataSelections/ds1/copy").mock(
         return_value=Response(201, json={"id": "ds1_copy"})
     )
+    respx.post(f"{viya_url}/dataSelection/dataSelections").mock(
+        return_value=Response(201, json={"id": "ds_new", "name": "New Selection"})
+    )
+    respx.get(f"{viya_url}/dataSelection/dataSelections/ds1/launches").mock(
+        return_value=Response(200, json={"count": 1, "items": [{"id": "launch_1", "launchAppName": "CAS"}]})
+    )
+    respx.get(f"{viya_url}/dataSelection/launches").mock(
+        return_value=Response(200, json={"count": 1, "items": [{"id": "launch_1", "launchAppName": "CAS"}]})
+    )
+    respx.get(f"{viya_url}/dataSelection/dataSelections/ds1/launches/launch_1").mock(
+        return_value=Response(200, json={"id": "launch_1", "tableName": "DS_ds1"})
+    )
+    respx.get(f"{viya_url}/dataSelection/launches/launch_1").mock(
+        return_value=Response(200, json={"id": "launch_1", "tableName": "DS_ds1"})
+    )
+    respx.delete(f"{viya_url}/dataSelection/dataSelections/ds1/launches/launch_1").mock(
+        return_value=Response(204)
+    )
     respx.post(f"{viya_url}/dataSelection/dataSelectionActions/copies").mock(
         return_value=Response(201, json={"id": "copies_job"})
     )
@@ -2839,6 +2863,12 @@ async def test_iot_workflow(integration_mcp_server):
     )
     respx.post(f"{viya_url}/folders/folders").mock(
         return_value=Response(201, json={"id": "f_new", "name": "New Folder"})
+    )
+    respx.post(f"{viya_url}/folders/folders/f1/members").mock(
+        return_value=Response(201, json={"id": "mem_new", "uri": "/iotAnalysis/projects/p1"})
+    )
+    respx.delete(f"{viya_url}/folders/folders/f1/members/mem_new").mock(
+        return_value=Response(204)
     )
     respx.post(f"{viya_url}/iotAnalysis/projects").mock(
         return_value=Response(201, json={"id": "proj_new", "name": "New Project"})
@@ -2927,8 +2957,27 @@ async def test_iot_workflow(integration_mcp_server):
                 "create_project_tool",
                 {"name": "test_proj", "folder_id": "f1", "description": "desc"}
             )
+            await client.call_tool(
+                "add_folder_member_tool",
+                {"folder_id": "f1", "member_uri": "/iotAnalysis/projects/p1",
+                 "name": "P1", "member_type": "reference", "content_type": "project"}
+            )
+            await client.call_tool(
+                "remove_folder_member_tool", {"folder_id": "f1", "member_id": "mem_new"}
+            )
             await client.call_tool("delete_folder_tool", {"folder_id": "f1"})
             await client.call_tool("delete_project_tool", {"project_id": "p1"})
+
+            await client.call_tool("create_data_selection_tool", {"name": "FQAAGENT_New"})
+            await client.call_tool("list_launchers_tool", {})
+            await client.call_tool("list_launchers_tool", {"selection_id": "ds1"})
+            await client.call_tool("get_launcher_details_tool", {"launch_id": "launch_1"})
+            await client.call_tool(
+                "get_launcher_details_tool", {"launch_id": "launch_1", "selection_id": "ds1"}
+            )
+            await client.call_tool(
+                "delete_launcher_tool", {"selection_id": "ds1", "launch_id": "launch_1"}
+            )
 
             await client.call_tool("delete_data_selection_tool", {"selection_id": "ds1"})
 
