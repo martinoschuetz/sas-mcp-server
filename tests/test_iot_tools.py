@@ -1038,7 +1038,7 @@ async def test_caf_step_parameter_update_etag_and_step_job_polling(mock_env_vars
         assert run2["status"] == "COMPLETED"
 
 
-# --- v1.21.0: launcher lifecycle, standalone data selection, folder members ---
+# --- v1.20.2: launcher lifecycle, standalone data selection, folder members ---
 
 
 @pytest.mark.asyncio

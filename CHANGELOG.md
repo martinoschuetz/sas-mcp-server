@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [1.21.0] - 2026-11-17
+## [1.20.2] - 2026-11-17
 
 ### Added
 - **Tier 12 — data selection launchers, standalone data selections and folder members: six tools that close the gaps a governed FQA object lifecycle still had.** Until now a data selection could be launched but never listed, inspected or un-launched; a cohort could only be created by copying one that already existed; and an object could be put in a folder only by creating it there. Written against the `dataSelection` and `folders` API specifications in `docs/APIs`.
