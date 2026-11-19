@@ -12,9 +12,11 @@ Thresholds are defaults; the tenant profile may override them.
 
 | Analysis | Check | Default threshold | Remedy on fail |
 |---|---|---|---|
+| Any FQA query / analysis / writeback on a DS | DS domain compatibility (`get_data_selection_details` `creationType` / `filterCriteria[*].componentTypeCode`) | `creationType` in `{EIENTERPRISE, EIANALYTIC, EITHRESHOLD}` or components in `{PRODUCT, CLAIM, LABOR, PART, SSD, DTC}` | refuse non-FQA AIoT/PdM cohorts (`ASSET`, `EVENTS`, `TAGS`) read-only before running FQA SQL or analyses |
+| Root Early-Warning analysis (`On Demand`, `Threshold`, `Emerging Issues`) | target DS `creationType` (`F-2s1-4`) | standalone `DEFAULT` or `ADHOC` root DS (`units >= 30`, not expired) | refuse `EIENTERPRISE` / `EIANALYTIC` / `EITHRESHOLD` child bookmark DSs read-only (`400 Bad Request` in Viya); point to a standalone `DEFAULT` DS |
 | Failure Relationships | share of cohort units with ≥ 2 distinct codes **in the chosen domain table** | ≥ 20 % and ≥ 200 units | widen to the model-level cohort of the scoped build periods, all parts |
 | Failure Relationships | domain coverage: target-code rows in the domain table ÷ claim-level units with the target code | ≥ 0.5 | use the other domain, or the claim-level primary-code template |
-| Pareto, Summary Tables | levels of the reporting variable | ≤ 50 | aggregate to the code group (`LABOR_GRP_CD`, `REPL_PART_GRP_CD`); report both |
+| Pareto, Summary Tables | levels of `report_var` and `by_var` | `report_var` ≤ 50 (`NUMBARS <= 25` visual); `by_var` ≤ 250 (`MAXBYVAR=20` visual) | aggregate to the code group (`LABOR_GRP_CD`, `REPL_PART_GRP_CD`) or Top-$N$ + `'OTHER'`; auto-invert `report_var` $\leftrightarrow$ `by_var` when `by_var > 250` and `report_var` is low-cardinality |
 | Pareto (interpretation) | top bar's Poisson excess vs. baseline share, Bonferroni over levels | p < 0.01 | run anyway, mark `weak_signal` |
 | Statistical Drivers, Decision Tree | target and every candidate exist in the **mart variable dictionary** | all present | drop missing candidates; say so |
 | Statistical Drivers (ANOM) | distinct levels of each candidate variable in the subset | 2 to 500 levels | drop variables with `< 2` levels (pinned by DS filter) or `> 500` levels (FQA returns `Decision Limit Exceeded = NA`); bin high-cardinality fields |

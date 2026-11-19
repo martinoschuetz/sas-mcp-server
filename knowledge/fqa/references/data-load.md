@@ -219,3 +219,9 @@ on Sunday is what produces the alert groups analysts see on Monday (concepts.md)
 - Staging fixes that belong upstream (`%fqaetl_load_fixcuststg`: renames, lengths, dropped
   `SNAPSHOT_ID`, `%util_rem_stg_extravars`, `%util_set_length_stg_vars`) run every load;
   if the source changes, this macro is the first place a load breaks.
+- When placing parameter files or CSV inputs in SAS Content instead of a mounted filesystem,
+  `%afi_dataload` requires `/Products/...` (never `/Public/`). Avoid AIoT reserved column names
+  (`PROCESS_DTTM`, `CURRENT_NUM`, `DATETIME_AIOT`, `PLOT_IN_EXPLORATION_AIOT`, `EVENT_FLAG_AIOT`,
+  `VALUE`) and run under an **AIOT Application Administrator** account. `Dttm_Miss` in
+  `exceptions.csv` marks missing/unparseable timestamps (`Dim_Lkup` / `Dup_ID` mark missing dim
+  keys and duplicate IDs).

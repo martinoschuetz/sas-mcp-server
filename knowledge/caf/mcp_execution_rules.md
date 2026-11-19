@@ -72,7 +72,7 @@ Any unresolved `{{.TOKEN}}` renders a blank VA object with zero runtime error. A
 
 ---
 
-## 5. Visual Analytics BIRD XML Output Layer
+## 5. Visual Analytics BIRD XML Output Layer (Rule 11 & Performance)
 
 1. **Dual-Attribute Table Binding:** Every CAS table in BIRD XML appears in **two** attributes that must **both** carry `{{.TOKEN}}`: **[VERIFIED]**
    ```xml
@@ -81,6 +81,11 @@ Any unresolved `{{.TOKEN}}` renders a blank VA object with zero runtime error. A
    ```
    Rewriting `CasResource/@table` while leaving `DataSource/@label` hardcoded causes VA data binding to fail silently.
 2. **Never Hand-Write BIRD XML from Scratch:** Run the SAS step once so real output tables exist in `QASAnlOut`, build or adapt a working VA report (`create_report` / `apply_report_operations` or clone an exported `_vaoutput.template`), and run `templatize_va_report(report_id, table_tokens=...)`. Steps without visualization omit `vaoutput_template` (receiving the minimal legal stub automatically). **[VERIFIED]**
+3. **Production VA Hardening & High-Frequency Rendering Rules (`Rule 11`):**
+   - **Never rely on `autoInteractionMode="oneWayFilter"` with `graphType="custom"`** (e.g., SPC/Scatter+Series templates): add `PAM_ASSET_ID` to both slider (`applyDynamicBrushes="promptsOnly"`) and graph `ParentDataDefinition`, add `required="true"` + dynamic `first` `<DefaultValue>` on `<Prompt>` (never `<NumericRangeConstraint>`), and wire explicit `<Interaction type="filter">` rules.
+   - **Reset `<SASReportState><View/></SASReportState>`** to strip saved `<PromptState>` asset codes and epoch slider bounds.
+   - **Stay under the 250,000-cell `sas-report-data` ceiling & keep `detail="false"`** on long transposed tables; use `maxRows="250000" maxRowsBehavior="truncate"` (never `noData`), trim `MultidimensionalDataDefinition` columns (`<= 3`), and use continuous `<SeriesPlot connectOrder="xaxis">` + `<TimeOpts>` instead of discrete `<LineChart>` (`HTTP 500` on >10k points).
+   - **Separate 1-row/timestamp series tables from $p\times$ transposed tables**, strip dead unused `<DataDefinition>`s inside `synchronized` blocks, omit `display="ALL"` markers / 45k-point `<ScatterPlot>` circles when line curves suffice, and keep Local Explainer `InternalDataSourceMapping` on `(vname -> _NAME_, PAM_ASSET_ID)` without `DATETIME`. → See `references/va_output_templates.md` §4 & `references/anomaly_caf_design_and_patterns.md` §3. **[VERIFIED]**
 
 ---
 
@@ -165,6 +170,9 @@ The AIoT mid-tier performs a single-pass, first-occurrence string replacement on
 2. **In-Place Updates (`update_analysis_type`):**
    - Models with existing analysis instances cannot be deleted (`DELETE` returns `HTTP 423 Locked`). Replace them in-place with `update_analysis_type` (`PUT /iotAnalysisModels/models/{name}` with `Accept: application/vnd.sas.iot.analysis.model+json, application/json, */*` and `If-Match: <ETag>` — handled automatically by `caf_helpers.upload_package`).
    - `update_analysis_type` is a **whole-package replacement, not a merge**. Whenever adding or removing steps on an existing model, increment `"revision_no"` in `spec.json`. Follow with `set_analysis_type_state(name, "active")` to ensure the updated model stays active. **[VERIFIED]**
+3. **Live REST Field Spellings & Export Headers (`/iotAnalysisModels/models`):**
+   - List JSON fields are spelled `analysisType`, `domainGroup`, and `activeFlag` (not `type`, `keyGroup`, `active`).
+   - Raw exports: `Accept: application/zip` downloads the full deployable `.zip`; `Accept: application/vnd.sas.iot.analysis.model.ui+xml` returns raw `input.xml` (plain `application/xml` returns `406`); `POST /iotAnalysisModels/models/{name}/copy` clones an existing type. **[VERIFIED]**
 
 ---
 
@@ -184,6 +192,6 @@ The AIoT mid-tier performs a single-pass, first-occurrence string replacement on
 
 ## 13. References
 
-- Deep-dive topics in this domain: `references/ui_lookups_and_interactions.md`, `references/sas_cas_plumbing.md`, `references/va_output_templates.md`, `references/troubleshooting.md`, `references/case_study_isolation_forest.md`.
+- Deep-dive topics in this domain: `references/aiot_platform_and_etl.md`, `references/anomaly_caf_design_and_patterns.md`, `references/ui_lookups_and_interactions.md`, `references/sas_cas_plumbing.md`, `references/va_output_templates.md`, `references/troubleshooting.md`, `references/case_study_isolation_forest.md`.
 - Boilerplate templates: `templates/build_package.py`, `templates/gen2_single_step_skeleton.sas`, `templates/multistep_stableperiod_time_filter.sas`.
 - Official SAS Docs: [Working with Custom Analysis Types](https://go.documentation.sas.com/doc/en/aniotcdc/default/aniotcat/titlepage.htm) | [SpEL Reference](https://docs.spring.io/spring-framework/reference/core/expressions.html) | [Go `text/template`](https://pkg.go.dev/text/template).

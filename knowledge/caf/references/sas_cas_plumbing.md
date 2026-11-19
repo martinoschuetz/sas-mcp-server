@@ -4,16 +4,18 @@ Reference patterns for writing resilient, concurrency-safe SAS Viya / CAS backgr
 
 ---
 
-## 1. Two Generations of CAF Plumbing (`[VERIFIED]`)
+## 1. Three Generations of CAF Plumbing (`[VERIFIED]`)
 
-| Aspect | Generation 2 (Declarative — Preferred for Single-Step / Standard Multi-Step) | Generation 1 (Explicit — Required for `STABLEPERIOD` / Custom Step-to-Step Lookup Tables) |
-| :--- | :--- | :--- |
-| **Step Entry** | `%afi_caf_preprocess(?g_cas, ?analysisID);` | `%qas_getconnections(g_cas=?g_cas, g_metadata=?g_metadata);` + `%anl_getanalysisattributes(?analysisID);` |
-| **Input Table** | `&g_caf_input_table` (automatically resolved in CAS) | `QASAnlOut.<PREFIX>_TRANSPOSE_&g_instance_nm` (built in Step 1 via `%anl_driver` or `SASTABLE` branch) |
-| **Publishing Outputs** | `%let g_output_table_1 = work.SUMMARY;` ... `%afi_caf_postprocess;` (generated via `build_output_contract`) | Explicit `PROC CASUTIL` `promote` + `save` into `QASAnlOut`, followed by `PROC HTTP POST` to `/iotAnalysis/analyses/&G_INSTANCEID./steps/&G_ANALYSISID./outputParams` |
-| **Template Token Name** | Bare uppercase member name (`{{.SUMMARY}}`) | Exact `"outputname"` posted in `analysisStepOutputParams` (`{{.GIMPORTANCE_TABLE}}`, `{{.TS_TRANS_TABLE}}`) |
+| Aspect | Generation 2 (Declarative — Preferred for Custom Single/Multi-Step) | Generation 1 (Explicit — `STABLEPERIOD` / Custom Cross-Step Lookups) | Generation 3 (`STANDARD` & `ALERTS` Only) |
+| :--- | :--- | :--- | :--- |
+| **Step Entry** | `%afi_caf_preprocess(?g_cas, ?analysisID);` | `%qas_getconnections(g_cas=?g_cas, g_metadata=?g_metadata);` + `%anl_getanalysisattributes(?analysisID);` | `%anl_driver(analysisID=?analysisID, g_cas=?g_cas, g_metadata=?g_metadata[, anlnm=...]);` |
+| **Input Table** | `&g_caf_input_table` (automatically resolved in CAS) | `QASAnlOut.<PREFIX>_TRANSPOSE_&g_instance_nm` (built in Step 1 via `%anl_driver` or `SASTABLE` branch) | Pre-filtered `mycas.DS_PRODUCT`, `DS_CLAIM`, `DS_EVENT`, `DS_TAGS` |
+| **Publishing Outputs** | `%let g_output_table_1 = work.SUMMARY;` ... `%afi_caf_postprocess;` (generated via `build_output_contract`) | Explicit `PROC CASUTIL` `promote` + `save` into `QASAnlOut`, followed by `PROC HTTP POST` to `/iotAnalysis/analyses/&G_INSTANCEID./steps/&G_ANALYSISID./outputParams?append=false` | Macro-managed `OUTPUTTABLENAME1..29`, `_LABEL`, `_FORMAT`, `alert_type`, `CHART_TYPE` |
+| **Template Token Name** | Bare uppercase member name (`{{.SUMMARY}}`) | Exact `"outputname"` posted in `analysisStepOutputParams` (`{{.GIMPORTANCE_TABLE}}`, `{{.TS_TRANS_TABLE}}`) | Positional aliases `OUTPUTTABLENAME1..N` + `ANALYSISVAR1..15` |
 
-> **Critical Reminder:** Never place `?g_cas`, `?analysisID`, `?g_metadata`, `?limit`, `?append`, or `?filter` inside a comment anywhere in the `.sas` file — the mid-tier replaces only the **first** literal occurrence!
+> **Critical Reminders:**
+> - Never place `?g_cas`, `?analysisID`, `?g_metadata`, `?limit`, `?append`, or `?filter` inside a comment anywhere in the `.sas` file — the mid-tier replaces only the **first** literal occurrence!
+> - **Push Heavy Compute & Unpivots into CAS:** Keep correlations (`simple.correlation`), summary stats (`simple.summary`), `BY PAM_ASSET_ID DATETIME` persistence loops, and wide-to-long unpivoting (`array` loop in a CAS `DATA` step) inside 8-worker CAS rather than pulling hundreds of thousands of rows into SAS Compute `WORK` for `PROC SORT` / `PROC TRANSPOSE`. Always filter Step 3 scoring inputs (`&G_TIME_FILTER.` & selected assets) **before** standardising or joining raw rows.
 
 ---
 

@@ -34,13 +34,16 @@ need approval (writeback.md).
 | 4-question alert triage (`_ALERTS_`, `_DETAILS_` Sales Lag, `_WUMKR_`, `_BASELINE_`) in 1 call | `inspect_emerging_issue_alert_context_tool` (single CAS call; checks `actual > C_ijk` sales lag, Weibull $\beta$, and $n < 5$) |
 | 4-gate preflight check on a DS / CAS table in 1 call | `run_fqa_preflight_checks_tool` (single CAS call; checks cardinality, single-level pinning, Failure Relationships multi-code share, and Text Mining comment count) |
 | 4-quadrant Common Cause vs. Special Cause screening in 1 call | `screen_common_cause_candidates_tool` (single CAS call; classifies components by rate/cost and Weibull $\beta$ + B-life `T01`–`T25`, top 10 by default) |
+| Subpopulation lift, coverage & co-linearity pruning in 1 call | `evaluate_subpopulation_lift_and_coverage_tool` (single CAS call; `COUNT(DISTINCT PRODUCT_ID)` lift, `>= 25%` alert coverage gate, cohort rate vs. 4-year 1D dilution, and pinned `distinct_levels == 1` co-linear attributes) |
+| Build + launch 1 consolidated Root-Cause Data Selection | `synthesize_root_cause_data_selection_tool` (pruned multi-domain filters + date bounds, optional `DETAIL_PRODUCT` & `PARETO_PRODUCT` UI verification nodes; write, approval) |
 | list alert groups | `list_emerging_issue_runs_tool(status="Completed", sort_by="lastRunDate", limit=10)` |
 | list alerts of a single run | `list_alerts_for_run_tool(analysis_id=..., sort_by="score", sort_order="desc", limit=10)` (sorts all alerts before slicing to top 10; includes `has_more` & `next_start`) |
 | alert → FQA filter criteria | `get_alert_filters_tool` (pure translation, no side effects) |
 | data selections | `list_data_selections_tool(limit=10, sort_by=...)`, `get_data_selection_details` |
+| launchers | `list_launchers_tool(selection_id=..., filter_query=...)`, `get_launcher_details_tool` |
 | DS variable profile | `list_fqa_data_model_variables_tool` (incomplete — see data-model.md) |
-| projects and nodes | `list_folders_and_projects_tool` |
-| analyses | `list_iot_analyses_tool` (first 10 only!), `get_iot_analysis_details_tool`, `get_iot_analysis_run_status_tool`, `get_iot_analysis_results`, `get_iot_analysis_output_tables_tool` |
+| projects and nodes | `list_iot_projects_tool`, `list_folders_and_projects_tool(folder_id=..., limit=200)` |
+| analyses & step logs | `list_iot_analyses_tool(start=..., limit=..., model_name=..., data_selection_id=..., search=..., created_by=...)` (`v1.20.2+` pages & scans full collection; pre-`v1.20.2` returns first 10 only), `get_iot_analysis_details_tool`, `get_iot_analysis_run_status_tool`, `get_iot_analysis_step_log_tool`, `get_iot_analysis_results`, `get_iot_analysis_output_tables_tool` |
 | can this analysis run natively? | `get_analysis_execution_capabilities` |
 
 **Read — data (safe)**
@@ -58,15 +61,16 @@ need approval (writeback.md).
 
 | Job | Tool |
 |---|---|
-| project / folder | `create_project_tool`, `create_folder_tool` |
+| project / folder / members | `create_project_tool` (`<= 36` chars), `create_folder_tool` (`@myFolder` only — never `IoTProjects`!), `add_folder_member_tool(member_type="reference")`, `remove_folder_member_tool` |
 | "Analyze Alert" (EI data selection + analysis from an alert) | `analyze_emerging_issue_alert_tool` (filters from `get_alert_filters_tool`) |
-| On Demand / Threshold early warning | `get_iot_model_definition_tool` first, then `create_iot_analysis_tool(model_name="EIANALYTIC_PRODUCT" \| "EITHRESHOLD_PRODUCT", …)` (early-warning.md) |
+| On Demand / Threshold / EI early warning | `get_iot_model_definition_tool` first, then `create_iot_analysis_tool(model_name="EIANALYTIC_PRODUCT" \| "EITHRESHOLD_PRODUCT" \| "EIENTERPRISE_PRODUCT", folder_id="onDemandContainer" \| "thresholdContainer" \| "emergingIssueContainer", …)` on a standalone `DEFAULT`/`ADHOC` root DS, or `copy_iot_analyses_tool` (early-warning.md) |
+| standalone analysis parameter / run | `create_iot_analysis_tool`, `update_analysis_step_parameters_tool` (after `get_iot_analysis_details_tool` for `steps[0].id`), `run_iot_analysis_tool` |
 | child DS / child analysis | `create_child_data_selection_and_launch_tool`, `create_child_analysis_and_run_tool` |
-| launch a DS | `launch_data_selection_tool`, `launch_data_selection_and_wait_tool` |
-| edit DS | `update_data_selection_tool`, `update_data_selection_filters_tool`, `set_data_selection_date_range_tool`, `copy_data_selection(s)_tool`, `combine_data_selections_tool` |
+| launch / delete launcher | `launch_data_selection_tool` / `launch_data_selection_and_wait_tool` (`launch_key_dim="PRODUCT"`, `transpose_flag=0`, 11 FQA `launch_columns`/`launch_column_tables`, `<= 32`-char `table_name`, `launch_app_name`), `delete_launcher_tool(selection_id, launch_id)` |
+| create / edit DS | `create_data_selection_tool`, `update_data_selection_tool`, `update_data_selection_filters_tool`, `set_data_selection_date_range_tool`, `copy_data_selection(s)_tool`, `combine_data_selections_tool` (`ADHOC`/`DEFAULT` `base_ds_id` first!) |
 | native analyses | `run_pareto_analysis_tool`, `run_summary_tables_analysis_tool`, `run_geographic_analysis_tool`, `run_trend_analysis_tool` (Trend & Control), `run_trend_by_exposure_analysis_tool`, `run_exposure_analysis_tool`, `run_reliability_analysis_tool`, `run_statistical_driver_analysis_tool`, `run_decision_tree_analysis_tool`, `run_failure_relationships_analysis_tool`, `run_detail_analysis_tool`, `run_text_mining_analysis_tool`, `run_time_of_event_analysis_tool`, `run_event_forecasting_analysis_tool` |
 | phase templates | `fqa_template_descriptive_triage_tool` (Pareto + Geographic + Trend & Control), `fqa_template_algorithmic_segmentation_tool`, `fqa_template_validation_and_forecasting_tool` |
-| rollback | `delete_project_tool`, `delete_data_selection_tool`, `delete_iot_analysis_tool`, `force_delete_fqa_object_tool` (locked objects — only for objects you created) |
+| rollback / delete | `delete_project_tool`, `delete_folder_tool(recursive=...)`, `delete_data_selection_tool`, `delete_launcher_tool`, `delete_iot_analysis_tool` (wait out `423` if `RUNNING`), `force_delete_fqa_object_tool` (admin emergency only) |
 
 **Admin — don't use in investigations**
 
@@ -76,15 +80,15 @@ need approval (writeback.md).
 
 ## Known tool limits
 
-- `list_iot_analyses_tool` returns only the first 10 analyses and cannot page. Enumerate project
-  nodes with `list_folders_and_projects_tool` on the project folder.
+- Pre-`v1.20.2` builds of `list_iot_analyses_tool` returned only the first 10 analyses; `v1.20.2+` pages and scans the full collection (`model_name`, `data_selection_id`, `search`, `created_by`), though completed project child nodes can still live only as folder members (`list_folders_and_projects_tool`).
 - Alert tool and WMEXT table use different column names (`score`/`Index`,
   `cost_score`/`Index_TOTAL_EVENT_AMT`, `Events_AP`/`Events`). Normalize.
-- `list_fqa_data_model_variables_tool` is not a reliable variable oracle.
+- `list_fqa_data_model_variables_tool` is not a reliable variable oracle, and `list_data_selections_tool` has **no `solution`/`mart` field** (`DEFAULT` FQA and `ASSET`/`EVENTS`/`TAGS` PdM cohorts look identical until `get_data_selection_details` inspects `filterCriteria[*].componentTypeCode`).
 - Native Failure Relationships defaults to the **PART** domain (`report_var=PART.REPL_PART_CD`,
   `data_domain=PRODUCT,CLAIM,PART`). Change it deliberately (failure-relationships.md).
 - Native Pareto defaults to `report_var=PRODUCT.MODEL_CD` and `analysis_var=CLAIM.CLAIMCOST`.
   Set both explicitly.
+- See [standard-models-caf.md](standard-models-caf.md) for the exact shipped `modelName`, hidden visual caps (`MAXREPORTLEVEL=100`, `MAXREPORTVAR=25`, `MAXBYVAR=20`, `NUMBARS=25`, `MAXNODENUMBER=300`), and `OUTPUTTABLENAME*` VA contracts across all 14 `STANDARD` + 3 `ALERTS` FQA/AIoT analysis types, and [object-lifecycle-and-api-traps.md](object-lifecycle-and-api-traps.md) for all Viya REST `400`/`403`/`409`/`423`/`428` rules.
 
 ## Native parameter conventions
 

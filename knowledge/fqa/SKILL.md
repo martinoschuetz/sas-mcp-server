@@ -3,9 +3,9 @@ name: sas-fqa
 description: >-
   Domain playbook for SAS Field Quality Analytics (FQA) on SAS Viya / Analytics for IoT, used through the sas-viya-internal MCP server. Use when investigating warranty or field-quality issues, triaging Emerging Issues (early-warning) alerts, configuring or explaining Emerging Issues, On Demand (Ad Hoc Analytic) or Threshold (Ad Hoc Threshold) analyses, building or combining data selections across data domains (claims, labor, parts, SSD, DTC), choosing or interpreting FQA analyses (Pareto, Failure Relationships, Statistical Drivers, Decision Tree, Text Mining, Trend by Exposure, Reliability/Weibull, Exposure, Geographic, Summary Tables, Detail), querying the FQA data mart (QASMartStore, QASANLOUT), or creating FQA projects, data selections and analysis nodes. Also use when the user mentions alerts, build/production-period charts, time in service (TIS), claim rates, labor or part codes, root cause of a warranty spike, or recall population narrowing. Also covers the FQA data load and configuration layer (%afi_dataload parameter files, the Data Elements Workbook (DEW) and configuration CSVs, full/incremental/sequential-BOM load jobs, the exceptions log, validation tables, customer macro overrides and utilities).
 metadata:
-  version: "0.5.0"
+  version: "0.6.0"
   source: >-
-    FQA-Agent-Spec v0.3 (2026-09-25), preflightchecks.md, FQA_bestpractices.md, 2025_10_28_FQA BP_MAN.pptx (Best Practices), FQA Education Course Materials (Lessons 0–11, LTS 2026.09 New EI Columns), MAN FQA project folder (configuration, programs/etl, programs/overrides, programs/utility; surveyed 2026-10-01), production-period alert walkthrough 2026-10-05, FQA 6.3 User's/Administrator's Guide, Emerging Issues Properties, Complex Data Selections and Data Domains, FQA_MCP_Users_Guide (2026-10-07)
+    FQA-Agent-Spec v1.0 & Stage 3/4 Extension Plan (2a–2t.1/2r.1, 2026-11-18), preflightchecks.md, FQA_bestpractices.md, 2025_10_28_FQA BP_MAN.pptx (Best Practices), FQA Education Course Materials (Lessons 0–11, LTS 2026.09 New EI Columns), MAN FQA project folder (configuration, programs/etl, programs/overrides, programs/utility; surveyed 2026-10-01), production-period alert walkthrough 2026-10-05, FQA 6.3 User's/Administrator's Guide, Emerging Issues Properties, Complex Data Selections and Data Domains, FQA_MCP_Users_Guide (2026-10-07), live SAS Viya 2026 OpenAPI & runtime verification (sas-mcp-server v1.20.2)
   mcp_server: sas-viya-internal
   fqa_version: "6.3 / LTS 2026.09"
 ---
@@ -111,6 +111,8 @@ later result should be read.
 - [data-load.md](references/data-load.md) — the ETL pipeline: autoexec conventions, `parameters_*.txt` keys, `%afi_dataload` sub-macro order, SYSPARM phases, full vs. incremental vs. config-only vs. sequential BOM, precode/postcode, exceptions-log codes, validation output tables, scheduled batch analyses.
 - [configuration-files.md](references/configuration-files.md) — what each configuration CSV controls (DEW exports, `table_parameters`, `column_parameters` roles and `column_rest`, `global_defaults` TIS/maturity keys, `analysis_param`, `param_lookup`, `analysis_var` measure formulas, `labels`, failure-relationship targets and trivial rules, `toc_report_var`, `geo`).
 - [custom-macros.md](references/custom-macros.md) — the customer override layer (`afi_*`, `anl_*`, `qas_*`, `wrna_*`: what was changed and why), utility macros, usage-profile administration, and what they imply for analysts (alt_date analyses, restricted variables, output lifetimes).
+- [standard-models-caf.md](references/standard-models-caf.md) — verified CAF `modelName` mapping, parameter defaults, visual caps (`MAXREPORTLEVEL`, `MAXBYVAR`, `NUMBARS`, `MAXNODENUMBER`), SpEL locks, and `OUTPUTTABLENAME*` contracts across all 14 `STANDARD` and 3 `ALERTS` FQA/AIoT analysis types.
+- [object-lifecycle-and-api-traps.md](references/object-lifecycle-and-api-traps.md) — live-verified Viya REST & MCP rules across Data Selections (FQA vs. non-FQA `filterCriteria` domain differentiation, `/copy` `EIENTERPRISE` rule, `423` dependency graph), Launchers (`PRODUCT` key dim, 11-column payload, `<= 32`-char `table_name`, permission-filtered `count`, `transposeFlag` wire split), Analyses (`v1.20.2` paging/filtering, EW system containers & root-DS guard `F-2s1-4`, `428`/`423`/`404` handling, dynamic `shortId`), Projects (`<= 36` chars), Folders (`@myFolder` vs. `IoTProjects` `403` ACL trap, `reference` members), and `TABLE_META_PG` `WRNA_CALCPERIODS` diagnostics.
 - [templates/fedsql/](templates/fedsql/) — unit-level query templates (early life, relationships, coverage, preflight).
 
 ## Bundled Single-Call FQA Tools & Top-10 List Presentation Rule
@@ -129,8 +131,9 @@ later result should be read.
 
 Before querying, load the tenant profile for the connected Viya environment (for the reference
 tenant: `tenants/reference/tenant-profile.yaml` in the FQA project). It pins the physical tables,
-the EI run → output-table hash mapping, the variable dictionary, the data refresh date and any
-threshold overrides. If there is no profile, run onboarding first
+the variable dictionary, the data refresh date and any threshold overrides; resolve each EI run's
+output-table `shortId` dynamically via `get_iot_analysis_details_tool` (`EIENTERPRISE_WMEXT_<shortId>`,
+`EIENTERPRISE_WUMKR_<shortId>`). If there is no profile, run onboarding first
 ([workflow.md § Onboarding](references/workflow.md#onboarding-a-new-tenant)). Never guess an
 output-table hash at runtime.
 

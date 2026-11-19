@@ -19,9 +19,9 @@ user on EI configuration.
 
 | FQA 6.3 (SAS 9) | Viya / AIoT UI | `modelName` |
 |---|---|---|
-| Enterprise Analytic | **Emerging Issues** | `EIENTERPRISE_PRODUCT` |
-| Ad Hoc Analytic | **On Demand** | `EIANALYTIC_PRODUCT` (inferred, verify) |
-| Ad Hoc Threshold | **Threshold** | `EITHRESHOLD_PRODUCT` |
+| Enterprise Analytic | **Emerging Issues** | `EIENTERPRISE_PRODUCT` (`ALERTS` CAF, 58 params, 43 tokens) |
+| Ad Hoc Analytic | **On Demand** | `EIANALYTIC_PRODUCT` (`ALERTS` CAF, 55 params, 42 tokens) |
+| Ad Hoc Threshold | **Threshold** | `EITHRESHOLD_PRODUCT` (`ALERTS` CAF, 39 params, 30 tokens) |
 
 Verify model names on the tenant with `list_iot_models_tool` / `get_iot_model_definition_tool`
 before creating anything. Users often use the 6.3 names; map them silently.
@@ -241,12 +241,14 @@ Use this section to write instructions for the user. None of these actions has a
 | list alerts | `list_alerts_for_run_tool` (paged; filters `alert_type`, `model_cd`, `cstmr_country_cd`, `seasonal_flag`, `display_status_cd`, `attribute_filters`) | read |
 | alert → filters | `get_alert_filters_tool(alert_row)` | read |
 | Analyze in Project | `analyze_emerging_issue_alert_tool` | write, approval |
-| On Demand / Threshold | `get_iot_model_definition_tool` first, then `create_iot_analysis_tool(name, model_name, data_selection_id, folder_id, …)` | write, approval |
-| new root EI run | `create_root_emerging_issues_analysis_tool` (clones a base EI and swaps the DS; plain POST with `EIENTERPRISE_PRODUCT` creates an Analyze-Alert node instead) | admin |
+| On Demand / Threshold | `get_iot_model_definition_tool` first, then `create_iot_analysis_tool(name, model_name, data_selection_id, folder_id="onDemandContainer" \| "thresholdContainer", …)` on a standalone `DEFAULT`/`ADHOC` root DS (or `copy_iot_analyses_tool`) | write, approval |
+| new root EI run | `create_root_emerging_issues_analysis_tool` (fixed in `v1.20.2`: posts `{version, resources:[...]}` with `Accept: application/json`, or use `copy_iot_analyses_tool`; target `folder_id="emergingIssueContainer"` + standalone `DEFAULT`/`ADHOC` DS) | admin |
 
-Traps:
+Traps (full details in [object-lifecycle-and-api-traps.md](object-lifecycle-and-api-traps.md)):
+- **System Container & Root-DS Rule (`400 errorCode 76250` / `F-2s1-4`):** `EIANALYTIC_PRODUCT`, `EITHRESHOLD_PRODUCT`, and `EIENTERPRISE_PRODUCT` fail with `400` on regular project folders (must use `onDemandContainer`, `thresholdContainer`, `emergingIssueContainer`), and fail with `400 Bad Request` on `EIENTERPRISE`/`EIANALYTIC`/`EITHRESHOLD` child bookmark Data Selections (must use a standalone `DEFAULT`/`ADHOC` root DS).
+- **`WRNA_CALCPERIODS` `. - 4` Failure:** If `AIoTPgMeta.TABLE_META_PG.last_data_dttm` is null/missing, **every** EI run fails ~50s in inside `WRNA_CALCPERIODS` (`g_refresh_PRODUCT` missing). Always read the **first** `ERROR:` line in `get_iot_analysis_step_log_tool`, never the knock-on `upcase(&g_origanalysisid)` errors.
 - `AlertID` is not unique (concepts.md).
-- Sort client-side by `score` / `cost_score`.
-- Outputs are in `QASANLOUT.EIENTERPRISE_WMEXT_<hash>` (alerts) and `_WUMKR_<hash>` (cell grid). Take the
-  hash from the tenant profile, never guess it.
+- Sort client-side by `score` / `cost_score` (break ties by `lastRunDate` descending).
+- Outputs are in `QASANLOUT.EIENTERPRISE_WMEXT_<shortId>` (alerts) and `EIENTERPRISE_WUMKR_<shortId>` (cell grid). Resolve `shortId` dynamically via `get_iot_analysis_details_tool` (~62% start with digits `0`–`9`); on tenants without `_DETAILS_` tables, 3rd-time-dimension sales-lag breaches (`Sijk > cijk` across `BUILDTOSALEMONTHCOUNT`) live directly in `EIENTERPRISE_WUMKR_<shortId>` keyed by `uniq_dh`/`uniq_de`.
+- **CAPA Clean-Point Verification (`BP 6`):** Require 4 views (WUMKR breach cells, matched-TIS rate $z$-test with **`post_mature_units >= 30`** guard so immature right-censored builds never close an alert prematurely, historical $+2\sigma$ baseline control band, and Weibull $\beta$/B-life shift).
 - The tool's `display_status_cd` reflects the assignment status in the UI, but you can't set it.

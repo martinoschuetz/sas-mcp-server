@@ -60,6 +60,26 @@
         "Explains the steps[0]-only persistence behavior of PUT /iotAnalysis/analyses/{id}",
         "Recommends update_analysis_step_parameters_tool (or sending only the target step as steps[0])"
       ]
+    },
+    {
+      "id": "CAF-7-va-custom-graph-filter-and-state",
+      "prompt": "I exported a custom VA SPC report into _vaoutput.template, kept autoInteractionMode=\"oneWayFilter\", used a discrete LineChart over 45,000 timestamps, and left <SASReportState> intact. Now downstream analyses lock to the prototype asset, fail filter clicks, or throw HTTP 500 in sas-report-images. Why?",
+      "expected_output": "Custom graphs (graphType=\"custom\") ignore autoInteractionMode=\"oneWayFilter\" (require explicit <Interaction type=\"filter\"> + PAM_ASSET_ID + dynamic first <Prompt> defaults), exported <PromptState> inside <SASReportState> freezes runs to the old asset (reset to <SASReportState><View/></SASReportState>), and discrete <LineChart> on 45k points crashes sas-report-images (use continuous <SeriesPlot connectOrder=\"xaxis\"> + <TimeOpts>, maxRows=\"250000\" truncate, and a 1-row/timestamp series table).",
+      "expectations": [
+        "Explains why autoInteractionMode=\"oneWayFilter\" fails on graphType=\"custom\" and specifies explicit filter <Interaction> wiring with dynamic first defaults",
+        "Instructs stripping <SASReportState> to <SASReportState><View/></SASReportState>",
+        "Replaces discrete <LineChart> with continuous <SeriesPlot> + <TimeOpts> under the 250,000-cell ceiling (maxRowsBehavior=\"truncate\")"
+      ]
+    },
+    {
+      "id": "CAF-8-anomaly-varscreen-and-frozen-baseline",
+      "prompt": "In my 3-step SVDD/Isolation Forest anomaly CAF, training R2/p99 looks clean, but Step 3 immediately pins every scored observation to Alarm. What went wrong and how should Step 2 and Step 3 coordinate?",
+      "expected_output": "An elapsed-time counter (|corr(x,DATETIME)| >= 0.90) or constant training tag was included, Step 2 omitted frozen STABLE_PERIOD standardisation (STDSTAT) for scale-sensitive SVDD, or Step 3 recomputed PROC SPC/threshold limits on the scoring window instead of reading frozen Step 2 VARSCREEN, STDSTAT, and THRESH_*/DMAX_*.",
+      "expectations": [
+        "Identifies elapsed-time counter / constant baseline tag screening (VARSCREEN) before training",
+        "Specifies freezing Step 2 STDSTAT and THRESH_*/DMAX_* severity baseline so Step 3 never judges itself against scoring-window statistics",
+        "Explains why raw PROC SPC I-MR limits collapse on autocorrelated anomaly scores"
+      ]
     }
   ]
 }

@@ -218,3 +218,18 @@ Before marking a multi-step CAF complete, verify parameter retention programmati
 3. `POST /iotAnalysis/analyses/{analysisId}/steps/{modelStepId}/inputs/{paramName}/possibleValues` with JSON body `{"values": vmap}`:
    - For `SINGLESELECT`, `MULTISELECT`, and `DROPDOWN`: confirm every saved `CurrentValues` key is present in `{item["key"] for item in resp.json()["items"]}` (`100%` retention).
    - For `STABLEPERIOD`: confirm `resp.json()["items"]` returns the 6 resolved metadata keys (`RESOLVEONUI=true`, non-empty `TableName`, `ValueColumnName`, `WhereCondition`).
+
+---
+
+## 4. Advanced Corpus SpEL `#ctx` & Go-Template Patterns (`Standard/` & `Alerts/`)
+
+Observed across the 14 unpacked `STANDARD` (`Standard/`) and 3 `ALERTS` (`Alerts/`) AIoT packages (`caf_registry.CTX_METHODS`):
+
+| Pattern | Source Examples | How It Works |
+| :--- | :--- | :--- |
+| **Step-status field locking (`#ctx.getStepStatus`)** | `EIENTERPRISE_PRODUCT` (`EIENTERPRISE_REPORTVAR_02`) | Disables immutable cohort parameters (`DATADOMAIN`, `BYVAR`, `REPORTVAR`, `ANALYSISVAR`, `M`, `EI_INTERVAL`) once `#ctx.getStepStatus('EIENTERPRISE_PRODUCT') != 'SAVED'`. |
+| **Output-driven UI routing (`#ctx.getOutputParamValueByModelStepId`)** | `EIENTERPRISE_PRODUCT` (`EIENTERPRISE_DATADOMAIN_01`) | Dynamically switches `__VECHILDANALYSIS__` (`ve22` vs. `ve80`) from `alert_type` published by the prior run. |
+| **Dynamic numeric stepper mutation (`#ctx.updateParamPropValue`)** | `EITHRESHOLD_PRODUCT`, `PARETO_PRODUCT` | Changes `MINSAMPLESIZE` `min`, `max`, and `fraction` live (`0..999999999` `fraction=0` for `count`; `0..100` `fraction=2` for `percent`) when `MINSAMPLESIZETYPE` toggles. |
+| **Warranty usage helper methods** | `EITHRESHOLD_PRODUCT`, `PARETO_PRODUCT`, `EXPOSURE_PRODUCT` | `#ctx.usageTypeInteraction('USAGETYPE')`, `#ctx.showUsageType('USAGETYPE')`, `#ctx.hideUsageType('USAGETYPE')` coordinate `USAGEPROFILE` + `USAGETYPE` (`mileage` \| `hours`) + `WRTYUSAGEMAX*` visibility. |
+| **Static `RESTAPI` column lookup body (Go template)** | `PARETO_PRODUCT`, `EIENTERPRISE_PRODUCT` | `POST /dataSelection/tableColumns` (`Headers: {"Content-Type": "application/vnd.sas.data.selection.analysis.column.attribute"}`) with `{{if hasCurrentValue $.values "DATADOMAIN"}}{{$cv:=getCurrentValue $.values "DATADOMAIN"}}"domains":[{{toCSV $cv}}],{{end}}` (`key_path="items.key"`, `value_path="value"`). Watch for zero leading/trailing whitespace in headers, URIs, and paths. |
+| **Go `text/template` VA helpers** | `EITHRESHOLD_PRODUCT`, `PARETO_PRODUCT`, `RELIABILITY_PRODUCT` | Output templates use `showColumn .COLUMNSTOSHOW "FLAGISSUE"`, `localizeValue`, `getColumnFormat`, `getColumnLabel`, `resolveSelectAndInputControlValue`, and `{{if eq .alert_type "EVENTPERIOD"}}`. |

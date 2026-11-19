@@ -144,20 +144,24 @@ drop every claim that had no SSD ticket). Instead, both event tables link `N:1` 
 |---|---|
 | find / inspect | `list_data_selections_tool`, `get_data_selection_details` |
 | variables | `list_fqa_data_model_variables_tool(data_selection_id)` (incomplete; see data-model.md) |
+| create standalone | `create_data_selection_tool` (`POST /dataSelection/dataSelections` — note Viya always sets `creationType: "DEFAULT"` regardless of input) |
 | change filters | `update_data_selection_filters_tool(data_selection_id, new_filters)` |
 | change dates | `set_data_selection_date_range_tool(selection_id, start_date, end_date)` |
-| copy / combine | `copy_data_selection_tool`, `copy_data_selections_tool`, `combine_data_selections_tool` |
-| launch | `launch_data_selection_and_wait_tool` (needs a key dimension, `AIOT_LAUNCH_KEY_DIM=ASSET`) |
+| copy / combine | `copy_data_selection_tool`, `copy_data_selections_tool`, `combine_data_selections_tool` (always put an `ADHOC`/`DEFAULT` DS first as `base_ds_id`!) |
+| launch / launchers | `launch_data_selection_tool`, `launch_data_selection_and_wait_tool` (**FQA requires `launch_key_dim="PRODUCT"`, `transpose_flag=0`, 11 explicit `launch_columns` + `launch_column_tables`, and `<= 32`-char `table_name`**; server default `ASSET` + `transpose=1` is for sensor telemetry!), `list_launchers_tool`, `get_launcher_details_tool`, `delete_launcher_tool(selection_id, launch_id)` |
 | child DS from a node | `create_child_data_selection_and_launch_tool` |
-| delete | `delete_data_selection_tool`; `force_delete_fqa_object_tool` only for objects you created |
+| delete | `delete_data_selection_tool` (`423 Locked` while analyses or launchers reference it — delete dependents bottom-up first); `force_delete_fqa_object_tool` emergency only |
 
-All write tools need user approval (writeback.md).
+All write tools need user approval (writeback.md). Full REST rules: [object-lifecycle-and-api-traps.md](object-lifecycle-and-api-traps.md).
 
 Traps:
+- **FQA vs. non-FQA Data Selections look identical on `list_data_selections_tool`:** Summary records carry no `solution` or `mart` tag — standalone FQA cohorts and non-FQA PdM/Sensor cohorts (`ASSET`, `EVENTS`, `TAGS`) both report `creationType="DEFAULT"`, `category="SIMPLE"`. Only `creationType` $\in$ `{"EIENTERPRISE", "EIANALYTIC", "EITHRESHOLD"}` proves FQA at list time; for `DEFAULT`/`ADHOC`, inspect `get_data_selection_details` $\rightarrow$ `filterCriteria[*].componentTypeCode` (`PRODUCT`, `CLAIM`, `LABOR`, `PART`, `SSD`, `DTC` vs. `ASSET`, `EVENTS`, `TAGS`).
+- **Copying or combining `EIENTERPRISE` child Data Selections (`HTTP 400`):** `/copy` on an `EIENTERPRISE` child DS fails with `400 Bad Request` unless `creationType="EIENTERPRISE"` is passed; in `combine_data_selections_tool`, always place a standalone `ADHOC`/`DEFAULT` DS first as `base_ds_id` ahead of any `EIENTERPRISE` child DS.
+- **Launcher `count` vs. permissions & `transposeFlag` type split:** `list_launchers_tool` returns a tenant-wide `count` while filtering `items` to the caller (stop paging when `len(items) < limit`), and `transposeFlag` is boolean `true` on list vs. string `"1"` on detail. Poll launch `jobId` (not launcher `id`) via `get_job_status`.
 - **Launch after every change.** An edited DS is outdated until it is relaunched. Analyses on it fail or
   use stale data.
 - `creation_type`: `DEFAULT` (manual) or `EIENTERPRISE` (from an alert). Alert data selections are filtered to
-  the breakout, so many analyses are degenerate on them (preflight.md).
+  the breakout, so many analyses are degenerate on them (preflight.md), and root Early-Warning analyses (`On Demand` / `Threshold` / `Emerging Issues`) reject `EIENTERPRISE` child DSs with `400 Bad Request`.
 - On a demo tenant, rolling periods resolve to years in the past, because the refresh date is old.
 - Confirm the domain list before running a domain-specific analysis. Failure Relationships on
   LABOR needs Claim Labor Codes in the DS.
