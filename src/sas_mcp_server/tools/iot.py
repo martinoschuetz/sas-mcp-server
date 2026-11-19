@@ -449,6 +449,35 @@ async def delete_data_selection_launch(selection_id: str, launch_id: str, token:
             f"/dataSelection/dataSelections/{selection_id}/launches/{launch_id}", client)
 
 
+async def list_data_selection_attributes(token: str, solution: str | None = None,
+                                         limit: int = 500) -> dict:
+    """Lists Data Selection filter attributes (UI labels, column names, component types, and IDs)."""
+    async with make_client(token) as client:
+        raw = await _get_json("/dataSelection/filterAttributes", client,
+                              params={"limit": max(1, min(limit, 1000))})
+    items = raw.get("items") or []
+    fqa_types = {"PRODUCT", "CLAIM", "LABOR", "PART", "CALLCENTER", "SSD", "DTC"}
+    if solution:
+        sol = solution.strip().upper()
+        if sol == "FQA":
+            items = [a for a in items if str(a.get("componentTypeCode") or "").upper() in fqa_types]
+        elif sol in ("AIOT", "APA"):
+            items = [a for a in items if str(a.get("componentTypeCode") or "").upper() not in fqa_types]
+    return {"count": len(items), "items": items}
+
+
+async def get_filter_attribute_values(attribute_id: str, token: str,
+                                      start: int = 0, limit: int = 100,
+                                      filter_query: str | None = None) -> dict:
+    """Lists distinct possible UI values for a Data Selection filter attribute."""
+    params: dict[str, Any] = {"start": max(0, start), "limit": max(1, min(limit, 500))}
+    if filter_query:
+        params["filter"] = filter_query
+    async with make_client(token) as client:
+        return await _get_json(f"/dataSelection/filterAttributes/{attribute_id}/possibleValues",
+                               client, params=params)
+
+
 async def list_iot_projects(token: str) -> dict:
     """Lists project instances from the IoT analysis service."""
     async with make_client(token) as client:
@@ -1422,6 +1451,41 @@ def register(
         token = await get_token(ctx)
         await delete_data_selection_launch(selection_id, launch_id, token)
         return f"Launcher {launch_id} of data selection {selection_id} deleted successfully."
+
+    @mcp.tool()
+    async def list_data_selection_attributes_tool(ctx: Context, solution: str | None = None,
+                                                  limit: int = 500) -> dict:
+        """
+        Lists available Data Selection filter attributes with their UI display labels,
+        filterAttributeIds, column names, field types, and componentTypeCodes.
+
+        Args:
+            solution (str, optional): Filter by 'FQA' (Product/Claim/Labor/Part/CallCenter)
+                or 'AIOT'/'APA' (Asset/Sensor/Events). Omit for all attributes.
+            limit (int): Maximum attributes to return (default 500).
+        """
+        logger.info("--- TOOL USED: list_data_selection_attributes (solution=%s) ---", solution)
+        token = await get_token(ctx)
+        return await list_data_selection_attributes(token, solution=solution, limit=limit)
+
+    @mcp.tool()
+    async def get_filter_attribute_values_tool(attribute_id: str, ctx: Context,
+                                               start: int = 0, limit: int = 100,
+                                               filter_query: str | None = None) -> dict:
+        """
+        Retrieves valid UI picklist values for a specific Data Selection filterAttributeId
+        (e.g., 'MODEL_CD_PRODUCT', 'PRIM_LABOR_CD_CLAIM').
+
+        Args:
+            attribute_id (str): The filterAttributeId from list_data_selection_attributes_tool.
+            start (int): Zero-based offset (default 0).
+            limit (int): Max values to return (default 100, max 500).
+            filter_query (str, optional): Optional Viya filter expression.
+        """
+        logger.info("--- TOOL USED: get_filter_attribute_values (%s) ---", attribute_id)
+        token = await get_token(ctx)
+        return await get_filter_attribute_values(attribute_id, token, start=start,
+                                                 limit=limit, filter_query=filter_query)
 
     @mcp.tool()
     async def copy_data_selection_tool(selection_id: str, new_name: str,

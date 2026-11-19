@@ -1389,4 +1389,48 @@ async def test_create_root_emerging_issues_analysis_reports_an_empty_copy(mock_e
             )
 
 
+@pytest.mark.asyncio
+@respx.mock
+async def test_data_selection_attributes_and_possible_values_tools(mock_env_vars):
+    """Verify FQA vs AIOT attribute filtering and possibleValues lookup."""
+    from fastmcp import Client, FastMCP
+
+    from sas_mcp_server.tools.iot import register
+
+    mcp = FastMCP("test-ds-attrs")
+
+    async def fake_token(ctx):  # noqa: ARG001
+        return "fake_token"
+
+    register(mcp, fake_token)
+
+    respx.get(f"{VIYA_ENDPOINT}/dataSelection/filterAttributes").mock(
+        return_value=Response(
+            200,
+            json={
+                "items": [
+                    {"id": "MODEL_CD_PRODUCT", "columnName": "MODEL_CD", "componentTypeCode": "PRODUCT", "displayLabel": "Model Code"},
+                    {"id": "DEVICE_TYPE_ASSET", "columnName": "DEVICE_TYPE", "componentTypeCode": "ASSET", "displayLabel": "Device Type"},
+                ]
+            },
+        )
+    )
+    respx.get(f"{VIYA_ENDPOINT}/dataSelection/filterAttributes/MODEL_CD_PRODUCT/possibleValues").mock(
+        return_value=Response(200, json={"count": 2, "items": [{"value": "Galacto"}, {"value": "Lambda"}]})
+    )
+
+    async with Client(mcp) as client:
+        fqa_only = (await client.call_tool("list_data_selection_attributes_tool", {"solution": "FQA"})).data
+        assert fqa_only["count"] == 1
+        assert fqa_only["items"][0]["id"] == "MODEL_CD_PRODUCT"
+
+        apa_only = (await client.call_tool("list_data_selection_attributes_tool", {"solution": "APA"})).data
+        assert apa_only["count"] == 1
+        assert apa_only["items"][0]["id"] == "DEVICE_TYPE_ASSET"
+
+        vals = (await client.call_tool("get_filter_attribute_values_tool", {"attribute_id": "MODEL_CD_PRODUCT"})).data
+        assert vals["count"] == 2
+
+
+
 

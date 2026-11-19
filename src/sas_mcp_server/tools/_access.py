@@ -127,6 +127,8 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset(
         "get_iot_model_definition_tool",
         "get_launcher_details_tool",
         "list_launchers_tool",
+        "list_data_selection_attributes_tool",
+        "get_filter_attribute_values_tool",
         "get_alert_filters_tool",
         "get_analysis_execution_capabilities",
         "list_alerts_for_run_tool",
