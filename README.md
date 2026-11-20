@@ -4,7 +4,7 @@ A Model Context Protocol (MCP) server for executing SAS code, training AutoML pr
 
 ## Features
 
-- 249 tools across 17 selectable tiers (137 in tiers 0–11 from upstream `sassoftware/sas-mcp-server`, 112 in this fork's tiers 12–16), spanning the Analytics Life Cycle on SAS Viya
+- 251 tools across 17 selectable tiers (137 in tiers 0–11 from upstream `sassoftware/sas-mcp-server`, 114 in this fork's tiers 12–16), spanning the Analytics Life Cycle on SAS Viya
 - Interactive views (MCP Apps) for data, SAS logs and glossary editing in clients that render them — Claude, ChatGPT, Microsoft 365 Copilot, VS Code, Cursor
 - Prompt Templates for improving your SAS Code
 - OAuth2 authentication with PKCE flow
@@ -180,7 +180,7 @@ MCP_TIERS=0-3 uv run app
 
 ### Read-only mode
 
-Set `MCP_READ_ONLY=true` to expose only tools that neither change server-side state nor cause server-side work — 113 of the 249 tools. Withheld tools are never registered, so they are absent from the client's tool list entirely: the model cannot see them, so it cannot attempt them.
+Set `MCP_READ_ONLY=true` to expose only tools that neither change server-side state nor cause server-side work — 115 of the 251 tools. Withheld tools are never registered, so they are absent from the client's tool list entirely: the model cannot see them, so it cannot attempt them.
 
 This is a filter over the tiers, not a tier of its own — the read/write split cuts across every tier (Tier 3 has both `get_report` and `delete_report`). The two settings compose:
 
@@ -448,10 +448,12 @@ The steps after a model is trained: register it, keep it in a project, make it t
 - **delete_kpi_alert_rule**: Delete a KPI alert rule
 
 #### Tier 12 — IoT & FQA (Field Quality Analytics)
-- **Data Selections**: Tools to list, get, create, copy, launch, and update data selections.
-- **Analyses**: Tools to list, get, create, run, copy, and delete IoT and FQA analyses (including Pareto, Detail, Trend, Event Forecasting, and more).
-- **Projects & Folders**: Tools to list, create, and delete IoT projects and their containing folders.
-- **Forecasting & Models**: Tools to list and get forecasting filters, comparisons, pipeline results, and IoT model definitions.
+- **Data Selections, Launchers & Filter Picklists**: Tools to list, get, create standalone (`filterCriteria`), copy, combine, update, delete, and launch data selections (`CAS`, `VA`, `SASStudio`, `ModelStudio`, `CSV`), manage cohort launchers (`list_launchers_tool`, `get_launcher_details_tool`, `delete_launcher_tool`), and inspect UI filter attributes and picklist values (`list_data_selection_attributes_tool`, `get_filter_attribute_values_tool`).
+- **Analyses & Single-Call FQA Workflows**: Tools to list (with full-collection filtering/paging), get, create, run, update step parameters, copy, and delete IoT and FQA analyses across all 14 `STANDARD` and 3 `ALERTS` types, plus composite CAS/FQA tools (`run_fqa_preflight_checks_tool`, `triage_emerging_issue_runs_tool`, `inspect_emerging_issue_alert_context_tool`, `screen_common_cause_candidates_tool`, `evaluate_subpopulation_lift_and_coverage_tool`, `synthesize_root_cause_data_selection_tool`, and `fqa_template_*`).
+- **Projects & Folders**: Tools to list, create, and delete IoT projects and SAS Content folders (including `@myFolder`, recursive folder deletion, and `add_folder_member_tool` / `remove_folder_member_tool`).
+- **Forecasting & Models**: Tools to list, create, run, plot, and compare SAS Visual Forecasting data definitions, filters, and pipeline results alongside IoT model definitions.
+
+Authoring and investigation rules for agents are in the `sas-fqa` (`knowledge/fqa/`) and `sas-forecasting` (`knowledge/forecasting/`) skills.
 
 #### Tier 13 — Generative AI
 - **list_genai_agents** / **get_genai_agent**: Discover and fetch details for available Generative AI retrieval agents.
@@ -487,7 +489,7 @@ Tier 12 runs the analyses a deployment already offers. This tier builds the **ty
 - **set_analysis_type_state**: Activate or deactivate. Deactivating is how a type is withdrawn without breaking the analyses created from it — the reversible alternative to deletion
 - **delete_analysis_type**: Remove a type permanently
 
-Authoring rules for agents are in `.agents/rules/caf.md`.
+Authoring rules, reference guides, and single-folder package templates for agents are in the `sas-caf` skill (`knowledge/caf/`).
 
 #### Tier 16 — Knowledge Base (Domain Playbooks)
 The domain skills under `knowledge/` (FQA, CAF, ESP, forecasting, API, SAS, standards), served to any MCP client, including ones without access to the repository.
@@ -749,7 +751,7 @@ tsv, and `file_path`/`data_format` coverage needs no extra deps. Generating a
 `sas7bdat`/`sashdat` fixture requires SAS itself, so those two formats are covered by
 unit-level payload tests only, not live.
 
-Every one of the 137 upstream tools (tiers 0–11) and 9 prompt templates has an integration test, and so do 65 of the fork's 106 tools; the other 41 (in the IoT & FQA and Custom Analysis Framework tiers) are not yet in the coverage map, so a live integration run currently fails the first of these guards. Coverage is enforced by the
+Every one of the 137 upstream tools (tiers 0–11) and 9 prompt templates has an integration test, and so do 65 of the fork's 114 tools; the other 49 (in the IoT & FQA and Custom Analysis Framework tiers) are not yet in the coverage map, so a live integration run currently fails the first of these guards. Coverage is enforced by the
 `test_every_tool_has_integration_coverage` / `test_every_prompt_has_integration_coverage`
 guards — adding a new tool or prompt without integration coverage fails the suite. The
 resource-dependent tests discover real targets on the instance: `score_data` scores the most

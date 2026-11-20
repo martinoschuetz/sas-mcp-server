@@ -1,10 +1,10 @@
 # GitHub Copilot Instructions — SAS MCP Server
 
-Please follow the repository rules and domain skill playbooks documented in [`AGENTS.md`](../AGENTS.md) and [`CLAUDE.md`](../CLAUDE.md):
+Please follow the repository rules, cross-agent handoff ledger, and domain skill playbooks documented in [`AGENTS.md`](../AGENTS.md), [`CLAUDE.md`](../CLAUDE.md), and [`_docs/HANDOFF.md`](../_docs/HANDOFF.md):
 
-- **SAS & Python Standards**: Consult [`knowledge/standards/sas.md`](../knowledge/standards/sas.md) and [`knowledge/standards/python.md`](../knowledge/standards/python.md).
-- **SAS Field Quality Analytics (`sas-fqa`)**: Consult [`knowledge/fqa/SKILL.md`](../knowledge/fqa/SKILL.md) and [`knowledge/fqa/mcp_execution_rules.md`](../knowledge/fqa/mcp_execution_rules.md). Remember to widen the population in Phase 3 before running Text Mining or Failure Relationships when Phase 2 leaves a small subpopulation with fixed variable levels.
-- **Custom Analysis Framework (`sas-caf`)**: Consult [`knowledge/caf/SKILL.md`](../knowledge/caf/SKILL.md) and [`knowledge/caf/mcp_execution_rules.md`](../knowledge/caf/mcp_execution_rules.md).
+- **SAS & Python Standards (`251` Tools Across Tiers `0`–`16`)**: Consult [`knowledge/standards/sas.md`](../knowledge/standards/sas.md), [`knowledge/standards/python.md`](../knowledge/standards/python.md), and fail-closed access classification in [`src/sas_mcp_server/tools/_access.py`](../src/sas_mcp_server/tools/_access.py) (`115` read-only + `136` write).
+- **SAS Field Quality Analytics (`sas-fqa` `v0.6.0`)**: Consult [`knowledge/fqa/SKILL.md`](../knowledge/fqa/SKILL.md), [`knowledge/fqa/mcp_execution_rules.md`](../knowledge/fqa/mcp_execution_rules.md), [`knowledge/fqa/references/standard-models-caf.md`](../knowledge/fqa/references/standard-models-caf.md), and [`knowledge/fqa/references/object-lifecycle-and-api-traps.md`](../knowledge/fqa/references/object-lifecycle-and-api-traps.md). Remember to widen the population in Phase 3 before running Text Mining or Failure Relationships when Phase 2 leaves a small subpopulation with fixed variable levels.
+- **Custom Analysis Framework (`sas-caf` `v2.1.0`)**: Consult [`knowledge/caf/SKILL.md`](../knowledge/caf/SKILL.md), [`knowledge/caf/mcp_execution_rules.md`](../knowledge/caf/mcp_execution_rules.md), the 7 reference guides in `knowledge/caf/references/`, and `knowledge/caf/templates/build_package.py`.
 - **SAS Event Stream Processing (`sas-esp`)**: Consult [`knowledge/esp/SKILL.md`](../knowledge/esp/SKILL.md) and [`knowledge/esp/mcp_execution_rules.md`](../knowledge/esp/mcp_execution_rules.md).
 - **SAS Forecasting (`sas-forecasting`)**: Consult [`knowledge/forecasting/SKILL.md`](../knowledge/forecasting/SKILL.md) and [`knowledge/forecasting/mcp_execution_rules.md`](../knowledge/forecasting/mcp_execution_rules.md).
 - **SAS Viya REST APIs (`sas-api`)**: Consult [`knowledge/api/SKILL.md`](../knowledge/api/SKILL.md).

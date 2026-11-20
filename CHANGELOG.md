@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+- **Tier 12 — read-only Data Selection filter attributes and UI picklist values.** Two read-only discovery tools written against the `dataSelection` OpenAPI specification so agents can construct exact `filterCriteria` payloads for standalone or updated Data Selections without guessing internal column or attribute IDs:
+  - **`list_data_selection_attributes_tool`** (`GET /dataSelection/filterAttributes`) returns UI display labels, `filterAttributeId`s, column names, field types, and `componentTypeCode`s, optionally filtered by `solution='FQA'` (`PRODUCT`, `CLAIM`, `LABOR`, `PART`, `CALLCENTER`, `SSD`, `DTC`) vs. `'AIOT'`/`'APA'` (`ASSET`, `SENSOR`, `EVENTS`).
+  - **`get_filter_attribute_values_tool`** (`GET /dataSelection/filterAttributes/{attribute_id}/possibleValues`) pages and filters valid UI picklist values for a given `filterAttributeId` (e.g., `MODEL_CD_PRODUCT`, `PRIM_LABOR_CD_CLAIM`).
+  - Total surface: **251 tools across 17 tiers (`0`–`16`); 115 of them are read-only (`READ_ONLY_TOOLS`) and 136 are write/compute (`WRITE_TOOLS`).**
+- **Expanded `sas-caf` (`v2.1.0`) and `sas-fqa` (`v0.6.0`) domain skillsets (`knowledge/caf/`, `knowledge/fqa/`).**
+  - *`sas-caf` (`v2.1.0`):* Codified 13 live-verified Viya CAF rules (`RESOLVEONUI="true"` strictly on `STABLEPERIOD`, empty `<Condition>` single-parent cascades, `<=32`-char uppercase `QASAnlOut` CRC32 naming + `remACs=true` self-healing pre-cleanup, Rule 11 BIRD XML `<SeriesPlot>` + `<TimeOpts>` and `55×–207×` visual row compression), 7 reference guides (`aiot_platform_and_etl.md`, `anomaly_caf_design_and_patterns.md`, `ui_lookups_and_interactions.md`, `sas_cas_plumbing.md`, `va_output_templates.md`, `troubleshooting.md`, `case_study_isolation_forest.md`), single-folder compiler template (`templates/build_package.py`), and `evals/evals.json`.
+  - *`sas-fqa` (`v0.6.0`):* Added `references/standard-models-caf.md` (all 17 `STANDARD` and `ALERTS` model contracts, visual caps, and SpEL locks) and `references/object-lifecycle-and-api-traps.md` (11-column Launcher payloads, `/copy` `EIENTERPRISE` locks, `@myFolder` vs. `IoTProjects` ACLs, non-FQA domain guards, and HTTP 423 dependency waits).
+- **Cross-agent handoff ledger (`_docs/HANDOFF.md`) and updated 22-slide SAS corporate deck (`SAS_Viya_MCP_Server.pptx`, `scripts/presentation/`).** Documents live tool/deployment state, cross-repo continuity for Claude Code and Google Antigravity/Gemini, and reproducible Mermaid + `python-pptx` deck builders across FQA/RAM, CAF (18 live suites), SAS Optimizer for IoT, SAS ESP, and Visual Forecasting.
+
 ## [1.20.2] - 2026-11-17
 
 ### Added
