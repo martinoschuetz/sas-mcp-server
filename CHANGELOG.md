@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.20.3] - 2026-11-23
+
 ### Added
 - **Tier 12 — read-only Data Selection filter attributes and UI picklist values.** Two read-only discovery tools written against the `dataSelection` OpenAPI specification so agents can construct exact `filterCriteria` payloads for standalone or updated Data Selections without guessing internal column or attribute IDs:
   - **`list_data_selection_attributes_tool`** (`GET /dataSelection/filterAttributes`) returns UI display labels, `filterAttributeId`s, column names, field types, and `componentTypeCode`s, optionally filtered by `solution='FQA'` (`PRODUCT`, `CLAIM`, `LABOR`, `PART`, `CALLCENTER`, `SSD`, `DTC`) vs. `'AIOT'`/`'APA'` (`ASSET`, `SENSOR`, `EVENTS`).
