@@ -2831,6 +2831,9 @@ async def test_iot_workflow(integration_mcp_server):
     respx.delete(f"{viya_url}/iotAnalysis/analyses/a1").mock(
         return_value=Response(204)
     )
+    respx.post(f"{viya_url}/iotAnalysis/analysisActions/deletions").mock(
+        return_value=Response(200, json={"a1": ""})
+    )
     respx.post(f"{viya_url}/iotAnalysis/analyses/a1/jobs").mock(
         return_value=Response(201, json={"id": "job_1", "links": [{"rel": "job", "href": "/jobExecution/jobs/job_1"}]})
     )

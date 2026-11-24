@@ -252,11 +252,43 @@ async def _put_data(url, client, data, content_type="text/csv", params=None):
     return resp.json()
 
 
+def _extract_viya_error_detail(resp: httpx.Response) -> str:
+    """Extract Viya's `application/vnd.sas.error+json` errorCode, message, and details when present."""
+    if not resp.content:
+        return ""
+    try:
+        body = resp.json()
+    except ValueError:
+        text = resp.text.strip()
+        return text[:400] if text else ""
+    if not isinstance(body, dict):
+        return ""
+    code = body.get("errorCode")
+    msg = str(body.get("message") or "").strip()
+    details = body.get("details")
+    det_txt = ""
+    if isinstance(details, list) and details:
+        det_txt = " | ".join(str(x).strip() for x in details[:3] if str(x).strip())
+    parts = []
+    if code is not None:
+        parts.append(f"[errorCode {code}]")
+    if msg:
+        parts.append(msg)
+    if det_txt and det_txt not in msg:
+        parts.append(f"({det_txt})")
+    return " ".join(parts).strip()
+
+
 async def _delete_resource(url, client):
-    """DELETE a Viya REST resource."""
+    """DELETE a Viya REST resource, surfacing Viya JSON error details (e.g., 423 errorCode 76003 lock holders)."""
     full_url = f"{VIYA_ENDPOINT}{url}"
     resp = await client.delete(full_url)
-    resp.raise_for_status()
+    if resp.status_code >= 400:
+        detail = _extract_viya_error_detail(resp)
+        if detail:
+            reason = f"{resp.status_code} {resp.reason_phrase}: {detail}"
+            raise httpx.HTTPStatusError(reason, request=resp.request, response=resp)
+        resp.raise_for_status()
 
 
 # ---------------------------------------------------------------------------
@@ -690,9 +722,50 @@ async def create_and_run_analysis(
 
 
 async def delete_iot_analysis(analysis_id: str, token: str) -> None:
-    """Deletes a SAS AIoT analysis."""
+    """Deletes a SAS AIoT analysis via `POST /iotAnalysis/analysisActions/deletions`.
+
+    Direct `DELETE /iotAnalysis/analyses/{id}` on completed analyses returns `404` mid-cleanup on Viya AIoT
+    and fails to unregister `data_sel_def_member` in `sas-data-selection`, leaving parent Data Selections
+    permanently `423 Locked` (`errorCode 76003`). The bulk deletion action unregisters the Data Selection
+    membership cleanly (`200 OK`, `{analysis_id: ""}`).
+    """
     async with make_client(token) as client:
-        await _delete_resource(f"/iotAnalysis/analyses/{analysis_id}", client)
+        full_url = f"{VIYA_ENDPOINT}/iotAnalysis/analysisActions/deletions"
+        resp = await client.post(
+            full_url,
+            json={"version": 1, "resources": [analysis_id]},
+            headers={
+                "Content-Type": "application/vnd.sas.selection+json",
+                "Accept": "application/json",
+            },
+        )
+        if resp.status_code >= 400:
+            detail = _extract_viya_error_detail(resp)
+            if detail:
+                raise httpx.HTTPStatusError(
+                    f"{resp.status_code} {resp.reason_phrase}: {detail}",
+                    request=resp.request,
+                    response=resp,
+                )
+            resp.raise_for_status()
+        if resp.status_code == 204 or not resp.content:
+            return
+        data = resp.json()
+        if isinstance(data, dict) and analysis_id in data:
+            entry = data[analysis_id]
+            if isinstance(entry, dict):
+                sub_status = int(entry.get("httpStatusCode") or 0)
+                err_code = entry.get("errorCode")
+                if sub_status >= 400 or err_code is not None:
+                    eff_status = sub_status if sub_status >= 400 else 400
+                    msg = str(entry.get("message") or entry).strip()
+                    code_part = f"[errorCode {err_code}] " if err_code is not None else ""
+                    sub_resp = httpx.Response(eff_status, json=entry, request=resp.request)
+                    raise httpx.HTTPStatusError(
+                        f"Client error '{eff_status}' for analysis {analysis_id}: {code_part}{msg}",
+                        request=resp.request,
+                        response=sub_resp,
+                    )
 
 
 async def run_iot_analysis(analysis_id: str, token: str) -> dict:

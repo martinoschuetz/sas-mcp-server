@@ -253,8 +253,8 @@ async def test_forecasting_and_fqa_tools_via_fastmcp(mock_env_vars):
             json={"items": [{"id": "an-child", "dataSelectionId": "ds-1"}]},
         )
     )
-    del_an = respx.delete(f"{VIYA_ENDPOINT}/iotAnalysis/analyses/an-child").mock(
-        return_value=Response(204)
+    del_an = respx.post(f"{VIYA_ENDPOINT}/iotAnalysis/analysisActions/deletions").mock(
+        return_value=Response(200, json={"an-child": ""})
     )
     del_ds = respx.delete(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/ds-1").mock(
         return_value=Response(204)
@@ -929,8 +929,7 @@ async def test_caf_step_parameter_update_etag_and_step_job_polling(mock_env_vars
     from fastmcp import Client, FastMCP
     from httpx import Response
 
-    from sas_mcp_server.config import VIYA_ENDPOINT
-    from sas_mcp_server.tools.iot import register
+    from sas_mcp_server.tools.iot import VIYA_ENDPOINT, register
 
     mcp = FastMCP("iot-caf-step-test")
 
@@ -1430,6 +1429,48 @@ async def test_data_selection_attributes_and_possible_values_tools(mock_env_vars
 
         vals = (await client.call_tool("get_filter_attribute_values_tool", {"attribute_id": "MODEL_CD_PRODUCT"})).data
         assert vals["count"] == 2
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_delete_iot_analysis_uses_bulk_deletions_action_and_surfaces_per_item_errors(mock_env_vars):
+    """G-02: delete_iot_analysis must use POST /iotAnalysis/analysisActions/deletions to release DS membership."""
+    import httpx
+
+    from sas_mcp_server.tools.iot import delete_data_selection, delete_iot_analysis
+
+    del_route = respx.post(f"{VIYA_ENDPOINT}/iotAnalysis/analysisActions/deletions").mock(
+        return_value=Response(200, json={"anl-ok": ""})
+    )
+    await delete_iot_analysis("anl-ok", "fake_token")
+    assert del_route.called
+    req = del_route.calls.last.request
+    assert json.loads(req.content) == {"version": 1, "resources": ["anl-ok"]}
+    assert req.headers["Content-Type"] == "application/vnd.sas.selection+json"
+
+    # Per-resource 404 inside 200 bulk response raises HTTPStatusError with '404'
+    respx.post(f"{VIYA_ENDPOINT}/iotAnalysis/analysisActions/deletions").mock(
+        return_value=Response(
+            200,
+            json={"anl-gone": {"httpStatusCode": 404, "errorCode": 76200, "message": "Analysis not found"}},
+        )
+    )
+    with pytest.raises(httpx.HTTPStatusError, match="404.*76200.*Analysis not found"):
+        await delete_iot_analysis("anl-gone", "fake_token")
+
+    # _delete_resource surfaces Viya 423 Locked errorCode 76003 lock-holder message
+    respx.delete(f"{VIYA_ENDPOINT}/dataSelection/dataSelections/ds-locked").mock(
+        return_value=Response(
+            423,
+            json={
+                "errorCode": 76003,
+                "message": 'The data selection "FQAAGENT_Test" could not be deleted because it is currently in use by the following objects:\nPareto - FQAAGENT_Test',
+            },
+        )
+    )
+    with pytest.raises(httpx.HTTPStatusError, match=r"(?s)423.*76003.*Pareto - FQAAGENT_Test"):
+        await delete_data_selection("ds-locked", "fake_token")
+
 
 
 
