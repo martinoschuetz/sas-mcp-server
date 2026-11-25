@@ -517,7 +517,7 @@ async def list_iot_projects(token: str) -> dict:
                                accept="application/vnd.sas.collection+json")
 
 
-async def list_iot_analyses(token: str, start: int = None, limit: int = None) -> dict:  # pyright: ignore
+async def list_iot_analyses(token: str, start: int | None = None, limit: int | None = None) -> dict:
     """Lists all defined SAS Analytics for IoT analyses."""
     params = {}
     if start is not None:
